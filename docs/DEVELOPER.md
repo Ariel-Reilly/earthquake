@@ -49,14 +49,13 @@
 
 ### 前端
 
-| 类别        | 技术                                                        |
-| ----------- | ----------------------------------------------------------- |
-| 框架        | Vue 3（Options/Composition API 混用，多为 `<script setup>`) |
-| 构建        | Vite 8（`@vitejs/plugin-vue` + `vite-plugin-cesium`）       |
-| 路由        | vue-router (web history)                                    |
-| 地图（2D）  | OpenLayers 10（`mapService.js`）                            |
-| 地图（3D）  | Cesium 1.144（按需加载）                                    |
-| Leaflet 1.9 | 当前源码未实际引用，可考虑从依赖中移除以减小体积            |
+| 类别       | 技术                                                        |
+| ---------- | ----------------------------------------------------------- |
+| 框架       | Vue 3（Options/Composition API 混用，多为 `<script setup>`) |
+| 构建       | Vite 8（`@vitejs/plugin-vue` + `vite-plugin-cesium`）       |
+| 路由       | vue-router (web history)                                    |
+| 地图（2D） | OpenLayers 10（`mapService.js`）                            |
+| 地图（3D） | Cesium 1.144（按需加载）                                    |
 
 ### 后端
 
@@ -447,17 +446,23 @@ dto/         → 请求/响应记录（record）
 
 ### 7.1 认证
 
-| 方法 | 路径                  | 说明                                                                                             | 公开               |
-| ---- | --------------------- | ------------------------------------------------------------------------------------------------ | ------------------ |
-| POST | `/api/auth/login`     | 登录，返回 token                                                                                 | ✅                 |
-| POST | `/api/auth/logout`    | 退出                                                                                             | ✅（无状态，占位） |
-| GET  | `/api/auth/ws-ticket` | 为已认证用户签发 WebSocket 一次性 ticket（60s TTL，一次性消费），用于替代在 query 中传递长期 JWT | 🔒（需有效 JWT）   |
+| 方法 | 路径                        | 说明                                                                                             | 公开               |
+| ---- | --------------------------- | ------------------------------------------------------------------------------------------------ | ------------------ |
+| POST | `/api/auth/login`           | 登录，返回 token                                                                                 | ✅                 |
+| POST | `/api/auth/logout`          | 退出                                                                                             | ✅（无状态，占位） |
+| POST | `/api/auth/change-password` | 当前登录用户修改自己的密码（需 old_password + new_password，≥8 字符含字母和数字）                | 🔒（需有效 JWT）   |
+| GET  | `/api/auth/ws-ticket`       | 为已认证用户签发 WebSocket 一次性 ticket（60s TTL，一次性消费），用于替代在 query 中传递长期 JWT | 🔒（需有效 JWT）   |
 
 ### 7.2 系统
 
-| 方法 | 路径                 | 说明             |
-| ---- | -------------------- | ---------------- |
-| GET  | `/api/system/health` | 健康检查（公开） |
+| 方法 | 路径                 | 说明                                                               |
+| ---- | -------------------- | ------------------------------------------------------------------ |
+| GET  | `/api/system/health` | 健康检查（公开）                                                   |
+| POST | `/api/system/health` | 健康检查（detailed=true 时检测所有依赖，任一关键依赖失败返回 503） |
+
+> **降级行为**：健康检查默认只检测 HTTP 服务自身可用性（返回 200 + "ok"）。
+> 若需要检测数据库/Redis/MinIO/EMQX/TDEngine 依赖，请通过 query 参数 `?detailed=true` 调用，
+> 此时返回每个依赖的 OK/WARN/FAIL 状态。任一关键依赖 FAIL 时 HTTP 状态码为 503。
 
 ### 7.3 仪表盘
 
@@ -607,6 +612,13 @@ dto/         → 请求/响应记录（record）
 
 **消息类型**：`warning`（预警状态变更）、`emergency`（应急事件新建/闭环）、`personnel`（值守人员位置更新）、`device`（设备状态变更）。
 
+> **消息类型 payload 示例**：
+>
+> - `warning`: `{"type":"warning","data":{"warningCode":"WG-001","status":"已确认","warningLevel":"红色","title":"青龙坡位移超限"},"version":1723747200}`
+> - `emergency`: `{"type":"emergency","data":{"eventCode":"EM-001","status":"处置中","title":"青龙坡滑坡应急启动"},"version":1723747200}`
+> - `personnel`: `{"type":"personnel","data":{"username":"周小雨","hazardCode":"HZ-001","longitude":107.21,"latitude":30.61,"status":"在现场"},"version":1723747200}`
+> - `device`: `{"type":"device","data":{"deviceCode":"DV-001","onlineStatus":"离线","batteryLevel":23},"version":1723747200}`
+
 前端（`src/services/realtimeService.js`）连接时**优先**调 `GET /api/auth/ws-ticket` 获取一次性 ticket，用 `?ticket=` 连接；失败时 fallback 到 `?token=`。重连时重新取 ticket，自动处理 token 刷新。基于 `version` 字段做幂等 upsert，丢弃过期/重复消息。后端 `RealtimeBroadcastService` 在 WarningService 的 confirm/dispatch/close/dismiss/resolve/create、EmergencyService 的 createFromWarning/resolve、DeviceDataService 的在线状态变化检测、PersonnelController 的位置上报中自动触发广播。
 
 > 配置开关：`geosentry.realtime.websocket-enabled=true`（默认启用）。`geosentry.ws.require-ticket=true`（prod 推荐）强制仅接受 ticket，禁用 raw JWT。
@@ -623,6 +635,12 @@ dto/         → 请求/响应记录（record）
 1. Maven 依赖（已在 `backend/pom.xml` 声明 scope=provided）：`com.taosdata.jdbc:taos-jdbcdriver:3.3.0`——部署时将 `taos-jdbcdriver-3.3.0.jar` 放入后端 classpath 即可；
 2. 配置 `tdengine.enabled=true`；
 3. try-catch 包裹，TDengine 不可用时不影响 PG 事务（日志 WARN）。
+
+> **双通道协调策略**：HTTP 为主动上报（设备批量推送），MQTT 为实时补充（broker 转发后端订阅）。
+> 去重语义：PostgreSQL 唯一索引 `idx_device_metric_unique(device_code, metric_code, recorded_at)` 保证幂等，
+> 重复到达的第二条被 catch 并跳过（DEBUG 日志），保留先到者。
+> 设备端必须发送服务端时间戳（若设备时钟漂移 < 1s，`recorded_at` 精度到秒仍可能视为重复，这是设计预期）。
+> 若设备需高精度时间，建议毫秒级上报并使用自定义去重键。
 
 ---
 
@@ -786,6 +804,12 @@ stopRealtimeSync({ keepListeners: false })
 3. 按 `hazard_code` 归并指标快照，`RuleEvaluator` 解析表达式求值：
    - 简单形式：`"disp_rate > 5"`
    - JSON 结构化（规划）：`{"operator":"AND","conditions":[{"metric":"..","comparator":">","value":..}]}`
+
+> **当前限制**：规则引擎目前仅支持简单比较表达式（如 `disp_rate > 5`、`rainfall >= 50.0`），
+> 由 Spring Expression Language 解析。JSON 结构化表达式（支持 AND/OR 组合、阈值范围、指标组合）
+> 已列为规划项，预计 v2 版本引入（表达式 AST 解析器）。
+> 当前建议通过多条规则组合（rule-engine-cron 每 30s 轮询）实现复杂条件。
+
 4. **去重**：同一 `(rule_code, hazard_code)` 已有未闭环预警时不再重复触发（通过 `WarningEventRepository.existsByRuleCodeAndHazardCodeAndStatusNot` 数据库索引查询，已补 `idx_warning_status_level` 覆盖）。
 5. 命中后生成预警（初始状态 **待确认**）；若 AI 服务启用，先调 `fusionRisk` 校验并可能升级等级，同时落 `risk_score_log` 记录因子快照。AI 不可用时降级沿用规则等级。**AI/规则输出均不自动派发，强制人工复核**。
 
@@ -816,40 +840,38 @@ stopRealtimeSync({ keepListeners: false })
 
 ### 11.2 后端（`application*.yml`，支持环境变量覆盖）
 
-| 变量                           | 默认                                         | 说明                                                                                                 |
-| ------------------------------ | -------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `SERVER_PORT`                  | 8080                                         | 后端监听端口（容器内）；Docker 时映射到宿主机 8081                                                   |
-| `FRONTEND_ORIGIN`              | http://localhost:5173                        | CORS 允许来源                                                                                        |
-| `JWT_SECRET`                   | **必须设置**，≥32 字符，不能匹配弱密钥黑名单 | JWT 签名密钥（启动时校验，不满足则应用启动失败）                                                     |
-| `JWT_EXPIRE`                   | PT2H                                         | 过期时长（ISO-8601 Duration）                                                                        |
-| `JWT_ISSUER`                   | geosentry                                    | JWT 签发者                                                                                           |
-| `DEV_USERS_ENABLED`            | true（dev）/ false（prod）                   | 内存 fallback 用户开关；prod 必须 false，强制 DB 用户                                                |
-| `DEVICE_AUTH_STRICT`           | false（dev）/ true（prod）                   | 设备上报严格模式；prod 必须 true，强制所有设备登记 api_key                                           |
-| `EMQX_USERNAME`                | 空（⚠️prod 必须设置）                        | EMQX broker 用户名，与 broker 侧认证用户一致                                                         |
-| `EMQX_PASSWORD`                | 空（⚠️prod 必须设置）                        | EMQX broker 密码                                                                                     |
-| `DEVICE_OFFLINE_THRESHOLD_MIN` | 5                                            | 设备离线判定阈值（分钟），`DeviceOnlineChecker` 每 60s 扫描 `last_report_at` 是否超过此阈值          |
-| `POSTGRES_*`                   | localhost/5432/geosentry                     | 数据库连接                                                                                           |
-| `REDIS_*`                      | localhost/6379/redis123                      | Redis                                                                                                |
-| `FILE_BASE_URL`                | http://localhost:9000                        | 附件基础 URL                                                                                         |
-| `MINIO_ENDPOINT`               | http://localhost:19000                       | MinIO 服务地址（Docker 内 http://minio:9000）                                                        |
-| `MINIO_ACCESS_KEY`             | minioadmin（⚠️prod 必须改）                  | MinIO Access Key。`MinioCredentialValidator` 在 DEV_USERS_ENABLED=false 时启动检查弱密钥并 fail-fast |
-| `MINIO_SECRET_KEY`             | minioadmin123（⚠️prod 必须改）               | MinIO Secret Key，prod 建议 ≥24 字符随机值。弱值在 prod 模式下直接阻断启动                           |
-| `MINIO_BUCKET`                 | geosentry                                    | 附件对象存储桶                                                                                       |
-| `EMQX_*`                       | 见编排                                       | MQTT                                                                                                 |
-| `TDENGINE_URL`                 | jdbc:TAOS-RS://localhost:6041/geohazard      | TDengine JDBC URL                                                                                    |
-| `TDENGINE_USERNAME`            | root                                         | TDengine 用户名                                                                                      |
-| `TDENGINE_PASSWORD`            | taosdata                                     | TDengine 密码                                                                                        |
-| `TDENGINE_ENABLED`             | false                                        | 是否启用 TDengine 时序写入。需同时将 `taos-jdbcdriver-3.3.0.jar` 放入后端 classpath                  |
-| `WS_REQUIRE_TICKET`            | false（dev）/ true（prod）                   | 强制 WebSocket 连接只能使用一次性 ticket（禁止 raw JWT query）。prod 推荐开启                        |
-| `AI_SERVICE_BASE_URL`          | http://localhost:8000/api/ai                 | AI 推理服务地址（Docker 内 http://ai-service:8000/api/ai）                                           |
-| `AI_ENABLED`                   | true                                         | AI 功能总开关；关闭后降级为纯规则模式                                                                |
-| `AI_TIMEOUT_MS`                | 30000                                        | AI 调用超时（毫秒）                                                                                  |
-| `AI_SCHEDULER_ENABLED`         | false                                        | 定时批量预测开关（默认关闭）                                                                         |
-| `AI_FORECAST_HORIZON`          | 7                                            | 预测未来 N 天                                                                                        |
-| `AI_FORECAST_CRON`             | `0 0 2 * * *`                                | 定时预测 cron 表达式                                                                                 |
-| `RULE_ENGINE_ENABLED`          | true                                         | 预警规则引擎开关                                                                                     |
-| `RULE_ENGINE_CRON`             | `*/30 * * * * *`                             | 规则引擎评估 cron                                                                                    |
-| `TZ`                           | Asia/Shanghai                                | 时区                                                                                                 |
+| 变量                                    | 默认                                    | 说明                                                                                                           |
+| --------------------------------------- | --------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `SERVER_PORT`                           | 8080                                    | 后端监听端口（容器内）；Docker 时映射到宿主机 8081                                                             |
+| `FRONTEND_ORIGIN`                       | http://localhost:5173                   | CORS 允许来源                                                                                                  |
+| `JWT_SECRET`                            | 必须 ≥ 32 字符强随机                    | JWT 签名密钥。长度不足或匹配弱密码时应用启动失败。生成：`openssl rand -base64 48`                              |
+| `JWT_EXPIRE`                            | PT2H                                    | 过期时长（ISO-8601 Duration）                                                                                  |
+| `JWT_ISSUER`                            | geosentry                               | JWT 签发者                                                                                                     |
+| `DEV_USERS_ENABLED`                     | true（dev）/ false（prod 强制）         | 是否启用硬编码账号 fallback。prod ProductionConfigValidator 会拦截 true                                        |
+| `DEVICE_AUTH_STRICT`                    | false（dev）/ true（prod 强制）         | 设备上报严格模式（未登记 api_key 的请求被拒）。prod 强制 true                                                  |
+| `EMQX_USERNAME` / `EMQX_PASSWORD`       | 空（prod 需显式设置）                   | EMQX broker 侧认证凭据（需与 infra/emqx/init.sh 创建的用户一致）。prod 空值会被 ProductionConfigValidator 拦截 |
+| `DEVICE_OFFLINE_THRESHOLD_MIN`          | 5                                       | 设备离线判定阈值（分钟），`DeviceOnlineChecker` 每 60s 扫描 `last_report_at` 是否超过此阈值                    |
+| `POSTGRES_*`                            | localhost/5432/geosentry                | 数据库连接                                                                                                     |
+| `REDIS_*`                               | localhost/6379/redis123                 | Redis                                                                                                          |
+| `FILE_BASE_URL`                         | http://localhost:9000                   | 附件基础 URL                                                                                                   |
+| `MINIO_ENDPOINT`                        | http://localhost:19000                  | MinIO 服务地址（Docker 内 http://minio:9000）                                                                  |
+| `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY` | minioadmin/minioadmin123（dev）         | MinIO 凭据。prod 需显式设置为非弱密码值（长度 ≥ 16）                                                           |
+| `MINIO_BUCKET`                          | geosentry                               | 附件对象存储桶                                                                                                 |
+| `EMQX_*`                                | 见编排                                  | MQTT                                                                                                           |
+| `TDENGINE_URL`                          | jdbc:TAOS-RS://localhost:6041/geohazard | TDengine JDBC URL                                                                                              |
+| `TDENGINE_USERNAME`                     | root                                    | TDengine 用户名                                                                                                |
+| `TDENGINE_PASSWORD`                     | taosdata                                | TDengine 密码                                                                                                  |
+| `TDENGINE_ENABLED`                      | false                                   | 是否启用 TDengine 时序写入。需同时将 `taos-jdbcdriver-3.3.0.jar` 放入后端 classpath                            |
+| `WS_REQUIRE_TICKET`                     | false（dev）/ true（prod）              | 强制 WebSocket 连接只能使用一次性 ticket（禁止 raw JWT query）。prod 推荐开启                                  |
+| `AI_SERVICE_BASE_URL`                   | http://localhost:8000/api/ai            | AI 推理服务地址（Docker 内 http://ai-service:8000/api/ai）                                                     |
+| `AI_ENABLED`                            | true                                    | AI 功能总开关；关闭后降级为纯规则模式                                                                          |
+| `AI_TIMEOUT_MS`                         | 30000                                   | AI 调用超时（毫秒）                                                                                            |
+| `AI_SCHEDULER_ENABLED`                  | false                                   | 定时批量预测开关（默认关闭）                                                                                   |
+| `AI_FORECAST_HORIZON`                   | 7                                       | 预测未来 N 天                                                                                                  |
+| `AI_FORECAST_CRON`                      | `0 0 2 * * *`                           | 定时预测 cron 表达式                                                                                           |
+| `RULE_ENGINE_ENABLED`                   | true                                    | 预警规则引擎开关                                                                                               |
+| `RULE_ENGINE_CRON`                      | `*/30 * * * * *`                        | 规则引擎评估 cron                                                                                              |
+| `TZ`                                    | Asia/Shanghai                           | 时区                                                                                                           |
 
 > 配置文件选择：默认 `application.yml`；另提供 `application-dev.yml`（显示 SQL、`cn.geosentry` 调试日志）、`application-prod.yml`（关闭 SQL、禁用 SQL init、WARN 日志）与 `application-docker.yml`（容器网络下连接 `postgres/redis/minio/emqx/tdengine`）。docker-compose 中后端设置 `SPRING_PROFILES_ACTIVE=docker` 时应使用该 profile，避免回退到 `localhost`。
 
@@ -937,7 +959,7 @@ docker compose up -d              # 重新初始化
 7. **应用配置文件**：docker-compose 使用 `SPRING_PROFILES_ACTIVE=docker` 时应提供并启用 `application-docker.yml`，避免回退到本地地址。
 8. **地图 Token**：天地图 / Cesium Ion / 天气 API 均需要单独申请并配置；缺失时自动回退到 OSM/ArcGIS/内置数据。
 9. **空间字段**：`hazard_point.geom` 等空间列依赖 PostGIS 扩展（`infra/postgres/init` 或 `schema.sql` 均会 `CREATE EXTENSION IF NOT EXISTS postgis`）；`geom` 由应用层生成，视口查询走 `ST_MakeEnvelope` + GiST 索引。
-10. **已落地项（持续闭环）**：导出（EasyExcel 真实 xlsx）、附件 MinIO 真实写入、方法级授权（`@PreAuthorize`）、设备数据上报链路、预警规则引擎、仪表盘真实聚合、**预警状态机补全**（六态）、**橙/红预警派发自动联动生成应急事件**（三层幂等防御：exists 检查 + PG 部分唯一索引 + DataIntegrityViolationException 兜底）、**值守人员完整链路**（Redis 实时缓存 + `POST /positions/report` + WebSocket 广播）、**WebSocket 实时推送 + 一次性 ticket 鉴权**（前端自动先调 `GET /api/auth/ws-ticket`，失败 fallback raw JWT；WS URL 未配置时从 `VITE_API_BASE_URL` 自动推导 http→ws、/api→/ws）、**EMQX MQTT 桥接 + 启动鉴权预检 + broker 侧认证初始化**（`EmqxSecurityPreflight` 预检 + `infra/emqx/init.sh` 首次启动创建 MQTT 认证用户）、**TDengine 接入主链路**、**设备数据上报鉴权 + 严格模式**、**设备离线自动心跳**（`DeviceOnlineChecker` 每 60s 扫描 `last_report_at` 超 5min 的在线设备置离线并广播）、**JWT 弱密钥 fail-fast**（启动时校验 ≥32 字符 + 精确黑名单 + 正则强度校验（纯数字/纯字母/全同字符），失败应用启动崩溃）、**DB 用户认证替代内存 fallback**、**登录密码真实验证**、**后端 AI 全链路**、**前端 AI 展示**、**前端 Docker 生产部署**（多阶段构建：Vite 构建产物 → nginx 反向代理 `/api` 和 `/ws`，同域部署无需 CORS）、**分页结构统一**（废弃 `PagedResponse`，所有接口统一返回 `PageResponse{records,total,page,size,pages}` 五字段）、**normalizePaged 前端兼容分支清理**（已删除 `list` 字段兼容逻辑）、**EMQX entrypoint 自动初始化**（broker 首次启动自动执行 `init.sh` 创建 MQTT 认证用户）、**设备数据双通道去重**（PG 唯一索引 + catch DataIntegrityViolationException）、**预警规则引擎去重优化**（仓储方法索引查询替代全表扫描）、**附件 URL 自动刷新**（每次详情访问生成新 presigned URL + 显式 refresh-url 端点）、**规则引擎 AI 融合落 risk_score_log**（因子快照 JSONB，用于模型迭代回溯）、**AI 预警强制人工复核**（AI/规则输出均生成"待确认"状态预警，不自动派发）、**OperationLogAspect 审计**（AOP 自动记录所有写操作）、**MinIO 弱密钥 fail-fast**（prod 模式下检测默认凭证阻断启动）、**WebSocket require-ticket 强制模式**（prod 推荐禁用 raw JWT fallback）。**剩余缺口**：**真实 AI 模型文件**（需放入 `ai-service/models/`，训练脚本已就绪，可用合成数据快速演示）、EMQX broker TLS 证书（broker 自身配置，代码已预留 username/password 鉴权）、TDengine JDBC 驱动手动部署（taos-jdbcdriver-3.3.0.jar 需放入后端 classpath）、数据库迁移工具引入（当前依赖 spring.sql.init 幂等执行，复杂变更建议后续引入 Flyway）。
+10. **已落地项（持续闭环）**：导出（EasyExcel 真实 xlsx）、附件 MinIO 真实写入、方法级授权（`@PreAuthorize`）、设备数据上报链路、预警规则引擎、仪表盘真实聚合、**预警状态机补全**（六态）、**橙/红预警派发自动联动生成应急事件**（三层幂等防御：exists 检查 + PG 部分唯一索引 + DataIntegrityViolationException 兜底）、**值守人员完整链路**（Redis 实时缓存 + `POST /positions/report` + WebSocket 广播）、**WebSocket 实时推送 + 一次性 ticket 鉴权**（前端自动先调 `GET /api/auth/ws-ticket`，失败 fallback raw JWT；WS URL 未配置时从 `VITE_API_BASE_URL` 自动推导 http→ws、/api→/ws）、**EMQX MQTT 桥接 + 启动鉴权预检 + broker 侧认证初始化**（`EmqxSecurityPreflight` 预检 + `infra/emqx/init.sh` 首次启动创建 MQTT 认证用户）、**TDengine 接入主链路**、**设备数据上报鉴权 + 严格模式**、**设备离线自动心跳**（`DeviceOnlineChecker` 每 60s 扫描 `last_report_at` 超 5min 的在线设备置离线并广播）、**JWT 弱密钥 fail-fast**（启动时校验 ≥32 字符 + 精确黑名单 + 正则强度校验（纯数字/纯字母/全同字符），失败应用启动崩溃）、**DB 用户认证替代内存 fallback**、**登录密码真实验证**、**后端 AI 全链路**、**前端 AI 展示**、**前端 Docker 生产部署**（多阶段构建：Vite 构建产物 → nginx 反向代理 `/api` 和 `/ws`，同域部署无需 CORS）、**分页结构统一**（废弃 `PagedResponse`，所有接口统一返回 `PageResponse{records,total,page,size,pages}` 五字段）、**normalizePaged 前端兼容分支清理**（已删除 `list` 字段兼容逻辑）、**EMQX entrypoint 自动初始化**（broker 首次启动自动执行 `init.sh` 创建 MQTT 认证用户）、**设备数据双通道去重**（PG 唯一索引 + catch DataIntegrityViolationException）、**预警规则引擎去重优化**（仓储方法索引查询替代全表扫描）、**附件 URL 自动刷新**（每次详情访问生成新 presigned URL + 显式 refresh-url 端点）、**规则引擎 AI 融合落 risk_score_log**（因子快照 JSONB，用于模型迭代回溯）、**AI 预警强制人工复核**（AI/规则输出均生成"待确认"状态预警，不自动派发）、**OperationLogAspect 审计**（AOP 自动记录所有写操作）、**MinIO 弱密钥 fail-fast**（prod 模式下检测默认凭证阻断启动）、**WebSocket require-ticket 强制模式**（prod 推荐禁用 raw JWT fallback）、ProductionConfigValidator（prod 下 7 项安全配置 fail-fast）、EMQX init.sh 3 次重试 + entrypoint 失败阻断、Dockerfile.backend TDengine JDBC 自动下载、Dockerfile.frontend mock 模式阻断、POST /api/auth/change-password 端点补全、种子用户密码 BCrypt hash 校验、应用配置 prod profile 强制安全默认值。**剩余缺口**：**真实 AI 模型文件**（需放入 `ai-service/models/`，训练脚本已就绪，可用合成数据快速演示）、EMQX broker TLS 证书（broker 自身配置，代码已预留 username/password 鉴权）、TDengine JDBC 驱动手动部署（taos-jdbcdriver-3.3.0.jar 需放入后端 classpath）、数据库迁移工具引入（当前依赖 spring.sql.init 幂等执行，复杂变更建议后续引入 Flyway）。
 11. **schema.sql 限制**：`spring.sql.init` 无法解析 PL/pgSQL `$$` 块（ScriptUtils 按分号切分），因此触发器/函数不要放进 `schema.sql`；既卷外键补齐统一走 `DatabaseForeignKeyInitializer`。
 12. **Java 记录/命名**：后端大量使用 `record`（DTO），修改字段后注意前端字段名一致性（驼峰 vs 下划线）。
 13. **AI 服务**：独立 `ai-service`（FastAPI，端口 8000）。模型/依赖缺失时服务仍可启动并返回 mock 结果；后端 `AI_ENABLED=false` 或 AI 服务不可用时自动降级为纯规则模式。部署前需能拉取 `python:3.11-slim` 基镜像与推理依赖（onnxruntime/torch/xgboost 体积较大）。
@@ -960,6 +982,16 @@ docker compose up -d              # 重新初始化
 30. **附件 presigned URL 自动刷新**：MinIO presigned URL 有效期 7 天。后端 `GET /api/attachments/{id}` 每次访问自动生成新 URL 并更新 DB；前端也可调用 `POST /api/attachments/{id}/refresh-url` 强制刷新。建议前端检测到图片 403 时自动调用刷新。
 31. **操作审计日志**：`OperationLogAspect`（AOP）自动拦截所有带 `@PreAuthorize` 注解的 Controller 写方法（POST/PUT/DELETE），记录 operator / module / action / HTTP 方法 / URL / 耗时 / IP 到 `operation_log` 表。密码等敏感字段自动截断。审计失败不影响主流程。
 32. **预警规则引擎性能**：`RuleEngineScheduler.hasOpenWarning` 已从全表扫描改为 `WarningEventRepository.existsByRuleCodeAndHazardCodeAndStatusNot` 数据库索引查询，避免设备量增大时性能下降。
+33. **ProductionConfigValidator 作用**：`@Profile("prod")` 组件，启动时自动校验 7 项安全配置（DEV_USERS_ENABLED、DEVICE_AUTH_STRICT、WS_REQUIRE_TICKET、EMQX 凭据、FRONTEND_ORIGIN、种子用户密码、MINIO 密钥强度）。命中任一即抛 `IllegalStateException` 阻断启动。dev profile 下不加载，避免本地开发被拦截。
+34. **种子用户密码重置**：data.sql 中三个种子用户密码均为 BCrypt("123456")。prod 下若检测到 hash 匹配默认值，ProductionConfigValidator 会失败并提示。修改方式：登录后调 `POST /api/auth/change-password`，或用 `htpasswd -nbBC 10 "" <new_password>` 生成 BCrypt hash 后更新 data.sql。
+35. **EMQX init.sh 失败处理**：broker 认证初始化脚本内置 3 次重试（每次间隔 5s）。全部失败后 entrypoint 返回非零退出码，`docker restart unless-stopped` 自动重启容器重试。避免 broker 在无认证状态下持续运行。
+36. **Docker 镜像构建**：后端使用 `Dockerfile.backend` 多阶段构建，自动从 Maven Central 下载 `taos-jdbcdriver:3.3.0` 放入 `/app/optional-lib/`，通过 `java -cp` 加载（Spring Boot JarLauncher 机制）。前端 `Dockerfile.frontend` 强制校验 `VITE_USE_BACKEND=true`，否则构建失败。
+37. **operation_log 归档策略**：AOP 自动记录所有 POST/PUT/DELETE 操作审计。生产环境建议每日凌晨 3:00 运行归档 SQL（已在 `infra/postgres/init/` 目录提供归档脚本），将超过 90 天数据迁移到 `operation_log_archive` 表或外部存储。
+38. **AI 降级审计追踪**：规则引擎在 AI 服务不可用时降级沿用规则等级，同时在 risk_score_log 中写入 `source='rule_only'` 标记，便于后续评估 AI 融合覆盖率。
+39. **geom 字段数据库触发器规划**：当前 geom 完全由应用层维护（EntityListener）。直接 SQL 修改 longitude/latitude 而不更新 geom 会导致空间索引返回错误结果。建议 v2 版本引入 BEFORE UPDATE/INSERT 触发器强制同步。当前运维规范：禁止直接 SQL 修改经纬度列。
+40. **DeviceDataService 双写一致性**：先写 PostgreSQL（事务内），再 try-catch 写 TDengine。PG 写入成功但 TDengine 失败时，PG 数据已持久化但 TDengine 缺样本。长期运行可能出现时序数据与关系库不一致。建议 v2 版本引入补偿队列（Redis Stream）处理 TDengine 写入失败。
+41. **设备数据去重保留先到者**：HTTP/MQTT 双通道上报同一设备同一时间戳数据时，唯一索引决定先到达者生效，后到达者被 catch 跳过。若两条通道数据有细微差异（如不同传感器读数），后到者被丢弃。这是设计预期——先到者为可信来源。
+42. **TDengine 驱动在 Docker 中的加载**：`Dockerfile.backend` 构建时尝试从 Maven Central 下载 `taos-jdbcdriver:3.3.0` 放入 `/app/optional-lib/`。运行时通过 `java -cp /app/app.jar:/app/optional-lib/* org.springframework.boot.loader.launch.JarLauncher` 加载。若 Maven Central 不可达，驱动不会被下载，TDENGINE_ENABLED=true 时会因 ClassNotFoundException 启动失败——可通过 `mvn install:install-file` 手动安装本地 jar 解决。
 
 ---
 

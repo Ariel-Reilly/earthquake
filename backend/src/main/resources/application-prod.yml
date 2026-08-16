@@ -5,6 +5,25 @@ spring:
     init:
       mode: never
 
+# prod profile：覆盖所有安全敏感配置为严格模式（防止用户忘记在环境变量中设置）
+geosentry:
+  security:
+    dev-users-enabled: false
+  device:
+    auth-strict-mode: true
+  ws:
+    require-ticket: true
+
+emqx:
+  # prod 下强制显式设置凭据（空值会被 ProductionConfigValidator 拦截）
+  username: ${EMQX_USERNAME:}
+  password: ${EMQX_PASSWORD:}
+
+minio:
+  # prod 下强制显式设置密钥（弱值会被 MinioCredentialValidator 拦截）
+  access-key: ${MINIO_ACCESS_KEY:}
+  secret-key: ${MINIO_SECRET_KEY:}
+
 logging:
   level:
     root: warn

@@ -88,6 +88,51 @@ public class AuthController {
   }
 
   /**
+   * 已登录用户修改自己的密码。
+   * 需提供当前密码用于校验，成功后旧 token 继续有效（不做主动吊销），
+   * 建议前端提示用户重新登录以获取新 token。
+   */
+  @PostMapping("/change-password")
+  public ApiResponse<ChangePasswordResponse> changePassword(
+      @AuthenticationPrincipal UserDetails userDetails,
+      @Valid @RequestBody ChangePasswordRequest request) {
+    String username = userDetails.getUsername();
+    var sysUser = userRepository.findByUsername(username);
+    if (sysUser == null) {
+      return ApiResponse.fail(404, "用户不存在");
+    }
+
+    // 校验当前密码（内存 fallback 用户跳过，只校验新密码）
+    boolean dbUser = sysUser.getPasswordHash() != null
+        && (sysUser.getPasswordHash().startsWith("$2b$")
+            || sysUser.getPasswordHash().startsWith("$2a$"));
+    if (dbUser && !passwordEncoder.matches(request.oldPassword(), sysUser.getPasswordHash())) {
+      log.warn("修改密码失败：当前密码错误 user={}", username);
+      return ApiResponse.fail(401, "当前密码错误");
+    }
+
+    // 校验新密码强度（≥ 8 字符，包含字母和数字）
+    String newPwd = request.newPassword();
+    if (newPwd == null || newPwd.length() < 8) {
+      return ApiResponse.fail(400, "新密码至少 8 个字符");
+    }
+    if (!newPwd.matches(".*[A-Za-z].*") || !newPwd.matches(".*\\d.*")) {
+      return ApiResponse.fail(400, "新密码必须同时包含字母和数字");
+    }
+    if (newPwd.equals(request.oldPassword())) {
+      return ApiResponse.fail(400, "新密码不能与当前密码相同");
+    }
+
+    sysUser.setPasswordHash(passwordEncoder.encode(newPwd));
+    sysUser.setUpdatedAt(java.time.OffsetDateTime.now());
+    userRepository.save(sysUser);
+    log.info("用户修改密码成功 user={}", username);
+
+    return ApiResponse.success("密码修改成功，请重新登录",
+        new ChangePasswordResponse(username, true));
+  }
+
+  /**
    * 为已认证用户签发 WebSocket 一次性 ticket。
    *
    * <p>建议客户端优先使用 ticket 连接 WebSocket（{@code ws://host/ws?ticket=xxx}），

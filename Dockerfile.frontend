@@ -15,6 +15,13 @@ ARG VITE_PERSONNEL_POLL_INTERVAL
 ARG VITE_REALTIME_POLL_INTERVAL
 ARG VITE_WARNING_POLL_INTERVAL
 ARG VITE_TDT_ATTRIBUTION
+
+# 安全护栏：生产镜像禁止 mock 模式（VITE_USE_BACKEND=false），否则直接 fail-fast
+RUN if [ "${VITE_USE_BACKEND}" != "true" ]; then \
+      echo "[docker-build] ERROR: VITE_USE_BACKEND=${VITE_USE_BACKEND} — 前端生产镜像禁止 mock 模式！" >&2 && \
+      echo "[docker-build] 如需构建生产镜像，请传入 --build-arg VITE_USE_BACKEND=true" >&2 && \
+      exit 1; \
+    fi
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 ENV VITE_USE_BACKEND=$VITE_USE_BACKEND
 ENV VITE_WS_URL=$VITE_WS_URL

@@ -128,6 +128,7 @@ public class RuleEngineScheduler {
     String title = rule.getRuleName() == null ? rule.getRuleCode() : rule.getRuleName();
     String level = rule.getWarningLevel();
     boolean aiInvolved = false;
+    boolean aiDegraded = false;
     try {
       if (aiClient.isEnabled()) {
         Map<String, Double> factors = new HashMap<>(metrics);
@@ -160,6 +161,19 @@ public class RuleEngineScheduler {
       }
     } catch (Exception e) {
       log.warn("AI 融合评分不可用，沿用规则等级: {}", e.getMessage());
+      // 降级时也写一条 risk_score_log 标记 RULE_ONLY，便于后续评估 AI 覆盖率
+      try {
+        RiskScoreLog riskLog = new RiskScoreLog();
+        riskLog.setHazardCode(hazardCode);
+        riskLog.setScore(0.0);
+        riskLog.setRiskLevel("RULE_ONLY");
+        riskLog.setFactors("{\"degraded\":true,\"reason\":\"ai-unavailable\"}");
+        riskLog.setCalculatedAt(OffsetDateTime.now());
+        riskScoreLogRepository.save(riskLog);
+      } catch (Exception ignored) {
+        log.debug("降级日志写入失败（不影响主流程）", ignored);
+      }
+      aiDegraded = true;
     }
 
     // 生成预警：初始状态=待确认（AI/规则输出均不自动派发，强制人工复核）
@@ -171,7 +185,15 @@ public class RuleEngineScheduler {
     event.setWarningLevel(level);
     event.setTriggerValue(rule.getMetricCode() + "=" + triggerValue);
     event.setStatus("待确认");
-    event.setSource(aiInvolved ? "AI_AUTO" : "RULE_ENGINE");
+    String source;
+    if (aiDegraded) {
+      source = "AI_DEGRADED";
+    } else if (aiInvolved) {
+      source = "AI_AUTO";
+    } else {
+      source = "RULE_ENGINE";
+    }
+    event.setSource(source);
     event.setTriggeredAt(OffsetDateTime.now());
     warningRepository.save(event);
 
