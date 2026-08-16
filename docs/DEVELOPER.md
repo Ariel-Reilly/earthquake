@@ -646,25 +646,24 @@ dto/         → 请求/响应记录（record）
 
 ### 8.1 表清单（`backend/src/main/resources/schema.sql`）
 
-| 表                                                                                                                                                   | 用途                                                                                                                                                                                                                                                                                                                                                                                                |
-| ---------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `sys_role`                                                                                                                                           | 角色（menu_permissions / button_permissions）                                                                                                                                                                                                                                                                                                                                                       |
-| `region`                                                                                                                                             | 行政区划（含 path 层级）                                                                                                                                                                                                                                                                                                                                                                            |
-| `sys_user`                                                                                                                                           | 用户                                                                                                                                                                                                                                                                                                                                                                                                |
-| `sys_menu`                                                                                                                                           | 菜单/权限点                                                                                                                                                                                                                                                                                                                                                                                         |
-| `hazard_point`                                                                                                                                       | 灾害点（含 `geom geometry(Point,4326)` PostGIS 空间字段）                                                                                                                                                                                                                                                                                                                                           |
-| `inspection_task`                                                                                                                                    | 巡检任务（含 `hazard_code` 关联字段，供值守人员位置 fallback 使用）                                                                                                                                                                                                                                                                                                                                 |
-| `inspection_record`                                                                                                                                  | 巡检上报记录（签到坐标/距离/异常标记）                                                                                                                                                                                                                                                                                                                                                              |
-| `monitoring_device`                                                                                                                                  | 监测设备（含 longitude/latitude/geom PostGIS 字段、`api_key VARCHAR(64)` 鉴权密钥列）                                                                                                                                                                                                                                                                                                               |
-| `device_metric`                                                                                                                                      | **设备上报指标样本**（device_code/metric_code/value，供规则引擎消费）                                                                                                                                                                                                                                                                                                                               |
-| `warning_rule`                                                                                                                                       | 预警规则（metric_code + expression，由规则引擎 `RuleEngineScheduler` 评估）                                                                                                                                                                                                                                                                                                                         |
-| `warning_event`                                                                                                                                      | 预警事件（六态状态机：待确认/已确认/处理中/已关闭/已忽略/已解除；含 `close_reason` + `closed_by` 审计字段；rule_snapshot 文本快照）                                                                                                                                                                                                                                                                 |
-| `emergency_event`                                                                                                                                    | 应急事件（完整 CRUD，关闭时标记 status=已闭环）                                                                                                                                                                                                                                                                                                                                                     |
-| `file_attachment`                                                                                                                                    | 附件元数据（storage_path/file_url，对象真实写 MinIO）                                                                                                                                                                                                                                                                                                                                               |
-| `risk_score_log`                                                                                                                                     | AI 融合评分原始快照，字段：score(NUMERIC 概率值)、risk_level(AI/规则判定等级)、source(VARCHAR 来源标记：AI_FUSED=AI 融合 / RULE_ONLY=规则等级 AI 降级 / MANUAL=人工录入)、factors(JSONB 融合因子快照)、calculated_at。`RuleEngineScheduler.createWarning` 每次 AI 融合评分后写入，用于后续模型迭代回溯训练集。查询：`SELECT * FROM risk_score_log WHERE hazard_code=? ORDER BY calculated_at DESC;` |
-| 按来源过滤：`SELECT * FROM risk_score_log WHERE source='AI_FUSED' ORDER BY calculated_at DESC;` 或 `WHERE source='RULE_ONLY'` 筛选 AI 降级时段的记录 |
-| `operation_log`                                                                                                                                      | 统一操作审计日志表（**已落地**）。`OperationLogAspect` AOP 切面自动拦截所有 Controller 层带 `@PreAuthorize` 注解的 POST/PUT/DELETE 请求，记录 operator / module / action / HTTP 方法 / URL / 耗时 / IP。密码等敏感字段在请求体中被自动截断。                                                                                                                                                        |
-| `ai_analysis_result`                                                                                                                                 | AI 分析结果（image/forecast/anomaly/fusion，result_json 文本）                                                                                                                                                                                                                                                                                                                                      |
+| 表                   | 用途                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `sys_role`           | 角色（menu_permissions / button_permissions）                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `region`             | 行政区划（含 path 层级）                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `sys_user`           | 用户                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `sys_menu`           | 菜单/权限点                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `hazard_point`       | 灾害点（含 `geom geometry(Point,4326)` PostGIS 空间字段）                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `inspection_task`    | 巡检任务（含 `hazard_code` 关联字段，供值守人员位置 fallback 使用）                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `inspection_record`  | 巡检上报记录（签到坐标/距离/异常标记）                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `monitoring_device`  | 监测设备（含 longitude/latitude/geom PostGIS 字段、`api_key VARCHAR(64)` 鉴权密钥列）                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `device_metric`      | **设备上报指标样本**（device_code/metric_code/value，供规则引擎消费）                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `warning_rule`       | 预警规则（metric_code + expression，由规则引擎 `RuleEngineScheduler` 评估）                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `warning_event`      | 预警事件（六态状态机：待确认/已确认/处理中/已关闭/已忽略/已解除；含 `close_reason` + `closed_by` 审计字段；rule_snapshot 文本快照）                                                                                                                                                                                                                                                                                                                                                                                          |
+| `emergency_event`    | 应急事件（完整 CRUD，关闭时标记 status=已闭环）                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `file_attachment`    | 附件元数据（storage_path/file_url，对象真实写 MinIO）                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `risk_score_log`     | AI 融合评分原始快照，字段：score(NUMERIC 概率值)、risk_level(AI/规则判定等级)、source(VARCHAR 来源标记：AI_FUSED / RULE_ONLY / MANUAL)、factors(JSONB 融合因子快照)、calculated_at。`RuleEngineScheduler.createWarning` 每次 AI 融合评分后写入，用于后续模型迭代回溯训练集。常用查询：`SELECT * FROM risk_score_log WHERE hazard_code=? ORDER BY calculated_at DESC;` ；按来源过滤：`SELECT * FROM risk_score_log WHERE source='AI_FUSED' ORDER BY calculated_at DESC;` 或 `WHERE source='RULE_ONLY'` 筛选 AI 降级时段的记录 |
+| `operation_log`      | 统一操作审计日志表（**已落地**）。`OperationLogAspect` AOP 切面自动拦截所有 Controller 层带 `@PreAuthorize` 注解的 POST/PUT/DELETE 请求，记录 operator / module / action / HTTP 方法 / URL / 耗时 / IP。密码等敏感字段在请求体中被自动截断。                                                                                                                                                                                                                                                                                 |
+| `ai_analysis_result` | AI 分析结果（image/forecast/anomaly/fusion，result_json 文本）                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 
 ### 8.2 关键索引
 
@@ -863,6 +862,7 @@ stopRealtimeSync({ keepListeners: false })
 | `TDENGINE_PASSWORD`                     | taosdata                                | TDengine 密码                                                                                                  |
 | `TDENGINE_ENABLED`                      | false                                   | 是否启用 TDengine 时序写入。需同时将 `taos-jdbcdriver-3.3.0.jar` 放入后端 classpath                            |
 | `WS_REQUIRE_TICKET`                     | false（dev）/ true（prod）              | 强制 WebSocket 连接只能使用一次性 ticket（禁止 raw JWT query）。prod 推荐开启                                  |
+| `WEBSOCKET_ENABLED`                     | true                                    | WebSocket 实时推送总开关。设为 false 时后端不启动 WebSocket 端点，前端会自动降级到纯轮询模式                   |
 | `AI_SERVICE_BASE_URL`                   | http://localhost:8000/api/ai            | AI 推理服务地址（Docker 内 http://ai-service:8000/api/ai）                                                     |
 | `AI_ENABLED`                            | true                                    | AI 功能总开关；关闭后降级为纯规则模式                                                                          |
 | `AI_TIMEOUT_MS`                         | 30000                                   | AI 调用超时（毫秒）                                                                                            |
@@ -873,7 +873,13 @@ stopRealtimeSync({ keepListeners: false })
 | `RULE_ENGINE_CRON`                      | `*/30 * * * * *`                        | 规则引擎评估 cron                                                                                              |
 | `TZ`                                    | Asia/Shanghai                           | 时区                                                                                                           |
 
-> 配置文件选择：默认 `application.yml`；另提供 `application-dev.yml`（显示 SQL、`cn.geosentry` 调试日志）、`application-prod.yml`（关闭 SQL、禁用 SQL init、WARN 日志）与 `application-docker.yml`（容器网络下连接 `postgres/redis/minio/emqx/tdengine`）。docker-compose 中后端设置 `SPRING_PROFILES_ACTIVE=docker` 时应使用该 profile，避免回退到 `localhost`。
+> 配置文件选择与初始化策略：
+>
+> - **默认 `application.yml`**：`spring.sql.init.mode=always`，每次启动幂等执行 `schema.sql` + `data.sql`（建表 + 种子）。适用于本地开发（`mvn spring-boot:run`）。
+> - **`application-docker.yml`**：docker-compose dev 模式（`SPRING_PROFILES_ACTIVE=docker`），**未覆盖** `spring.sql.init.mode`，继承默认值 `always`。首次启动容器时自动建表 + 种子；已存在数据卷时 `ON CONFLICT DO NOTHING` 跳过种子重复插入。重建数据库：`docker compose down -v && docker compose up -d`。
+> - **`application-prod.yml`**：`spring.sql.init.mode=never`，生产首次部署**必须手动执行** schema.sql / data.sql（详见 §14 第 43 条）。
+>
+> 其他 profile 差异：dev 显示 SQL、`cn.geosentry` 调试日志；prod 关闭 SQL、WARN 日志、禁用 SQL init。docker 覆盖容器网络地址（postgres/redis/minio/emqx/tdengine）。
 
 ---
 
@@ -896,8 +902,10 @@ PostGIS 初始化：`infra/postgres/init/001_create_extensions.sql`（首次建�
 
 ```bash
 docker compose down -v            # 删除数据卷（含 m2_cache/node_modules，会触发重新构建）
-docker compose up -d              # 重新初始化
+docker compose up -d              # 重新初始化（dev 模式：SQL init 自动建表 + 种子）
 ```
+
+> **dev/docker 模式的数据库初始化**：默认 `application.yml` 中 `spring.sql.init.mode=always`，docker-compose dev 使用 `SPRING_PROFILES_ACTIVE=docker` 未覆盖此项，**首次启动自动建表 + 种子数据**。已存在数据卷时 `CREATE TABLE IF NOT EXISTS` / `ON CONFLICT DO NOTHING` 保证幂等。生产模式 `mode=never`，必须手动执行（见 §14 第 43 条）。
 
 ### 生产模式 docker-compose 覆盖文件
 
@@ -924,13 +932,13 @@ docker compose -f docker-compose.yml up -d postgres
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 ```
 
-`docker-compose.prod.yml` 关键配置片段：
+`docker-compose.prod.yml` 关键配置片段（**完整文件见仓库根目录**，此处仅展示变更部分）：
 
 ```yaml
 services:
   backend:
     build:
-      context: .
+      context: . # Dockerfile.backend 在根目录，内部 COPY backend/pom.xml 和 backend/src
       dockerfile: Dockerfile.backend
     environment:
       SPRING_PROFILES_ACTIVE: prod
@@ -939,13 +947,13 @@ services:
       WS_REQUIRE_TICKET: "true"
     depends_on:
       postgres:
-        condition: service_healthy # 等待 PG 健康（pg_isready）再启动
+        condition: service_healthy # pg_isready
       redis:
-        condition: service_healthy
+        condition: service_healthy # redis-cli ping
       minio:
-        condition: service_healthy
+        condition: service_healthy # MinIO /minio/health/live
       emqx:
-        condition: service_healthy
+        condition: service_healthy # emqx ping（在 docker-compose.yml 中定义）
     healthcheck:
       # Dockerfile.backend 已 apk add curl，确保镜像内可用
       test: ["CMD", "curl", "-sf", "http://localhost:8080/api/system/health"]
@@ -959,8 +967,23 @@ services:
           cpus: "2"
           memory: 1G
     restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    healthcheck:
+      # Dockerfile.frontend 基于 nginx:alpine，含 wget
+      test: ["CMD", "wget", "-qO-", "http://localhost/"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
 ```
 
+> **关于 EMQX 的 healthcheck**：`condition: service_healthy` 要求被依赖服务必须定义 healthcheck。EMQX 在基础 `docker-compose.yml` 中已配置 `test: ["CMD", "emqx", "ping"]`，prod 覆盖文件**不重复定义**，自动继承 dev 的健康检查。MinIO 同理（`curl -f http://localhost:9000/minio/health/live`）。
+>
 > **首次部署特殊说明**：`depends_on: service_healthy` 只确保 PostgreSQL 容器启动且 `pg_isready` 通过，不确保业务表已建完。生产首次部署必须先按 §14 第 43 条步骤 1–5 手动执行 schema.sql + data.sql + 修改种子密码，再启动全栈。后续重启直接用 `docker compose up -d` 即可。
 >
 > **healthcheck 与 restart 关系**：`healthcheck` 不健康**不会**触发 `restart: unless-stopped`（这是 Docker 设计）。健康检查持续失败时容器保持运行但标记为 `unhealthy`，需要通过外部监控告警。如果希望 unhealthy 自动重启，改用 `restart: on-failure` 或外部编排（如 k8s liveness probe + restartPolicy）。
@@ -1079,56 +1102,98 @@ services:
 
 42. **TDengine 驱动在 Docker 中的加载**：`Dockerfile.backend` **构建阶段**尝试从 Maven Central 下载 `taos-jdbcdriver:3.3.0` 放入 `/app/optional-lib/`，通过 `java -cp /app/app.jar:/app/optional-lib/* org.springframework.boot.loader.launch.JarLauncher` 加载。若 Maven Central 不可达，**Docker 镜像构建会中断**（非运行时才报错），需提前将驱动放入本地 Maven 仓库（`mvn install:install-file -Dfile=taos-jdbcdriver-3.3.0.jar -DgroupId=com.taosdata.jdbc -DartifactId=taos-jdbcdriver -Dversion=3.3.0 -Dpackaging=jar`）。
 
-43. **生产环境数据库初始化**：prod profile 禁用 `spring.sql.init.mode=never`，首次部署时不会自动建表。初始化步骤：
+43. **生产环境数据库初始化**：prod profile 禁用 `spring.sql.init.mode=never`，首次部署时不会自动建表。提供两种方案，按安全等级选择：
 
-    ```bash
-    # ====== 步骤 1：启动空 PostGIS ======
-    docker compose -f docker-compose.yml up -d postgres
+---
 
-    # ====== 步骤 2：启用 PostGIS 扩展 ======
-    docker compose exec -T postgres psql -U geosentry -d geosentry \
-      < infra/postgres/init/001_create_extensions.sql
+#### 方案 A：使用种子数据 + 修改密码（快速部署）
 
-    # ====== 步骤 3：建表（幂等，可重跑） ======
-    docker compose exec -T postgres psql -U geosentry -d geosentry \
-      < backend/src/main/resources/schema.sql
+适合快速上线，或希望保留演示数据的场景。
 
-    # ====== 步骤 4：注入种子数据 ======
-    docker compose exec -T postgres psql -U geosentry -d geosentry \
-      < backend/src/main/resources/data.sql
+```bash
+# ====== 步骤 A1：启动空 PostGIS ======
+docker compose -f docker-compose.yml up -d postgres
 
-    # ====== 步骤 5：强制修改种子密码 ======
-    # （否则 ProductionConfigValidator 检测到默认密码会阻断 prod 启动）
+# ====== 步骤 A2：启用 PostGIS 扩展 ======
+docker compose exec -T postgres psql -U geosentry -d geosentry \
+  < infra/postgres/init/001_create_extensions.sql
 
-    # 5a) 生成新 BCrypt hash（交互输入新密码）
-    htpasswd -nbBC 10 "" '<your_strong_password>'
-    # 示例输出：$2b$10$...
+# ====== 步骤 A3：建表（幂等，可重跑） ======
+docker compose exec -T postgres psql -U geosentry -d geosentry \
+  < backend/src/main/resources/schema.sql
 
-    # 5b) 注入数据库（替换 <BCRYPT_HASH> 为上一步输出）
-    docker compose exec -T postgres psql -U geosentry -d geosentry \
-      -c "UPDATE sys_user SET password_hash='<BCRYPT_HASH>' WHERE username IN ('admin','attendant','maintenance');"
-    ```
+# ====== 步骤 A4：注入种子数据（admin/attendant/maintenance，密码均为 123456） ======
+docker compose exec -T postgres psql -U geosentry -d geosentry \
+  < backend/src/main/resources/data.sql
 
-    > **BCrypt 前缀兼容性**：`htpasswd` 默认生成 `$2y$` 前缀，Spring Security 的 `BCryptPasswordEncoder` 使用 `$2a$` 前缀，两者算法兼容可互验。若遇到校验失败，改用 Spring Security 生成：写一段临时 Java 调用 `new BCryptPasswordEncoder().encode(password)` 即可。
+# ====== 步骤 A5：强制修改种子密码（否则 ProductionConfigValidator 会阻断 prod 启动）======
 
-    **替代方案（推荐给安全敏感场景）**：**删除 data.sql 种子注入，启动后手动创建管理员**。
-    种子数据中三个用户密码均为 `123456`，存在已知默认凭据风险。更安全的做法：
+# A5a) 生成新 BCrypt hash（选任一工具）
+# 工具 1：htpasswd（Apache HTTP 工具，需安装：apt-get install apache2-utils / brew install httpd）
+htpasswd -nbBC 10 "" '<your_strong_password>'
+# 示例输出：$2b$10$...
 
-    ```bash
-    # 跳过步骤 4（不执行 data.sql），直接启动全栈
-    # 此时 sys_user 表为空，ProductionConfigValidator 跳过种子密码检查
-    docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+# 工具 2：Python bcrypt（需 pip install bcrypt）
+python3 -c "import bcrypt; print(bcrypt.hashpw(b'<your_strong_password>', bcrypt.gensalt(10)).decode())"
 
-    # 启动后用 SQL 直接创建管理员
-    # htpasswd 先生成 hash，然后：
-    docker compose exec -T postgres psql -U geosentry -d geosentry \
-      -c "INSERT INTO sys_user (username, password_hash, full_name, role, status, created_at) \
-          VALUES ('admin', '<BCRYPT_HASH>', '系统管理员', 'ADMIN', 'ENABLED', NOW());"
-    ```
+# 工具 3：Spring Security BCryptPasswordEncoder（Java）
+# new BCryptPasswordEncoder().encode("your_strong_password")
 
-    > **为什么没有注册接口？** 出于安全考虑，未实现 `POST /api/auth/register` 公开注册端点。如果确实需要开放注册（如多租户场景），必须设计邀请码/审批机制。
-    6. **最后启动全栈服务**：`docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build`
-       此命令会启动 backend、frontend、ai-service 等全部服务。frontend 可随时启动（无依赖顺序要求），nginx 会代理 `/api` 和 `/ws` 到 backend。
+# A5b) 注入数据库（替换 <BCRYPT_HASH> 为上一步输出）
+docker compose exec -T postgres psql -U geosentry -d geosentry \
+  -c "UPDATE sys_user SET password_hash='<BCRYPT_HASH>' WHERE username IN ('admin','attendant','maintenance');"
+
+# ====== 步骤 A6：启动全栈 ======
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+```
+
+> **BCrypt 前缀兼容性**：`htpasswd` 默认生成 `$2y$` 前缀，Spring Security 的 `BCryptPasswordEncoder` 使用 `$2a$` 前缀，Python bcrypt 输出 `$2b$`，三者算法兼容可互验（Spring Security 5.x 已统一兼容所有三种前缀）。
+
+---
+
+#### 方案 B：跳过种子数据 + 手动创建管理员（更安全）
+
+适合对安全敏感的生产环境，彻底避免默认凭据风险。
+
+```bash
+# ====== 步骤 B1：启动空 PostGIS ======
+docker compose -f docker-compose.yml up -d postgres
+
+# ====== 步骤 B2：启用扩展 + 建表（同方案 A）======
+docker compose exec -T postgres psql -U geosentry -d geosentry \
+  < infra/postgres/init/001_create_extensions.sql
+docker compose exec -T postgres psql -U geosentry -d geosentry \
+  < backend/src/main/resources/schema.sql
+
+# ====== 步骤 B3：注入角色 + 菜单 + 区域（可选：如果需要权限体系）======
+# 只执行 data.sql 的部分语句，不插入 sys_user
+docker compose exec -T postgres psql -U geosentry -d geosentry \
+  -c "INSERT INTO sys_role (role_code, role_name, description, menu_permissions, button_permissions)
+      VALUES ('admin','管理员','拥有全部模块访问权限','*','*') ON CONFLICT (role_code) DO NOTHING;"
+
+# ====== 步骤 B4：直接启动全栈（sys_user 表为空，ProductionConfigValidator 旁路放行）======
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+
+# ====== 步骤 B5：启动后用 SQL 创建管理员 ======
+# sys_user 表关键字段：
+#   username       VARCHAR(64)  NOT NULL UNIQUE
+#   password_hash  VARCHAR(255) NOT NULL  — BCrypt hash（用上面任一工具生成）
+#   real_name      VARCHAR(64)  NOT NULL  — 用户真实姓名（data.sql 用 real_name 不是 full_name）
+#   phone          VARCHAR(32)
+#   role_code      VARCHAR(64)  NOT NULL  — 小写：admin / attendant / maintenance
+#   region_code    VARCHAR(64)            — 如 '100000'
+#   status         VARCHAR(32)  NOT NULL DEFAULT '启用'
+#   created_at / updated_at  TIMESTAMPTZ DEFAULT NOW()
+
+# 先准备 BCrypt hash（用 htpasswd 或 python3，见上）
+docker compose exec -T postgres psql -U geosentry -d geosentry \
+  -c "INSERT INTO sys_user (username, password_hash, real_name, phone, role_code, region_code, status)
+      VALUES ('admin', '<BCRYPT_HASH>', '系统管理员', '', 'admin', '100000', '启用');"
+```
+
+> **为什么没有注册接口？** 出于安全考虑，未实现 `POST /api/auth/register` 公开注册端点。如果确实需要开放注册（如多租户场景），必须设计邀请码/审批机制。
+
+> **前端启动时机**：方案 A 的步骤 A6 和方案 B 的步骤 B4 均会启动全栈（backend、frontend、ai-service）。frontend 无依赖顺序要求，nginx 代理 `/api` 和 `/ws` 到 backend。
 
 ### 生产依赖服务初始化检查清单
 
