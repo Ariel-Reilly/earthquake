@@ -1126,8 +1126,9 @@ services:
           VALUES ('admin', '<BCRYPT_HASH>', '系统管理员', 'ADMIN', 'ENABLED', NOW());"
     ```
 
-    > **为什么没有注册接口？** 出于安全考虑，未实现 `POST /api/auth/register` 公开注册端点。如果确实需要开放注册（如多租户场景），必须设计邀请码/审批机制。6. **最后启动全栈服务**：`docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build`
-    > 此命令会启动 backend、frontend、ai-service 等全部服务。frontend 可随时启动（无依赖顺序要求），nginx 会代理 `/api` 和 `/ws` 到 backend。
+    > **为什么没有注册接口？** 出于安全考虑，未实现 `POST /api/auth/register` 公开注册端点。如果确实需要开放注册（如多租户场景），必须设计邀请码/审批机制。
+    6. **最后启动全栈服务**：`docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build`
+       此命令会启动 backend、frontend、ai-service 等全部服务。frontend 可随时启动（无依赖顺序要求），nginx 会代理 `/api` 和 `/ws` 到 backend。
 
 ### 生产依赖服务初始化检查清单
 
