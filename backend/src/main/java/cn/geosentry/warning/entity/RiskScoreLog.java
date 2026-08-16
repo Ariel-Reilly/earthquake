@@ -29,6 +29,10 @@ public class RiskScoreLog {
   @Column
   private String factors;
 
+  /** 来源：AI_FUSED（AI 融合评分）/ RULE_ONLY（规则等级，AI 降级）/ MANUAL（人工录入）。 */
+  @Column(name = "source")
+  private String source;
+
   @Column(name = "calculated_at", nullable = false)
   private OffsetDateTime calculatedAt;
 
@@ -42,6 +46,8 @@ public class RiskScoreLog {
   public void setRiskLevel(String riskLevel) { this.riskLevel = riskLevel; }
   public String getFactors() { return factors; }
   public void setFactors(String factors) { this.factors = factors; }
+  public String getSource() { return source; }
+  public void setSource(String source) { this.source = source; }
   public OffsetDateTime getCalculatedAt() { return calculatedAt; }
   public void setCalculatedAt(OffsetDateTime calculatedAt) { this.calculatedAt = calculatedAt; }
 }

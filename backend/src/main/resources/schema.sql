@@ -212,6 +212,7 @@ CREATE TABLE IF NOT EXISTS risk_score_log (
   hazard_code VARCHAR(64) NOT NULL REFERENCES hazard_point(hazard_code) ON DELETE CASCADE,
   score NUMERIC(5,2) NOT NULL,
   risk_level VARCHAR(32) NOT NULL,
+  source VARCHAR(32),
   factors JSONB,
   calculated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -270,6 +271,8 @@ ALTER TABLE warning_event ADD COLUMN IF NOT EXISTS close_reason VARCHAR(255);
 ALTER TABLE warning_event ADD COLUMN IF NOT EXISTS closed_by VARCHAR(64);
 ALTER TABLE warning_event ADD COLUMN IF NOT EXISTS source VARCHAR(32);
 ALTER TABLE ai_analysis_result ALTER COLUMN result_json TYPE TEXT;
+-- risk_score_log 补齐 source 列（AI 降级标记 / 融合来源）
+ALTER TABLE risk_score_log ADD COLUMN IF NOT EXISTS source VARCHAR(32);
 -- 种子附件含长 MIME 类型（如 application/vnd.openxmlformats-...docx），放宽列宽
 ALTER TABLE file_attachment ALTER COLUMN file_type TYPE VARCHAR(128);
 
@@ -297,8 +300,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_emergency_warning_unique
     WHERE status != '已闭环';
 CREATE INDEX IF NOT EXISTS idx_attachment_biz ON file_attachment(business_type, business_code);
 CREATE INDEX IF NOT EXISTS idx_ai_result_biz ON ai_analysis_result(business_type, business_code);
-CREATE INDEX IF NOT EXISTS idx_device_metric_code_time ON device_metric(device_code, metric_code, recorded_at);
--- 设备数据去重：同一设备+指标+时间戳 唯一，防止 HTTP/MQTT 双通道重复上报
+-- 设备数据去重 + 查询加速：唯一索引已覆盖 (device_code, metric_code, recorded_at) 查询路径，
+-- 替代冗余普通索引（唯一索引自动具备等值查询优化）
 CREATE UNIQUE INDEX IF NOT EXISTS idx_device_metric_unique
     ON device_metric(device_code, metric_code, recorded_at);
 

@@ -103,12 +103,25 @@ public class DeviceDataService {
         continue;
       }
 
-      // TDengine 写入（尽力而为，不影响主事务）
+      // TDengine 写入（尽力而为，不影响主事务；含 3 次指数退避重试）
       if (tdengineMetricService.isEnabled()) {
-        try {
-          tdengineMetricService.writeMetric(deviceCode, entry.getKey(), value.doubleValue(), recordedAt);
-        } catch (Exception ex) {
-          log.debug("TDengine 写入跳过 device={}, metric={}: {}", deviceCode, entry.getKey(), ex.getMessage());
+        Exception lastError = null;
+        for (int attempt = 1; attempt <= 3; attempt++) {
+          try {
+            tdengineMetricService.writeMetric(deviceCode, entry.getKey(), value.doubleValue(), recordedAt);
+            lastError = null;
+            break;
+          } catch (Exception ex) {
+            lastError = ex;
+            if (attempt < 3) {
+              long sleepMs = (long) Math.pow(2, attempt) * 100;  // 200ms / 400ms
+              try { Thread.sleep(sleepMs); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); break; }
+            }
+          }
+        }
+        if (lastError != null) {
+          log.warn("TDengine 写入最终失败 device={}, metric={}（已重试 3 次）: {}",
+              deviceCode, entry.getKey(), lastError.getMessage());
         }
       }
     }

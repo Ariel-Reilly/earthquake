@@ -455,14 +455,9 @@ dto/         → 请求/响应记录（record）
 
 ### 7.2 系统
 
-| 方法 | 路径                 | 说明                                                               |
-| ---- | -------------------- | ------------------------------------------------------------------ |
-| GET  | `/api/system/health` | 健康检查（公开）                                                   |
-| POST | `/api/system/health` | 健康检查（detailed=true 时检测所有依赖，任一关键依赖失败返回 503） |
-
-> **降级行为**：健康检查默认只检测 HTTP 服务自身可用性（返回 200 + "ok"）。
-> 若需要检测数据库/Redis/MinIO/EMQX/TDEngine 依赖，请通过 query 参数 `?detailed=true` 调用，
-> 此时返回每个依赖的 OK/WARN/FAIL 状态。任一关键依赖 FAIL 时 HTTP 状态码为 503。
+| 方法 | 路径                 | 说明                                                                                                                                |
+| ---- | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| GET  | `/api/system/health` | 健康检查（默认检测 PostgreSQL 连通性，DB 不可用时返回 503 + status=DEGRADED；加 `?detailed=true` 补充 JVM 堆/线程数/TDengine 状态） |
 
 ### 7.3 仪表盘
 
@@ -621,6 +616,9 @@ dto/         → 请求/响应记录（record）
 
 前端（`src/services/realtimeService.js`）连接时**优先**调 `GET /api/auth/ws-ticket` 获取一次性 ticket，用 `?ticket=` 连接；失败时 fallback 到 `?token=`。重连时重新取 ticket，自动处理 token 刷新。基于 `version` 字段做幂等 upsert，丢弃过期/重复消息。后端 `RealtimeBroadcastService` 在 WarningService 的 confirm/dispatch/close/dismiss/resolve/create、EmergencyService 的 createFromWarning/resolve、DeviceDataService 的在线状态变化检测、PersonnelController 的位置上报中自动触发广播。
 
+> `version` 字段为服务端递增计数器（`AtomicLong.incrementAndGet()`），每次广播自动 +1，不依赖时间戳。前端基于 `version` 做幂等 upsert——只接收 version 更大的新消息，丢弃重复/过期消息。
+> **注意**：不要将 version 当作时间戳解析。
+
 > 配置开关：`geosentry.realtime.websocket-enabled=true`（默认启用）。`geosentry.ws.require-ticket=true`（prod 推荐）强制仅接受 ticket，禁用 raw JWT。
 
 ### 7.14 设备数据链路
@@ -648,24 +646,24 @@ dto/         → 请求/响应记录（record）
 
 ### 8.1 表清单（`backend/src/main/resources/schema.sql`）
 
-| 表                   | 用途                                                                                                                                                                                                                                                                                  |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `sys_role`           | 角色（menu_permissions / button_permissions）                                                                                                                                                                                                                                         |
-| `region`             | 行政区划（含 path 层级）                                                                                                                                                                                                                                                              |
-| `sys_user`           | 用户                                                                                                                                                                                                                                                                                  |
-| `sys_menu`           | 菜单/权限点                                                                                                                                                                                                                                                                           |
-| `hazard_point`       | 灾害点（含 `geom geometry(Point,4326)` PostGIS 空间字段）                                                                                                                                                                                                                             |
-| `inspection_task`    | 巡检任务（含 `hazard_code` 关联字段，供值守人员位置 fallback 使用）                                                                                                                                                                                                                   |
-| `inspection_record`  | 巡检上报记录（签到坐标/距离/异常标记）                                                                                                                                                                                                                                                |
-| `monitoring_device`  | 监测设备（含 longitude/latitude/geom PostGIS 字段、`api_key VARCHAR(64)` 鉴权密钥列）                                                                                                                                                                                                 |
-| `device_metric`      | **设备上报指标样本**（device_code/metric_code/value，供规则引擎消费）                                                                                                                                                                                                                 |
-| `warning_rule`       | 预警规则（metric_code + expression，由规则引擎 `RuleEngineScheduler` 评估）                                                                                                                                                                                                           |
-| `warning_event`      | 预警事件（六态状态机：待确认/已确认/处理中/已关闭/已忽略/已解除；含 `close_reason` + `closed_by` 审计字段；rule_snapshot 文本快照）                                                                                                                                                   |
-| `emergency_event`    | 应急事件（完整 CRUD，关闭时标记 status=已闭环）                                                                                                                                                                                                                                       |
-| `file_attachment`    | 附件元数据（storage_path/file_url，对象真实写 MinIO）                                                                                                                                                                                                                                 |
-| `risk_score_log`     | AI 融合风险评分快照表（**已落地**）。`RuleEngineScheduler.createWarning` 每次 AI 融合评分后写入，记录 factors JSONB + score（probability） + risk_level + 计算时间，用于后续模型迭代回溯训练集。查询：`SELECT * FROM risk_score_log WHERE hazard_code=? ORDER BY calculated_at DESC;` |
-| `operation_log`      | 统一操作审计日志表（**已落地**）。`OperationLogAspect` AOP 切面自动拦截所有 Controller 层带 `@PreAuthorize` 注解的 POST/PUT/DELETE 请求，记录 operator / module / action / HTTP 方法 / URL / 耗时 / IP。密码等敏感字段在请求体中被自动截断。                                          |
-| `ai_analysis_result` | AI 分析结果（image/forecast/anomaly/fusion，result_json 文本）                                                                                                                                                                                                                        |
+| 表                   | 用途                                                                                                                                                                                                                                                                                                                                                                                                |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `sys_role`           | 角色（menu_permissions / button_permissions）                                                                                                                                                                                                                                                                                                                                                       |
+| `region`             | 行政区划（含 path 层级）                                                                                                                                                                                                                                                                                                                                                                            |
+| `sys_user`           | 用户                                                                                                                                                                                                                                                                                                                                                                                                |
+| `sys_menu`           | 菜单/权限点                                                                                                                                                                                                                                                                                                                                                                                         |
+| `hazard_point`       | 灾害点（含 `geom geometry(Point,4326)` PostGIS 空间字段）                                                                                                                                                                                                                                                                                                                                           |
+| `inspection_task`    | 巡检任务（含 `hazard_code` 关联字段，供值守人员位置 fallback 使用）                                                                                                                                                                                                                                                                                                                                 |
+| `inspection_record`  | 巡检上报记录（签到坐标/距离/异常标记）                                                                                                                                                                                                                                                                                                                                                              |
+| `monitoring_device`  | 监测设备（含 longitude/latitude/geom PostGIS 字段、`api_key VARCHAR(64)` 鉴权密钥列）                                                                                                                                                                                                                                                                                                               |
+| `device_metric`      | **设备上报指标样本**（device_code/metric_code/value，供规则引擎消费）                                                                                                                                                                                                                                                                                                                               |
+| `warning_rule`       | 预警规则（metric_code + expression，由规则引擎 `RuleEngineScheduler` 评估）                                                                                                                                                                                                                                                                                                                         |
+| `warning_event`      | 预警事件（六态状态机：待确认/已确认/处理中/已关闭/已忽略/已解除；含 `close_reason` + `closed_by` 审计字段；rule_snapshot 文本快照）                                                                                                                                                                                                                                                                 |
+| `emergency_event`    | 应急事件（完整 CRUD，关闭时标记 status=已闭环）                                                                                                                                                                                                                                                                                                                                                     |
+| `file_attachment`    | 附件元数据（storage_path/file_url，对象真实写 MinIO）                                                                                                                                                                                                                                                                                                                                               |
+| `risk_score_log`     | AI 融合评分原始快照，字段：score(NUMERIC 概率值)、risk_level(AI/规则判定等级)、source(VARCHAR 来源标记：AI_FUSED=AI 融合 / RULE_ONLY=规则等级 AI 降级 / MANUAL=人工录入)、factors(JSONB 融合因子快照)、calculated_at。`RuleEngineScheduler.createWarning` 每次 AI 融合评分后写入，用于后续模型迭代回溯训练集。查询：`SELECT * FROM risk_score_log WHERE hazard_code=? ORDER BY calculated_at DESC;` |
+| `operation_log`      | 统一操作审计日志表（**已落地**）。`OperationLogAspect` AOP 切面自动拦截所有 Controller 层带 `@PreAuthorize` 注解的 POST/PUT/DELETE 请求，记录 operator / module / action / HTTP 方法 / URL / 耗时 / IP。密码等敏感字段在请求体中被自动截断。                                                                                                                                                        |
+| `ai_analysis_result` | AI 分析结果（image/forecast/anomaly/fusion，result_json 文本）                                                                                                                                                                                                                                                                                                                                      |
 
 ### 8.2 关键索引
 
@@ -690,9 +688,10 @@ idx_emergency_warning_unique  emergency_event(warning_code) WHERE status != '已
 idx_attachment_biz        file_attachment(business_type, business_code)
 idx_ai_result_biz         ai_analysis_result(business_type, business_code)
 -- 设备数据查询与去重
-idx_device_metric_code_time  device_metric(device_code, metric_code, recorded_at)
 -- HTTP/MQTT 双通道去重：同一设备+指标+时间戳 唯一
-idx_device_metric_unique     device_metric(device_code, metric_code, recorded_at)  UNIQUE
+CREATE UNIQUE INDEX IF NOT EXISTS idx_device_metric_unique
+    ON device_metric(device_code, metric_code, recorded_at);
+-- 替代冗余普通索引 idx_device_metric_code_time，唯一索引自动覆盖查询路径
 ```
 
 ### 8.3 空间字段与查询
@@ -959,7 +958,7 @@ docker compose up -d              # 重新初始化
 7. **应用配置文件**：docker-compose 使用 `SPRING_PROFILES_ACTIVE=docker` 时应提供并启用 `application-docker.yml`，避免回退到本地地址。
 8. **地图 Token**：天地图 / Cesium Ion / 天气 API 均需要单独申请并配置；缺失时自动回退到 OSM/ArcGIS/内置数据。
 9. **空间字段**：`hazard_point.geom` 等空间列依赖 PostGIS 扩展（`infra/postgres/init` 或 `schema.sql` 均会 `CREATE EXTENSION IF NOT EXISTS postgis`）；`geom` 由应用层生成，视口查询走 `ST_MakeEnvelope` + GiST 索引。
-10. **已落地项（持续闭环）**：导出（EasyExcel 真实 xlsx）、附件 MinIO 真实写入、方法级授权（`@PreAuthorize`）、设备数据上报链路、预警规则引擎、仪表盘真实聚合、**预警状态机补全**（六态）、**橙/红预警派发自动联动生成应急事件**（三层幂等防御：exists 检查 + PG 部分唯一索引 + DataIntegrityViolationException 兜底）、**值守人员完整链路**（Redis 实时缓存 + `POST /positions/report` + WebSocket 广播）、**WebSocket 实时推送 + 一次性 ticket 鉴权**（前端自动先调 `GET /api/auth/ws-ticket`，失败 fallback raw JWT；WS URL 未配置时从 `VITE_API_BASE_URL` 自动推导 http→ws、/api→/ws）、**EMQX MQTT 桥接 + 启动鉴权预检 + broker 侧认证初始化**（`EmqxSecurityPreflight` 预检 + `infra/emqx/init.sh` 首次启动创建 MQTT 认证用户）、**TDengine 接入主链路**、**设备数据上报鉴权 + 严格模式**、**设备离线自动心跳**（`DeviceOnlineChecker` 每 60s 扫描 `last_report_at` 超 5min 的在线设备置离线并广播）、**JWT 弱密钥 fail-fast**（启动时校验 ≥32 字符 + 精确黑名单 + 正则强度校验（纯数字/纯字母/全同字符），失败应用启动崩溃）、**DB 用户认证替代内存 fallback**、**登录密码真实验证**、**后端 AI 全链路**、**前端 AI 展示**、**前端 Docker 生产部署**（多阶段构建：Vite 构建产物 → nginx 反向代理 `/api` 和 `/ws`，同域部署无需 CORS）、**分页结构统一**（废弃 `PagedResponse`，所有接口统一返回 `PageResponse{records,total,page,size,pages}` 五字段）、**normalizePaged 前端兼容分支清理**（已删除 `list` 字段兼容逻辑）、**EMQX entrypoint 自动初始化**（broker 首次启动自动执行 `init.sh` 创建 MQTT 认证用户）、**设备数据双通道去重**（PG 唯一索引 + catch DataIntegrityViolationException）、**预警规则引擎去重优化**（仓储方法索引查询替代全表扫描）、**附件 URL 自动刷新**（每次详情访问生成新 presigned URL + 显式 refresh-url 端点）、**规则引擎 AI 融合落 risk_score_log**（因子快照 JSONB，用于模型迭代回溯）、**AI 预警强制人工复核**（AI/规则输出均生成"待确认"状态预警，不自动派发）、**OperationLogAspect 审计**（AOP 自动记录所有写操作）、**MinIO 弱密钥 fail-fast**（prod 模式下检测默认凭证阻断启动）、**WebSocket require-ticket 强制模式**（prod 推荐禁用 raw JWT fallback）、ProductionConfigValidator（prod 下 7 项安全配置 fail-fast）、EMQX init.sh 3 次重试 + entrypoint 失败阻断、Dockerfile.backend TDengine JDBC 自动下载、Dockerfile.frontend mock 模式阻断、POST /api/auth/change-password 端点补全、种子用户密码 BCrypt hash 校验、应用配置 prod profile 强制安全默认值。**剩余缺口**：**真实 AI 模型文件**（需放入 `ai-service/models/`，训练脚本已就绪，可用合成数据快速演示）、EMQX broker TLS 证书（broker 自身配置，代码已预留 username/password 鉴权）、TDengine JDBC 驱动手动部署（taos-jdbcdriver-3.3.0.jar 需放入后端 classpath）、数据库迁移工具引入（当前依赖 spring.sql.init 幂等执行，复杂变更建议后续引入 Flyway）。
+10. **已落地项（持续闭环）**：导出（EasyExcel 真实 xlsx）、附件 MinIO 真实写入、方法级授权（`@PreAuthorize`）、设备数据上报链路、预警规则引擎、仪表盘真实聚合、**预警状态机补全**（六态）、**橙/红预警派发自动联动生成应急事件**（三层幂等防御：exists 检查 + PG 部分唯一索引 + DataIntegrityViolationException 兜底）、**值守人员完整链路**（Redis 实时缓存 + `POST /positions/report` + WebSocket 广播）、**WebSocket 实时推送 + 一次性 ticket 鉴权**（前端自动先调 `GET /api/auth/ws-ticket`，失败 fallback raw JWT；WS URL 未配置时从 `VITE_API_BASE_URL` 自动推导 http→ws、/api→/ws）、**EMQX MQTT 桥接 + 启动鉴权预检 + broker 侧认证初始化**（`EmqxSecurityPreflight` 预检 + `infra/emqx/init.sh` 首次启动创建 MQTT 认证用户）、**TDengine 接入主链路**、**设备数据上报鉴权 + 严格模式**、**设备离线自动心跳**（`DeviceOnlineChecker` 每 60s 扫描 `last_report_at` 超 5min 的在线设备置离线并广播）、**JWT 弱密钥 fail-fast**（启动时校验 ≥32 字符 + 精确黑名单 + 正则强度校验（纯数字/纯字母/全同字符），失败应用启动崩溃）、**DB 用户认证替代内存 fallback**、**登录密码真实验证**、**后端 AI 全链路**、**前端 AI 展示**、**前端 Docker 生产部署**（多阶段构建：Vite 构建产物 → nginx 反向代理 `/api` 和 `/ws`，同域部署无需 CORS）、**分页结构统一**（废弃 `PagedResponse`，所有接口统一返回 `PageResponse{records,total,page,size,pages}` 五字段）、**normalizePaged 前端兼容分支清理**（已删除 `list` 字段兼容逻辑）、**EMQX entrypoint 自动初始化**（broker 首次启动自动执行 `init.sh` 创建 MQTT 认证用户）、**设备数据双通道去重**（PG 唯一索引 + catch DataIntegrityViolationException）、**预警规则引擎去重优化**（仓储方法索引查询替代全表扫描）、**附件 URL 自动刷新**（每次详情访问生成新 presigned URL + 显式 refresh-url 端点）、**规则引擎 AI 融合落 risk_score_log**（因子快照 JSONB，用于模型迭代回溯）、**AI 预警强制人工复核**（AI/规则输出均生成"待确认"状态预警，不自动派发）、**OperationLogAspect 审计**（AOP 自动记录所有写操作）、**MinIO 弱密钥 fail-fast**（prod 模式下检测默认凭证阻断启动）、**WebSocket require-ticket 强制模式**（prod 推荐禁用 raw JWT fallback）、ProductionConfigValidator（prod 下 7 项安全配置 fail-fast）、EMQX init.sh 3 次重试 + entrypoint 失败阻断、Dockerfile.backend TDengine JDBC 自动下载、Dockerfile.frontend mock 模式阻断、POST /api/auth/change-password 端点补全、种子用户密码 BCrypt hash 校验、应用配置 prod profile 强制安全默认值、健康检查端点默认检测 PostgreSQL（SELECT 1）、索引冗余清理（idx_device_metric_code_time 已删除，唯一索引覆盖查询）、DeviceDataService TDengine 3 次指数退避重试、risk_score_log 补充 source 列（AI_FUSED / RULE_ONLY）。**剩余缺口**：**真实 AI 模型文件**（需放入 `ai-service/models/`，训练脚本已就绪，可用合成数据快速演示）、EMQX broker TLS 证书（broker 自身配置，代码已预留 username/password 鉴权）、TDengine JDBC 驱动手动部署（仅**宿主机直跑后端**时需要手动放入 classpath；Docker 部署已由 `Dockerfile.backend` 多阶段构建自动从 Maven Central 下载到 `/app/optional-lib/` 并通过 `JarLauncher` 加载）、数据库迁移工具引入（当前依赖 spring.sql.init 幂等执行，复杂变更建议后续引入 Flyway）。生产环境首次部署需手动执行 schema.sql + data.sql（prod 禁用 spring.sql.init），详见 §14 第 43 条。
 11. **schema.sql 限制**：`spring.sql.init` 无法解析 PL/pgSQL `$$` 块（ScriptUtils 按分号切分），因此触发器/函数不要放进 `schema.sql`；既卷外键补齐统一走 `DatabaseForeignKeyInitializer`。
 12. **Java 记录/命名**：后端大量使用 `record`（DTO），修改字段后注意前端字段名一致性（驼峰 vs 下划线）。
 13. **AI 服务**：独立 `ai-service`（FastAPI，端口 8000）。模型/依赖缺失时服务仍可启动并返回 mock 结果；后端 `AI_ENABLED=false` 或 AI 服务不可用时自动降级为纯规则模式。部署前需能拉取 `python:3.11-slim` 基镜像与推理依赖（onnxruntime/torch/xgboost 体积较大）。
@@ -983,15 +982,24 @@ docker compose up -d              # 重新初始化
 31. **操作审计日志**：`OperationLogAspect`（AOP）自动拦截所有带 `@PreAuthorize` 注解的 Controller 写方法（POST/PUT/DELETE），记录 operator / module / action / HTTP 方法 / URL / 耗时 / IP 到 `operation_log` 表。密码等敏感字段自动截断。审计失败不影响主流程。
 32. **预警规则引擎性能**：`RuleEngineScheduler.hasOpenWarning` 已从全表扫描改为 `WarningEventRepository.existsByRuleCodeAndHazardCodeAndStatusNot` 数据库索引查询，避免设备量增大时性能下降。
 33. **ProductionConfigValidator 作用**：`@Profile("prod")` 组件，启动时自动校验 7 项安全配置（DEV_USERS_ENABLED、DEVICE_AUTH_STRICT、WS_REQUIRE_TICKET、EMQX 凭据、FRONTEND_ORIGIN、种子用户密码、MINIO 密钥强度）。命中任一即抛 `IllegalStateException` 阻断启动。dev profile 下不加载，避免本地开发被拦截。
-34. **种子用户密码重置**：data.sql 中三个种子用户密码均为 BCrypt("123456")。prod 下若检测到 hash 匹配默认值，ProductionConfigValidator 会失败并提示。修改方式：登录后调 `POST /api/auth/change-password`，或用 `htpasswd -nbBC 10 "" <new_password>` 生成 BCrypt hash 后更新 data.sql。
+34. **种子用户密码重置**：data.sql 中三个种子用户密码均为 BCrypt("123456")。重置密码区分两种场景：
+    - **首次部署（全新空 DB）**：直接修改 `data.sql` 中的 BCrypt hash（用 `htpasswd -nbBC 10 "" <new_password>` 生成），部署时 spring.sql.init 会在首次启动时自动执行；
+    - **已运行系统（DB 已有数据）**：prod profile 禁用 SQL init，data.sql 不会重新执行。此时应让用户登录后调用 `POST /api/auth/change-password` 修改，或 DBA 直接执行 `UPDATE sys_user SET password_hash = '<BCryptHash>' WHERE username = 'admin'`。
+      ProductionConfigValidator 会检测 DB 中种子 hash 是否仍为默认值并阻断 prod 启动。
 35. **EMQX init.sh 失败处理**：broker 认证初始化脚本内置 3 次重试（每次间隔 5s）。全部失败后 entrypoint 返回非零退出码，`docker restart unless-stopped` 自动重启容器重试。避免 broker 在无认证状态下持续运行。
 36. **Docker 镜像构建**：后端使用 `Dockerfile.backend` 多阶段构建，自动从 Maven Central 下载 `taos-jdbcdriver:3.3.0` 放入 `/app/optional-lib/`，通过 `java -cp` 加载（Spring Boot JarLauncher 机制）。前端 `Dockerfile.frontend` 强制校验 `VITE_USE_BACKEND=true`，否则构建失败。
-37. **operation_log 归档策略**：AOP 自动记录所有 POST/PUT/DELETE 操作审计。生产环境建议每日凌晨 3:00 运行归档 SQL（已在 `infra/postgres/init/` 目录提供归档脚本），将超过 90 天数据迁移到 `operation_log_archive` 表或外部存储。
+37. **operation_log 归档策略**：归档脚本 `infra/postgres/init/003_archive_operation_log.sql` 已存在，包含 `operation_log_archive` 归档表 DDL 与 `archive_operation_logs(retention_days)` 归档函数。生产环境建议每日凌晨 3:00 执行（通过 pg_cron 或外部调度器），默认保留 90 天在线数据。归档表在首次执行时由 `CREATE TABLE IF NOT EXISTS` 自动创建，结构与 `operation_log` 完全一致（无索引减少归档写入开销）。
 38. **AI 降级审计追踪**：规则引擎在 AI 服务不可用时降级沿用规则等级，同时在 risk_score_log 中写入 `source='rule_only'` 标记，便于后续评估 AI 融合覆盖率。
 39. **geom 字段数据库触发器规划**：当前 geom 完全由应用层维护（EntityListener）。直接 SQL 修改 longitude/latitude 而不更新 geom 会导致空间索引返回错误结果。建议 v2 版本引入 BEFORE UPDATE/INSERT 触发器强制同步。当前运维规范：禁止直接 SQL 修改经纬度列。
 40. **DeviceDataService 双写一致性**：先写 PostgreSQL（事务内），再 try-catch 写 TDengine。PG 写入成功但 TDengine 失败时，PG 数据已持久化但 TDengine 缺样本。长期运行可能出现时序数据与关系库不一致。建议 v2 版本引入补偿队列（Redis Stream）处理 TDengine 写入失败。
 41. **设备数据去重保留先到者**：HTTP/MQTT 双通道上报同一设备同一时间戳数据时，唯一索引决定先到达者生效，后到达者被 catch 跳过。若两条通道数据有细微差异（如不同传感器读数），后到者被丢弃。这是设计预期——先到者为可信来源。
 42. **TDengine 驱动在 Docker 中的加载**：`Dockerfile.backend` 构建时尝试从 Maven Central 下载 `taos-jdbcdriver:3.3.0` 放入 `/app/optional-lib/`。运行时通过 `java -cp /app/app.jar:/app/optional-lib/* org.springframework.boot.loader.launch.JarLauncher` 加载。若 Maven Central 不可达，驱动不会被下载，TDENGINE_ENABLED=true 时会因 ClassNotFoundException 启动失败——可通过 `mvn install:install-file` 手动安装本地 jar 解决。
+43. **生产环境数据库初始化**：prod profile 禁用 `spring.sql.init.mode=never`，首次部署时不会自动建表。初始化步骤：
+    1. `docker compose -f docker-compose.yml up -d postgres` 启动空 PostGIS；
+    2. `docker exec -i geosentry-postgres psql -U geosentry -d geosentry < infra/postgres/init/001_create_extensions.sql` 启用扩展；
+    3. `docker exec -i geosentry-postgres psql -U geosentry -d geosentry < backend/src/main/resources/schema.sql` 建表（幂等，可重跑）；
+    4. `docker exec -i geosentry-postgres psql -U geosentry -d geosentry < backend/src/main/resources/data.sql` 注入种子数据；
+    5. 最后启动 backend 容器。`docker-compose.prod.yml` 已包含这些步骤的注释。
 
 ---
 

@@ -139,6 +139,7 @@ public class RuleEngineScheduler {
         riskLog.setHazardCode(hazardCode);
         riskLog.setScore(fusion.probability());
         riskLog.setRiskLevel(fusion.riskLevel());
+        riskLog.setSource("AI_FUSED");
         try {
           riskLog.setFactors(objectMapper.writeValueAsString(factors));
         } catch (JsonProcessingException ignore) {
@@ -167,6 +168,7 @@ public class RuleEngineScheduler {
         riskLog.setHazardCode(hazardCode);
         riskLog.setScore(0.0);
         riskLog.setRiskLevel("RULE_ONLY");
+        riskLog.setSource("RULE_ONLY");
         riskLog.setFactors("{\"degraded\":true,\"reason\":\"ai-unavailable\"}");
         riskLog.setCalculatedAt(OffsetDateTime.now());
         riskScoreLogRepository.save(riskLog);
