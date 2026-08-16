@@ -143,6 +143,7 @@ public class RuleEngineScheduler {
         try {
           riskLog.setFactors(objectMapper.writeValueAsString(factors));
         } catch (JsonProcessingException ignore) {
+          log.warn("factors 序列化失败，risk_score_log 写空对象 hazardCode={}: {}", hazardCode, ignore.getMessage());
           riskLog.setFactors("{}");
         }
         riskLog.setCalculatedAt(OffsetDateTime.now());

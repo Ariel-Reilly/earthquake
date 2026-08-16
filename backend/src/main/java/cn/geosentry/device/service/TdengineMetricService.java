@@ -79,7 +79,7 @@ public class TdengineMetricService {
       ps.executeUpdate();
       return true;
     } catch (SQLException e) {
-      log.debug("TDengine 写入失败 device={}, metric={}: {}", deviceCode, metricCode, e.getMessage());
+      log.warn("TDengine 写入失败 device={}, metric={}, ts={}: {}", deviceCode, metricCode, timestamp, e.getMessage());
       return false;
     }
   }

@@ -91,6 +91,7 @@ public class OperationLogAspect {
         return jwtService.parseToken(auth.substring(7)).getSubject();
       } catch (Exception ignored) {
         // token 无效就不记录操作员
+        log.debug("解析 JWT 提取操作员失败（跳过）: {}", ignored.getMessage());
       }
     }
     return "anonymous";

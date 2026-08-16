@@ -111,6 +111,7 @@ public class WarningController {
         return auth.getName();
       }
     } catch (Exception ignored) {
+      log.debug("从 SecurityContext 获取操作员失败（回落为 system）: {}", ignored.getMessage());
     }
     return "system";
   }

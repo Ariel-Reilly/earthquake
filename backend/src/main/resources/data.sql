@@ -76,9 +76,9 @@ ON CONFLICT (event_code) DO NOTHING;
 
 INSERT INTO file_attachment (business_type, business_code, file_name, file_size, file_type, storage_path, file_url, uploader)
 SELECT * FROM (VALUES
-  ('hazard', 'HZ-001', '现场照片.jpg', 1240000, 'image/jpeg', 'hazard/HZ-001/现场照片.jpg', 'http://localhost:9000/geosentry/hazard/HZ-001/现场照片.jpg', 'admin'),
-  ('task', 'TK-001', '巡检轨迹.kml', 86000, 'application/vnd.google-earth.kml+xml', 'task/TK-001/巡检轨迹.kml', 'http://localhost:9000/geosentry/task/TK-001/巡检轨迹.kml', 'admin'),
-  ('warning', 'WG-001', '处置记录.docx', 420000, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'warning/WG-001/处置记录.docx', 'http://localhost:9000/geosentry/warning/WG-001/处置记录.docx', 'admin')
+  ('hazard', 'HZ-001', '现场照片.jpg', 1240000, 'image/jpeg', 'hazard/HZ-001/现场照片.jpg', '/geosentry/hazard/HZ-001/现场照片.jpg', 'admin'),
+  ('task', 'TK-001', '巡检轨迹.kml', 86000, 'application/vnd.google-earth.kml+xml', 'task/TK-001/巡检轨迹.kml', '/geosentry/task/TK-001/巡检轨迹.kml', 'admin'),
+  ('warning', 'WG-001', '处置记录.docx', 420000, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'warning/WG-001/处置记录.docx', '/geosentry/warning/WG-001/处置记录.docx', 'admin')
 ) AS v(business_type, business_code, file_name, file_size, file_type, storage_path, file_url, uploader)
 WHERE NOT EXISTS (SELECT 1 FROM file_attachment);
 

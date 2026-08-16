@@ -22,6 +22,8 @@ import org.springframework.stereotype.Component;
  *   <li>{@code WS_REQUIRE_TICKET=false} —— raw JWT 暴露在 URL 中</li>
  *   <li>{@code EMQX_ENABLED=true} 但 username/password 为空或匹配默认值</li>
  *   <li>{@code FRONTEND_ORIGIN} 仍为 localhost 通配，或为 {@code *}</li>
+ *   <li>{@code FILE_BASE_URL} 仍为 localhost:9000 或为空</li>
+ *   <li>{@code JWT_SECRET} 为空 / 长度 < 32 / 命中弱密码</li>
  *   <li>种子用户密码仍为 {@code 123456}（BCrypt hash 匹配检查）</li>
  *   <li>MINIO secret 强度不足（长度 < 16 或命中常见弱密码）</li>
  * </ul>
@@ -56,6 +58,12 @@ public class ProductionConfigValidator {
 
   @Value("${geosentry.frontend-origin:http://localhost:5173}")
   String frontendOrigin;
+
+  @Value("${geosentry.file-base-url:http://localhost:9000}")
+  String fileBaseUrl;
+
+  @Value("${geosentry.jwt.secret:}")
+  String jwtSecret;
 
   @Value("${emqx.enabled:true}")
   boolean emqxEnabled;
@@ -130,7 +138,22 @@ public class ProductionConfigValidator {
       }
     }
 
-    // 7) 种子用户密码检查（仅在 DB 中已有用户时触发，空 DB 为首次部署场景，跳过）
+    // 7) JWT secret 强度
+    if (isBlank(jwtSecret)) {
+      errors.add("JWT_SECRET 为空！prod 下必须设置 ≥ 32 字符的强随机密钥。");
+    } else if (jwtSecret.trim().length() < 32) {
+      errors.add("JWT_SECRET 长度 < 32（当前 " + jwtSecret.trim().length() + "）。请设置 ≥ 32 字符的强随机值。");
+    } else if (WEAK_TOKENS.contains(jwtSecret.trim().toLowerCase())) {
+      errors.add("JWT_SECRET 命中弱密码模式（当前='" + jwtSecret.trim() + "'）。请设置强随机值。");
+    }
+
+    // 8) FILE_BASE_URL（附件下载基础地址）
+    if (isBlank(fileBaseUrl) || fileBaseUrl.contains("localhost:9000")) {
+      errors.add("FILE_BASE_URL 在 prod 下必须设置为真实 MinIO 访问地址（当前='"
+          + fileBaseUrl + "'）。附件下载链接将使用此值拼接。");
+    }
+
+    // 9) 种子用户密码检查（仅在 DB 中已有用户时触发，空 DB 为首次部署场景，跳过）
     checkSeedUserPasswords(errors);
 
     if (!errors.isEmpty()) {
