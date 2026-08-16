@@ -66,7 +66,7 @@ services:
     ports:
       - "${BACKEND_HOST_PORT:-8081}:8080"
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8080/api/system/health"]
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/api/system/health"]
       interval: 30s
       timeout: 5s
       retries: 5

@@ -609,17 +609,17 @@ dto/         → 请求/响应记录（record）
 
 > **消息类型 payload 示例**：
 >
-> - `warning`: `{"type":"warning","data":{"warningCode":"WG-001","status":"已确认","warningLevel":"红色","title":"青龙坡位移超限"},"version":1723747200}`
-> - `emergency`: `{"type":"emergency","data":{"eventCode":"EM-001","status":"处置中","title":"青龙坡滑坡应急启动"},"version":1723747200}`
-> - `personnel`: `{"type":"personnel","data":{"username":"周小雨","hazardCode":"HZ-001","longitude":107.21,"latitude":30.61,"status":"在现场"},"version":1723747200}`
-> - `device`: `{"type":"device","data":{"deviceCode":"DV-001","onlineStatus":"离线","batteryLevel":23},"version":1723747200}`
+> - `warning`: `{"type":"warning","data":{"warningCode":"WG-001","status":"已确认","warningLevel":"红色","title":"青龙坡位移超限"},"version":1001}`
+> - `emergency`: `{"type":"emergency","data":{"eventCode":"EM-001","status":"处置中","title":"青龙坡滑坡应急启动"},"version":1002}`
+> - `personnel`: `{"type":"personnel","data":{"username":"周小雨","hazardCode":"HZ-001","longitude":107.21,"latitude":30.61,"status":"在现场"},"version":1003}`
+> - `device`: `{"type":"device","data":{"deviceCode":"DV-001","onlineStatus":"离线","batteryLevel":23},"version":1004}`
 
 前端（`src/services/realtimeService.js`）连接时**优先**调 `GET /api/auth/ws-ticket` 获取一次性 ticket，用 `?ticket=` 连接；失败时 fallback 到 `?token=`。重连时重新取 ticket，自动处理 token 刷新。基于 `version` 字段做幂等 upsert，丢弃过期/重复消息。后端 `RealtimeBroadcastService` 在 WarningService 的 confirm/dispatch/close/dismiss/resolve/create、EmergencyService 的 createFromWarning/resolve、DeviceDataService 的在线状态变化检测、PersonnelController 的位置上报中自动触发广播。
 
-> `version` 字段为服务端递增计数器（`AtomicLong.incrementAndGet()`），每次广播自动 +1，不依赖时间戳。前端基于 `version` 做幂等 upsert——只接收 version 更大的新消息，丢弃重复/过期消息。
-> **注意**：不要将 version 当作时间戳解析。
+> `version` 字段为服务端递增计数器（`AtomicLong.incrementAndGet()`），每次广播自动 +1。**初始值为 `System.currentTimeMillis()`**（毫秒级时间戳，约 1.7e12 起），保证服务重启后 version 仍单调递增，不会因归零导致前端丢弃新消息。前端基于 `version` 做幂等 upsert——只接收 version 更大的新消息，丢弃重复/过期消息。
+> **注意**：不要将 version 当作时间戳解析，它只是递增序号。
 
-> 配置开关：`geosentry.realtime.websocket-enabled=true`（默认启用）。`geosentry.ws.require-ticket=true`（prod 推荐）强制仅接受 ticket，禁用 raw JWT。
+> 配置开关：环境变量 `WS_REQUIRE_TICKET=true`（prod 推荐）强制仅接受 ticket，禁用 raw JWT；`WS_ENABLED=true` 启用 WebSocket（默认启用）。
 
 ### 7.14 设备数据链路
 
@@ -930,7 +930,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 services:
   backend:
     build:
-      context: ./backend
+      context: .
       dockerfile: Dockerfile.backend
     environment:
       SPRING_PROFILES_ACTIVE: prod
@@ -939,14 +939,20 @@ services:
       WS_REQUIRE_TICKET: "true"
     depends_on:
       postgres:
-        condition: service_healthy # 等待 PG 健康再启动
+        condition: service_healthy # 等待 PG 健康（pg_isready）再启动
       redis:
-        condition: service_started
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      emqx:
+        condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8080/api/system/health"]
+      # Dockerfile.backend 已 apk add curl，确保镜像内可用
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/api/system/health"]
       interval: 30s
       timeout: 5s
       retries: 5
+      start_period: 60s
     deploy:
       resources:
         limits:
@@ -955,7 +961,9 @@ services:
     restart: unless-stopped
 ```
 
-> **首次部署特殊说明**：`depends_on: service_healthy` 只确保 PostgreSQL 容器启动，不确保表已建完。生产首次部署必须先按 §14 第 43 条步骤 1–5 手动执行 schema.sql + data.sql + 修改种子密码，再启动 backend。后续重启直接用 `up -d` 即可。
+> **首次部署特殊说明**：`depends_on: service_healthy` 只确保 PostgreSQL 容器启动且 `pg_isready` 通过，不确保业务表已建完。生产首次部署必须先按 §14 第 43 条步骤 1–5 手动执行 schema.sql + data.sql + 修改种子密码，再启动全栈。后续重启直接用 `docker compose up -d` 即可。
+>
+> **healthcheck 与 restart 关系**：`healthcheck` 不健康**不会**触发 `restart: unless-stopped`（这是 Docker 设计）。健康检查持续失败时容器保持运行但标记为 `unhealthy`，需要通过外部监控告警。如果希望 unhealthy 自动重启，改用 `restart: on-failure` 或外部编排（如 k8s liveness probe + restartPolicy）。
 
 ---
 
@@ -1028,7 +1036,7 @@ services:
 18. **WebSocket 鉴权**：`/ws` 端点通过 `JwtHandshakeInterceptor` 校验握手请求。**推荐方式**：前端先调 `GET /api/auth/ws-ticket`（需 JWT）获取 60s 一次性 ticket，再用 `ws://host:port/ws?ticket=${ticket}` 连接——ticket 一次性消费，反向代理日志里只看到随机 token。**兼容方式**：`ws://host:port/ws?token=${authToken}`（直接把 JWT 放 query，浏览器 WebSocket API 不支持自定义 Header）。前端 `realtimeService.js` 已实现：**优先 ticket，失败 fallback raw JWT**（重连时重新取 ticket，处理 token 刷新）。WS URL 未配置时自动从 `VITE_API_BASE_URL` 推导 http→ws、/api→/ws。
 19. **人员位置上报鉴权**：`POST /api/personnel/positions/report` 已从 permitAll 收口为 authenticated，需携带有效 JWT。移动端可复用 Web 端签发的 token（`/api/auth/login` 返回），建议设置较长过期时间（如 24h）。
 20. **schema 文本列**：`device_metric.raw_payload`、`warning_event.rule_snapshot`、`ai_analysis_result.result_json` 均以 `TEXT` 存储（实体映射 String）；若改回 `JSONB` 需同步调整实体类型或加 `::jsonb` 转换，避免 `column is of type jsonb but expression is of type character varying` 报错。
-21. **种子数据明文密码**：`data.sql` 预置三个演示用户（admin/attendant/maintenance），BCrypt 哈希对应明文密码均为 `123456`。生产环境首次启动后务必通过 `POST /api/auth/change-password` 修改，或直接删除 `data.sql` 种子数据 + 设置 `DEV_USERS_ENABLED=false`。
+21. **种子数据明文密码**：`data.sql` 预置三个演示用户（admin/attendant/maintenance），BCrypt 哈希对应明文密码均为 `123456`。生产环境**两种做法**：(a) 执行 data.sql 后、启动 backend 前用 SQL UPDATE 改密码（见 §14 #43 步骤 5）；(b) 跳过 data.sql 注入，启动后用 SQL INSERT 创建管理员（此时 sys_user 为空，ProductionConfigValidator 旁路放行）。
 22. **geom 字段维护**：`hazard_point.geom` / `monitoring_device.geom` 等空间列**仅由应用层通过 GeometryFactory 自动生成**——写入时同时更新经度/纬度/geom 三列。**禁止直接用 SQL 修改经纬度而不更新 geom**（空间索引查询会返回错误结果）。如果必须绕过应用层运维，请执行 `UPDATE ... SET geom = ST_SetSRID(ST_MakePoint(longitude, latitude), 4326) WHERE ...`。
 23. **MinIO presigned URL 过期**：附件上传返回的 presigned URL 有效期 7 天（MinIO 默认），过期后前端需重新请求。`/api/attachments/{code}` 接口会检查过期并返回 410 Gone + 新签名 URL 响应头（`X-New-Url`）。生产部署建议设置 CDN 反向代理 + 自定义域名，避免直接暴露 MinIO 端口。
 24. **EMQX broker 侧认证配置**：`docker-compose.yml` 编排了 EMQX 5.x 并挂载 `infra/emqx/` 目录作为配置。首次启动时执行 `infra/emqx/init.sh` 会创建 Built-in Database 认证器 + `geosentry_backend` MQTT 用户（BCrypt 密码来自 `EMQX_PASSWORD`）。**如果跳过此初始化步骤**（如手动 docker-compose up 未挂载目录），broker 侧无认证，任何客户端可连接。验证方式：访问 `http://localhost:28083`（Dashboard）→ 认证 → Users，应能看到 `geosentry_backend` 用户。
@@ -1040,7 +1048,7 @@ services:
 30. **附件 presigned URL 自动刷新**：MinIO presigned URL 有效期 7 天。后端 `GET /api/attachments/{id}` 每次访问自动生成新 URL 并更新 DB；前端也可调用 `POST /api/attachments/{id}/refresh-url` 强制刷新。建议前端检测到图片 403 时自动调用刷新。
 31. **操作审计日志**：`OperationLogAspect`（AOP）自动拦截所有带 `@PreAuthorize` 注解的 Controller 写方法（POST/PUT/DELETE），记录 operator / module / action / HTTP 方法 / URL / 耗时 / IP 到 `operation_log` 表。密码等敏感字段自动截断。审计失败不影响主流程。
 32. **预警规则引擎性能**：`RuleEngineScheduler.hasOpenWarning` 已从全表扫描改为 `WarningEventRepository.existsByRuleCodeAndHazardCodeAndStatusNot` 数据库索引查询，避免设备量增大时性能下降。
-33. **ProductionConfigValidator 作用**：`@Profile("prod")` 组件，启动时自动校验 7 项安全配置（DEV_USERS_ENABLED、DEVICE_AUTH_STRICT、WS_REQUIRE_TICKET、EMQX 凭据、FRONTEND_ORIGIN、种子用户密码、MINIO 密钥强度）。**7 项全部 fail-fast：命中即抛 `IllegalStateException` 阻断启动**，与其他安全配置策略一致。唯一旁路：`sys_user` 表为空（全新空 DB、未执行 data.sql）时跳过种子密码检查，允许首次部署启动后再通过 API 创建管理员。dev profile 下不加载，避免本地开发被拦截。
+33. **ProductionConfigValidator 作用**：`@Profile("prod")` 组件，启动时自动校验 7 项安全配置（DEV_USERS_ENABLED、DEVICE_AUTH_STRICT、WS_REQUIRE_TICKET、EMQX 凭据、FRONTEND_ORIGIN、种子用户密码、MINIO 密钥强度）。**7 项全部 fail-fast：命中即抛 `IllegalStateException` 阻断启动**，与其他安全配置策略一致。**唯一旁路**：`sys_user` 表为空（未执行 data.sql、无任何用户记录）时跳过种子密码检查，允许首次部署启动后通过 API 或 SQL 创建管理员。dev profile 下不加载，避免本地开发被拦截。
 34. **种子用户密码重置**：data.sql 中三个种子用户密码均为 BCrypt("123456")。prod profile 禁用 SQL init，首次部署也不自动执行 data.sql，因此**统一采用 SQL UPDATE 方案**：
     - **首次部署**：执行 data.sql 注入种子数据后、启动 backend **之前**，用 htpasswd 生成新 BCrypt hash + `UPDATE sys_user`（详见下方 §14 第 43 条步骤 5）。否则 ProductionConfigValidator 检测到默认密码会阻断启动；
     - **已运行系统**：让用户登录后调用 `POST /api/auth/change-password` 修改，或 DBA 直接执行 `UPDATE sys_user SET password_hash = '<BCryptHash>' WHERE username = 'admin'`。
@@ -1059,45 +1067,80 @@ services:
 
 40. **DeviceDataService 双写一致性**：先写 PostgreSQL（事务内），再 try-catch 写 TDengine。PG 写入成功但 TDengine 失败时，PG 数据已持久化但 TDengine 缺样本。长期运行可能出现时序数据与关系库不一致。建议 v2 版本引入补偿队列（Redis Stream）处理 TDengine 写入失败。
 
-41. **设备数据去重保留先到者**：HTTP/MQTT 上报均走 `DeviceDataService.ingest`，PostgreSQL 唯一索引 `idx_device_metric_unique(device_code, metric_code, recorded_at)` 防止重复样本。重复时 catch `DataIntegrityViolationException` 并跳过（DEBUG 日志），不影响主流程。注意：recorded_at 精度为秒，高于 1Hz 的设备上报可能被误去重（设计预期，v2 考虑毫秒级精度）。
+41. **设备数据去重保留先到者**：HTTP/MQTT 上报均走 `DeviceDataService.ingest`，PostgreSQL 唯一索引 `idx_device_metric_unique(device_code, metric_code, recorded_at)` 防止重复样本。重复时 catch `DataIntegrityViolationException` 并跳过（DEBUG 日志），不影响主流程。
+
+    ⚠️ **精度限制**：`recorded_at` 类型为 `TIMESTAMPTZ`，精度**截断到秒**。位移计、雨量计等高于 1Hz 的传感器，同一秒内的多个不同样本会被误判为重复而丢弃。
+
+    **规避措施（当前版本）**：
+    - 在数据接入层做**聚合**：将高频传感器数据降采样到 1Hz（取均值或首尾值）；
+    - 不要将位移计等高频设备的原始上报端直接接入，可通过边缘网关聚合后再上报。
+
+    **v2 规划**：引入 `recorded_at TIMESTAMPTZ(3)`（毫秒精度）或增加服务端接收时间戳 `received_at` 作为辅助去重字段，支持亚秒级精度。
 
 42. **TDengine 驱动在 Docker 中的加载**：`Dockerfile.backend` **构建阶段**尝试从 Maven Central 下载 `taos-jdbcdriver:3.3.0` 放入 `/app/optional-lib/`，通过 `java -cp /app/app.jar:/app/optional-lib/* org.springframework.boot.loader.launch.JarLauncher` 加载。若 Maven Central 不可达，**Docker 镜像构建会中断**（非运行时才报错），需提前将驱动放入本地 Maven 仓库（`mvn install:install-file -Dfile=taos-jdbcdriver-3.3.0.jar -DgroupId=com.taosdata.jdbc -DartifactId=taos-jdbcdriver -Dversion=3.3.0 -Dpackaging=jar`）。
 
 43. **生产环境数据库初始化**：prod profile 禁用 `spring.sql.init.mode=never`，首次部署时不会自动建表。初始化步骤：
-    1. `docker compose -f docker-compose.yml up -d postgres` 启动空 PostGIS；
-    2. `docker exec -i geosentry-postgres psql -U geosentry -d geosentry < infra/postgres/init/001_create_extensions.sql` 启用扩展；
-    3. `docker exec -i geosentry-postgres psql -U geosentry -d geosentry < backend/src/main/resources/schema.sql` 建表（幂等，可重跑）；
-    4. `docker exec -i geosentry-postgres psql -U geosentry -d geosentry < backend/src/main/resources/data.sql` 注入种子数据；
-    5. **强制修改种子密码**（否则 ProductionConfigValidator 检测到默认密码会**阻断 prod 启动**）：
 
-       ```bash
-       # 1) 生成新 BCrypt hash（交互输入新密码）
-       htpasswd -nbBC 10 "" '<your_strong_password>'
-       # 示例输出：$2b$10$...
+    ```bash
+    # ====== 步骤 1：启动空 PostGIS ======
+    docker compose -f docker-compose.yml up -d postgres
 
-       # 2) 注入数据库（替换 <BCRYPT_HASH> 为上一步输出）
-       docker exec -i geosentry-postgres psql -U geosentry -d geosentry \
-         -c "UPDATE sys_user SET password_hash='<BCRYPT_HASH>' WHERE username IN ('admin','attendant','maintenance');"
-       ```
+    # ====== 步骤 2：启用 PostGIS 扩展 ======
+    docker compose exec -T postgres psql -U geosentry -d geosentry \
+      < infra/postgres/init/001_create_extensions.sql
 
-       > **BCrypt 前缀兼容性**：`htpasswd` 默认生成 `$2y$` 前缀，Spring Security 的 `BCryptPasswordEncoder` 使用 `$2a$` 前缀，两者算法兼容可互验。若遇到校验失败，改用 Spring Security 生成：写一段临时 Java 调用 `new BCryptPasswordEncoder().encode(password)` 即可。
+    # ====== 步骤 3：建表（幂等，可重跑） ======
+    docker compose exec -T postgres psql -U geosentry -d geosentry \
+      < backend/src/main/resources/schema.sql
 
-       也可**删除本步骤**，直接删除 data.sql 中的种子注入，改为首次部署后通过 API `POST /api/auth/register` 创建管理员——此时 sys_user 表为空，ProductionConfigValidator 会跳过种子密码检查。
+    # ====== 步骤 4：注入种子数据 ======
+    docker compose exec -T postgres psql -U geosentry -d geosentry \
+      < backend/src/main/resources/data.sql
 
-    6. 最后启动 backend 容器：`docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d backend`
+    # ====== 步骤 5：强制修改种子密码 ======
+    # （否则 ProductionConfigValidator 检测到默认密码会阻断 prod 启动）
+
+    # 5a) 生成新 BCrypt hash（交互输入新密码）
+    htpasswd -nbBC 10 "" '<your_strong_password>'
+    # 示例输出：$2b$10$...
+
+    # 5b) 注入数据库（替换 <BCRYPT_HASH> 为上一步输出）
+    docker compose exec -T postgres psql -U geosentry -d geosentry \
+      -c "UPDATE sys_user SET password_hash='<BCRYPT_HASH>' WHERE username IN ('admin','attendant','maintenance');"
+    ```
+
+    > **BCrypt 前缀兼容性**：`htpasswd` 默认生成 `$2y$` 前缀，Spring Security 的 `BCryptPasswordEncoder` 使用 `$2a$` 前缀，两者算法兼容可互验。若遇到校验失败，改用 Spring Security 生成：写一段临时 Java 调用 `new BCryptPasswordEncoder().encode(password)` 即可。
+
+    **替代方案（推荐给安全敏感场景）**：**删除 data.sql 种子注入，启动后手动创建管理员**。
+    种子数据中三个用户密码均为 `123456`，存在已知默认凭据风险。更安全的做法：
+
+    ```bash
+    # 跳过步骤 4（不执行 data.sql），直接启动全栈
+    # 此时 sys_user 表为空，ProductionConfigValidator 跳过种子密码检查
+    docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+
+    # 启动后用 SQL 直接创建管理员
+    # htpasswd 先生成 hash，然后：
+    docker compose exec -T postgres psql -U geosentry -d geosentry \
+      -c "INSERT INTO sys_user (username, password_hash, full_name, role, status, created_at) \
+          VALUES ('admin', '<BCRYPT_HASH>', '系统管理员', 'ADMIN', 'ENABLED', NOW());"
+    ```
+
+    > **为什么没有注册接口？** 出于安全考虑，未实现 `POST /api/auth/register` 公开注册端点。如果确实需要开放注册（如多租户场景），必须设计邀请码/审批机制。6. **最后启动全栈服务**：`docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build`
+    > 此命令会启动 backend、frontend、ai-service 等全部服务。frontend 可随时启动（无依赖顺序要求），nginx 会代理 `/api` 和 `/ws` 到 backend。
 
 ### 生产依赖服务初始化检查清单
 
 除 PostgreSQL 外，以下依赖服务需确认初始化状态（dev 模式自动处理，prod 需手动检查）：
 
-| 服务         | 初始化项                                            | 自动/手动                                                                                                                     | 检查/修复命令                                                                                                                                     |
-| ------------ | --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **EMQX**     | Built-in Database 认证器 + `geosentry_backend` 用户 | 自动（`infra/emqx/init.sh` entrypoint 执行）                                                                                  | `docker exec geosentry-emqx emqx ctl users list` 查看用户列表；若缺失：`docker exec -i geosentry-emqx sh /opt/emqx/init.sh`                       |
-| **MinIO**    | `geosentry-attachments` bucket                      | 手动（首次附件上传时由 `AttachmentService.ensureBucket()` 创建）                                                              | 首次上传附件触发，或提前：`mc alias set myminio http://localhost:9000 $MINIO_ACCESS_KEY $MINIO_SECRET_KEY && mc mb myminio/geosentry-attachments` |
-| **TDengine** | `geosentry` 数据库 + `device_metric` 超级表         | 自动（首次写入时 `TdengineMetricService.writeMetric()` 执行 `CREATE DATABASE IF NOT EXISTS` + `CREATE STABLE IF NOT EXISTS`） | `docker exec geosentry-tdengine taos -s "SHOW DATABASES;"` 确认数据库存在                                                                         |
-| **Redis**    | 无需初始化                                          | —                                                                                                                             | `docker exec geosentry-redis redis-cli ping` 返回 PONG 即可                                                                                       |
+| 服务         | 初始化项                                            | 自动/手动                                                                                                                     | 检查/修复命令                                                                                                                                                      |
+| ------------ | --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **EMQX**     | Built-in Database 认证器 + `geosentry_backend` 用户 | 自动（`infra/emqx/init.sh` entrypoint 执行）                                                                                  | `docker compose exec emqx emqx ctl users list` 查看用户列表；若缺失：`docker compose exec emqx sh /opt/emqx/init.sh`                                               |
+| **MinIO**    | `geosentry` bucket                                  | **自动**（`AttachmentService` 首次附件上传时自动检查并创建）                                                                  | 检查 bucket 是否存在：`docker compose exec minio mc alias set myminio http://localhost:9000 $MINIO_ACCESS_KEY $MINIO_SECRET_KEY && mc ls myminio/`；可选预创建同上 |
+| **TDengine** | `geosentry` 数据库 + `device_metric` 超级表         | 自动（首次写入时 `TdengineMetricService.writeMetric()` 执行 `CREATE DATABASE IF NOT EXISTS` + `CREATE STABLE IF NOT EXISTS`） | `docker compose exec tdengine taos -s "SHOW DATABASES;"` 确认数据库存在                                                                                            |
+| **Redis**    | 无需初始化                                          | —                                                                                                                             | `docker compose exec redis redis-cli ping` 返回 PONG 即可                                                                                                          |
 
-> **生产首次部署顺序**：先按 #43 步骤 1–5 初始化 PostgreSQL → 启动全部依赖服务（`docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d postgres emqx minio redis`）→ 等待 EMQX/MinIO 健康 → 最后启动 backend（步骤 6）。backend 的 `depends_on: postgres: condition: service_healthy` + healthcheck 会自动等待数据库就绪。
+> **生产首次部署顺序**：按 #43 步骤 1–5 初始化 PostgreSQL → 执行步骤 6 启动全栈。`docker-compose.prod.yml` 已配置 backend 的 `depends_on: service_healthy`（postgres/redis/minio/emqx）+ healthcheck，会自动等待依赖就绪。frontend 无依赖顺序，可在 backend 之后或同时启动。
 
 ---
 

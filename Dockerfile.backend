@@ -45,9 +45,9 @@ COPY --from=builder /app/target/*.jar /app/app.jar
 # 复制可选 TDengine JDBC
 COPY --from=builder /app/optional-lib /app/optional-lib
 
-# 时区
+# 时区 + 健康检查依赖（curl 用于 docker-compose healthcheck）
 ENV TZ=Asia/Shanghai
-RUN apk add --no-cache tzdata && \
+RUN apk add --no-cache tzdata curl && \
     ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 EXPOSE 8080
