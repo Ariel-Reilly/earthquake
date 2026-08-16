@@ -898,6 +898,25 @@ docker compose down -v            # 删除数据卷（含 m2_cache/node_modules�
 docker compose up -d              # 重新初始化
 ```
 
+### 生产模式 docker-compose 覆盖文件
+
+项目根目录提供了 `docker-compose.prod.yml`，与 `docker-compose.yml` 配合使用时覆盖 backend 和 frontend 服务为生产模式：
+
+| 项目                   | docker-compose.yml（dev）            | docker-compose.prod.yml（覆盖）                                          |
+| ---------------------- | ------------------------------------ | ------------------------------------------------------------------------ |
+| backend 镜像           | maven:...-temurin-17（源码挂载运行） | Dockerfile.backend 多阶段构建 jar 镜像                                   |
+| SPRING_PROFILES_ACTIVE | docker                               | **prod**（触发 ProductionConfigValidator）                               |
+| 安全默认值             | DEV_USERS_ENABLED=true               | DEV_USERS_ENABLED=false, DEVICE_AUTH_STRICT=true, WS_REQUIRE_TICKET=true |
+| 前端构建               | 无 mock 拦截                         | VITE_USE_BACKEND!=true 时构建失败                                        |
+| 健康检查               | 无                                   | backend + frontend 均有 healthcheck                                      |
+| 资源限制               | 无                                   | 2 CPU / 1GB 内存上限                                                     |
+
+启动方式：
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+```
+
 ---
 
 ## 13. 二次开发指南
@@ -981,26 +1000,47 @@ docker compose up -d              # 重新初始化
 30. **附件 presigned URL 自动刷新**：MinIO presigned URL 有效期 7 天。后端 `GET /api/attachments/{id}` 每次访问自动生成新 URL 并更新 DB；前端也可调用 `POST /api/attachments/{id}/refresh-url` 强制刷新。建议前端检测到图片 403 时自动调用刷新。
 31. **操作审计日志**：`OperationLogAspect`（AOP）自动拦截所有带 `@PreAuthorize` 注解的 Controller 写方法（POST/PUT/DELETE），记录 operator / module / action / HTTP 方法 / URL / 耗时 / IP 到 `operation_log` 表。密码等敏感字段自动截断。审计失败不影响主流程。
 32. **预警规则引擎性能**：`RuleEngineScheduler.hasOpenWarning` 已从全表扫描改为 `WarningEventRepository.existsByRuleCodeAndHazardCodeAndStatusNot` 数据库索引查询，避免设备量增大时性能下降。
-33. **ProductionConfigValidator 作用**：`@Profile("prod")` 组件，启动时自动校验 7 项安全配置（DEV_USERS_ENABLED、DEVICE_AUTH_STRICT、WS_REQUIRE_TICKET、EMQX 凭据、FRONTEND_ORIGIN、种子用户密码、MINIO 密钥强度）。命中任一即抛 `IllegalStateException` 阻断启动。dev profile 下不加载，避免本地开发被拦截。
+33. **ProductionConfigValidator 作用**：`@Profile("prod")` 组件，启动时自动校验 7 项安全配置（DEV_USERS_ENABLED、DEVICE_AUTH_STRICT、WS_REQUIRE_TICKET、EMQX 凭据、FRONTEND_ORIGIN、种子用户密码、MINIO 密钥强度）。其中 6 项命中即抛 `IllegalStateException` 阻断启动、种子用户 BCrypt hash 命中默认值 → 输出 **WARN 提醒**（不阻断启动，允许首次部署）。dev profile 下不加载，避免本地开发被拦截。
 34. **种子用户密码重置**：data.sql 中三个种子用户密码均为 BCrypt("123456")。重置密码区分两种场景：
     - **首次部署（全新空 DB）**：直接修改 `data.sql` 中的 BCrypt hash（用 `htpasswd -nbBC 10 "" <new_password>` 生成），部署时 spring.sql.init 会在首次启动时自动执行；
     - **已运行系统（DB 已有数据）**：prod profile 禁用 SQL init，data.sql 不会重新执行。此时应让用户登录后调用 `POST /api/auth/change-password` 修改，或 DBA 直接执行 `UPDATE sys_user SET password_hash = '<BCryptHash>' WHERE username = 'admin'`。
-      ProductionConfigValidator 会检测 DB 中种子 hash 是否仍为默认值并阻断 prod 启动。
-35. **EMQX init.sh 失败处理**：broker 认证初始化脚本内置 3 次重试（每次间隔 5s）。全部失败后 entrypoint 返回非零退出码，`docker restart unless-stopped` 自动重启容器重试。避免 broker 在无认证状态下持续运行。
-36. **Docker 镜像构建**：后端使用 `Dockerfile.backend` 多阶段构建，自动从 Maven Central 下载 `taos-jdbcdriver:3.3.0` 放入 `/app/optional-lib/`，通过 `java -cp` 加载（Spring Boot JarLauncher 机制）。前端 `Dockerfile.frontend` 强制校验 `VITE_USE_BACKEND=true`，否则构建失败。
-37. **operation_log 归档策略**：归档脚本 `infra/postgres/init/003_archive_operation_log.sql` 已存在，包含 `operation_log_archive` 归档表 DDL 与 `archive_operation_logs(retention_days)` 归档函数。生产环境建议每日凌晨 3:00 执行（通过 pg_cron 或外部调度器），默认保留 90 天在线数据。归档表在首次执行时由 `CREATE TABLE IF NOT EXISTS` 自动创建，结构与 `operation_log` 完全一致（无索引减少归档写入开销）。
-38. **AI 降级审计追踪**：规则引擎在 AI 服务不可用时降级沿用规则等级，同时在 risk_score_log 中写入 `source='rule_only'` 标记，便于后续评估 AI 融合覆盖率。
-39. **geom 字段数据库触发器规划**：当前 geom 完全由应用层维护（EntityListener）。直接 SQL 修改 longitude/latitude 而不更新 geom 会导致空间索引返回错误结果。建议 v2 版本引入 BEFORE UPDATE/INSERT 触发器强制同步。当前运维规范：禁止直接 SQL 修改经纬度列。
-40. **DeviceDataService 双写一致性**：先写 PostgreSQL（事务内），再 try-catch 写 TDengine。PG 写入成功但 TDengine 失败时，PG 数据已持久化但 TDengine 缺样本。长期运行可能出现时序数据与关系库不一致。建议 v2 版本引入补偿队列（Redis Stream）处理 TDengine 写入失败。
-41. **设备数据去重保留先到者**：HTTP/MQTT 双通道上报同一设备同一时间戳数据时，唯一索引决定先到达者生效，后到达者被 catch 跳过。若两条通道数据有细微差异（如不同传感器读数），后到者被丢弃。这是设计预期——先到者为可信来源。
-42. **TDengine 驱动在 Docker 中的加载**：`Dockerfile.backend` 构建时尝试从 Maven Central 下载 `taos-jdbcdriver:3.3.0` 放入 `/app/optional-lib/`。运行时通过 `java -cp /app/app.jar:/app/optional-lib/* org.springframework.boot.loader.launch.JarLauncher` 加载。若 Maven Central 不可达，驱动不会被下载，TDENGINE_ENABLED=true 时会因 ClassNotFoundException 启动失败——可通过 `mvn install:install-file` 手动安装本地 jar 解决。
-43. **生产环境数据库初始化**：prod profile 禁用 `spring.sql.init.mode=never`，首次部署时不会自动建表。初始化步骤：
+      ProductionConfigValidator 会检测 DB 中种子 hash 是否仍为默认值并输出 WARN（不阻断 prod 启动）。
+
+> 生产初始化的推荐流程详见 §14 第 43 条（步骤 5），其中给出了完整的 htpasswd + SQL 命令示例。35. **EMQX init.sh 失败处理**：broker 认证初始化脚本内置 3 次重试（每次间隔 5s）。全部失败后 entrypoint 返回非零退出码，`docker restart unless-stopped` 自动重启容器重试。避免 broker 在无认证状态下持续运行。36. **Docker 镜像构建**：后端使用 `Dockerfile.backend` 多阶段构建，自动从 Maven Central 下载 `taos-jdbcdriver:3.3.0` 放入 `/app/optional-lib/`，通过 `java -cp` 加载（Spring Boot JarLauncher 机制）。前端 `Dockerfile.frontend` 强制校验 `VITE_USE_BACKEND=true`，否则构建失败。37. **operation_log 归档策略**：归档脚本 `infra/postgres/init/003_archive_operation_log.sql` 已存在，包含 `operation_log_archive` 归档表 DDL 与 `archive_operation_logs(retention_days)` 归档函数。生产环境建议每日凌晨 3:00 执行（通过 pg_cron 或外部调度器），默认保留 90 天在线数据。归档表在首次执行时由 `CREATE TABLE IF NOT EXISTS` 自动创建，结构与 `operation_log` 完全一致（无索引减少归档写入开销）。38. **AI 降级审计追踪**：规则引擎在 AI 服务不可用时降级沿用规则等级，同时在 risk_score_log 中写入 `source='rule_only'` 标记，便于后续评估 AI 融合覆盖率。39. **geom 字段数据库触发器规划**：当前 geom 完全由应用层维护（EntityListener）。直接 SQL 修改 longitude/latitude 而不更新 geom 会导致空间索引返回错误结果。建议 v2 版本引入 BEFORE UPDATE/INSERT 触发器强制同步。当前运维规范：禁止直接 SQL 修改经纬度列。40. **DeviceDataService 双写一致性**：先写 PostgreSQL（事务内），再 try-catch 写 TDengine。PG 写入成功但 TDengine 失败时，PG 数据已持久化但 TDengine 缺样本。长期运行可能出现时序数据与关系库不一致。建议 v2 版本引入补偿队列（Redis Stream）处理 TDengine 写入失败。41. **设备数据去重保留先到者**：HTTP/MQTT 双通道上报同一设备同一时间戳数据时，唯一索引决定先到达者生效，后到达者被 catch 跳过。若两条通道数据有细微差异（如不同传感器读数），后到者被丢弃。这是设计预期——先到者为可信来源。42. **TDengine 驱动在 Docker 中的加载**：`Dockerfile.backend` **构建阶段**尝试从 Maven Central 下载 `taos-jdbcdriver:3.3.0` 放入 `/app/optional-lib/`，通过 `java -cp /app/app.jar:/app/optional-lib/* org.springframework.boot.loader.launch.JarLauncher` 加载。若 Maven Central 不可达，**Docker 镜像构建会中断**（非运行时才报错），需提前将驱动放入本地 Maven 仓库（`mvn install:install-file -Dfile=taos-jdbcdriver-3.3.0.jar -DgroupId=com.taosdata.jdbc -DartifactId=taos-jdbcdriver -Dversion=3.3.0 -Dpackaging=jar`）。43. **生产环境数据库初始化**：prod profile 禁用 `spring.sql.init.mode=never`，首次部署时不会自动建表。初始化步骤：
+
     1. `docker compose -f docker-compose.yml up -d postgres` 启动空 PostGIS；
     2. `docker exec -i geosentry-postgres psql -U geosentry -d geosentry < infra/postgres/init/001_create_extensions.sql` 启用扩展；
     3. `docker exec -i geosentry-postgres psql -U geosentry -d geosentry < backend/src/main/resources/schema.sql` 建表（幂等，可重跑）；
     4. `docker exec -i geosentry-postgres psql -U geosentry -d geosentry < backend/src/main/resources/data.sql` 注入种子数据；
-    5. 最后启动 backend 容器。`docker-compose.prod.yml` 已包含这些步骤的注释。
+    5. **强制修改种子密码**（否则 prod 启动后日志 WARN + 存在安全风险）：
+
+       ```bash
+       # 1) 生成新 BCrypt hash（交互输入新密码）
+       htpasswd -nbBC 10 "" '<your_strong_password>'
+       # 示例输出：$2b$10$...
+
+       # 2) 注入数据库（替换 <BCRYPT_HASH> 为上一步输出）
+       docker exec -i geosentry-postgres psql -U geosentry -d geosentry \
+         -c "UPDATE sys_user SET password_hash='<BCRYPT_HASH>' WHERE username IN ('admin','attendant','maintenance');"
+       ```
+
+       也可启动 backend 后用管理员账号登录，调用 `POST /api/auth/change-password` 修改（两种方式等价）。
+       注意：ProductionConfigValidator 对种子密码命中默认值输出 WARN 而非阻断（允许首次部署启动），但安全上强烈建议立即修改。
+
+    6. 最后启动 backend 容器：`docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d backend`
 
 ---
+
+### 版本控制注意事项
+
+项目已提供 `.gitignore`，以下内容**不应提交到版本库**：
+
+- `dist/` — 前端构建产物（`npm run build` 生成）
+- `node_modules/` — 前端依赖目录
+- `backend/target/` — Maven 编译产物
+- `m2_cache/` — docker-compose 中 Maven 本地仓库卷
+- `*.log`、`.env`、密钥文件、PEM/key 证书
+
+建议在首次 clone 后执行 `git status` 确认无敏感文件被误跟踪。
 
 _本文档基于仓库当前代码整理，随项目迭代请同步更新。_

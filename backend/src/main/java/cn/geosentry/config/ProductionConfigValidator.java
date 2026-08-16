@@ -130,7 +130,7 @@ public class ProductionConfigValidator {
       }
     }
 
-    // 7) 种子用户密码检查（仅在 DB 中有种子用户时）
+    // 7) 种子用户密码检查（仅在 DB 中已有用户时触发，空 DB 为首次部署场景，跳过）
     checkSeedUserPasswords(errors);
 
     if (!errors.isEmpty()) {
@@ -144,12 +144,20 @@ public class ProductionConfigValidator {
   }
 
   /**
-   * 扫描 sys_user 表中所有启用账号，如果密码 hash 仍是种子值（对应明文 123456），
-   * 追加到错误列表。
+   * 扫描 sys_user 表中启用账号，若密码 hash 仍为种子值（对应明文 123456），
+   * 输出 WARN 提醒但**不阻断启动**——prod 首次部署注入 data.sql 后种子密码必然是默认值，
+   * 需要运维登录后自行修改。阻断会导致首次部署死锁。
+   *
+   * <p>若 sys_user 表为空（全新空 DB、未执行 data.sql），也跳过此检查，
+   * 由运维自行通过 API 创建管理员。
    */
   private void checkSeedUserPasswords(List<String> errors) {
     try {
       var users = userRepository.findAll();
+      if (users.isEmpty()) {
+        log.info("prod 校验：sys_user 表为空（全新部署），跳过种子密码检查，请创建管理员后立即设置强密码");
+        return;
+      }
       List<String> offenders = new ArrayList<>();
       for (var u : users) {
         String hash = u.getPasswordHash();
@@ -158,8 +166,12 @@ public class ProductionConfigValidator {
         }
       }
       if (!offenders.isEmpty()) {
-        errors.add("种子用户密码仍为默认值 '123456'：" + String.join(", ", offenders)
-            + "。请登录后立即执行 POST /api/auth/change-password 修改，或在 data.sql 中更换 BCrypt hash。");
+        // WARN 而非阻断：首次部署必经此场景，阻断会导致启动死锁
+        String msg = "⚠ prod 发现种子用户密码仍为默认值 '123456'：" + String.join(", ", offenders)
+            + "。请立即登录后调用 POST /api/auth/change-password 修改！"
+            + "或在注入 data.sql 后、启动 backend 前执行："
+            + "UPDATE sys_user SET password_hash='<新BCrypt哈希>' WHERE username IN (...);";
+        log.warn(msg);
       }
     } catch (Exception ex) {
       // DB 未就绪时跳过（schema.sql 还没跑完）
