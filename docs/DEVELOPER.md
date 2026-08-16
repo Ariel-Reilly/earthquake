@@ -49,13 +49,13 @@
 
 ### 前端
 
-| 类别       | 技术                                                        |
-| ---------- | ----------------------------------------------------------- |
-| 框架       | Vue 3（Options/Composition API 混用，多为 `<script setup>`) |
-| 构建       | Vite 8（`@vitejs/plugin-vue` + `vite-plugin-cesium`）       |
-| 路由       | vue-router (web history)                                    |
-| 地图（2D） | OpenLayers 10（`mapService.js`）                            |
-| 地图（3D） | Cesium 1.144（按需加载）                                    |
+| 类别       | 技术                                                                                         |
+| ---------- | -------------------------------------------------------------------------------------------- |
+| 框架       | Vue 3（Options/Composition API 混用，多为 `<script setup>`)                                  |
+| 构建       | Vite 8（`@vitejs/plugin-vue` + `vite-plugin-cesium`）                                        |
+| 路由       | vue-router (web history)                                                                     |
+| 地图（2D） | OpenLayers 10（`mapService.js`）；Leaflet 已从代码中移除，但 `package.json` 仍保留为可选依赖 |
+| 地图（3D） | Cesium 1.144（按需加载）                                                                     |
 
 ### 后端
 
@@ -194,6 +194,10 @@ earthquake/
 │   ├── Dockerfile
 │   ├── requirements.txt
 │   └── models/                # 存放训练好的模型文件（缺失则降级）
+├── Dockerfile.backend         # 后端多阶段构建（根目录，内部 COPY backend/pom.xml + src）
+├── Dockerfile.frontend       # 前端多阶段构建（基于 nginx:alpine）
+├── docker-compose.yml        # dev 模式编排（postgres/redis/minio/emqx/tdengine/backend/frontend）
+├── docker-compose.prod.yml   # 生产模式覆盖文件（backend + frontend 生产配置）
 ├── infra/postgres/init/       # PostGIS 扩展初始化（docker-entrypoint 首次建卷执行）
 └── dist/                      # 前端构建产物
 ```
@@ -607,19 +611,19 @@ dto/         → 请求/响应记录（record）
 
 **消息类型**：`warning`（预警状态变更）、`emergency`（应急事件新建/闭环）、`personnel`（值守人员位置更新）、`device`（设备状态变更）。
 
-> **消息类型 payload 示例**：
+> **消息类型 payload 示例**（`version` 初始值为 `System.currentTimeMillis()` 毫秒时间戳，实际值从 ~1.7e12 起递增，以下示例仅取后几位方便阅读）：
 >
-> - `warning`: `{"type":"warning","data":{"warningCode":"WG-001","status":"已确认","warningLevel":"红色","title":"青龙坡位移超限"},"version":1001}`
-> - `emergency`: `{"type":"emergency","data":{"eventCode":"EM-001","status":"处置中","title":"青龙坡滑坡应急启动"},"version":1002}`
-> - `personnel`: `{"type":"personnel","data":{"username":"周小雨","hazardCode":"HZ-001","longitude":107.21,"latitude":30.61,"status":"在现场"},"version":1003}`
-> - `device`: `{"type":"device","data":{"deviceCode":"DV-001","onlineStatus":"离线","batteryLevel":23},"version":1004}`
+> - `warning`: `{"type":"warning","data":{"warningCode":"WG-001","status":"已确认","warningLevel":"红色","title":"青龙坡位移超限"},"version":1723747200001}`
+> - `emergency`: `{"type":"emergency","data":{"eventCode":"EM-001","status":"处置中","title":"青龙坡滑坡应急启动"},"version":1723747200002}`
+> - `personnel`: `{"type":"personnel","data":{"username":"周小雨","hazardCode":"HZ-001","longitude":107.21,"latitude":30.61,"status":"在现场"},"version":1723747200003}`
+> - `device`: `{"type":"device","data":{"deviceCode":"DV-001","onlineStatus":"离线","batteryLevel":23},"version":1723747200004}`
 
 前端（`src/services/realtimeService.js`）连接时**优先**调 `GET /api/auth/ws-ticket` 获取一次性 ticket，用 `?ticket=` 连接；失败时 fallback 到 `?token=`。重连时重新取 ticket，自动处理 token 刷新。基于 `version` 字段做幂等 upsert，丢弃过期/重复消息。后端 `RealtimeBroadcastService` 在 WarningService 的 confirm/dispatch/close/dismiss/resolve/create、EmergencyService 的 createFromWarning/resolve、DeviceDataService 的在线状态变化检测、PersonnelController 的位置上报中自动触发广播。
 
 > `version` 字段为服务端递增计数器（`AtomicLong.incrementAndGet()`），每次广播自动 +1。**初始值为 `System.currentTimeMillis()`**（毫秒级时间戳，约 1.7e12 起），保证服务重启后 version 仍单调递增，不会因归零导致前端丢弃新消息。前端基于 `version` 做幂等 upsert——只接收 version 更大的新消息，丢弃重复/过期消息。
 > **注意**：不要将 version 当作时间戳解析，它只是递增序号。
 
-> 配置开关：环境变量 `WS_REQUIRE_TICKET=true`（prod 推荐）强制仅接受 ticket，禁用 raw JWT；`WS_ENABLED=true` 启用 WebSocket（默认启用）。
+> 配置开关：环境变量 `WS_REQUIRE_TICKET=true`（prod 推荐）强制仅接受 ticket，禁用 raw JWT；`WEBSOCKET_ENABLED=true` 启用 WebSocket（默认启用，设为 false 时前端自动降级为纯轮询）。
 
 ### 7.14 设备数据链路
 
@@ -639,6 +643,14 @@ dto/         → 请求/响应记录（record）
 > 重复到达的第二条被 catch 并跳过（DEBUG 日志），保留先到者。
 > 设备端必须发送服务端时间戳（若设备时钟漂移 < 1s，`recorded_at` 精度到秒仍可能视为重复，这是设计预期）。
 > 若设备需高精度时间，建议毫秒级上报并使用自定义去重键。
+
+> ⚠️ **上报频率警告**：`recorded_at` 在数据库中精度截断到秒（`TIMESTAMPTZ` 无显式精度）。位移计、雨量计等传感器若以 >1Hz 频率上报，同一秒内的多个不同样本会被唯一索引判定为重复而丢弃——**不会报错、不会返回 4xx，静默丢失**。当前规避手段：
+>
+> 1. 在数据接入层做**聚合降采样**（如 1Hz 均值/首尾值）；
+> 2. 使用边缘网关采集后统一上报；
+> 3. v2 规划改为 `TIMESTAMPTZ(3)` 毫秒精度 + `received_at` 辅助去重字段。
+
+> **device_metric 表结构**：`schema.sql` 中 `recorded_at TIMESTAMPTZ NOT NULL` + `UNIQUE (device_code, metric_code, recorded_at)`；`value NUMERIC(16,4)` 指标值；`quality_code VARCHAR(8)` 数据质量标记。
 
 ---
 
@@ -1130,10 +1142,11 @@ docker compose exec -T postgres psql -U geosentry -d geosentry \
 
 # A5a) 生成新 BCrypt hash（选任一工具）
 # 工具 1：htpasswd（Apache HTTP 工具，需安装：apt-get install apache2-utils / brew install httpd）
+#   ⚠️ 密码若含 shell 特殊字符（$ ! ' " \），必须用单引号包裹或改用工具 2/3
 htpasswd -nbBC 10 "" '<your_strong_password>'
 # 示例输出：$2b$10$...
 
-# 工具 2：Python bcrypt（需 pip install bcrypt）
+# 工具 2：Python bcrypt（需 pip install bcrypt）— 无 shell 特殊字符问题
 python3 -c "import bcrypt; print(bcrypt.hashpw(b'<your_strong_password>', bcrypt.gensalt(10)).decode())"
 
 # 工具 3：Spring Security BCryptPasswordEncoder（Java）
@@ -1175,21 +1188,32 @@ docker compose exec -T postgres psql -U geosentry -d geosentry \
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 
 # ====== 步骤 B5：启动后用 SQL 创建管理员 ======
-# sys_user 表关键字段：
+# sys_user 表关键字段（schema.sql 第 36-48 行）：
 #   username       VARCHAR(64)  NOT NULL UNIQUE
 #   password_hash  VARCHAR(255) NOT NULL  — BCrypt hash（用上面任一工具生成）
-#   real_name      VARCHAR(64)  NOT NULL  — 用户真实姓名（data.sql 用 real_name 不是 full_name）
+#   real_name      VARCHAR(64)  NOT NULL  — 用户真实姓名（data.sql 用 real_name，不是 full_name）
 #   phone          VARCHAR(32)
 #   role_code      VARCHAR(64)  NOT NULL  — 小写：admin / attendant / maintenance
 #   region_code    VARCHAR(64)            — 如 '100000'
 #   status         VARCHAR(32)  NOT NULL DEFAULT '启用'
-#   created_at / updated_at  TIMESTAMPTZ DEFAULT NOW()
+#   created_at / updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW() — 已由表结构设定默认值，无需显式写入
 
-# 先准备 BCrypt hash（用 htpasswd 或 python3，见上）
+# 先准备 BCrypt hash（用 htpasswd 或 python3，见方案 A 步骤 A5a）
 docker compose exec -T postgres psql -U geosentry -d geosentry \
   -c "INSERT INTO sys_user (username, password_hash, real_name, phone, role_code, region_code, status)
       VALUES ('admin', '<BCRYPT_HASH>', '系统管理员', '', 'admin', '100000', '启用');"
 ```
+
+> **方案 B 的基础数据缺失警告**：此方案跳过了完整的 `data.sql`，可能导致以下基础数据表为空：
+>
+> | 表             | 影响                                                                           | 修复                                                              |
+> | -------------- | ------------------------------------------------------------------------------ | ----------------------------------------------------------------- |
+> | `sys_role`     | 仅插入了 `admin` 角色，缺少 `attendant` / `maintenance`                        | 可按需补充，或从 `data.sql` 复制完整 INSERT                       |
+> | `region`       | 行政区划列表为空，区域筛选/统计失效                                            | 从 `data.sql` 复制 `INSERT INTO region ...` 语句                  |
+> | `sys_menu`     | 菜单权限码定义缺失（但前端菜单硬编码，后端权限码由 `PermissionRegistry` 注册） | 非必需，可从 `data.sql` 复制                                      |
+> | `warning_rule` | 预警规则为空，规则引擎无规则可评估                                             | **必需**，需从 `data.sql` 复制所有 `INSERT INTO warning_rule ...` |
+>
+> 最简单的做法：**从 `data.sql` 中提取除 `sys_user` 外的所有 INSERT 语句**，在方案 B 步骤 B2 之后一次性执行。或保留完整的 `data.sql` 执行（即使用方案 A），这是推荐做法。
 
 > **为什么没有注册接口？** 出于安全考虑，未实现 `POST /api/auth/register` 公开注册端点。如果确实需要开放注册（如多租户场景），必须设计邀请码/审批机制。
 
@@ -1199,12 +1223,12 @@ docker compose exec -T postgres psql -U geosentry -d geosentry \
 
 除 PostgreSQL 外，以下依赖服务需确认初始化状态（dev 模式自动处理，prod 需手动检查）：
 
-| 服务         | 初始化项                                            | 自动/手动                                                                                                                     | 检查/修复命令                                                                                                                                                      |
-| ------------ | --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **EMQX**     | Built-in Database 认证器 + `geosentry_backend` 用户 | 自动（`infra/emqx/init.sh` entrypoint 执行）                                                                                  | `docker compose exec emqx emqx ctl users list` 查看用户列表；若缺失：`docker compose exec emqx sh /opt/emqx/init.sh`                                               |
-| **MinIO**    | `geosentry` bucket                                  | **自动**（`AttachmentService` 首次附件上传时自动检查并创建）                                                                  | 检查 bucket 是否存在：`docker compose exec minio mc alias set myminio http://localhost:9000 $MINIO_ACCESS_KEY $MINIO_SECRET_KEY && mc ls myminio/`；可选预创建同上 |
-| **TDengine** | `geosentry` 数据库 + `device_metric` 超级表         | 自动（首次写入时 `TdengineMetricService.writeMetric()` 执行 `CREATE DATABASE IF NOT EXISTS` + `CREATE STABLE IF NOT EXISTS`） | `docker compose exec tdengine taos -s "SHOW DATABASES;"` 确认数据库存在                                                                                            |
-| **Redis**    | 无需初始化                                          | —                                                                                                                             | `docker compose exec redis redis-cli ping` 返回 PONG 即可                                                                                                          |
+| 服务         | 初始化项                                            | 自动/手动                                                                                                                     | 检查/修复命令                                                                                                                                                            |
+| ------------ | --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **EMQX**     | Built-in Database 认证器 + `geosentry_backend` 用户 | 自动（`infra/emqx/init.sh` entrypoint 执行）                                                                                  | `docker compose exec emqx emqx ctl users list` 查看用户列表（EMQX 5.x 使用 `emqx ctl`，旧版 4.x 用 `emqx_ctl`）；若缺失：`docker compose exec emqx sh /opt/emqx/init.sh` |
+| **MinIO**    | `geosentry` bucket                                  | **自动**（`AttachmentService` 首次附件上传时自动检查并创建）                                                                  | 检查 bucket 是否存在：`docker compose exec minio mc alias set myminio http://localhost:9000 $MINIO_ACCESS_KEY $MINIO_SECRET_KEY && mc ls myminio/`；可选预创建同上       |
+| **TDengine** | `geosentry` 数据库 + `device_metric` 超级表         | 自动（首次写入时 `TdengineMetricService.writeMetric()` 执行 `CREATE DATABASE IF NOT EXISTS` + `CREATE STABLE IF NOT EXISTS`） | `docker compose exec tdengine taos -s "SHOW DATABASES;"` 确认数据库存在                                                                                                  |
+| **Redis**    | 无需初始化                                          | —                                                                                                                             | `docker compose exec redis redis-cli ping` 返回 PONG 即可                                                                                                                |
 
 > **生产首次部署顺序**：按 #43 步骤 1–5 初始化 PostgreSQL → 执行步骤 6 启动全栈。`docker-compose.prod.yml` 已配置 backend 的 `depends_on: service_healthy`（postgres/redis/minio/emqx）+ healthcheck，会自动等待依赖就绪。frontend 无依赖顺序，可在 backend 之后或同时启动。
 
