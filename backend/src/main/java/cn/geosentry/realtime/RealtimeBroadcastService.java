@@ -32,7 +32,12 @@ public class RealtimeBroadcastService extends TextWebSocketHandler {
   private static final Logger log = LoggerFactory.getLogger(RealtimeBroadcastService.class);
   private final ObjectMapper mapper = new ObjectMapper();
   private final Map<String, WebSocketSession> sessions = new ConcurrentHashMap<>();
-  private final AtomicLong versionCounter = new AtomicLong(0);
+  /**
+   * 服务端递增版本号，用于前端幂等合并——同一 entityId 下 version 递增则覆盖旧消息。
+   * 初始值取当前毫秒时间戳，确保服务重启后 version 仍单调递增，
+   * 不会因归零导致前端丢弃重启初期的新消息。
+   */
+  private final AtomicLong versionCounter = new AtomicLong(System.currentTimeMillis());
 
   @Override
   public void afterConnectionEstablished(WebSocketSession session) {
