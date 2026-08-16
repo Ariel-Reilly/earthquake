@@ -164,8 +164,8 @@ public class DeviceDataService {
         AnomalyResult result = aiClient.anomaly(deviceCode, history);
         aiAnalysisService.saveRecord("anomaly", deviceCode + ":" + metric, result.model(), result);
         if (result.isAnomaly()) {
-          log.warn("AI 异常检测命中: device={}, metric={}, score={}",
-              deviceCode, metric, result.anomalyScore());
+          log.warn("AI 异常检测命中: device={}, metric={}, score={}, degraded={}",
+              deviceCode, metric, result.score(), result.degraded());
         }
       }
     } catch (Exception e) {

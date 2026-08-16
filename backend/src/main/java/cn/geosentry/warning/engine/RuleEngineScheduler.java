@@ -137,11 +137,14 @@ public class RuleEngineScheduler {
         // 写 risk_score_log（用于模型迭代回溯）
         RiskScoreLog riskLog = new RiskScoreLog();
         riskLog.setHazardCode(hazardCode);
-        riskLog.setScore(fusion.probability());
+        // ai-service risk_score 为 0-100 百分比，与 data.sql 种子数据一致
+        riskLog.setScore(fusion.riskScore());
         riskLog.setRiskLevel(fusion.riskLevel());
-        riskLog.setSource("AI_FUSED");
+        // ai-service 返回 mock=true 标记模型缺失降级 → source 仍为 AI_FUSED 但带 degraded=true
+        riskLog.setSource(fusion.degraded() ? "AI_DEGRADED" : "AI_FUSED");
         try {
-          riskLog.setFactors(objectMapper.writeValueAsString(factors));
+          riskLog.setFactors(objectMapper.writeValueAsString(
+              Map.of("input", factors, "confidence", fusion.confidence(), "degraded", fusion.degraded())));
         } catch (JsonProcessingException ignore) {
           log.warn("factors 序列化失败，risk_score_log 写空对象 hazardCode={}: {}", hazardCode, ignore.getMessage());
           riskLog.setFactors("{}");
@@ -149,8 +152,10 @@ public class RuleEngineScheduler {
         riskLog.setCalculatedAt(OffsetDateTime.now());
         riskScoreLogRepository.save(riskLog);
 
-        // AI 判定 CRITICAL/HIGH 时升级到 red/orange
-        if ("CRITICAL".equalsIgnoreCase(fusion.riskLevel())) {
+        // AI 返回 mock 降级结果时，标记为 aiDegraded（而非 aiInvolved）
+        if (fusion.degraded()) {
+          aiDegraded = true;
+        } else if ("CRITICAL".equalsIgnoreCase(fusion.riskLevel())) {
           level = "红色预警";
           aiInvolved = true;
         } else if ("HIGH".equalsIgnoreCase(fusion.riskLevel())) {

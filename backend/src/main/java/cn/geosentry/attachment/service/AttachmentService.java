@@ -17,6 +17,7 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -36,6 +37,24 @@ public class AttachmentService {
     this.repository = repository;
     this.minioClient = minioClient;
     this.minioProperties = minioProperties;
+  }
+
+  /** 启动时预热 bucket（首次附件上传时也会 ensureBucket，但启动时预热可提前暴露配置错误）。 */
+  @PostConstruct
+  void warmUpBucket() {
+    try {
+      String bucket = minioProperties.bucket();
+      boolean exists = minioClient.bucketExists(BucketExistsArgs.builder().bucket(bucket).build());
+      if (!exists) {
+        log.info("MinIO bucket '{}' 不存在，启动时自动创建", bucket);
+        minioClient.makeBucket(MakeBucketArgs.builder().bucket(bucket).build());
+      } else {
+        log.debug("MinIO bucket '{}' 已就绪", bucket);
+      }
+    } catch (Exception e) {
+      // bucket 预热失败不阻断启动（MinIO 可能还没起来，后续上传时会重试）
+      log.warn("MinIO bucket 预热失败（跳过，首次上传时会重试）: {}", e.getMessage());
+    }
   }
 
   public List<AttachmentDto> list(String businessType, String businessCode) {
