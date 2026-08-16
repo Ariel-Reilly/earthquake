@@ -49,13 +49,13 @@
 
 ### 前端
 
-| 类别       | 技术                                                                                         |
-| ---------- | -------------------------------------------------------------------------------------------- |
-| 框架       | Vue 3（Options/Composition API 混用，多为 `<script setup>`)                                  |
-| 构建       | Vite 8（`@vitejs/plugin-vue` + `vite-plugin-cesium`）                                        |
-| 路由       | vue-router (web history)                                                                     |
-| 地图（2D） | OpenLayers 10（`mapService.js`）；Leaflet 已从代码中移除，但 `package.json` 仍保留为可选依赖 |
-| 地图（3D） | Cesium 1.144（按需加载）                                                                     |
+| 类别       | 技术                                                                           |
+| ---------- | ------------------------------------------------------------------------------ |
+| 框架       | Vue 3（Options/Composition API 混用，多为 `<script setup>`)                    |
+| 构建       | Vite 8（`@vitejs/plugin-vue` + `vite-plugin-cesium`）                          |
+| 路由       | vue-router (web history)                                                       |
+| 地图（2D） | OpenLayers 10（`mapService.js`）；Leaflet 已从代码和 `package.json` 中彻底移除 |
+| 地图（3D） | Cesium 1.144（按需加载）                                                       |
 
 ### 后端
 
@@ -611,7 +611,7 @@ dto/         → 请求/响应记录（record）
 
 **消息类型**：`warning`（预警状态变更）、`emergency`（应急事件新建/闭环）、`personnel`（值守人员位置更新）、`device`（设备状态变更）。
 
-> **消息类型 payload 示例**（`version` 初始值为 `System.currentTimeMillis()` 毫秒时间戳，实际值从 ~1.7e12 起递增，以下示例仅取后几位方便阅读）：
+> **消息类型 payload 示例**（`version` 初始值为 `System.currentTimeMillis()` 毫秒时间戳，完整值如 `1723747200001`，每次广播自动 +1）：
 >
 > - `warning`: `{"type":"warning","data":{"warningCode":"WG-001","status":"已确认","warningLevel":"红色","title":"青龙坡位移超限"},"version":1723747200001}`
 > - `emergency`: `{"type":"emergency","data":{"eventCode":"EM-001","status":"处置中","title":"青龙坡滑坡应急启动"},"version":1723747200002}`
@@ -1153,12 +1153,21 @@ python3 -c "import bcrypt; print(bcrypt.hashpw(b'<your_strong_password>', bcrypt
 # new BCryptPasswordEncoder().encode("your_strong_password")
 
 # A5b) 注入数据库（替换 <BCRYPT_HASH> 为上一步输出）
-docker compose exec -T postgres psql -U geosentry -d geosentry \
-  -c "UPDATE sys_user SET password_hash='<BCRYPT_HASH>' WHERE username IN ('admin','attendant','maintenance');"
+#   ⚠️ BCrypt hash 以 $2b$ / $2a$ / $2y$ 开头，包含多个 $ 符号
+#   绝对不能用双引号包裹 SQL（Shell 会对 $ 做变量扩展，导致 hash 损坏）
+#   必须用 here-doc + 单引号 <<'SQL' 语法，彻底避免 Shell 展开
+docker compose exec -T postgres psql -U geosentry -d geosentry <<'SQL'
+UPDATE sys_user SET password_hash='<BCRYPT_HASH>'
+WHERE username IN ('admin','attendant','maintenance');
+SQL
 
 # ====== 步骤 A6：启动全栈 ======
+# docker-compose.prod.yml 不覆盖 postgres 服务定义，步骤 A1 启动的 postgres 保持不变
+# 此命令仅会启动 backend / frontend / ai-service 等服务，不会重建 postgres
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 ```
+
+> **为什么不能用双引号？** BCrypt hash `$2b$10$e7J.wokpqTMslzHzJq/ateJNEhEnLh/pgz0gXB1HEv1mp6qDaI5pq` 中，Shell 在双引号内会将 `$2` 解释为第二个位置参数（通常为空），`$2b` 被部分展开。结果是写入数据库的 hash 被截断/损坏，用户无法登录。here-doc + `<<'SQL'`（单引号包裹分隔符）是唯一安全的方式——Shell 不对 here-doc 内容做任何展开。
 
 > **BCrypt 前缀兼容性**：`htpasswd` 默认生成 `$2y$` 前缀，Spring Security 的 `BCryptPasswordEncoder` 使用 `$2a$` 前缀，Python bcrypt 输出 `$2b$`，三者算法兼容可互验（Spring Security 5.x 已统一兼容所有三种前缀）。
 
@@ -1199,9 +1208,11 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 #   created_at / updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW() — 已由表结构设定默认值，无需显式写入
 
 # 先准备 BCrypt hash（用 htpasswd 或 python3，见方案 A 步骤 A5a）
-docker compose exec -T postgres psql -U geosentry -d geosentry \
-  -c "INSERT INTO sys_user (username, password_hash, real_name, phone, role_code, region_code, status)
-      VALUES ('admin', '<BCRYPT_HASH>', '系统管理员', '', 'admin', '100000', '启用');"
+#   ⚠️ 同样使用 here-doc 避免 Shell 对 $ 做变量扩展
+docker compose exec -T postgres psql -U geosentry -d geosentry <<'SQL'
+INSERT INTO sys_user (username, password_hash, real_name, phone, role_code, region_code, status)
+VALUES ('admin', '<BCRYPT_HASH>', '系统管理员', '', 'admin', '100000', '启用');
+SQL
 ```
 
 > **方案 B 的基础数据缺失警告**：此方案跳过了完整的 `data.sql`，可能导致以下基础数据表为空：
@@ -1213,7 +1224,22 @@ docker compose exec -T postgres psql -U geosentry -d geosentry \
 > | `sys_menu`     | 菜单权限码定义缺失（但前端菜单硬编码，后端权限码由 `PermissionRegistry` 注册） | 非必需，可从 `data.sql` 复制                                      |
 > | `warning_rule` | 预警规则为空，规则引擎无规则可评估                                             | **必需**，需从 `data.sql` 复制所有 `INSERT INTO warning_rule ...` |
 >
-> 最简单的做法：**从 `data.sql` 中提取除 `sys_user` 外的所有 INSERT 语句**，在方案 B 步骤 B2 之后一次性执行。或保留完整的 `data.sql` 执行（即使用方案 A），这是推荐做法。
+> 最简单的做法：**保留完整的 `data.sql` 执行（即使用方案 A）**。如果坚持方案 B，可用以下命令从 data.sql 提取除 sys_user 外的所有 INSERT 语句：
+>
+> ```bash
+> # 提取 data.sql 中除 sys_user 外的所有 INSERT，并执行
+> grep -v "INSERT INTO sys_user" backend/src/main/resources/data.sql \
+>   | grep -v "ON CONFLICT (username)" \
+>   | docker compose exec -T postgres psql -U geosentry -d geosentry
+> ```
+>
+> **步骤 B4 之后建议验证**：登录后若发现规则引擎不触发预警，请先执行以下检查：
+>
+> ```bash
+> docker compose exec -T postgres psql -U geosentry -d geosentry -c "SELECT COUNT(*) FROM warning_rule;"
+> docker compose exec -T postgres psql -U geosentry -d geosentry -c "SELECT COUNT(*) FROM region;"
+> docker compose exec -T postgres psql -U geosentry -d geosentry -c "SELECT COUNT(*) FROM sys_role;"
+> ```
 
 > **为什么没有注册接口？** 出于安全考虑，未实现 `POST /api/auth/register` 公开注册端点。如果确实需要开放注册（如多租户场景），必须设计邀请码/审批机制。
 
