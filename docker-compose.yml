@@ -1,0 +1,221 @@
+services:
+  postgres:
+    image: postgis/postgis:15-3.4-alpine
+    container_name: geosentry-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-geosentry}
+      POSTGRES_USER: ${POSTGRES_USER:-geosentry}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-geosentry123}
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "${POSTGRES_HOST_PORT:-15432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-geosentry} -d ${POSTGRES_DB:-geosentry}",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: geosentry-redis
+    restart: unless-stopped
+    command:
+      [
+        "redis-server",
+        "--appendonly",
+        "yes",
+        "--requirepass",
+        "${REDIS_PASSWORD:-redis123}",
+      ]
+    ports:
+      - "${REDIS_HOST_PORT:-16379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redis123}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    container_name: geosentry-minio
+    restart: unless-stopped
+    command: server /data --console-address ':9001'
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "${MINIO_API_HOST_PORT:-19000}:9000"
+      - "${MINIO_CONSOLE_HOST_PORT:-19001}:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -f http://localhost:9000/minio/health/live || exit 1",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  emqx:
+    image: emqx/emqx:5.9.0
+    container_name: geosentry-emqx
+    restart: unless-stopped
+    environment:
+      EMQX_NODE_NAME: emqx@127.0.0.1
+      EMQX_NODE_COOKIE: ${EMQX_NODE_COOKIE:-geosentry-cookie}
+      EMQX_DASHBOARD__DEFAULT_USERNAME: ${EMQX_DASHBOARD_USER:-admin}
+      EMQX_DASHBOARD__DEFAULT_PASSWORD: ${EMQX_DASHBOARD_PASSWORD:-emqx123}
+      # 启用内置数据库鉴权，并预置 geosentry_backend 用户
+      # EMQX 5.x 使用 Built-in Database 认证插件（auth.mnesia）
+      EMQX_AUTH__MNESIA__PASSWORD_HASH: bcrypt
+      TZ: ${TZ:-Asia/Shanghai}
+    entrypoint: ["bash", "/opt/emqx/data/config/emqx-entrypoint.sh"]
+    ports:
+      - "${EMQX_MQTT_HOST_PORT:-11883}:1883"
+      - "${EMQX_MQTTS_HOST_PORT:-18883}:8883"
+      - "${EMQX_WS_HOST_PORT:-18083}:8083"
+      - "${EMQX_WSS_HOST_PORT:-18084}:8084"
+      - "${EMQX_HTTP_HOST_PORT:-28083}:18083"
+    volumes:
+      - emqx_data:/opt/emqx/data
+      - emqx_log:/opt/emqx/log
+      - ./infra/emqx:/opt/emqx/data/config:ro
+    healthcheck:
+      test: ["CMD", "emqx", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  tdengine:
+    image: tdengine/tdengine:latest
+    container_name: geosentry-tdengine
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "${TDENGINE_TCP_HOST_PORT:-16030}:6030"
+      - "${TDENGINE_HTTP_HOST_PORT:-16041}:6041"
+    volumes:
+      - tdengine_data:/var/lib/taos
+      - tdengine_log:/var/log/taos
+
+  backend:
+    image: maven:3.9.9-eclipse-temurin-17
+    container_name: geosentry-backend
+    restart: unless-stopped
+    working_dir: /app/backend
+    command: mvn -q -DskipTests spring-boot:run
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SERVER_PORT: ${SERVER_PORT:-8080}
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:5173}
+      # ⚠️ 生产环境必须设置强随机密钥（>=32 字符）。未设置或匹配弱密钥模式时应用启动失败。
+      # 生成方式：openssl rand -base64 48
+      JWT_SECRET: ${JWT_SECRET:-REPLACE_ME_WITH_A_STRONG_SECRET_AT_LEAST_32_CHARS_LONG_XXX}
+      JWT_EXPIRE_MINUTES: ${JWT_EXPIRE_MINUTES:-120}
+      FILE_BASE_URL: ${FILE_BASE_URL:-http://localhost:19000}
+      DEV_USERS_ENABLED: ${DEV_USERS_ENABLED:-false}
+      DEVICE_AUTH_STRICT: ${DEVICE_AUTH_STRICT:-false}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-geosentry}
+      POSTGRES_USER: ${POSTGRES_USER:-geosentry}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-geosentry123}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis123}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+      # EMQX MQTT 鉴权（broker 侧用户名密码，需与 EMQX_DASHBOARD 配置的认证用户一致）
+      EMQX_USERNAME: ${EMQX_USERNAME:-geosentry_backend}
+      EMQX_PASSWORD: ${EMQX_PASSWORD:-CHANGE_ME_EMQX_PASSWORD}
+      EMQX_ENABLED: ${EMQX_ENABLED:-true}
+      EMQX_WS_PORT: ${EMQX_WS_PORT:-8083}
+      EMQX_HTTP_PORT: ${EMQX_HTTP_PORT:-18083}
+      TDENGINE_TCP_PORT: ${TDENGINE_TCP_PORT:-6030}
+      TDENGINE_HTTP_PORT: ${TDENGINE_HTTP_PORT:-6041}
+      AI_SERVICE_BASE_URL: ${AI_SERVICE_BASE_URL:-http://ai-service:8000/api/ai}
+      AI_ENABLED: ${AI_ENABLED:-true}
+      AI_SCHEDULER_ENABLED: ${AI_SCHEDULER_ENABLED:-false}
+      AI_FORECAST_HORIZON: ${AI_FORECAST_HORIZON:-7}
+      TZ: ${TZ:-Asia/Shanghai}
+    volumes:
+      - ./:/app
+      - m2_cache:/root/.m2
+    ports:
+      - "${BACKEND_HOST_PORT:-8081}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+
+  ai-service:
+    build: ./ai-service
+    container_name: geosentry-ai
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+    volumes:
+      - ./ai-service:/app
+    ports:
+      - "${AI_HOST_PORT:-8000}:8000"
+    depends_on:
+      - backend
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      args:
+        VITE_USE_BACKEND: "true"
+        # 生产部署时前端同域，API 通过 nginx 反向代理到 backend:8080
+        VITE_API_BASE_URL: /api
+        VITE_WS_URL: /ws
+        VITE_REALTIME_POLL_INTERVAL: "15000"
+        VITE_PERSONNEL_POLL_INTERVAL: "30000"
+        VITE_TDT_TOKEN: ${VITE_TDT_TOKEN:-}
+        VITE_TDT_ATTRIBUTION: ${VITE_TDT_ATTRIBUTION:-地图数据}
+    image: geosentry-frontend:latest
+    container_name: geosentry-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_HOST_PORT:-5173}:80"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
+  emqx_data:
+  emqx_log:
+  tdengine_data:
+  tdengine_log:
+  m2_cache:
+  node_modules:
+
+networks:
+  default:
+    name: geosentry-net

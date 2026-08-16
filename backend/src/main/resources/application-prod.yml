@@ -1,0 +1,10 @@
+spring:
+  jpa:
+    show-sql: false
+  sql:
+    init:
+      mode: never
+
+logging:
+  level:
+    root: warn

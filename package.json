@@ -1,0 +1,22 @@
+{
+  "name": "geohazard-inspection-dashboard",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@vitejs/plugin-vue": "latest",
+    "cesium": "^1.144.0",
+    "leaflet": "^1.9.4",
+    "lucide-vue-next": "latest",
+    "ol": "^10.10.0",
+    "vite": "latest",
+    "vite-plugin-cesium": "^1.2.23",
+    "vue": "latest",
+    "vue-router": "^5.2.0"
+  }
+}

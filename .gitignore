@@ -1,0 +1,90 @@
+# ===== Node.js / Frontend =====
+node_modules/
+dist/
+.DS_Store
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.vite/
+
+# ===== Java / Maven / Spring Boot =====
+backend/target/
+backend/*.iml
+backend/.idea/
+backend/.vscode/
+*.class
+*.jar
+*.war
+*.log
+maven-status/
+
+# ===== Python / AI Service =====
+ai-service/__pycache__/
+ai-service/**/__pycache__/
+ai-service/*.pyc
+ai-service/**/*.pyc
+ai-service/.venv/
+ai-service/venv/
+ai-service/env/
+ai-service/models/*.pt
+ai-service/models/*.onnx
+ai-service/models/*.pth
+ai-service/models/*.h5
+ai-service/models/*.pkl
+ai-service/models/*.joblib
+ai-service/models/*.bin
+# 训练产物可选保留，但 checkpoint 通常较大
+# ai-service/scripts/checkpoints/
+
+# ===== IDE / Editor =====
+.idea/
+.vscode/settings.json
+.vscode/launch.json
+*.iml
+*.swp
+*.swo
+*~
+
+# ===== OS =====
+Thumbs.db
+.DS_Store
+Desktop.ini
+
+# ===== Environment / Secrets =====
+.env
+.env.local
+.env.*.local
+*.secret
+*.pem
+*.key
+
+# ===== Docker / Data Volumes =====
+postgres_data/
+redis_data/
+minio_data/
+emqx_data/
+emqx_log/
+tdengine_data/
+tdengine_log/
+m2_cache/
+
+# ===== Logs =====
+logs/
+*.log
+
+# ===== Build / Temporary =====
+*.tmp
+*.bak
+*.old
+.cache/
+.parcel-cache/
+.eslintcache
+
+# ===== MinIO data =====
+data/
+
+# ===== Coverage =====
+coverage/
+.nyc_output/

@@ -1,0 +1,103 @@
+server:
+  port: ${SERVER_PORT:8080}
+
+spring:
+  application:
+    name: geosentry-backend
+  datasource:
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:geosentry}
+    username: ${POSTGRES_USER:geosentry}
+    password: ${POSTGRES_PASSWORD:geosentry123}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc:
+          time_zone: Asia/Shanghai
+  sql:
+    init:
+      mode: always
+      continue-on-error: false
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:redis123}
+  jackson:
+    time-zone: Asia/Shanghai
+    serialization:
+      write-dates-as-timestamps: false
+  mvc:
+    problemdetails:
+      enabled: true
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs
+
+geosentry:
+  frontend-origin: ${FRONTEND_ORIGIN:http://localhost:5173}
+  security:
+    dev-users-enabled: ${DEV_USERS_ENABLED:true}
+  jwt:
+    secret: ${JWT_SECRET}
+    expire: ${JWT_EXPIRE:PT2H}
+    issuer: ${JWT_ISSUER:geosentry}
+  file-base-url: ${FILE_BASE_URL:http://localhost:9000}
+  warning:
+    rule-engine-enabled: ${RULE_ENGINE_ENABLED:true}
+    rule-engine-cron: ${RULE_ENGINE_CRON:*/30 * * * * *}
+  device:
+    auth-strict-mode: ${DEVICE_AUTH_STRICT:false}
+    offline-threshold-minutes: ${DEVICE_OFFLINE_THRESHOLD_MIN:5}
+    offline-check-interval-seconds: ${DEVICE_OFFLINE_CHECK_INTERVAL_SEC:60}
+    metric-cleanup-enabled: ${METRIC_CLEANUP_ENABLED:true}
+    metric-retention-days: ${METRIC_RETENTION_DAYS:30}
+    metric-cleanup-cron: ${METRIC_CLEANUP_CRON:0 30 3 * * *}
+  realtime:
+    websocket-enabled: ${WEBSOCKET_ENABLED:true}
+  ws:
+    # 生产环境设为 true 强制 WebSocket 连接只能使用一次性 ticket（禁止 raw JWT query）
+    require-ticket: ${WS_REQUIRE_TICKET:false}
+    ticket-ttl-seconds: ${WS_TICKET_TTL_SEC:60}
+
+ai:
+  service-base-url: ${AI_SERVICE_BASE_URL:http://localhost:8000/api/ai}
+  enabled: ${AI_ENABLED:true}
+  timeout-ms: ${AI_TIMEOUT_MS:30000}
+  scheduler-enabled: ${AI_SCHEDULER_ENABLED:false}
+  forecast-horizon: ${AI_FORECAST_HORIZON:7}
+  forecast-cron: ${AI_FORECAST_CRON:0 0 2 * * *}
+
+minio:
+  endpoint: ${MINIO_ENDPOINT:http://localhost:19000}
+  access-key: ${MINIO_ACCESS_KEY:minioadmin}
+  secret-key: ${MINIO_SECRET_KEY:minioadmin123}
+  bucket: ${MINIO_BUCKET:geosentry}
+
+emqx:
+  mqtt-url: ${EMQX_MQTT_URL:tcp://localhost:11883}
+  client-id: ${EMQX_CLIENT_ID:geosentry-backend}
+  topic: ${EMQX_DATA_TOPIC:geohazard/+/data}
+  qos: ${EMQX_DATA_QOS:1}
+  enabled: ${EMQX_ENABLED:true}
+  username: ${EMQX_USERNAME:}
+  password: ${EMQX_PASSWORD:}
+
+tdengine:
+  url: ${TDENGINE_URL:jdbc:TAOS-RS://localhost:6041/geohazard}
+  username: ${TDENGINE_USERNAME:root}
+  password: ${TDENGINE_PASSWORD:taosdata}
+  enabled: ${TDENGINE_ENABLED:false}
+
+logging:
+  level:
+    root: info
+    org.springframework.web: info
+    org.hibernate.SQL: warn
