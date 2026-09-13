@@ -31,6 +31,7 @@ import ConfirmationWorkbenchPage from "../views/hazard/ConfirmationWorkbenchPage
 import WarningCreatePage from "../views/warning/WarningCreatePage.vue";
 import ResourceDispatchPage from "../views/warning/ResourceDispatchPage.vue";
 import DataSourcesPage from "../views/data/DataSourcesPage.vue";
+import DataSyncPage from "../views/data/DataSyncPage.vue";
 import HistoryHazardsPage from "../views/monitor/HistoryHazardsPage.vue";
 import UserManagementPage from "../views/system/UserManagementPage.vue";
 import AuditLogPage from "../views/system/AuditLogPage.vue";
@@ -38,6 +39,8 @@ import SystemMonitorPage from "../views/system/SystemMonitorPage.vue";
 import MessageCenterPage from "../views/system/MessageCenterPage.vue";
 import TodoCenterPage from "../views/system/TodoCenterPage.vue";
 import ApprovalCenterPage from "../views/system/ApprovalCenterPage.vue";
+// v1.7.0+ P0 统一事件中心（跨 hazard/warning/emergency 的统一视图）
+import EventCenterPage from "../views/system/EventCenterPage.vue";
 import WarningDeliveryPage from "../views/warning/WarningDeliveryPage.vue";
 import ZoneDashboardPage from "../views/monitor/ZoneDashboardPage.vue";
 import ModelManagePage from "../views/ai/ModelManagePage.vue";
@@ -53,11 +56,22 @@ import SatelliteComparePage from "../views/monitor/SatelliteComparePage.vue";
 import DeviceMapPage from "../views/monitor/DeviceMapPage.vue";
 import ForbiddenPage from "../views/ForbiddenPage.vue";
 import ServerErrorPage from "../views/ServerErrorPage.vue";
-// P0 阶段新增
+// P1 阶段新增
 import ProfilePage from "../views/settings/ProfilePage.vue";
 import RoutePlanningPage from "../views/warning/RoutePlanningPage.vue";
 import ConfirmationSignPage from "../views/hazard/ConfirmationSignPage.vue";
 import WarningResolvePage from "../views/warning/WarningResolvePage.vue";
+import DisasterForecastPage from "../views/ai/DisasterForecastPage.vue";
+import DamageAssessmentPage from "../views/ai/DamageAssessmentPage.vue";
+import FieldInspectionPage from "../views/hazard/FieldInspectionPage.vue";
+import PersonnelManagePage from "../views/system/PersonnelManagePage.vue";
+// v1.7+ 补全缺口
+import MobileCommandPage from "../views/mobile/MobileCommandPage.vue";
+import SocialMediaPage from "../views/ai/SocialMediaPage.vue";
+import HelpCenterPage from "../views/system/HelpCenterPage.vue";
+import NotificationChannelsPage from "../views/system/NotificationChannelsPage.vue";
+// P1 指挥大屏（无需登录，全屏展示）
+import CommandScreenPage from "../views/screen/CommandScreenPage.vue";
 
 // 404 组件（inline，避免单独建文件）
 const NotFoundPage = {
@@ -98,8 +112,10 @@ const routePermissionMap = {
   "system-monitor": "monitor:view",
   "message-center": "messages:view",
   "todo-center": "todo:view",
-  "approvals-center": "approval:view",
-  "zone-dashboard": "overview:view",
+  "approval-center": "approval:view",
+  "event-center": "events:view",
+  "event-detail": "events:view",
+  "zone-dashboard": "zone:view",
   "warning-delivery": "warnings:view",
   "ai-models": "ai:model:view",
   "ota-manage": "devices:ota",
@@ -119,6 +135,16 @@ const routePermissionMap = {
   "profile": "settings:view",
   "confirmation-sign": "confirmation:view",
   "confirmation-sign-event": "confirmation:view",
+  // P1 新增
+  "disaster-forecast": "ai:forecast:view",
+  "damage-assessment": "ai:forecast:view",
+  "field-inspection": "inspection:view",
+  "personnel-manage": "personnel:view",
+  // v1.7+ 缺口补全
+  "mobile-command": "overview:view",
+  "social-media": "ai:forecast:view",
+  "help-center": "settings:view",
+  "notification-channels": "notice:view",
 };
 
 const router = createRouter({
@@ -128,6 +154,18 @@ const router = createRouter({
       path: "/",
       name: "welcome",
       component: WelcomePage,
+      meta: { public: true },
+    },
+    {
+      path: "/screen",
+      name: "command-screen",
+      component: CommandScreenPage,
+      meta: { public: true },
+    },
+    {
+      path: "/mobile",
+      name: "mobile-command",
+      component: MobileCommandPage,
       meta: { public: true },
     },
     {
@@ -246,6 +284,11 @@ const router = createRouter({
           name: "data-sources",
           component: DataSourcesPage,
         },
+        {
+          path: "data-sync",
+          name: "data-sync",
+          component: DataSyncPage,
+        },
         { path: "weather", name: "weather", component: WeatherPage },
         // ===X= 系统管理 ===X=
         { path: "analytics", name: "analytics", component: AnalyticsPage },
@@ -277,8 +320,20 @@ const router = createRouter({
         },
         {
           path: "approvals",
-          name: "approvals-center",
+          name: "approval-center",
           component: ApprovalCenterPage,
+        },
+        {
+          path: "events",
+          children: [
+            { path: "", name: "event-center", component: EventCenterPage },
+            {
+              path: ":code",
+              name: "event-detail",
+              component: EventCenterPage,
+              props: true,
+            },
+          ],
         },
         {
           path: "ai-models",
@@ -374,6 +429,44 @@ const router = createRouter({
           name: "confirmation-sign-event",
           component: ConfirmationSignPage,
           props: true,
+        },
+        // ===X= P1 AI 预测与评估 ===X=
+        {
+          path: "disaster-forecast",
+          name: "disaster-forecast",
+          component: DisasterForecastPage,
+        },
+        {
+          path: "damage-assessment",
+          name: "damage-assessment",
+          component: DamageAssessmentPage,
+        },
+        // ===X= P1 现场巡检 + 人员管理 ===X=
+        {
+          path: "field-inspection",
+          name: "field-inspection",
+          component: FieldInspectionPage,
+        },
+        {
+          path: "personnel",
+          name: "personnel-manage",
+          component: PersonnelManagePage,
+        },
+        // ===X= v1.7+ 缺口补全 ===X=
+        {
+          path: "social-media",
+          name: "social-media",
+          component: SocialMediaPage,
+        },
+        {
+          path: "help",
+          name: "help-center",
+          component: HelpCenterPage,
+        },
+        {
+          path: "notification-channels",
+          name: "notification-channels",
+          component: NotificationChannelsPage,
         },
         // ===X= 错误页 ===X=
         {

@@ -84,9 +84,6 @@ logs/
 .parcel-cache/
 .eslintcache
 
-# ===== MinIO data =====
-data/
-
 # ===== Coverage =====
 coverage/
 .nyc_output/
