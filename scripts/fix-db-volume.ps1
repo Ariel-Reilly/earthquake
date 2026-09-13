@@ -56,4 +56,4 @@ if ($ready) {
 
 Write-Host ''
 Write-Host '下一步：' -ForegroundColor Cyan
-Write-Host '  .\run-backend.ps1' -ForegroundColor Green
+Write-Host '  .\start-dev.ps1 -Backend' -ForegroundColor Green

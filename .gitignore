@@ -37,6 +37,8 @@ ai-service/models/*.h5
 ai-service/models/*.pkl
 ai-service/models/*.joblib
 ai-service/models/*.bin
+# 训练历史快照（每次训练保留上一版本即可，正式目录只放最新版）
+ai-service/models/history/
 # 训练产物可选保留，但 checkpoint 通常较大
 # ai-service/scripts/checkpoints/
 
@@ -48,6 +50,12 @@ ai-service/models/*.bin
 *.swp
 *.swo
 *~
+
+# ===== AI 工具残留（modernize hook 等）=====
+# GitHub Copilot App Modernization / 类似工具会在仓库内写入 modernize 目录，
+# 这些是工具运行时产物，不应纳入版本控制。
+.github/
+backend/.github/
 
 # ===== OS =====
 Thumbs.db
