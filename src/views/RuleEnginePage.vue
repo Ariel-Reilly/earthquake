@@ -5,7 +5,7 @@
  * 也可作为 Settings 页面的 Tab
  */
 import { computed, onMounted, ref } from "vue"
-import { Gear, Plus } from "lucide-vue-next"
+import { Settings as Gear, Plus } from "lucide-vue-next"
 import RuleList from "../components/rule/RuleList.vue"
 import RuleEditor from "../components/rule/RuleEditor.vue"
 import RuleTestPanel from "../components/rule/RuleTestPanel.vue"
