@@ -50,13 +50,13 @@ import {
 import { createOpenLayersController, gradeAccuracy } from "../services/mapService";
 import { composeSentinelScene, pollSentinelJob, cancelSentinelJob, describeJobStatus } from "../services/sentinelService";
 import { transform } from "ol/proj";
-import { geocodeAddress, reverseGeocode, geocoderProvider } from "../services/geocodeService";
 import {
   getRealtimeState,
   onRealtimeUpdate,
   startRealtimeSync,
   stopRealtimeSync,
 } from "../services/realtimeService";
+import { useOverviewSearch } from "../composables/useOverviewSearch";
 import PersonnelTooltip from "../components/PersonnelTooltip.vue";
 import PersonnelRouteDrawer from "../components/PersonnelRouteDrawer.vue";
 import WeatherOverlayLegend from "../components/WeatherOverlayLegend.vue";
@@ -175,22 +175,22 @@ const refreshingViewport = ref(false);
 const viewportCache = ref({ bbox: "", zoom: null });
 const viewportState = ref({ hazards: [], devices: [], warnings: [] });
 
-// ====== 搜索面板 ======
-// 三种状态：
-//   idle:    输入框为空、没展开候选项
-//   typing:  用户正在输入，未发起请求（防抖 280ms）
-//   loading: 已发起搜索，等待返回
-//   results: 拿到候选，渲染下拉
-//   empty:   搜索无结果
-const searchTerm = ref("");
-const searchPanelOpen = ref(false);
-const searchPanelState = ref("idle");
-const searchResults = ref([]);
-const searchError = ref("");
-const searchMarker = ref(null); // 搜索命中的临时标记 {lon, lat, name}
-let searchDebounceTimer = null;
-let searchAbortController = null;
-const geocoderKind = ref(geocoderProvider());
+// 搜索面板状态机、防抖、AbortController 已下沉到 composables/useOverviewSearch.js
+const {
+  searchTerm,
+  searchPanelOpen,
+  searchPanelState,
+  searchResults,
+  searchError,
+  searchMarker,
+  geocoderKind,
+  onSearchInput,
+  onSearchSubmit,
+  selectSearchResult,
+  closeSearchPanel,
+  clearSearch,
+  dispose: disposeSearch,
+} = useOverviewSearch({ mapController, emit });
 
 const filteredPoints = computed(() =>
   hazards.value.filter(
@@ -999,113 +999,9 @@ function clearMyLocation() {
 }
 
 /**
- * 输入框变化：防抖 280ms 触发搜索。空文本清空候选项。
- * 防抖目的是避免用户快速打字时一口气发 5+ 个 HTTP 请求。
+ * 搜索面板的状态机、防抖、AbortController 已下沉到 composables/useOverviewSearch.js。
+ * 这里保留 open3DView 等其他动作。
  */
-function onSearchInput() {
-  if (searchDebounceTimer) {
-    clearTimeout(searchDebounceTimer)
-    searchDebounceTimer = null
-  }
-  const term = searchTerm.value.trim()
-  if (!term) {
-    searchPanelState.value = 'idle'
-    searchResults.value = []
-    searchError.value = ''
-    searchPanelOpen.value = false
-    if (searchAbortController) {
-      searchAbortController.abort()
-      searchAbortController = null
-    }
-    return
-  }
-  searchPanelOpen.value = true
-  searchPanelState.value = 'typing'
-  searchDebounceTimer = setTimeout(() => {
-    runSearch(term)
-  }, 280)
-}
-
-/** 主动跑一次搜索（用户按 Enter 或点击搜索图标时）。 */
-function onSearchSubmit() {
-  if (searchDebounceTimer) {
-    clearTimeout(searchDebounceTimer)
-    searchDebounceTimer = null
-  }
-  const term = searchTerm.value.trim()
-  if (!term) return
-  runSearch(term)
-}
-
-async function runSearch(term) {
-  if (searchAbortController) {
-    searchAbortController.abort()
-  }
-  searchAbortController = new AbortController()
-  searchPanelState.value = 'loading'
-  searchError.value = ''
-  try {
-    const results = await geocodeAddress(term, { signal: searchAbortController.signal })
-    if (!results || !results.length) {
-      searchResults.value = []
-      searchPanelState.value = 'empty'
-      return
-    }
-    searchResults.value = results
-    searchPanelState.value = 'results'
-  } catch (err) {
-    if (err?.name === 'AbortError') return
-    searchResults.value = []
-    searchPanelState.value = 'empty'
-    searchError.value = err?.message || '搜索失败'
-  }
-}
-
-/** 在地图上选中一个搜索结果：画 marker、zoom、关闭面板。 */
-function selectSearchResult(item) {
-  if (!mapController.value || !item) return
-  searchMarker.value = {
-    lon: item.lon,
-    lat: item.lat,
-    name: item.name,
-    address: item.address,
-  }
-  // zoomToPoint 已经按当前 datum 做转换，直接调用
-  mapController.value.zoomToPoint(item.lon, item.lat, 15)
-  searchPanelOpen.value = false
-  // 选完顺手把搜索框收成只读 + 显示当前位置
-  const label = item.source === 'coord'
-    ? `已定位：${item.lon.toFixed(4)}, ${item.lat.toFixed(4)}`
-    : `已定位：${item.name}`
-  emit('notify', label)
-  // 反向地理编码补全"当前显示地址"——可选，失败也不影响主流程
-  reverseGeocode(item.lon, item.lat).then((addr) => {
-    if (addr && searchMarker.value && searchMarker.value.lon === item.lon) {
-      searchMarker.value = { ...searchMarker.value, address: addr }
-    }
-  })
-}
-
-/** 关闭搜索面板。 */
-function closeSearchPanel() {
-  searchPanelOpen.value = false
-  searchPanelState.value = 'idle'
-}
-
-/** 清空搜索。 */
-function clearSearch() {
-  searchTerm.value = ''
-  searchResults.value = []
-  searchPanelState.value = 'idle'
-  searchError.value = ''
-  searchPanelOpen.value = false
-  searchMarker.value = null
-  if (searchAbortController) {
-    searchAbortController.abort()
-    searchAbortController = null
-  }
-}
-
 function open3DView() {
   if (!selectedPoint.value) return;
   router.push(`/dashboard/hazards/${selectedPoint.value.id}`);
@@ -1229,14 +1125,7 @@ async function tryAutoLocateOnMount() {
 onBeforeUnmount(() => {
   if (disposeRealtime) disposeRealtime();
   unbindMapEvents();
-  if (searchDebounceTimer) {
-    clearTimeout(searchDebounceTimer);
-    searchDebounceTimer = null;
-  }
-  if (searchAbortController) {
-    searchAbortController.abort();
-    searchAbortController = null;
-  }
+  disposeSearch();
   if (mapController.value) {
     mapController.value.destroy();
     mapController.value = null;

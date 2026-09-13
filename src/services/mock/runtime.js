@@ -256,7 +256,7 @@ export function getUserPreferenceMock(userId = "u-admin") {
 }
 
 export function saveUserPreferenceMock(userId = "u-admin", pref = {}) {
-  if (typeof window === "undefined") return { ok: true };
+  if (typeof window === "undefined") {return { ok: true };}
   window.localStorage.setItem(`geosentry_pref_${userId}`, JSON.stringify(pref));
   return { ok: true, savedAt: new Date().toISOString() };
 }
@@ -286,7 +286,7 @@ export const EXPERT_POOL = [
 const SIGN_STORE_KEY = "geosentry_sign_records";
 
 function loadSignStore() {
-  if (typeof window === "undefined") return [];
+  if (typeof window === "undefined") {return [];}
   try {
     return JSON.parse(window.localStorage.getItem(SIGN_STORE_KEY) ?? "[]");
   } catch {
@@ -295,7 +295,7 @@ function loadSignStore() {
 }
 
 function saveSignStore(list) {
-  if (typeof window === "undefined") return;
+  if (typeof window === "undefined") {return;}
   window.localStorage.setItem(SIGN_STORE_KEY, JSON.stringify(list));
 }
 
@@ -338,10 +338,10 @@ export function createSignMock({ eventId, signers, mode, timeout, timeoutAction,
 export function signConfirmMock(signId, signerId, opinion = "") {
   const list = loadSignStore();
   const idx = list.findIndex((r) => r.id === signId);
-  if (idx < 0) return null;
+  if (idx < 0) {return null;}
   const sign = list[idx];
   const s = sign.signers.find((x) => x.signerId === signerId);
-  if (!s) return sign;
+  if (!s) {return sign;}
   s.status = "CONFIRMED";
   s.opinion = opinion;
   s.signedAt = new Date().toISOString();
@@ -357,10 +357,10 @@ export function signConfirmMock(signId, signerId, opinion = "") {
 export function signRejectMock(signId, signerId, opinion = "") {
   const list = loadSignStore();
   const idx = list.findIndex((r) => r.id === signId);
-  if (idx < 0) return null;
+  if (idx < 0) {return null;}
   const sign = list[idx];
   const s = sign.signers.find((x) => x.signerId === signerId);
-  if (!s) return sign;
+  if (!s) {return sign;}
   s.status = "REJECTED";
   s.opinion = opinion;
   s.signedAt = new Date().toISOString();
@@ -449,7 +449,7 @@ export function getZoneTopHazardsMock({ region = "all", kind = "all" } = {}) {
   return items;
 }
 
-export function getZoneRelatedWarningsMock({ region = "all", kind = "all", range = "7d" } = {}) {
+export function getZoneRelatedWarningsMock({ region = "all", _kind = "all", _range = "7d" } = {}) {
   return SEED_BASE.warnings.slice(0, 5).map((w, i) => ({
     code: w.warningCode ?? `W${i + 1}`,
     title: w.title ?? "区域关联预警",

@@ -43,7 +43,7 @@ async function loadFromApi() {
   try {
     const data = await dashboardApi.getProfile()
     if (data) Object.assign(profile, data)
-  } catch (e) {
+  } catch (_e) {
     // 离线：使用本地缓存
     fillFromCache()
   } finally {

@@ -1,161 +1,51 @@
-const API_BASE =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api";
-const latency = 240;
+// Step 3: 基础设施已抽到 _architecture/core/,此处仅 re-export 保持向后兼容。
+// 注意: 必须是 `import + export`,不能直接 `export { foo } from '...'`,
+// 否则 ESLint flat config 的 no-undef 规则会把 foo 当作未定义。
+import { createApiError } from "./_architecture/core/errors.js";
+import { request, downloadFile } from "./_architecture/core/httpClient.js";
+import {
+  getRuntimeMode,
+  isBackendRuntime,
+  getUseBackend,
+  initBackendMode,
+  requireBackend,
+  API_BASE,
+} from "./_architecture/core/runtime.js";
 
-import { getAuthToken, redirectToLogin } from "../stores/auth";
-import * as mock from "./mock";
+export {
+  createApiError,
+  request,
+  downloadFile,
+  getRuntimeMode,
+  isBackendRuntime,
+  getUseBackend,
+  initBackendMode,
+  requireBackend,
+  API_BASE,
+};
 
-/**
- * 运行模式：
- * - 'backend'：真实后端（健康检查通过或 VITE_USE_BACKEND=true 显式指定）
- * - 'mock'   ：本地演示数据（后端不可达时自动降级，UI 明确标注，不再静默假装）
- * - 'probing'：探测中
- */
-let RUNTIME_MODE =
-  String(import.meta.env.VITE_USE_BACKEND ?? "").toLowerCase() === "true"
-    ? "backend"
-    : "probing";
-let USE_BACKEND =
-  String(import.meta.env.VITE_USE_BACKEND ?? "").toLowerCase() === "true";
+// USE_BACKEND 由 runtime.js 持有,通过 getUseBackend() 访问;
+// 这里保留 export { USE_BACKEND } 作为旧式 boolean 直读(已包装为当前快照)
+export const USE_BACKEND = getUseBackend();
 
-export function getRuntimeMode() {
-  return RUNTIME_MODE === "probing" ? "probing" : RUNTIME_MODE;
-}
-
-export function isBackendRuntime() {
-  return RUNTIME_MODE === "backend";
-}
-
-/** 探测后端可用性：显式配置优先，未配置则请求健康检查自动判定 */
-export async function initBackendMode() {
-  const explicit = String(import.meta.env.VITE_USE_BACKEND ?? "").toLowerCase();
-  if (explicit === "true") {
-    RUNTIME_MODE = "backend";
-    USE_BACKEND = true;
-    return RUNTIME_MODE;
-  }
-  if (explicit === "false") {
-    RUNTIME_MODE = "mock";
-    USE_BACKEND = false;
-    return RUNTIME_MODE;
-  }
-  try {
-    const resp = await fetch(`${API_BASE}/system/health`);
-    const payload = await resp.json().catch(() => null);
-    RUNTIME_MODE =
-      resp.ok && payload?.code === 0 && payload?.data?.status === "UP"
-        ? "backend"
-        : "mock";
-    USE_BACKEND = RUNTIME_MODE === "backend";
-  } catch {
-    RUNTIME_MODE = "mock";
-    USE_BACKEND = false;
-  }
-  return RUNTIME_MODE;
-}
-
-function clone(data) {
+// response(): mock 模式延迟返回 (latency ms), 模拟网络往返
+const _latency = 240;
+function _clone(data) {
   return typeof structuredClone === "function"
     ? structuredClone(data)
     : JSON.parse(JSON.stringify(data));
 }
-
-function createApiError(message, code = "API_ERROR") {
-  const error = new Error(message);
-  error.code = code;
-  return error;
-}
-
-function redirectToLoginLocal() {
-  // 委托给 auth.js 的 redirectToLogin（已内置并发锁防重复）
-  redirectToLogin();
-}
-
-function isBackendCompatibleToken(token) {
-  return typeof token === "string" && token.split(".").length === 3;
-}
-
-function requireBackend(feature) {
-  if (!USE_BACKEND) {
-    throw createApiError(
-      `${feature} 需要后端服务。请启动后端或设置 VITE_USE_BACKEND=true 后重试。`,
-      "BACKEND_REQUIRED",
-    );
-  }
-}
-
-async function request(path, options = {}) {
-  const token = getAuthToken();
-  const headers = {
-    "Content-Type": "application/json",
-    ...(isBackendCompatibleToken(token)
-      ? { Authorization: `Bearer ${token}` }
-      : {}),
-    ...(options.headers ?? {}),
-  };
-  const response = await fetch(`${API_BASE}${path}`, {
-    headers,
-    credentials: "include",
-    ...options,
-  });
-  const payload = await response.json().catch(() => null);
-
-  if (response.status === 401 && !path.startsWith("/auth/")) {
-    redirectToLoginLocal();
-    throw createApiError(payload?.message || "登录已过期，请重新登录", "401");
-  }
-
-  if (!response.ok || payload?.code !== 0) {
-    throw createApiError(
-      payload?.message || `请求失败：${response.status}`,
-      String(response.status),
-    );
-  }
-  return payload.data;
-}
-
 /**
- * 触发浏览器下载后端生成的二进制文件（xlsx 等）。
- * 后端导出接口返回附件流（ExcelExportService），不能走 request() 的 JSON 解析。
+ * 模拟网络往返: 把数据延迟 _latency ms 后返回深拷贝。
+ * 仅在 mock 模式下被 notificationService / 空数据填充等场景使用。
  */
-async function downloadFile(path, fileName) {
-  if (!USE_BACKEND) {
-    throw createApiError("导出需要后端服务。请启动后端后重试。", "BACKEND_REQUIRED");
-  }
-  const token = getAuthToken();
-  const headers = isBackendCompatibleToken(token)
-    ? { Authorization: `Bearer ${token}` }
-    : {};
-  const response = await fetch(`${API_BASE}${path}`, {
-    method: "POST",
-    headers,
-    credentials: "include",
+export function response(data) {
+  return new Promise((resolve) => {
+    window.setTimeout(() => resolve(_clone(data)), _latency);
   });
-  if (response.status === 401) {
-    redirectToLoginLocal();
-    throw createApiError("登录已过期，请重新登录", "401");
-  }
-  if (!response.ok) {
-    const payload = await response.json().catch(() => null);
-    throw createApiError(payload?.message || `导出失败：${response.status}`, String(response.status));
-  }
-  const blob = await response.blob();
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = fileName;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
-  return { downloaded: true, fileName };
 }
 
-function response(data) {
-  return new Promise((resolve) => {
-    window.setTimeout(() => resolve(clone(data)), latency);
-  });
-}
+import * as mock from "./mock";
 
 function normalizePaged(payload, fallback = []) {
   if (!payload)

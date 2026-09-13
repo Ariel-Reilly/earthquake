@@ -146,7 +146,7 @@ async function handleToggle(rule) {
     await toggleRule(rule.id)
     rule.enabled = !rule.enabled
     emit("notify", rule.enabled ? "规则已启用" : "规则已停用")
-  } catch (e) {
+  } catch (_e) {
     // Mock 模式
     rule.enabled = !rule.enabled
     emit("notify", rule.enabled ? "规则已启用" : "规则已停用")
@@ -160,7 +160,7 @@ async function handleDelete(rule) {
     await deleteRule(rule.id)
     emit("notify", "规则已删除")
     await load()
-  } catch (e) {
+  } catch (_e) {
     // Mock 模式
     rules.value = rules.value.filter(r => r.id !== rule.id)
     emit("notify", "规则已删除")
