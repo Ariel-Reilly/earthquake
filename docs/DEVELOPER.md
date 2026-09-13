@@ -210,16 +210,13 @@ earthquake/
 │   ├── router/index.js        # 路由 + 守卫 + 权限
 │   ├── stores/auth.js         # 角色/权限/登录态（含 JWT 过期本地校验）
 │   ├── layouts/DashboardLayout.vue  # 主布局
-│   ├── services/              # 服务层
-│       │   ├── dashboardApi.js    # 统一 API 封装（真实/模拟双模式 + 导出下载）
-│       │   ├── aiApi.js           # AI 服务客户端（detect/forecast/anomaly/fusion + forecastAuto/fusionRiskAuto/listRecords + comprehensiveAnalysis/chat/feedback/model-info/disasterAssessment）
-│       │   ├── mapService.js      # OpenLayers / Cesium 地图（含天气 overlay + Sentinel 卫星合成）
-│       │   ├── realtimeService.js # 实时数据（WS + 轮询 + 模拟）
-│       │   ├── weatherApi.js      # 天气接口（OpenWeatherMap，可选）
-│       │   ├── weatherService.js  # 国家气象数据接入（NSMC + NMC + 后端代理）
-│       │   ├── geocodeService.js  # 地理编码（地址↔经纬度）
-│       │   ├── sentinelService.js # Sentinel-1/2 卫星合成图层
+│   ├── services/              # 服务层（按 core/domain 分层）
+│   │   ├── _architecture/core/    # 通用基础（httpClient / realtimeService / mapService / geocodeService / healthService / runtime / errors）
+│   │   ├── _architecture/domain/  # 业务域服务（hazard / warning / ai / device / notification / rule-engine / ...）
+│   │   ├── mock/                  # 离线 mock 数据（ai / analytics / workflow / runtime / seed / system / operations / empty）
+│   │   └── dashboardApi.js        # 兼容入口，按需 re-export（逐步淘汰）
 │   ├── composables/useHazardList.js  # 灾害点列表逻辑
+│   ├── composables/useOverviewSearch.js  # 总览页地图搜索
 │   ├── utils/geo.js           # 地理计算工具
 │   ├── utils/coordTransform.js # 坐标系转换（WGS84 / GCJ-02 / BD-09）
 │   ├── data/dashboardData.js  # 菜单/角色元数据 + 离线 fallback 演示数据
@@ -565,7 +562,9 @@ docker compose up -d postgres redis minio emqx tdengine   # 重新初始化
 - 值守人员轨迹：`setPersonnelTrails()` 用 `LineString` 绘制。
 - 3D：`createCesiumViewer()` / `addCesiumPoint()` / `destroyCesiumViewer()`，在灾害点详情页按需动态 import 加载。
 
-### 5.6 实时数据（`services/realtimeService.js`）
+### 5.6 实时数据（`services/_architecture/core/realtimeService.js`）
+
+> 服务从 `services/realtimeService.js` 已迁移到 `services/_architecture/core/realtimeService.js`，按 `_architecture/core` 通用基础层组织。
 
 提供统一的实时状态订阅：
 
@@ -581,7 +580,9 @@ docker compose up -d postgres redis minio emqx tdengine   # 重新初始化
   3. `USE_LIVE_PERSONNEL` 判定：`VITE_USE_PERSONNEL_LIVE=true` **或 `VITE_USE_BACKEND=true`** 时前端仅轮询后端、关闭本地轨迹推演；否则走 `PERSONNEL_ROSTER` 本地推演（演示）
 - 轮询间隔：`VITE_REALTIME_POLL_INTERVAL`（默认 15s）、`VITE_WARNING_POLL_INTERVAL`（默认 10s）、`VITE_PERSONNEL_POLL_INTERVAL`（默认 30s）。
 
-### 5.7 天气（`services/weatherApi.js`）
+### 5.7 天气（`services/_architecture/domain/weatherService.js`）
+
+> 已迁移到 `_architecture/domain/weatherService.js`，按业务域分组管理。`services/_architecture/core/geocodeService.js` 仍保留地理编码能力。
 
 - `getRealtimeWeather()`：调 OpenWeatherMap（`VITE_WEATHER_API_KEY` / `VITE_WEATHER_API_URL`），无 Key 时返回内置回退数据。
 - `getWeatherAlertLevel()`：根据降水概率/湿度/温度计算「高/中/低」预警等级。
@@ -968,7 +969,7 @@ ai-service 返回 snake_case 字段，DTO 通过 `@JsonAlias` 解反序列化、
 > - `personnel`: `{"type":"personnel","data":{"username":"周小雨","hazardCode":"HZ-001","longitude":107.21,"latitude":30.61,"status":"在现场"},"version":1723747200003}`
 > - `device`: `{"type":"device","data":{"deviceCode":"DV-001","onlineStatus":"离线","batteryLevel":23},"version":1723747200004}`
 
-前端（`src/services/realtimeService.js`）连接时**优先**调 `GET /api/auth/ws-ticket` 获取一次性 ticket，用 `?ticket=` 连接；失败时 fallback 到 `?token=`。重连时重新取 ticket，自动处理 token 刷新。基于 `version` 字段做幂等 upsert，丢弃过期/重复消息。后端 `RealtimeBroadcastService` 在 WarningService 的 confirm/dispatch/close/dismiss/resolve/create、EmergencyService 的 createFromWarning/resolve、DeviceDataService 的在线状态变化检测、PersonnelController 的位置上报中自动触发广播。
+前端（`src/services/_architecture/core/realtimeService.js`）连接时**优先**调 `GET /api/auth/ws-ticket` 获取一次性 ticket，用 `?ticket=` 连接；失败时 fallback 到 `?token=`。重连时重新取 ticket，自动处理 token 刷新。基于 `version` 字段做幂等 upsert，丢弃过期/重复消息。后端 `RealtimeBroadcastService` 在 WarningService 的 confirm/dispatch/close/dismiss/resolve/create、EmergencyService 的 createFromWarning/resolve、DeviceDataService 的在线状态变化检测、PersonnelController 的位置上报中自动触发广播。
 
 > `version` 字段为服务端递增计数器（`AtomicLong.incrementAndGet()`），每次广播自动 +1。**初始值为 `System.currentTimeMillis()`**（毫秒级时间戳，约 1.7e12 起），保证服务重启后 version 仍单调递增，不会因归零导致前端丢弃新消息。前端基于 `version` 做幂等 upsert——只接收 version 更大的新消息，丢弃重复/过期消息。
 > **注意**：不要将 version 当作时间戳解析，它只是递增序号。
@@ -1919,7 +1920,7 @@ npm run dev                     # 启动本地 Vite dev server
 > 灾害点与卫星影像，快速定位滑坡、崩塌、泥石流的形变异常与地表变化。
 >
 > 合成由 **ai-service（Python FastAPI）** 完成（`routers/sentinel.py`），Java 后端不参与，
-> 仅透传请求 + 轮询任务状态。前端 `src/services/sentinelService.js` 封装了
+> 仅透传请求 + 轮询任务状态。前端 `src/services/_architecture/core/sentinelService.js` 封装了
 > `composeSentinelScene() / fetchSentinelJob() / pollSentinelJob() / cancelSentinelJob()` 一组工具方法。
 
 ### 16.1 数据源策略
@@ -1938,7 +1939,7 @@ npm run dev                     # 启动本地 Vite dev server
 ### 16.2 合成管线
 
 ```
-客户端 (src/services/sentinelService.js)
+客户端 (`src/services/_architecture/core/sentinelService.js`)
    POST /api/ai/sentinel/compose  {bbox, start, end, max_cloud, provider, sar_overlay, s2_true_color}
             │
             ▼
@@ -2042,7 +2043,7 @@ queued ──► running ──► succeeded  (终态)
 > User Settings → OAuth Clients → Create New Client。客户端类型选 confidential，
 > 权限勾选 `STAC search/read`。Client ID 与 Secret 写入 ai-service 环境变量。
 
-### 16.6 前端封装（`src/services/sentinelService.js`）
+### 16.6 前端封装（`src/services/_architecture/core/sentinelService.js`）
 
 ```js
 import { composeSentinelScene, pollSentinelJob, describeJobStatus } from '@/services/sentinelService'
@@ -2099,7 +2100,7 @@ public ApiResponse<Map<String, Object>> composeSentinel(@RequestBody Map<String,
 ```
 
 > 当前 Java 侧仅在 §7.11「AI 服务自身接口」列表中给出 Sentinel 端点 URL；
-> 前端 `sentinelService.js` 默认 base 是 `import.meta.env.VITE_AI_SERVICE_BASE || '/api/ai'`，
+> 前端 `services/_architecture/core/sentinelService.js` 默认 base 是 `import.meta.env.VITE_AI_SERVICE_BASE || '/api/ai'`，
 > 生产部署时通过 Nginx 反向代理 `/api/ai/sentinel/*` 到 ai-service 容器 8000 端口。
 
 ### 16.8 降级与故障排查
@@ -2176,8 +2177,16 @@ backend/
 
 src/
 ├── services/
-│   ├── weatherApi.js                    # OpenWeatherMap 实时天气（按需启用）
-│   └── weatherService.js                # 前端气象服务（NSMC + NMC + 后端代理 fallback）
+│   ├── _architecture/core/geocodeService.js    # 地址 ↔ 经纬度
+│   ├── _architecture/core/mapService.js        # OpenLayers + Cesium 双引擎
+│   ├── _architecture/core/realtimeService.js   # WebSocket（ticket 鉴权）
+│   ├── _architecture/core/sentinelService.js   # Sentinel-1/2 卫星合成
+│   ├── _architecture/core/runtime.js           # 运行时环境（mock/真实切换）
+│   ├── _architecture/core/errors.js            # 统一错误对象
+│   ├── _architecture/core/healthService.js     # 服务健康检查
+│   ├── _architecture/domain/weatherService.js  # 气象（NSMC + NMC + 后端代理）
+│   ├── _architecture/domain/weatherApi.js      # OpenWeatherMap 实时天气（按需启用）
+│   └── _architecture/domain/aiApi.js           # AI 服务客户端
 ├── views/WeatherPage.vue                # /dashboard/weather 独立页面（六卡片 + 主图）
 ├── components/WeatherOverlayLegend.vue  # OverviewPage 浮动 overlay 控制面板
 └── stores/auth.js                       # ROLE_MENU_MAP + weather:view 权限

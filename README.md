@@ -1,226 +1,233 @@
 # 地脉智巡 · 地质灾害智能巡检与预警管理平台
 
-> Geohazard Inspection Dashboard (GeoSentry)
+> Geohazard Inspection Dashboard (GeoSentry) · v1.7.0+
 
-基于 Spring Boot 3 + Vue 3 的一体化地质灾害监测、巡检、预警与应急响应平台。
+基于 **Spring Boot 3 + Vue 3 + FastAPI** 的一体化地质灾害监测、巡检、预警与应急响应平台。
 
 ---
 
-## 快速启动
+## ✨ 特性
 
-```bash
-# 1. 启动全部服务（PostgreSQL/Redis/MinIO/EMQX/TDengine/后端/前端/AI推理）
-docker compose up -d
+- 🛰️ **多源数据融合** — Sentinel-1/2、Landsat、ERA5、GPM、SMAP、IoT 传感器、社交媒体
+- 🤖 **AI 智能研判** — YOLOv8 检测、LSTM 时序预测、XGBoost 融合评分、Isolation Forest 异常检测、模型漂移监控
+- 🌐 **统一事件状态机** — 跨 hazard / warning / emergency 的 7 状态 × 12 转移全链路闭环
+- 📱 **多端适配** — Web 仪表盘 / 指挥大屏（`/screen`）/ 移动指挥终端（`/mobile`，PWA）
+- 🔐 **细粒度权限** — 7 角色 × 50+ 模块 × 4 操作（view/create/edit/delete）
+- ⚡ **实时推送** — WebSocket（一次性 ticket 鉴权）+ EMQX MQTT 设备接入
+- 📑 **57 条业务路由** — 覆盖监测、AI、预警、应急、数据、系统全业务域
 
-# 2. 或分模块开发（推荐）
-# 基础服务
-docker compose up -d postgres redis minio emqx tdengine
+---
 
-# 前端（项目根目录）
-npm install
-npm run dev
+## 🚀 快速启动
 
-# 后端（backend 目录）
-#   需先设置环境变量（见下方"宿主机直跑后端"）
-mvn spring-boot:run
+### 方法 1：一键脚本（推荐）
+
+#### Windows PowerShell
+
+```powershell
+# 1. 启动基础设施
+.\start-dev.ps1 -Infra -Up
+
+# 2. 另开三个终端分别启动（推荐在 PowerShell 7+ 中同时运行）
+.\start-dev.ps1 -Backend
+.\start-dev.ps1 -Ai
+.\start-dev.ps1 -Frontend
 ```
 
+#### Linux / macOS / WSL
+
+```bash
+chmod +x start-dev.sh
+./start-dev.sh infra up
+./start-dev.sh backend    # 终端 1
+./start-dev.sh ai         # 终端 2
+./start-dev.sh frontend   # 终端 3
+```
+
+### 方法 2：Docker Compose（一体化）
+
+```bash
+# 全部服务（开发模式）
+docker compose up -d
+
+# 浏览器访问
+#   前端:    http://localhost:5173
+#   后端:    http://localhost:8080/swagger-ui.html
+#   AI 服务: http://localhost:8001/docs
+```
+
+### 启动后访问
+
+| 入口 | URL | 说明 |
+|---|---|---|
+| 主仪表盘 | http://localhost:5173 | 默认登录入口 |
+| 移动指挥终端 | http://localhost:5173/mobile | 手机端极简指挥（PWA） |
+| 指挥大屏 | http://localhost:5173/screen | 全屏展示（无需登录） |
+| 后端 API | http://localhost:8080/swagger-ui.html | Swagger UI |
+| AI 服务 | http://localhost:8001/docs | FastAPI 自动文档 |
+| MinIO 控制台 | http://localhost:19001 | admin / minio123 |
+
 ---
 
-## 端口约定
-
-以下为 **docker-compose 开发模式**下的宿主机端口映射：
+## 🌐 端口约定
 
 | 服务 | 宿主机端口 | 容器内端口 | 说明 |
 |------|-----------|-----------|------|
 | 前端开发服务器 | `5173` | — | Vite dev server |
 | 前端（Docker） | `5173` | `80` | Nginx 反代 API/WS |
-| 后端（Docker） | `8080` | `8080` | Spring Boot |
-| 后端（Prod Docker） | `8081` | `8080` | 生产模式映射 |
-| 后端（Maven 直跑） | `8080` | — | `mvn spring-boot:run` |
+| 后端 | `8080` | `8080` | Spring Boot |
+| 后端（Prod） | `8081` | `8080` | 生产模式映射 |
 | PostgreSQL | `15432` | `5432` | PostGIS 15 |
-| Redis | `16379` | `6379` | Redis 7 + 密码 |
+| Redis | `16379` | `6379` | Redis 7 |
 | MinIO API | `19000` | `9000` | 对象存储 |
 | MinIO Console | `19001` | `9001` | Web 管理台 |
 | EMQX MQTT | `11883` | `1883` | MQTT Broker 5.9 |
 | EMQX Dashboard | `28083` | `18083` | Broker 管理台 |
 | TDengine TCP | `16030` | `6030` | 时序数据库 |
 | TDengine HTTP | `16041` | `6041` | JDBC REST 接口 |
-| AI 推理服务 | `8000` | `8000` | FastAPI（可选） |
+| AI 推理服务 | `8001` | `8001` | FastAPI（可选） |
 
 ---
 
-## 后端 API 概览
+## 🔑 默认账号（开发模式）
 
-前缀 `/api`，除认证/健康检查外需 `Authorization: Bearer <token>`。
+| 用户名 | 密码 | 角色 | 可见菜单 |
+|---|---|---|---|
+| admin | 123456 | 管理员 | 全部 |
+| system_admin | 123456 | 系统管理员 | 系统/数据 |
+| emergency_commander | 123456 | 应急指挥官 | 预警/应急/资源 |
+| attendant | 123456 | 值班员 | 态势/AI/确认 |
+| expert | 123456 | 专家 | 态势/AI 研判 |
+| ai_engineer | 123456 | AI 工程师 | AI 模型/数据源 |
+| maintenance | 123456 | 运维 | 设备/系统监控 |
 
-| 模块 | 核心端点 |
-|------|---------|
-| 认证 | `POST /auth/login`、`POST /auth/logout`、`POST /auth/change-password`、`GET /auth/ws-ticket` |
-| 系统 | `GET /system/health`、Swagger `/swagger-ui.html` |
-| 仪表盘 | `GET /dashboard/overview`、`GET /dashboard/charts`、`GET /dashboard/analytics`、`GET /dashboard/summary` |
-| 灾害点 | CRUD + `/viewport` + `/geojson` + `/export` |
-| 巡检任务 | CRUD + `PATCH /{id}/status` + `/export` |
-| 巡检上报 | `POST /inspection/gps-check`、`POST /inspection/submit` |
-| 监测设备 | CRUD + `/viewport` + `POST /{id}/data`（鉴权 X-Device-Key） + `/export` |
-| 预警事件 | CRUD + `/preview` + `/viewport` + 六态流转（confirm/dispatch/close/dismiss/resolve） |
-| 应急处置 | CRUD（橙/红预警派发时自动生成） |
-| 附件 | `POST /attachments`（MinIO 真实写入）+ presigned URL 刷新 |
-| AI 推理 | `POST /ai/detect`、`/forecast`、`/anomaly`、`/fusion-risk`（可降级） |
-| 值守人员 | `GET /personnel/positions`、`POST /personnel/positions/report` |
-| 实时推送 | WebSocket `/ws`（一次性 ticket 鉴权） |
+> 生产环境必须修改种子密码或跳过 `data.sql`。
 
 ---
 
-## 环境配置
+## 📚 文档导航
 
-复制 `.env.example` 为 `.env`，根据实际环境修改。关键配置项：
-
-```bash
-# 前端
-VITE_API_BASE_URL=http://localhost:8080/api   # 开发模式后端地址
-VITE_USE_BACKEND=true                          # false=纯mock，演示用
-VITE_WS_URL=                                    # 留空自动推导
-
-# 后端（Maven 直跑时必须设置）
-POSTGRES_PORT=15432          # Docker 映射端口
-REDIS_PORT=16379
-JWT_SECRET=<32+字符强随机密钥>
-DEV_USERS_ENABLED=true        # 开发环境可用内存账号 fallback
-```
+| 文档 | 路径 | 内容 |
+|---|---|---|
+| **架构总览** | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 系统分层、数据流、模块依赖 |
+| **开发者文档** | [docs/DEVELOPER.md](docs/DEVELOPER.md) | API、数据库、权限、部署、二次开发 |
+| **状态机详解** | [docs/UNIFIED_EVENT_STATEMACHINE.md](docs/UNIFIED_EVENT_STATEMACHINE.md) | 统一事件中心 7 状态×12 转移 |
+| **变更日志** | [CHANGELOG.md](CHANGELOG.md) | 版本演进记录 |
+| **贡献指南** | [CONTRIBUTING.md](CONTRIBUTING.md) | 提交规范、代码风格、PR 流程 |
 
 ---
 
-## 宿主机直跑后端（Windows PowerShell）
-
-Docker 映射了非标准端口，需要显式设置环境变量：
-
-```powershell
-$env:POSTGRES_PORT='15432'
-$env:REDIS_PORT='16379'
-$env:MINIO_ENDPOINT='http://localhost:19000'
-$env:TDENGINE_URL='jdbc:TAOS-RS://localhost:16041/geohazard'
-$env:JWT_SECRET='your-strong-secret-at-least-32-chars-long-x'
-$env:DEV_USERS_ENABLED='true'
-
-cd backend
-mvn spring-boot:run
-```
-
-数据库初始化：首次启动自动执行 `schema.sql` + `data.sql`（幂等）。
-
----
-
-## 技术栈
+## 🧱 技术栈
 
 | 层级 | 技术 |
-|------|------|
-| 前端 | Vue 3.5 + Vite 6 + Vue Router 4 + OpenLayers 10 + Cesium 1.144 + Lucide Icons |
+|---|---|
+| 前端 | Vue 3.5 + Vite 6 + Vue Router 4 + Pinia + OpenLayers 10 + Cesium 1.144 + Lucide Icons |
 | 后端 | Spring Boot 3.4 + Java 17 + Spring Data JPA + Hibernate Spatial (PostGIS) + Spring Security (JWT) |
-| AI 服务 | Python FastAPI + YOLOv8 + LSTM + Isolation Forest + XGBoost（可选，可降级） |
-| 基础设施 | PostgreSQL 15 + PostGIS + Redis 7 + MinIO + EMQX 5 + TDengine |
+| AI 服务 | Python 3.11 + FastAPI + YOLOv8 + LSTM + Isolation Forest + XGBoost |
+| 基础设施 | PostgreSQL 15 + PostGIS + Redis 7 + MinIO + EMQX 5 + TDengine 3 |
 
 ---
 
-## 多源数据融合体系
-
-AI 智能巡检监测自然灾害需要多源数据融合，本系统整合以下六类核心数据：
-
-### 一、核心遥感影像数据（用于识别地表灾害特征）
-
-| 数据名称 | 传感器/卫星 | 空间分辨率 | 时间分辨率 | 用途 | 推荐接入方式 |
-|---|---|---|---|---|---|
-| Sentinel-1 SAR | C波段雷达 | 10 m（GRD） | 6天（双星） | 洪水、滑坡、地表形变（InSAR） | Copernicus Data Space / GEE |
-| Sentinel-2 多光谱 | MSI | 10/20/60 m | 5天（双星） | 植被指数、水体提取、火灾迹地 | Copernicus Data Space / Sentinel Hub |
-| Landsat 8/9 | OLI/TIRS | 15/30/100 m | 16天 | 长期土地覆盖变化、历史对比 | USGS EarthExplorer / GEE |
-| MODIS / VIIRS | 中分辨率 | 250/500/1000 m | 每日多次 | 大范围火点、气溶胶、洪水快速初判 | NASA GIBS / FIRMS API / GEE |
-| 高分辨率商业（可选） | Maxar/Planet | <1 m | 按需 | 建筑物损毁评估 | Planet API |
-
-### 二、气象与水文数据（用于触发条件分析和预警）
-
-| 数据名称 | 内容 | 时空分辨率 | 用途 | 推荐接入来源 |
-|---|---|---|---|---|
-| ERA5 再分析 | 降雨、温度、风速、湿度、气压等 | 0.25° 逐小时 | 降雨阈值分析、干旱指数 | ECMWF CDS API |
-| GPM IMERG | 全球卫星降雨 | 0.1° 每30分钟 | 实时降雨监测、滑坡/洪水触发 | NASA GES DISC |
-| SMAP 土壤湿度 | 雷达/辐射计土壤水分 | 9 km / 3 km | 干旱监测、滑坡前期饱和度 | NSIDC / EarthData |
-| 河流水位（可选） | 水文站实测 | 站点级 | 洪水演进验证 | GRDC |
-
-### 三、地形与地质数据（用于易发性评估和特征提取）
-
-| 数据名称 | 内容 | 分辨率 | 用途 | 推荐接入来源 |
-|---|---|---|---|---|
-| SRTM DEM | 全球数字高程模型 | 30 m | 坡度、坡向、汇流分析 | NASA EarthData / GEE |
-| Copernicus DEM | 全球DEM | 30 m | 更高精度地形分析 | Copernicus Data Space |
-| 地质图/断层数据 | 岩性、构造 | 矢量 | 地震、滑坡易发性因子 | USGS / 地质调查局 |
-| 土壤类型 | 土壤物理属性 | 矢量/栅格 | 渗透性、滑坡敏感性 | FAO HWSD / SoilGrids |
-
-### 四、历史灾害与承灾体数据（用于模型训练和风险评估）
-
-| 数据名称 | 内容 | 用途 | 推荐接入来源 |
-|---|---|---|---|
-| EM-DAT | 全球灾害事件库 | 模型训练标签、风险区划 | EM-DAT 官网 |
-| GDACS | 全球灾害警报和影响评估 | 实时灾害事件触发 | GDACS RSS/API |
-| WorldPop / GHS | 人口密度分布 | 风险评估、影响人口估算 | WorldPop API |
-| OpenStreetMap | 建筑物、道路、土地利用 | 承灾体暴露度评估 | OSM API |
-
-### 五、地面传感器与实时观测数据（用于快速预警和验证）
-
-| 数据名称 | 内容 | 用途 | 推荐接入方式 |
-|---|---|---|---|
-| USGS 地震目录 | 实时地震事件 | 地震触发报警 | USGS FDSN API |
-| 现场 IoT 传感器（可选） | 雨量计、位移计、倾斜仪、水位计 | 高时间分辨率前兆监测 | 第三方 IoT 平台 |
-
-### 六、辅助数据（可选，用于增强分析或可视化）
-
-| 数据名称 | 内容 | 用途 | 推荐接入来源 |
-|---|---|---|---|
-| NASA Black Marble | 夜间灯光 | 断电范围评估 | NASA LAADS / GEE |
-| 社交媒体 API | 微博/Twitter/X 帖文 | 灾情现场信息 | 微博/Twitter API |
-| 行政区划矢量 | 国/省/市边界 | 结果分区统计 | Natural Earth / GADM |
-
-详细数据接入说明见 [docs/DEVELOPER.md](docs/DEVELOPER.md) §24。
-
----
-
-## 文档
-
-详细开发者文档见 [docs/DEVELOPER.md](docs/DEVELOPER.md)，覆盖架构、API、数据库、权限、部署、二次开发。
-
----
-
-## 项目结构
+## 📂 项目结构
 
 ```
 earthquake/
-├── src/                    # 前端 Vue 3 源码
-├── backend/                # Spring Boot 后端
-├── ai-service/             # FastAPI AI 推理服务（可选）
-├── infra/                  # 基础设施初始化脚本
-│   ├── emqx/               # EMQX broker 认证初始化
-│   ├── nginx/              # 生产 Nginx 反代配置
-│   ├── postgres/           # PostGIS 扩展 + 归档函数
-│   └── tdengine/           # TDengine 初始化
-├── Dockerfile.backend      # 后端多阶段构建
-├── Dockerfile.frontend     # 前端多阶段构建（Nginx）
-├── docker-compose.yml      # 开发模式编排
-├── docker-compose.prod.yml # 生产模式覆盖
-├── .env.example            # 环境变量模板
-├── package.json            # 前端依赖
-└── README.md               # 本文档
+├── src/                          # 前端 Vue 3 源码
+│   ├── views/                    # 50+ 业务页面，按域分子目录
+│   │   ├── ai/                   # AI 研判 / 结果 / 模型
+│   │   ├── data/                 # 数据源 / 同步 / 目录
+│   │   ├── device/               # 设备管理 / OTA
+│   │   ├── hazard/               # 灾害事件 / 人工确认
+│   │   ├── monitor/              # 实时地图 / 时相对比 / 气象
+│   │   ├── screen/               # 指挥大屏
+│   │   ├── settings/             # 个人设置 / 账号安全
+│   │   ├── system/               # 用户 / 审计 / 消息 / 审批
+│   │   ├── warning/              # 预警 / 应急 / 资源调度
+│   │   ├── mobile/               # 移动端入口
+│   │   ├── OverviewPage.vue      # 综合态势大屏
+│   │   ├── WelcomePage.vue       # 登录
+│   │   ├── ForbiddenPage.vue     # 403
+│   │   └── ServerErrorPage.vue   # 500
+│   ├── components/               # 26 个通用组件
+│   ├── composables/              # 复用逻辑
+│   ├── data/                     # 静态配置 + 菜单元数据
+│   ├── layouts/                  # DashboardLayout.vue
+│   ├── router/                   # 57 条业务路由
+│   ├── services/                 # 业务服务层
+│   │   ├── _architecture/        # 新版分层结构
+│   │   │   ├── core/             # httpClient / realtime / map / geocode / health
+│   │   │   └── domain/           # 各业务域服务（hazard/warning/ai/...）
+│   │   └── mock/                 # 离线 mock 数据
+│   ├── stores/                   # Pinia store（auth / realtime / userPreference）
+│   └── utils/                    # 工具函数（坐标转换 / 格式化）
+├── backend/                      # Spring Boot 后端
+│   └── src/main/java/cn/geosentry/
+│       ├── auth/                 # 认证 + 权限
+│       ├── hazard/               # 灾害事件
+│       ├── warning/              # 预警
+│       ├── emergency/            # 应急
+│       ├── device/               # 设备
+│       ├── ai/                   # AI 推理调用
+│       ├── notification/         # 通知渠道
+│       ├── ruleengine/           # 规则引擎
+│       ├── device/               # 设备管理
+│       ├── common/               # 通用基类 + 异常处理
+│       └── ...
+├── ai-service/                   # FastAPI AI 推理服务
+│   └── app/
+│       ├── main.py               # FastAPI 入口
+│       ├── routers/              # 路由层
+│       ├── models/               # 模型推理
+│       ├── schemas/              # Pydantic schema
+│       └── training/             # 训练流水线
+├── scripts/                      # 维护脚本（10 个）
+│   ├── audit_db.py               # 数据库审计
+│   ├── backfill_unified_event_hazards.py  # 事件数据回填
+│   ├── smoke_test_schema.py      # Schema 烟雾测试
+│   ├── gen_data_sql.py           # 生成 seed 数据
+│   ├── diagnose-schema-drift.ps1 # 诊断 Schema 漂移
+│   ├── fix-db-volume.ps1         # 修复 DB 数据卷
+│   ├── rewrite-operation-log.ps1 # 重写审计日志
+│   ├── check-vue.cjs             # Vue 文件静态检查
+│   ├── check_jsonb_sql.py        # data.sql JSONB 校验
+│   └── oneclick-fix.mjs          # 一键修复
+├── docs/                         # 开发者文档
+│   ├── ARCHITECTURE.md
+│   ├── DEVELOPER.md
+│   └── UNIFIED_EVENT_STATEMACHINE.md
+├── infra/                        # 基础设施初始化
+│   ├── emqx/                     # EMQX 认证
+│   ├── nginx/                    # 生产 Nginx
+│   ├── postgres/                 # PostGIS 扩展
+│   └── tdengine/                 # TDengine 初始化
+├── tests/                        # 测试
+├── docker-compose.yml            # 开发模式
+├── docker-compose.prod.yml       # 生产模式
+├── Dockerfile.backend
+├── Dockerfile.frontend
+├── start-dev.ps1                 # Windows 一键启动
+├── start-dev.sh                  # Linux/Mac 一键启动
+├── .env.example
+├── CHANGELOG.md
+├── CONTRIBUTING.md
+└── README.md
 ```
 
 ---
 
-## 默认账号（开发模式）
+## 🧪 多源数据融合体系（详细见 [docs/DEVELOPER.md](docs/DEVELOPER.md) §24）
 
-| 用户名 | 密码 | 角色 |
-|--------|------|------|
-| admin | 123456 | 管理员 |
-| attendant | 123456 | 值班员 |
-| maintenance | 123456 | 运维员 |
-
-> 生产环境必须修改种子密码或跳过 data.sql（见 `docs/DEVELOPER.md` §14 第 43 条）。
+| 类别 | 数据源 | 用途 |
+|---|---|---|
+| 遥感影像 | Sentinel-1/2、Landsat、MODIS、VIIRS、Maxar | 地表变化检测 |
+| 气象水文 | ERA5、GPM IMERG、SMAP、河流水位 | 触发条件 + 风险预测 |
+| 地形地质 | SRTM DEM、Copernicus DEM、地质图、土壤类型 | 易发性评估 |
+| 历史灾害 | EM-DAT、GDACS、WorldPop | 模型训练 + 风险区划 |
+| 地面观测 | USGS 地震、IoT 雨量计/位移计 | 实时前兆 |
+| 辅助 | NASA Black Marble、社交媒体、行政区划 | 断电评估 + 现场线索 |
 
 ---
 
-_本项目为学生创业项目，技术栈与功能按实际迭代持续更新。_
+## 📜 许可证
+
+学生创业项目 · Copyright © 2025-2026 GeoSentry Team

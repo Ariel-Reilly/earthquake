@@ -28,6 +28,8 @@ ai-service/**/*.pyc
 ai-service/.venv/
 ai-service/venv/
 ai-service/env/
+.pytest_cache/
+**/.pytest_cache/
 ai-service/models/*.pt
 ai-service/models/*.onnx
 ai-service/models/*.pth
