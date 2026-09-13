@@ -5,6 +5,8 @@ import cn.geosentry.common.api.PageResponse;
 import cn.geosentry.common.exception.AppException;
 import cn.geosentry.common.geo.ViewportBounds;
 import cn.geosentry.common.export.HazardExportRow;
+import cn.geosentry.event.entity.UnifiedEventEntity;
+import cn.geosentry.event.service.EventStateService;
 import cn.geosentry.hazard.dto.HazardDto;
 import cn.geosentry.hazard.dto.HazardUpsertRequest;
 import cn.geosentry.hazard.entity.HazardPoint;
@@ -31,10 +33,16 @@ public class HazardService {
 
   private final HazardPointRepository repository;
   private final AiRiskEnricher aiEnricher;
+  private final EventStateService eventStateService;
 
-  public HazardService(HazardPointRepository repository, AiRiskEnricher aiEnricher) {
+  public HazardService(
+      HazardPointRepository repository,
+      AiRiskEnricher aiEnricher,
+      EventStateService eventStateService
+  ) {
     this.repository = repository;
     this.aiEnricher = aiEnricher;
+    this.eventStateService = eventStateService;
   }
 
   public PageResponse<HazardDto> page(int page, int size, String keyword, String regionCode, String level, String type, String bbox, String source) {
@@ -112,7 +120,8 @@ public class HazardService {
   }
 
   public HazardDto getById(Long id) {
-    return repository.findById(id).map(this::toDto).orElseThrow(() -> new AppException(404, "未找到灾害点"));
+    HazardPoint point = repository.findById(id).orElseThrow(() -> new AppException(404, "未找到灾害点"));
+    return toDto(point);
   }
 
   public Map<String, Object> geojson(String bbox, String keyword, String regionCode, String level, String type, String source) {
@@ -163,7 +172,12 @@ public class HazardService {
     apply(point, request);
     point.setLastInspectionAt(OffsetDateTime.now().minusHours(4));
     point.setSource("MANUAL");  // 手动新增
-    return toDto(repository.save(point));
+    HazardPoint saved = repository.save(point);
+    // v1.7.0+ P3-4：写入 unified_event，建立"灾害点 ↔ 事件"双向锚点
+    String eventCode = eventStateService.createFromManualReport(
+        saved.getHazardCode(), saved.getName(), "system");
+    log.info("Hazard created with unified_event: hazard={}, eventCode={}", saved.getHazardCode(), eventCode);
+    return toDto(saved, eventCode, null);
   }
 
   /**
@@ -221,7 +235,12 @@ public class HazardService {
     OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
     point.setDiscoveredAt(now);
     point.setDetectionConfidence(detectionConfidence == null ? 0.5 : Math.min(1.0, Math.max(0.0, detectionConfidence)));
-    return toDto(repository.save(point));
+    HazardPoint saved = repository.save(point);
+    // v1.7.0+ P3-4：写入 unified_event（DETECTED 状态，来源 AI_AUTO）
+    String eventCode = eventStateService.createFromAiDetection(
+        saved.getHazardCode(), saved.getName());
+    log.info("AI Hazard detected with unified_event: hazard={}, eventCode={}", saved.getHazardCode(), eventCode);
+    return toDto(saved, eventCode, null);
   }
 
   /** AI 监测创建的灾害全部列出来（按发现时间倒序），供 AiHazardMonitorScheduler 健康检查。 */
@@ -241,7 +260,8 @@ public class HazardService {
   public HazardDto update(Long id, HazardUpsertRequest request) {
     HazardPoint point = repository.findById(id).orElseThrow(() -> new AppException(404, "未找到灾害点"));
     apply(point, request);
-    return toDto(repository.save(point));
+    HazardPoint saved = repository.save(point);
+    return toDto(saved);
   }
 
   @Transactional
@@ -268,9 +288,35 @@ public class HazardService {
   }
 
   private HazardDto toDto(HazardPoint point) {
+    return toDto(point, null, null);
+  }
+
+  /**
+   * v1.7.0+ P3-4：构造 HazardDto 时同时查 unified_event，写入 eventCode + eventState。
+   * - eventCode 已存在：直接用（如 createFromAiDetection / create 时刚生成）
+   * - eventCode 为 null：按 hazard_code 反查 unified_event（处理存量数据，无锚点则留空）
+   */
+  private HazardDto toDto(HazardPoint point, String preloadedEventCode, String preloadedEventState) {
     // AI 综合分决定"显示等级"：CRITICAL/HIGH → 高风险，MEDIUM → 关注，LOW → 正常；无 AI 时回退到 DB 静态值
     AiRiskEnricher.AiRiskBrief ai = aiEnricher.of(point.getHazardCode());
     String effectiveLevel = ai != null && ai.classicLevel() != null ? ai.classicLevel() : point.getRiskLevel();
+
+    String eventCode = preloadedEventCode;
+    String eventState = preloadedEventState;
+    if (eventCode == null) {
+      // 存量数据 / 列表接口：按 hazard_code 反查（最多一条，O(1)）
+      List<UnifiedEventEntity> linked = eventStateService.findByHazardCode(point.getHazardCode());
+      if (linked != null && !linked.isEmpty()) {
+        UnifiedEventEntity e = linked.get(0);
+        eventCode = e.getEventCode();
+        eventState = e.getState() == null ? null : e.getState().name();
+      }
+    } else if (eventState == null) {
+      // preloadedEventCode 不为空但 state 缺：补查
+      cn.geosentry.event.entity.UnifiedEventEntity e = eventStateService.findByEventCode(eventCode);
+      eventState = e == null || e.getState() == null ? null : e.getState().name();
+    }
+
     return new HazardDto(
         point.getId(),
         point.getHazardCode(),
@@ -297,7 +343,10 @@ public class HazardService {
         ai == null ? null : ai.disasterType(),
         ai == null ? null : ai.disasterTypeSource(),
         ai == null ? null : ai.concernLabel(),
-        ai == null ? null : ai.deviceAvailable()
+        ai == null ? null : ai.deviceAvailable(),
+        // ---- v1.7.0+ P3-4：统一事件锚点 ----
+        eventCode,
+        eventState
     );
   }
 

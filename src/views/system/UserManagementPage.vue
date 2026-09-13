@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import {
-  Check, Edit, Loader2, Mail, Pencil, Plus, Search, Trash2, UserPlus, Users, X,
+  Check, Edit, Grid2, Loader2, Mail, Pencil, Plus, Search, Trash2, UserPlus, Users, X,
 } from 'lucide-vue-next'
 import { dashboardApi } from '../../services/dashboardApi'
 import { ROLE_OPTIONS, hasPermission, getAuthUser } from '../../stores/auth'
@@ -18,6 +18,7 @@ const filter = reactive({ keyword: '', role: '' })
 const editDialog = ref(false)
 const editingUser = ref(null)
 const isNew = ref(false)
+const activeTab = ref('users')
 
 const roleColor = {
   admin: '#c7553b',
@@ -25,6 +26,63 @@ const roleColor = {
   expert: '#9b761e',
   maintenance: '#2a8154',
 }
+
+// ── 权限矩阵数据 ──
+const ROLES_ORDER = [
+  { value: 'admin', label: '管理员', color: '#c7553b' },
+  { value: 'system_admin', label: '系统管理员', color: '#7c3aed' },
+  { value: 'emergency_commander', label: '应急指挥官', color: '#dc2626' },
+  { value: 'attendant', label: '值班员', color: '#2b6cb0' },
+  { value: 'expert', label: '专家', color: '#9b761e' },
+  { value: 'ai_engineer', label: 'AI 工程师', color: '#0891b2' },
+  { value: 'maintenance', label: '运维', color: '#2a8154' },
+]
+
+// [模块][角色] → { view, create, edit, delete }
+const permissionMatrix = {
+  '综合态势大屏':              { admin: '●', system_admin: '●', emergency_commander: '●', attendant: '●', expert: '●', ai_engineer: '●', maintenance: '●' },
+  '实时监测地图':              { admin: '●', system_admin: '●', emergency_commander: '●', attendant: '●', expert: '●', ai_engineer: '○', maintenance: '○' },
+  'AI 巡检任务':              { admin: '●', system_admin: '●', emergency_commander: '●', attendant: '●', expert: '●', ai_engineer: '●', maintenance: '○' },
+  'AI 推理结果':              { admin: '●', system_admin: '●', emergency_commander: '●', attendant: '●', expert: '●', ai_engineer: '●', maintenance: '○' },
+  'AI 综合研判':              { admin: '●', system_admin: '○', emergency_commander: '●', attendant: '●', expert: '●', ai_engineer: '●', maintenance: '○' },
+  '灾害事件列表':              { admin: '●', system_admin: '○', emergency_commander: '●', attendant: '●', expert: '●', ai_engineer: '○', maintenance: '○' },
+  '人工确认工作台':            { admin: '●', system_admin: '○', emergency_commander: '●', attendant: '●', expert: '●', ai_engineer: '○', maintenance: '○' },
+  '统一事件中心':              { admin: '●', system_admin: '○', emergency_commander: '●', attendant: '●', expert: '●', ai_engineer: '○', maintenance: '○' },
+  '预警中心':                  { admin: '●', system_admin: '○', emergency_commander: '●', attendant: '●', expert: '○', ai_engineer: '○', maintenance: '○' },
+  '应急事件':                  { admin: '●', system_admin: '○', emergency_commander: '●', attendant: '●', expert: '○', ai_engineer: '○', maintenance: '○' },
+  '资源调度指挥':              { admin: '●', system_admin: '○', emergency_commander: '●', attendant: '●', expert: '○', ai_engineer: '○', maintenance: '○' },
+  '社交媒体舆情':              { admin: '●', system_admin: '○', emergency_commander: '●', attendant: '●', expert: '●', ai_engineer: '●', maintenance: '○' },
+  '灾害预测':                  { admin: '●', system_admin: '○', emergency_commander: '●', attendant: '○', expert: '●', ai_engineer: '●', maintenance: '○' },
+  '灾损评估':                  { admin: '●', system_admin: '○', emergency_commander: '●', attendant: '○', expert: '●', ai_engineer: '●', maintenance: '○' },
+  '现场巡检':                  { admin: '●', system_admin: '○', emergency_commander: '●', attendant: '●', expert: '●', ai_engineer: '○', maintenance: '○' },
+  '设备管理':                  { admin: '●', system_admin: '●', emergency_commander: '○', attendant: '○', expert: '○', ai_engineer: '●', maintenance: '●' },
+  '数据源接入':                { admin: '●', system_admin: '●', emergency_commander: '○', attendant: '○', expert: '○', ai_engineer: '●', maintenance: '●' },
+  '统计分析':                  { admin: '●', system_admin: '●', emergency_commander: '●', attendant: '●', expert: '●', ai_engineer: '●', maintenance: '○' },
+  '历史灾害库':                { admin: '●', system_admin: '●', emergency_commander: '●', attendant: '●', expert: '●', ai_engineer: '○', maintenance: '○' },
+  '用户与权限':                { admin: '●', system_admin: '●', emergency_commander: '○', attendant: '○', expert: '○', ai_engineer: '○', maintenance: '○' },
+  '日志审计':                  { admin: '●', system_admin: '●', emergency_commander: '○', attendant: '○', expert: '○', ai_engineer: '○', maintenance: '○' },
+  '系统监控':                  { admin: '●', system_admin: '●', emergency_commander: '○', attendant: '○', expert: '○', ai_engineer: '●', maintenance: '●' },
+  '消息中心':                  { admin: '●', system_admin: '●', emergency_commander: '●', attendant: '●', expert: '●', ai_engineer: '●', maintenance: '○' },
+  '待办中心':                  { admin: '●', system_admin: '●', emergency_commander: '●', attendant: '●', expert: '●', ai_engineer: '●', maintenance: '○' },
+  '审批中心':                  { admin: '●', system_admin: '●', emergency_commander: '●', attendant: '●', expert: '●', ai_engineer: '○', maintenance: '○' },
+  'AI 模型管理':               { admin: '●', system_admin: '●', emergency_commander: '○', attendant: '○', expert: '○', ai_engineer: '●', maintenance: '○' },
+  '通知模板':                  { admin: '●', system_admin: '●', emergency_commander: '●', attendant: '●', expert: '○', ai_engineer: '○', maintenance: '○' },
+  '通知渠道配置':               { admin: '●', system_admin: '●', emergency_commander: '○', attendant: '○', expert: '○', ai_engineer: '○', maintenance: '○' },
+  '预案管理':                  { admin: '●', system_admin: '●', emergency_commander: '●', attendant: '○', expert: '●', ai_engineer: '○', maintenance: '○' },
+  '帮助中心':                  { admin: '●', system_admin: '●', emergency_commander: '●', attendant: '●', expert: '●', ai_engineer: '●', maintenance: '●' },
+  '备份恢复':                  { admin: '●', system_admin: '●', emergency_commander: '○', attendant: '○', expert: '○', ai_engineer: '○', maintenance: '○' },
+  '账号安全':                  { admin: '●', system_admin: '●', emergency_commander: '●', attendant: '●', expert: '●', ai_engineer: '●', maintenance: '●' },
+  '报表中心':                  { admin: '●', system_admin: '●', emergency_commander: '●', attendant: '●', expert: '●', ai_engineer: '○', maintenance: '○' },
+  '人员管理':                  { admin: '●', system_admin: '●', emergency_commander: '●', attendant: '●', expert: '○', ai_engineer: '○', maintenance: '○' },
+}
+
+const matrixRows = computed(() => Object.entries(permissionMatrix))
+const matrixCols = computed(() => ROLES_ORDER)
+
+const cellStyle = (val) =>
+  val === '●'
+    ? { background: '#dcfce7', color: '#166534', textAlign: 'center' as const }
+    : { background: '#f1f5f9', color: '#cbd5e1', textAlign: 'center' as const }
 
 const filteredUsers = computed(() => {
   let list = users.value.items ?? []
@@ -185,7 +243,26 @@ onMounted(async () => {
       </article>
     </section>
 
-    <section class="users-panel">
+    <section class="tab-bar">
+      <button
+        class="tab-btn"
+        :class="{ active: activeTab === 'users' }"
+        @click="activeTab = 'users'"
+      >
+        <Users :size="14" /> 用户列表
+      </button>
+      <button
+        class="tab-btn"
+        :class="{ active: activeTab === 'matrix' }"
+        @click="activeTab = 'matrix'"
+        v-if="hasPermission(operator.role, 'users:view')"
+      >
+        <Grid2 :size="14" /> 权限矩阵
+      </button>
+    </section>
+
+    <!-- 用户列表 -->
+    <section v-if="activeTab === 'users'" class="users-panel">
       <header class="filter-bar">
         <div class="search-input">
           <Search :size="14" />
@@ -247,6 +324,57 @@ onMounted(async () => {
         <span>共 {{ users.total ?? filteredUsers.length }} 名用户</span>
         <span>角色权限改动审计：自动留痕</span>
       </footer>
+    </section>
+
+    <!-- 权限矩阵 -->
+    <section v-if="activeTab === 'matrix'" class="matrix-panel">
+      <div class="matrix-header">
+        <div class="matrix-title">
+          <Grid2 :size="15" />
+          <span>角色 × 模块权限矩阵</span>
+          <span class="matrix-legend">
+            <span class="legend-dot has" />● 有权限
+            <span class="legend-dot no" />○ 无权限
+          </span>
+        </div>
+        <p class="matrix-desc">
+          以下矩阵定义各角色对系统各模块的访问权限。修改请通过源代码 <code>src/stores/auth.js</code> 中的 <code>ROLE_PERMISSION_MAP</code> 进行。
+        </p>
+      </div>
+      <div class="matrix-wrap">
+        <table class="matrix-table">
+          <thead>
+            <tr>
+              <th class="col-module">模块</th>
+              <th
+                v-for="col in matrixCols"
+                :key="col.value"
+                class="col-role"
+                :title="col.label"
+              >
+                <span
+                  class="role-dot"
+                  :style="{ background: col.color }"
+                />
+                <span class="role-name">{{ col.label }}</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="([module, perms]) in matrixRows"
+              :key="module"
+            >
+              <td class="cell-module">{{ module }}</td>
+              <td
+                v-for="col in matrixCols"
+                :key="col.value"
+                :style="cellStyle(perms[col.value])"
+              >{{ perms[col.value] }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </section>
 
     <!-- 编辑弹窗 -->
@@ -401,6 +529,150 @@ onMounted(async () => {
 
 .spin { animation: spin 1.2s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── 标签切换 ── */
+.tab-bar {
+  display: flex;
+  gap: 0;
+  background: #fff;
+  border: 1px solid #e9efe9;
+  border-radius: 11px;
+  padding: 0 12px;
+  width: fit-content;
+}
+
+.tab-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  font-size: 13px;
+  font-weight: 500;
+  color: #6f8587;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.tab-btn:hover { color: #2b6cb0; }
+.tab-btn.active {
+  color: #2b6cb0;
+  font-weight: 700;
+  border-bottom-color: #2b6cb0;
+}
+
+/* ── 权限矩阵 ── */
+.matrix-panel {
+  background: #fff;
+  border: 1px solid #e9efe9;
+  border-radius: 11px;
+  overflow: hidden;
+}
+
+.matrix-header {
+  padding: 14px 18px;
+  border-bottom: 1px solid #e9efe9;
+}
+
+.matrix-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #1f3b3e;
+  margin-bottom: 6px;
+}
+
+.matrix-legend {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: #6f8587;
+  font-weight: 400;
+}
+
+.legend-dot {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  margin-right: 4px;
+}
+
+.legend-dot.has { background: #dcfce7; color: #166534; text-align: center; font-size: 10px; }
+.legend-dot.no { background: #f1f5f9; color: #cbd5e1; text-align: center; font-size: 10px; }
+
+.matrix-desc {
+  font-size: 12px;
+  color: #9baead;
+  margin: 0;
+}
+
+.matrix-desc code {
+  background: #f1f5f4;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-family: monospace;
+}
+
+.matrix-wrap {
+  overflow-x: auto;
+  padding: 0;
+}
+
+.matrix-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.matrix-table th, .matrix-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid #f1f5f4;
+  border-right: 1px solid #f1f5f4;
+}
+
+.matrix-table thead th {
+  background: #fafdfc;
+  font-weight: 700;
+  color: #6f8587;
+  font-size: 11px;
+  text-align: center;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.col-module { min-width: 120px; text-align: left !important; }
+.col-role { min-width: 90px; }
+
+.role-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
+.role-name { vertical-align: middle; }
+
+.cell-module {
+  font-weight: 600;
+  color: #35575b;
+  background: #fafdfc;
+  position: sticky;
+  left: 0;
+  z-index: 1;
+}
+
+.matrix-table tbody tr:hover td { background: #fbfefd; }
 
 @media (max-width: 980px) {
   .info-grid { grid-template-columns: 1fr; }

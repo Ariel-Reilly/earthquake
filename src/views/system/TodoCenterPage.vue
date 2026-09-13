@@ -8,11 +8,12 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   Inbox,
+  CheckCircle2,
+  Check,
   ClipboardCheck,
   ShieldCheck,
   Bell,
   Activity,
-  CheckCircle2,
   Clock4,
   AlertTriangle,
   RefreshCw,
@@ -272,6 +273,21 @@ function gotoConfirmation(item) {
   router.push(`/dashboard/confirmation-workbench/${item.id}`)
 }
 
+/**
+ * v1.7.0：快捷确认（移动端优化）。
+ * 后端实现 POST /api/confirmation/{id}/confirm 后替换此处 mock。
+ * 当前仅前端乐观更新，刷新后恢复。
+ */
+function quickConfirm(item) {
+  const idx = tabState.confirmations.list.findIndex((i) => String(i.id) === String(item.id))
+  if (idx === -1) return
+  // 乐观更新
+  tabState.confirmations.list[idx] = { ...tabState.confirmations.list[idx], status: '已确认' }
+  summary.confirmation = Math.max(0, summary.confirmation - 1)
+  emit('notify', `已确认：${item.title}`)
+  // TODO: await dashboardApi.confirmItem(item.id)
+}
+
 function gotoApproval(item) {
   // 审批详情目前复用 warning detail（按工单类型分发到对应详情页）
   if (item.category === '应急派单') {
@@ -470,6 +486,13 @@ onBeforeUnmount(() => {
             <div class="todo-status">
               <CheckCircle2 :size="13" />
               <span>{{ item.status ?? '待确认' }}</span>
+            </div>
+            <!-- v1.7.0 移动端快捷确认按钮 -->
+            <div class="todo-quick-actions" @click.stop>
+              <button class="quick-btn success" @click.stop="quickConfirm(item)">
+                <Check :size="11" />确认
+              </button>
+              <button class="quick-btn" @click.stop="gotoConfirmation(item)">详情</button>
             </div>
           </div>
         </article>
@@ -706,6 +729,44 @@ onBeforeUnmount(() => {
 
 .todo-status {
   display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: #6dbfa5;
+}
+
+/* v1.7.0 快捷确认按钮（移动端优化） */
+.todo-quick-actions {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed #e3ebe7;
+  flex-shrink: 0;
+}
+.todo-card:hover .todo-quick-actions,
+.todo-quick-actions { display: flex; } /* 始终显示，不依赖 hover */
+.quick-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 10px;
+  border-radius: 5px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  color: #374151;
+  font-size: 11.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.quick-btn:hover { background: #f9fafb; }
+.quick-btn.success { background: #15803d; color: #fff; border-color: #15803d; }
+.quick-btn.success:hover { background: #166534; }
+
+@media (max-width: 520px) {
+  /* 小屏：卡片竖向排列，让快捷按钮更醒目 */
+  .todo-card { flex-direction: column; }
+  .todo-card.confirmation { padding-left: 14px; }
+  .todo-quick-actions { display: flex; }
 }
 
 /* 待我确认（左侧 colorbar） */

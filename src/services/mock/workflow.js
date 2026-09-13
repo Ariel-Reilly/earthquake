@@ -208,3 +208,186 @@ export function getMessagesMock() {
 }
 
 export const messageStatsMock = { unread: 3 };
+
+// =====================================================================
+// v1.7.0+ 统一事件中心 mock —— 跨 hazard/warning/emergency 的统一视图
+// =====================================================================
+
+const NOW = () => new Date().toISOString();
+const MINUS_MIN = (m) => new Date(Date.now() - m * 60 * 1000).toISOString();
+
+/**
+ * 演示数据：覆盖 7 状态全部形态，便于在 EventCenterPage 一次性看全状态机流转。
+ */
+const UNIFIED_EVENTS_SEED = [
+  {
+    id: 9001,
+    eventCode: "UFE-20260913-A1B2",
+    state: "DETECTED",
+    hazardCode: "HZ-001",
+    warningCode: null,
+    emergencyCode: null,
+    title: "青龙坡滑坡隐患点 - AI 自动识别",
+    source: "AI_AUTO",
+    currentStateSince: MINUS_MIN(8),
+    lastTransitionAt: MINUS_MIN(8),
+    lastTrigger: "AI_DETECT",
+    closeReason: null,
+    closedBy: null,
+    createdAt: MINUS_MIN(8),
+    updatedAt: MINUS_MIN(8),
+    hazard: { name: "青龙坡滑坡隐患点", type: "滑坡", level: "高风险", lon: 104.05, lat: 30.56 },
+  },
+  {
+    id: 9002,
+    eventCode: "UFE-20260913-C3D4",
+    state: "CONFIRMING",
+    hazardCode: "HZ-002",
+    warningCode: null,
+    emergencyCode: null,
+    title: "石门沟滑坡 - 已认领待复核",
+    source: "RULE_ENGINE",
+    currentStateSince: MINUS_MIN(45),
+    lastTransitionAt: MINUS_MIN(45),
+    lastTrigger: "MANUAL_REPORT",
+    closeReason: null,
+    closedBy: null,
+    createdAt: MINUS_MIN(95),
+    updatedAt: MINUS_MIN(45),
+    hazard: { name: "石门沟滑坡点", type: "滑坡", level: "极高", lon: 104.12, lat: 30.61 },
+  },
+  {
+    id: 9003,
+    eventCode: "UFE-20260912-E5F6",
+    state: "CONFIRMED",
+    hazardCode: "HZ-003",
+    warningCode: null,
+    emergencyCode: null,
+    title: "大岭村崩塌 - 已确认待发布预警",
+    source: "AI_AUTO",
+    currentStateSince: MINUS_MIN(125),
+    lastTransitionAt: MINUS_MIN(125),
+    lastTrigger: "CONFIRM",
+    closeReason: null,
+    closedBy: null,
+    createdAt: MINUS_MIN(180),
+    updatedAt: MINUS_MIN(125),
+    hazard: { name: "大岭村崩塌点", type: "崩塌", level: "高风险", lon: 104.18, lat: 30.49 },
+  },
+  {
+    id: 9004,
+    eventCode: "UFE-20260912-G7H8",
+    state: "WARNING_ISSUED",
+    hazardCode: "HZ-004",
+    warningCode: "WR-20260912-0001",
+    emergencyCode: null,
+    title: "白石沟泥石流 - 黄色预警发布中",
+    source: "AI_AUTO",
+    currentStateSince: MINUS_MIN(220),
+    lastTransitionAt: MINUS_MIN(220),
+    lastTrigger: "ISSUE_WARNING",
+    closeReason: null,
+    closedBy: null,
+    createdAt: MINUS_MIN(260),
+    updatedAt: MINUS_MIN(220),
+    hazard: { name: "白石沟泥石流点", type: "泥石流", level: "中风险", lon: 103.92, lat: 30.45 },
+    warning: { title: "【黄色预警】白石沟泥石流", level: "黄色", issuedAt: MINUS_MIN(220) },
+  },
+  {
+    id: 9005,
+    eventCode: "UFE-20260912-J9K0",
+    state: "EMERGENCY_ACTIVE",
+    hazardCode: "HZ-005",
+    warningCode: "WR-20260912-0002",
+    emergencyCode: "EM-20260912-0001",
+    title: "梨树湾滑坡 - 橙色预警联动应急",
+    source: "AI_AUTO",
+    currentStateSince: MINUS_MIN(340),
+    lastTransitionAt: MINUS_MIN(120),
+    lastTrigger: "TRIGGER_EMERGENCY",
+    closeReason: null,
+    closedBy: null,
+    createdAt: MINUS_MIN(420),
+    updatedAt: MINUS_MIN(120),
+    hazard: { name: "梨树湾滑坡点", type: "滑坡", level: "极高", lon: 104.22, lat: 30.72 },
+    warning: { title: "【橙色预警】梨树湾滑坡", level: "橙色", issuedAt: MINUS_MIN(320) },
+    emergency: { title: "梨树湾滑坡应急撤离", status: "处置中", responders: 11 },
+  },
+  {
+    id: 9006,
+    eventCode: "UFE-20260910-L1M2",
+    state: "CLOSED",
+    hazardCode: "HZ-006",
+    warningCode: "WR-20260910-0001",
+    emergencyCode: null,
+    title: "塔子山崩塌 - 处置完成已归档",
+    source: "AI_AUTO",
+    currentStateSince: MINUS_MIN(60 * 30),
+    lastTransitionAt: MINUS_MIN(60 * 30),
+    lastTrigger: "CLOSE",
+    closeReason: "现场应急处置完成，滑坡体已加固，监测数据稳定 24h",
+    closedBy: "李晨曦",
+    createdAt: MINUS_MIN(60 * 50),
+    updatedAt: MINUS_MIN(60 * 30),
+    hazard: { name: "塔子山崩塌点", type: "崩塌", level: "中风险", lon: 103.78, lat: 30.55 },
+  },
+  {
+    id: 9007,
+    eventCode: "UFE-20260910-N3P4",
+    state: "REJECTED",
+    hazardCode: "HZ-007",
+    warningCode: null,
+    emergencyCode: null,
+    title: "王家坪疑似滑坡 - 现场复核不予立项",
+    source: "AI_AUTO",
+    currentStateSince: MINUS_MIN(60 * 18),
+    lastTransitionAt: MINUS_MIN(60 * 18),
+    lastTrigger: "REJECT",
+    closeReason: "现场复核为地表径流冲刷痕迹，非滑坡体；继续常规监测",
+    closedBy: "王皓",
+    createdAt: MINUS_MIN(60 * 22),
+    updatedAt: MINUS_MIN(60 * 18),
+    hazard: { name: "王家坪疑似滑坡", type: "滑坡", level: "关注", lon: 103.95, lat: 30.40 },
+  },
+];
+
+export function getUnifiedEventsMock(params = {}) {
+  let list = [...UNIFIED_EVENTS_SEED];
+  if (params.state) {
+    list = list.filter((e) => e.state === params.state);
+  }
+  if (params.source) {
+    list = list.filter((e) => e.source === params.source);
+  }
+  if (params.keyword) {
+    const k = String(params.keyword).trim().toLowerCase();
+    if (k) {
+      list = list.filter(
+        (e) =>
+          (e.eventCode ?? "").toLowerCase().includes(k) ||
+          (e.title ?? "").toLowerCase().includes(k),
+      );
+    }
+  }
+  // 默认按 updated_at DESC 排序
+  list.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+  return { items: list, total: list.length, page: 1, size: list.length, pages: 1 };
+}
+
+export const unifiedEventsStatsMock = {
+  DETECTED: 1,
+  CONFIRMING: 1,
+  CONFIRMED: 1,
+  WARNING_ISSUED: 1,
+  EMERGENCY_ACTIVE: 1,
+  CLOSED: 1,
+  REJECTED: 1,
+  total: 7,
+  active: 5, // 非终态计数
+};
+
+export function getUnifiedEventDetailMock(code) {
+  return (
+    UNIFIED_EVENTS_SEED.find((e) => e.eventCode === code || String(e.id) === String(code)) ?? null
+  );
+}

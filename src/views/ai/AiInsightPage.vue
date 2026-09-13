@@ -39,6 +39,7 @@ import {
 } from 'lucide-vue-next'
 import { aiApi } from '../../services/aiApi'
 import { dashboardApi } from '../../services/dashboardApi'
+import AiHealthBadge from '../../components/AiHealthBadge.vue'
 import {
   getInsight,
   refreshInsight,
@@ -366,6 +367,7 @@ onMounted(async () => {
         <p>综合「图像地理现况 + 当地降水量 + 当地地理情况」三维度，对每个灾害点出具可解释的 AI 分析报告。</p>
       </div>
       <div class="page-head-actions">
+        <AiHealthBadge />
         <button class="refresh-btn" :disabled="batchLoading" @click="loadAllReports">
           <Loader2 v-if="batchLoading" :size="14" class="spin" />
           <RefreshCcw v-else :size="14" />

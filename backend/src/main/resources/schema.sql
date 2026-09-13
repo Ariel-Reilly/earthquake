@@ -57,6 +57,7 @@ CREATE TABLE IF NOT EXISTS sys_user (
   password_hash VARCHAR(255) NOT NULL,
   real_name VARCHAR(64) NOT NULL,
   phone VARCHAR(32),
+  email VARCHAR(128),
   role_code VARCHAR(64) NOT NULL,
   region_code VARCHAR(64),
   status VARCHAR(32) NOT NULL DEFAULT '启用',
@@ -83,30 +84,44 @@ CREATE TABLE IF NOT EXISTS sys_menu (
 
 -- ---------------------------------------------------------------------
 -- 灾害点（geom 空间点，由应用层从 longitude/latitude 生成）
--- v1.6.0 起改为"AI 实时监测"模式：源端不再预置 hazard_point，
---   行由 AiHazardMonitorScheduler（每 90s）从 AI 评估中实时创建。
---   source = 'AI_MONITOR' | 'MANUAL' | 'DEMO'，discovered_at 是 AI 首次识别时间。
+-- v2.1.0 起改为"投影"模式（Task #1 P1）：
+--   * hazard_point 现在是从 unified_event WHERE kind='HAZARD' 投影出的视图，
+--     由底部 v2.1.0 迁移块创建/替换。
+--   * 首次安装时本块先建一个临时物理表，让下方引用 hazard_point 的 CREATE TABLE
+--     /ALTER 块顺利通过；该物理表在底部 v2.1.0 迁移块被 DROP CASCADE 并替换为视图。
+--   * 升级场景下，若 hazard_point 已经存在（不论是表还是视图），跳过本块。
 -- ---------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS hazard_point (
-  id BIGSERIAL PRIMARY KEY,
-  hazard_code VARCHAR(64) NOT NULL UNIQUE,
-  name VARCHAR(128) NOT NULL,
-  hazard_type VARCHAR(64) NOT NULL,
-  risk_level VARCHAR(32) NOT NULL,
-  region_code VARCHAR(64),
-  owner VARCHAR(128),
-  status VARCHAR(32) NOT NULL,
-  longitude NUMERIC(10,6) NOT NULL,
-  latitude NUMERIC(10,6) NOT NULL,
-  geom geometry(Point, 4326) NOT NULL,
-  threat_object TEXT,
-  last_inspection_at TIMESTAMPTZ,
-  source VARCHAR(32) NOT NULL DEFAULT 'AI_MONITOR',
-  discovered_at TIMESTAMPTZ,
-  detection_confidence DOUBLE PRECISION,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
+DO $E$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = current_schema() AND c.relname = 'hazard_point'
+  ) THEN
+    EXECUTE $F$
+      CREATE TABLE hazard_point (
+        id BIGSERIAL PRIMARY KEY,
+        hazard_code VARCHAR(64) NOT NULL UNIQUE,
+        name VARCHAR(128) NOT NULL,
+        hazard_type VARCHAR(64) NOT NULL,
+        risk_level VARCHAR(32) NOT NULL,
+        region_code VARCHAR(64),
+        owner VARCHAR(128),
+        status VARCHAR(32) NOT NULL,
+        longitude NUMERIC(10,6) NOT NULL,
+        latitude NUMERIC(10,6) NOT NULL,
+        geom geometry(Point, 4326) NOT NULL,
+        threat_object TEXT,
+        last_inspection_at TIMESTAMPTZ,
+        source VARCHAR(32) NOT NULL DEFAULT 'AI_MONITOR',
+        discovered_at TIMESTAMPTZ,
+        detection_confidence DOUBLE PRECISION,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    $F$;
+  END IF;
+END$E$;
 
 CREATE TABLE IF NOT EXISTS inspection_task (
   id BIGSERIAL PRIMARY KEY,
@@ -355,7 +370,10 @@ ALTER TABLE ai_comprehensive_score ADD COLUMN IF NOT EXISTS device_available BOO
 -- 注意：geometry 列不能带 NOT NULL 通过 ALTER 追加（存量行会失败），
 -- 因此升级路径下 geom 保持可空，应用层保证写入。
 -- =====================================================================
-ALTER TABLE hazard_point ADD COLUMN IF NOT EXISTS geom geometry(Point, 4326);
+-- ---------------------------------------------------------------------
+-- (v2.1.0: 原 ALTER TABLE hazard_point ADD COLUMN geom 已迁到 unified_event，
+--  由底部 v2.1.0 迁移块统一执行)
+-- ---------------------------------------------------------------------
 ALTER TABLE inspection_record ADD COLUMN IF NOT EXISTS geom geometry(Point, 4326);
 ALTER TABLE monitoring_device ADD COLUMN IF NOT EXISTS longitude NUMERIC(10,6);
 ALTER TABLE monitoring_device ADD COLUMN IF NOT EXISTS latitude NUMERIC(10,6);
@@ -384,9 +402,11 @@ ALTER TABLE file_attachment ALTER COLUMN file_type TYPE VARCHAR(128);
 --   * inspection_record / warning_event 的 hazard_code 已从 NOT NULL 改 NULL，
 --     存量既有卷需要 DROP NOT NULL
 -- =====================================================================
-ALTER TABLE hazard_point ADD COLUMN IF NOT EXISTS source VARCHAR(32) NOT NULL DEFAULT 'AI_MONITOR';
-ALTER TABLE hazard_point ADD COLUMN IF NOT EXISTS discovered_at TIMESTAMPTZ;
-ALTER TABLE hazard_point ADD COLUMN IF NOT EXISTS detection_confidence DOUBLE PRECISION;
+-- ---------------------------------------------------------------------
+-- (v2.1.0: hazard_point.source / discovered_at / detection_confidence
+--  已迁到 unified_event.hazard_source / discovered_at / detection_confidence,
+--  由底部 v2.1.0 迁移块统一执行)
+-- ---------------------------------------------------------------------
 ALTER TABLE inspection_record ALTER COLUMN hazard_code DROP NOT NULL;
 ALTER TABLE warning_event ALTER COLUMN hazard_code DROP NOT NULL;
 
@@ -394,16 +414,21 @@ ALTER TABLE warning_event ALTER COLUMN hazard_code DROP NOT NULL;
 -- 索引
 -- =====================================================================
 -- 空间（GiST）
-CREATE INDEX IF NOT EXISTS idx_hazard_geom ON hazard_point USING GIST (geom);
+-- ---------------------------------------------------------------------
+-- (v2.1.0: idx_hazard_geom 已迁为 unified_event 上的 partial GiST 索引
+--  idx_unified_hazard_geom WHERE kind='HAZARD'，由底部 v2.1.0 迁移块创建)
+-- ---------------------------------------------------------------------
 CREATE INDEX IF NOT EXISTS idx_record_geom ON inspection_record USING GIST (geom);
 CREATE INDEX IF NOT EXISTS idx_device_geom ON monitoring_device USING GIST (geom);
 
 -- 常规查询
-CREATE INDEX IF NOT EXISTS idx_hazard_region_level ON hazard_point(region_code, risk_level);
-CREATE INDEX IF NOT EXISTS idx_hazard_type ON hazard_point(hazard_type);
--- v1.6.0：AI 监测实时灾害列表专用（按 source + discovered_at 倒序）
-CREATE INDEX IF NOT EXISTS idx_hazard_source ON hazard_point(source, discovered_at DESC);
-CREATE INDEX IF NOT EXISTS idx_hazard_discovered ON hazard_point(discovered_at DESC) WHERE source = 'AI_MONITOR';
+-- ---------------------------------------------------------------------
+-- (v2.1.0: idx_hazard_region_level / idx_hazard_type 已迁为 unified_event
+--  上的 partial 索引，由底部 v2.1.0 迁移块创建)
+-- ---------------------------------------------------------------------
+-- (v2.1.0: idx_hazard_source / idx_hazard_discovered 已迁为 unified_event
+--  上的 partial 索引 idx_unified_hazard_source / idx_unified_hazard_discovered，
+--  由底部 v2.1.0 迁移块创建)
 CREATE INDEX IF NOT EXISTS idx_task_status_region ON inspection_task(status, region_code);
 CREATE INDEX IF NOT EXISTS idx_task_hazard ON inspection_task(hazard_code);
 CREATE INDEX IF NOT EXISTS idx_record_task_hazard ON inspection_record(task_code, hazard_code);
@@ -432,13 +457,10 @@ CREATE INDEX IF NOT EXISTS idx_device_metric_hazard_recorded ON device_metric(ha
 --       既有卷上缺失的外键由应用启动时 DatabaseForeignKeyInitializer 幂等补齐。
 -- =====================================================================
 
--- AI 承灾体评估 & 历史灾情字段（v1.7.0 HazardPoint 新增字段）
-ALTER TABLE hazard_point ADD COLUMN IF NOT EXISTS exposure_buildings INTEGER NOT NULL DEFAULT 0;
-ALTER TABLE hazard_point ADD COLUMN IF NOT EXISTS exposure_population BIGINT NOT NULL DEFAULT 0;
-ALTER TABLE hazard_point ADD COLUMN IF NOT EXISTS land_use_type VARCHAR(32) NOT NULL DEFAULT 'unknown';
-ALTER TABLE hazard_point ADD COLUMN IF NOT EXISTS historical_max_score DOUBLE PRECISION NOT NULL DEFAULT 0.0;
-ALTER TABLE hazard_point ADD COLUMN IF NOT EXISTS historical_count INTEGER NOT NULL DEFAULT 0;
-ALTER TABLE hazard_point ADD COLUMN IF NOT EXISTS last_inspection_device_type VARCHAR(64);
+-- AI 承灾体评估 & 历史灾情字段（v2.1.0 已迁到 unified_event，
+-- 由底部 v2.1.0 迁移块统一执行）
+-- 原 hazard_point 字段名: exposure_buildings, exposure_population, land_use_type,
+--   historical_max_score, historical_count, last_inspection_device_type
 
 -- =====================================================================
 -- v1.9.0 设备地图与轨迹回放 (P1 /device-map)
@@ -507,11 +529,12 @@ CREATE INDEX IF NOT EXISTS idx_unified_warning ON unified_event(warning_code);
 CREATE INDEX IF NOT EXISTS idx_unified_emergency ON unified_event(emergency_code);
 CREATE INDEX IF NOT EXISTS idx_unified_updated ON unified_event(updated_at DESC);
 
--- 三表反向引用 unified_event_id（可选列，老数据可保持 NULL，由后台补齐）
-ALTER TABLE hazard_point ADD COLUMN IF NOT EXISTS unified_event_id BIGINT REFERENCES unified_event(id) ON DELETE SET NULL;
+-- (v2.1.0: 原 hazard_point.unified_event_id 反向引用列已废弃；
+--  hazard_point 现在是 unified_event WHERE kind='HAZARD' 的视图，
+--  1:1 关系天然成立，无需单独的反向 FK 列)
 ALTER TABLE warning_event ADD COLUMN IF NOT EXISTS unified_event_id BIGINT REFERENCES unified_event(id) ON DELETE SET NULL;
 ALTER TABLE emergency_event ADD COLUMN IF NOT EXISTS unified_event_id BIGINT REFERENCES unified_event(id) ON DELETE SET NULL;
-CREATE INDEX IF NOT EXISTS idx_hazard_unified ON hazard_point(unified_event_id) WHERE unified_event_id IS NOT NULL;
+-- (v2.1.0: idx_hazard_unified 已废弃——视图本身已经天然暴露 unified_event.id)
 CREATE INDEX IF NOT EXISTS idx_warning_unified ON warning_event(unified_event_id) WHERE unified_event_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_emergency_unified ON emergency_event(unified_event_id) WHERE unified_event_id IS NOT NULL;
 
@@ -757,3 +780,655 @@ CREATE TABLE IF NOT EXISTS modal_weight_config (
   optimized_at TIMESTAMPTZ
 );
 CREATE INDEX IF NOT EXISTS idx_modal_weight_disaster ON modal_weight_config(disaster_type);
+
+-- =====================================================================
+-- v2.0.0：7角色权限体系 + 完整演示数据集
+-- 依赖：sys_role(id)、region(id)、sys_user(id) 已在 schema.sql 前部定义。
+-- 新增表与既有表并列，均使用 IF NOT EXISTS 保证幂等。
+-- =====================================================================
+
+-- ---------------------------------------------------------------------
+-- 8.1 系统字典（灾种/等级/状态/渠道/设备类型/资源类型）
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS sys_dict (
+  id BIGSERIAL PRIMARY KEY,
+  type VARCHAR(64) NOT NULL,
+  label VARCHAR(128) NOT NULL,
+  value VARCHAR(128) NOT NULL,
+  sort_order INT NOT NULL DEFAULT 0,
+  enabled BOOLEAN NOT NULL DEFAULT TRUE,
+  description VARCHAR(255),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_dict_type ON sys_dict(type);
+
+-- ---------------------------------------------------------------------
+-- 8.2 权限表（与前端 routePermissionMap / ROLE_PERMISSION_MAP 一一对应）
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS sys_permission (
+  id BIGSERIAL PRIMARY KEY,
+  code VARCHAR(64) NOT NULL UNIQUE,
+  name VARCHAR(128) NOT NULL,
+  type VARCHAR(16) NOT NULL DEFAULT 'OP',
+  -- ROUTE=路由级权限（菜单可见性）, OP=操作级权限（按钮/接口）
+  route_path VARCHAR(255),
+  parent_code VARCHAR(64),
+  sort_order INT NOT NULL DEFAULT 0,
+  enabled BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_perm_code ON sys_permission(code);
+CREATE INDEX IF NOT EXISTS idx_perm_type ON sys_permission(type);
+
+-- ---------------------------------------------------------------------
+-- 8.3 角色-权限关联表
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS sys_role_permission (
+  id BIGSERIAL PRIMARY KEY,
+  role_id BIGINT NOT NULL REFERENCES sys_role(id) ON DELETE CASCADE,
+  perm_code VARCHAR(64) NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(role_id, perm_code)
+);
+CREATE INDEX IF NOT EXISTS idx_rp_role ON sys_role_permission(role_id);
+
+-- ---------------------------------------------------------------------
+-- 8.4 AI 模型元数据表
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS ai_model (
+  id BIGSERIAL PRIMARY KEY,
+  model_code VARCHAR(64) NOT NULL UNIQUE,
+  model_name VARCHAR(128) NOT NULL,
+  version VARCHAR(32) NOT NULL,
+  model_type VARCHAR(32) NOT NULL,
+  -- xgboost / lstm / yolo / isolation_forest / comprehensive / device_health
+  status VARCHAR(16) NOT NULL DEFAULT 'OFFLINE',
+  -- ONLINE / OFFLINE / TRAINING / DEPLOYING / ROLLBACK
+  metrics JSONB,
+  -- {"accuracy":0.92,"f1":0.89,"auc":0.95} 等训练指标
+  config JSONB,
+  -- 推理参数：阈值、窗口大小、特征列等
+  description TEXT,
+  deployed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_ai_model_type ON ai_model(model_type);
+CREATE INDEX IF NOT EXISTS idx_ai_model_status ON ai_model(status);
+
+-- ---------------------------------------------------------------------
+-- 8.5 数据源配置表
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS data_source (
+  id BIGSERIAL PRIMARY KEY,
+  ds_code VARCHAR(64) NOT NULL UNIQUE,
+  ds_name VARCHAR(128) NOT NULL,
+  ds_type VARCHAR(32) NOT NULL,
+  -- satellite / weather / mqtt / terrain / custom
+  endpoint VARCHAR(512),
+  auth_type VARCHAR(32),
+  -- NONE / BASIC / API_KEY / OAuth2 / TOKEN
+  auth_config JSONB,
+  status VARCHAR(16) NOT NULL DEFAULT 'DISCONNECTED',
+  -- CONNECTED / DISCONNECTED / ERROR / SYNCING
+  last_sync_at TIMESTAMPTZ,
+  sync_interval INT DEFAULT 3600,
+  -- 秒，REALTIME 类型忽略
+  created_by VARCHAR(64),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_ds_type ON data_source(ds_type);
+CREATE INDEX IF NOT EXISTS idx_ds_status ON data_source(status);
+
+-- ---------------------------------------------------------------------
+-- 8.6 数据同步任务表
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS data_sync_task (
+  id BIGSERIAL PRIMARY KEY,
+  task_code VARCHAR(64) NOT NULL UNIQUE,
+  task_name VARCHAR(128) NOT NULL,
+  data_source_id BIGINT REFERENCES data_source(id) ON DELETE SET NULL,
+  sync_type VARCHAR(16) NOT NULL DEFAULT 'PERIODIC',
+  -- REALTIME / PERIODIC / MANUAL
+  cron_expr VARCHAR(64),
+  status VARCHAR(16) NOT NULL DEFAULT 'IDLE',
+  -- RUNNING / IDLE / PAUSED / FAILED / DISABLED
+  last_run_at TIMESTAMPTZ,
+  last_status VARCHAR(16),
+  next_run_at TIMESTAMPTZ,
+  records_synced BIGINT DEFAULT 0,
+  error_message TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_sync_task_status ON data_sync_task(status);
+CREATE INDEX IF NOT EXISTS idx_sync_task_source ON data_sync_task(data_source_id);
+
+-- ---------------------------------------------------------------------
+-- 8.7 应急资源表
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS resource (
+  id BIGSERIAL PRIMARY KEY,
+  res_code VARCHAR(64) NOT NULL UNIQUE,
+  res_name VARCHAR(128) NOT NULL,
+  res_type VARCHAR(32) NOT NULL,
+  -- rescue_team / supplies / shelter / equipment / vehicle
+  region_code VARCHAR(64),
+  longitude NUMERIC(10,6),
+  latitude NUMERIC(10,6),
+  geom geometry(Point, 4326),
+  status VARCHAR(32) NOT NULL DEFAULT 'AVAILABLE',
+  -- AVAILABLE / DEPLOYED / UNAVAILABLE / MAINTENANCE
+  capacity VARCHAR(64),
+  contact_person VARCHAR(64),
+  contact_phone VARCHAR(32),
+  description TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_resource_type ON resource(res_type);
+CREATE INDEX IF NOT EXISTS idx_resource_status ON resource(status);
+CREATE INDEX IF NOT EXISTS idx_resource_geom ON resource USING GIST (geom);
+
+-- ---------------------------------------------------------------------
+-- 8.8 应急预案表
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS plan (
+  id BIGSERIAL PRIMARY KEY,
+  plan_code VARCHAR(64) NOT NULL UNIQUE,
+  plan_name VARCHAR(128) NOT NULL,
+  disaster_type VARCHAR(32),
+  level VARCHAR(16),
+  content TEXT,
+  owner_dept VARCHAR(128),
+  contact_person VARCHAR(64),
+  contact_phone VARCHAR(32),
+  status VARCHAR(16) NOT NULL DEFAULT 'DRAFT',
+  -- DRAFT / ACTIVE / SUSPENDED / ARCHIVED
+  version INT NOT NULL DEFAULT 1,
+  created_by VARCHAR(64),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_plan_disaster ON plan(disaster_type);
+CREATE INDEX IF NOT EXISTS idx_plan_status ON plan(status);
+
+-- ---------------------------------------------------------------------
+-- 8.9 通知模板表
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS notice_template (
+  id BIGSERIAL PRIMARY KEY,
+  template_code VARCHAR(64) NOT NULL UNIQUE,
+  template_name VARCHAR(128) NOT NULL,
+  disaster_type VARCHAR(32),
+  level VARCHAR(16),
+  channel VARCHAR(32),
+  -- sms / app / email / led / webhook / sound_light
+  title_template VARCHAR(256),
+  content_template TEXT,
+  variables JSONB,
+  -- {"region":"string","level":"string","action":"string"}
+  enabled BOOLEAN NOT NULL DEFAULT TRUE,
+  created_by VARCHAR(64),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_template_disaster ON notice_template(disaster_type);
+CREATE INDEX IF NOT EXISTS idx_template_channel ON notice_template(channel);
+CREATE INDEX IF NOT EXISTS idx_template_enabled ON notice_template(enabled);
+
+-- ---------------------------------------------------------------------
+-- 8.10 会签/确认工作台任务（独立表，便于多用户并发认领）
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS confirmation_task (
+  id BIGSERIAL PRIMARY KEY,
+  task_code VARCHAR(64) NOT NULL UNIQUE,
+  hazard_code VARCHAR(64),
+  source VARCHAR(32) NOT NULL DEFAULT 'AI_RESULT',
+  -- AI_RESULT / MANUAL / RULE_ENGINE
+  ai_result_id BIGINT,
+  risk_level VARCHAR(16),
+  confidence DOUBLE PRECISION,
+  status VARCHAR(16) NOT NULL DEFAULT 'PENDING_CLAIM',
+  -- PENDING_CLAIM / PENDING_FIRST / PENDING_SECOND / CONFIRMED / REJECTED / TRANSFERRED
+  priority VARCHAR(8) DEFAULT 'MEDIUM',
+  -- HIGH / MEDIUM / LOW
+  claimed_by VARCHAR(64),
+  claimed_at TIMESTAMPTZ,
+  first_confirmed_by VARCHAR(64),
+  first_confirmed_at TIMESTAMPTZ,
+  second_confirmed_by VARCHAR(64),
+  second_confirmed_at TIMESTAMPTZ,
+  rejected_by VARCHAR(64),
+  rejected_at TIMESTAMPTZ,
+  reject_reason TEXT,
+  transferred_to VARCHAR(64),
+  transferred_at TIMESTAMPTZ,
+  transfer_reason TEXT,
+  note TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_confirm_task_status ON confirmation_task(status);
+CREATE INDEX IF NOT EXISTS idx_confirm_task_claimed ON confirmation_task(claimed_by) WHERE claimed_by IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_confirm_task_priority ON confirmation_task(priority);
+
+-- ---------------------------------------------------------------------
+-- 8.11 审批记录表
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS approval (
+  id BIGSERIAL PRIMARY KEY,
+  approval_code VARCHAR(64) NOT NULL UNIQUE,
+  biz_type VARCHAR(32) NOT NULL,
+  -- WARNING_PUBLISH / WARNING_DISPATCH / ROUTE_PLAN / RESOURCE_ASSIGN
+  biz_id VARCHAR(64) NOT NULL,
+  title VARCHAR(256) NOT NULL,
+  applicant_id BIGINT NOT NULL REFERENCES sys_user(id),
+  approver_id BIGINT REFERENCES sys_user(id),
+  status VARCHAR(16) NOT NULL DEFAULT 'PENDING',
+  -- PENDING / APPROVED / REJECTED / CANCELLED
+  opinion TEXT,
+  approved_at TIMESTAMPTZ,
+  result_summary TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_approval_biz ON approval(biz_type, biz_id);
+CREATE INDEX IF NOT EXISTS idx_approval_status ON approval(status);
+CREATE INDEX IF NOT EXISTS idx_approval_applicant ON approval(applicant_id);
+
+-- ---------------------------------------------------------------------
+-- 8.12 用户消息/待办（独立表，支持实时推送）
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS user_message (
+  id BIGSERIAL PRIMARY KEY,
+  user_id BIGINT NOT NULL REFERENCES sys_user(id) ON DELETE CASCADE,
+  msg_type VARCHAR(32) NOT NULL,
+  -- WARNING / CONFIRM / APPROVAL / SYSTEM / EMERGENCY
+  title VARCHAR(256) NOT NULL,
+  content TEXT,
+  biz_type VARCHAR(32),
+  biz_id VARCHAR(64),
+  priority VARCHAR(8) DEFAULT 'NORMAL',
+  -- HIGH / NORMAL / LOW
+  read_status BOOLEAN NOT NULL DEFAULT FALSE,
+  read_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_msg_user_status ON user_message(user_id, read_status);
+CREATE INDEX IF NOT EXISTS idx_msg_created ON user_message(created_at DESC);
+
+CREATE TABLE IF NOT EXISTS user_todo (
+  id BIGSERIAL PRIMARY KEY,
+  user_id BIGINT NOT NULL REFERENCES sys_user(id) ON DELETE CASCADE,
+  todo_type VARCHAR(32) NOT NULL,
+  -- CONFIRMATION / WARNING_DRAFT / APPROVAL / EMERGENCY_UPDATE
+  biz_id VARCHAR(64),
+  title VARCHAR(256) NOT NULL,
+  description TEXT,
+  priority VARCHAR(8) DEFAULT 'MEDIUM',
+  deadline TIMESTAMPTZ,
+  status VARCHAR(16) NOT NULL DEFAULT 'PENDING',
+  -- PENDING / COMPLETED / CANCELLED / OVERDUE
+  completed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_todo_user_status ON user_todo(user_id, status);
+CREATE INDEX IF NOT EXISTS idx_todo_deadline ON user_todo(deadline) WHERE deadline IS NOT NULL;
+
+-- =====================================================================
+-- v2.0.1 设计审计补丁
+-- 1. 补齐缺失索引（13 个热路径字段）
+-- 2. JSON → JSONB（20 列，便于 GIN 索引和高效查询）
+-- 3. 关键 logical FK 转为形式化 FK
+-- 4. 状态字段加 CHECK 约束
+-- =====================================================================
+
+-- ---------------------------------------------------------------------
+-- A. 缺失索引
+-- ---------------------------------------------------------------------
+-- monitoring_device
+CREATE INDEX IF NOT EXISTS idx_device_hazard_code ON monitoring_device(hazard_code) WHERE hazard_code IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_device_type ON monitoring_device(device_type);
+-- warning_event
+CREATE INDEX IF NOT EXISTS idx_warning_rule_code ON warning_event(rule_code) WHERE rule_code IS NOT NULL;
+-- confirmation_task
+CREATE INDEX IF NOT EXISTS idx_confirm_task_hazard ON confirmation_task(hazard_code) WHERE hazard_code IS NOT NULL;
+-- approval（反向：待我审批的）
+CREATE INDEX IF NOT EXISTS idx_approval_approver_status ON approval(approver_id, status) WHERE approver_id IS NOT NULL;
+-- resource
+CREATE INDEX IF NOT EXISTS idx_resource_region ON resource(region_code) WHERE region_code IS NOT NULL;
+-- sys_role_permission 反向查找（哪些角色有 X 权限）
+CREATE INDEX IF NOT EXISTS idx_rp_perm_code ON sys_role_permission(perm_code);
+-- event_sign 按会签人查询
+CREATE INDEX IF NOT EXISTS idx_event_sign_signer ON event_sign(signer_id) WHERE signer_id IS NOT NULL;
+-- risk_score_log 时序+灾害查询
+CREATE INDEX IF NOT EXISTS idx_risk_score_hazard ON risk_score_log(hazard_code, calculated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_risk_score_calculated ON risk_score_log(calculated_at DESC);
+-- operation_log 审计
+CREATE INDEX IF NOT EXISTS idx_op_log_operator ON operation_log(operator, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_op_log_created ON operation_log(created_at DESC);
+
+-- ---------------------------------------------------------------------
+-- B. JSON → JSONB（幂等：先 ALTER，再补 GIN 索引）
+-- 注意：PostgreSQL ALTER TABLE ... ALTER COLUMN ... TYPE JSONB USING ... 自动转换。
+-- JSONB 支持 GIN 索引、jsonb_path_ops、操作符（@>, ? 等），JSON 不支持。
+-- ---------------------------------------------------------------------
+ALTER TABLE ai_analysis_result ALTER COLUMN result_json TYPE JSONB USING result_json::JSONB;
+ALTER TABLE ai_device_health ALTER COLUMN dimensions_json TYPE JSONB USING dimensions_json::JSONB;
+ALTER TABLE ai_device_health ALTER COLUMN reasoning_json TYPE JSONB USING reasoning_json::JSONB;
+ALTER TABLE ai_device_health ALTER COLUMN suggested_actions_json TYPE JSONB USING suggested_actions_json::JSONB;
+ALTER TABLE ai_comprehensive_score ALTER COLUMN dimensions_json TYPE JSONB USING dimensions_json::JSONB;
+ALTER TABLE ai_comprehensive_score ALTER COLUMN reasoning_json TYPE JSONB USING reasoning_json::JSONB;
+ALTER TABLE ai_comprehensive_score ALTER COLUMN suggested_actions_json TYPE JSONB USING suggested_actions_json::JSONB;
+ALTER TABLE notification_record ALTER COLUMN channels TYPE JSONB USING channels::JSONB;
+ALTER TABLE notification_channel_config ALTER COLUMN channels TYPE JSONB USING channels::JSONB;
+ALTER TABLE notification_channel_config ALTER COLUMN template_mapping TYPE JSONB USING template_mapping::JSONB;
+ALTER TABLE notification_channel_config ALTER COLUMN priority_channels TYPE JSONB USING priority_channels::JSONB;
+ALTER TABLE rule ALTER COLUMN conditions TYPE JSONB USING conditions::JSONB;
+ALTER TABLE rule ALTER COLUMN actions TYPE JSONB USING actions::JSONB;
+ALTER TABLE rule_execution_log ALTER COLUMN input_data TYPE JSONB USING input_data::JSONB;
+ALTER TABLE rule_execution_log ALTER COLUMN result TYPE JSONB USING result::JSONB;
+ALTER TABLE retrain_record ALTER COLUMN metrics TYPE JSONB USING metrics::JSONB;
+ALTER TABLE drift_baseline ALTER COLUMN baseline_data TYPE JSONB USING baseline_data::JSONB;
+ALTER TABLE multimodal_fusion_record ALTER COLUMN contributions TYPE JSONB USING contributions::JSONB;
+ALTER TABLE multimodal_fusion_record ALTER COLUMN modal_details TYPE JSONB USING modal_details::JSONB;
+ALTER TABLE modal_weight_config ALTER COLUMN weights TYPE JSONB USING weights::JSONB;
+ALTER TABLE risk_score_log ALTER COLUMN factors TYPE JSONB USING factors::JSONB;
+ALTER TABLE file_attachment ALTER COLUMN business_type TYPE JSONB USING to_jsonb(business_type);
+ALTER TABLE drift_monitor_record ALTER COLUMN feature TYPE JSONB USING to_jsonb(feature);
+
+-- GIN 索引：让 JSONB 列的高频查询 (@>, ?, ?&, ?|) 走索引
+CREATE INDEX IF NOT EXISTS idx_rule_conditions_gin ON rule USING GIN (conditions);
+CREATE INDEX IF NOT EXISTS idx_rule_actions_gin ON rule USING GIN (actions);
+CREATE INDEX IF NOT EXISTS idx_ai_result_biz_gin ON ai_analysis_result USING GIN (result_json);
+CREATE INDEX IF NOT EXISTS idx_multimodal_contrib_gin ON multimodal_fusion_record USING GIN (contributions);
+CREATE INDEX IF NOT EXISTS idx_risk_score_factors_gin ON risk_score_log USING GIN (factors);
+
+-- ---------------------------------------------------------------------
+-- C. 状态字段 CHECK 约束（确保只接受合法枚举值）
+-- 注意：用 DO NOTHING 风格：ADD CONSTRAINT 不支持 IF NOT EXISTS，
+--       所以用 pg_constraint 系统表检查后再加。
+-- ---------------------------------------------------------------------
+DO $$
+BEGIN
+  -- ai_model.status
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_ai_model_status') THEN
+    ALTER TABLE ai_model ADD CONSTRAINT ck_ai_model_status
+      CHECK (status IN ('ONLINE','OFFLINE','TRAINING','DEPLOYING','ROLLBACK'));
+  END IF;
+  -- data_source.status
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_ds_status') THEN
+    ALTER TABLE data_source ADD CONSTRAINT ck_ds_status
+      CHECK (status IN ('CONNECTED','DISCONNECTED','ERROR','SYNCING'));
+  END IF;
+  -- data_sync_task.status
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_sync_task_status') THEN
+    ALTER TABLE data_sync_task ADD CONSTRAINT ck_sync_task_status
+      CHECK (status IN ('RUNNING','IDLE','PAUSED','FAILED','DISABLED'));
+  END IF;
+  -- resource.status
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_resource_status') THEN
+    ALTER TABLE resource ADD CONSTRAINT ck_resource_status
+      CHECK (status IN ('AVAILABLE','DEPLOYED','UNAVAILABLE','MAINTENANCE','OPEN','FULL','CLOSED'));
+  END IF;
+  -- plan.status
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_plan_status') THEN
+    ALTER TABLE plan ADD CONSTRAINT ck_plan_status
+      CHECK (status IN ('DRAFT','ACTIVE','SUSPENDED','ARCHIVED'));
+  END IF;
+  -- confirmation_task.status
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_confirm_status') THEN
+    ALTER TABLE confirmation_task ADD CONSTRAINT ck_confirm_status
+      CHECK (status IN ('PENDING_CLAIM','PENDING_FIRST','PENDING_SECOND','CONFIRMED','REJECTED','TRANSFERRED'));
+  END IF;
+  -- confirmation_task.priority
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_confirm_priority') THEN
+    ALTER TABLE confirmation_task ADD CONSTRAINT ck_confirm_priority
+      CHECK (priority IN ('HIGH','MEDIUM','LOW'));
+  END IF;
+  -- approval.status
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_approval_status') THEN
+    ALTER TABLE approval ADD CONSTRAINT ck_approval_status
+      CHECK (status IN ('PENDING','APPROVED','REJECTED','CANCELLED'));
+  END IF;
+  -- user_todo.status
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_todo_status') THEN
+    ALTER TABLE user_todo ADD CONSTRAINT ck_todo_status
+      CHECK (status IN ('PENDING','COMPLETED','CANCELLED','OVERDUE'));
+  END IF;
+  -- user_todo.priority
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_todo_priority') THEN
+    ALTER TABLE user_todo ADD CONSTRAINT ck_todo_priority
+      CHECK (priority IN ('HIGH','MEDIUM','LOW'));
+  END IF;
+END$$;
+-- ---------------------------------------------------------------------
+-- D. 关键 logical FK 转形式化 FK（应用层一致性的最后兜底）
+-- 注意：sys_user.role_code 在既有卷可能引用旧 3 角色，新 7 角色已包含旧的子集，
+--       所以加 FK 不会破坏既有数据。
+-- ---------------------------------------------------------------------
+DO $$
+BEGIN
+  -- sys_user.role_code -> sys_role.role_code
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_sys_user_role') THEN
+    -- 兜底：清理掉可能引用旧角色代码的行
+    UPDATE sys_user SET role_code = 'admin'
+      WHERE role_code NOT IN (SELECT role_code FROM sys_role);
+    ALTER TABLE sys_user ADD CONSTRAINT fk_sys_user_role
+      FOREIGN KEY (role_code) REFERENCES sys_role(role_code) ON UPDATE CASCADE ON DELETE RESTRICT;
+  END IF;
+  -- monitoring_device.region_code -> region.region_code
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_device_region') THEN
+    UPDATE monitoring_device SET region_code = NULL
+      WHERE region_code IS NOT NULL AND region_code NOT IN (SELECT region_code FROM region);
+    ALTER TABLE monitoring_device ADD CONSTRAINT fk_device_region
+      FOREIGN KEY (region_code) REFERENCES region(region_code) ON UPDATE CASCADE ON DELETE SET NULL;
+  END IF;
+  -- monitoring_device.hazard_code 已有 REFERENCES，不重复
+  -- (v2.1.0: hazard_point 现在是从 unified_event 投影的视图，不再需要
+  --  fk_hazard_region 单独的外键约束；unified_event.region_code 上的约束由
+  --  底部 v2.1.0 迁移块的 partial index 维护)
+  -- inspection_task.region_code -> region.region_code
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_task_region') THEN
+    UPDATE inspection_task SET region_code = NULL
+      WHERE region_code IS NOT NULL AND region_code NOT IN (SELECT region_code FROM region);
+    ALTER TABLE inspection_task ADD CONSTRAINT fk_task_region
+      FOREIGN KEY (region_code) REFERENCES region(region_code) ON UPDATE CASCADE ON DELETE SET NULL;
+  END IF;
+  -- resource.region_code -> region.region_code
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_resource_region') THEN
+    UPDATE resource SET region_code = NULL
+      WHERE region_code IS NOT NULL AND region_code NOT IN (SELECT region_code FROM region);
+    ALTER TABLE resource ADD CONSTRAINT fk_resource_region
+      FOREIGN KEY (region_code) REFERENCES region(region_code) ON UPDATE CASCADE ON DELETE SET NULL;
+  END IF;
+  -- ai_analysis_result.model_name -> ai_model.model_code
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_ai_result_model') THEN
+    UPDATE ai_analysis_result SET model_name = NULL
+      WHERE model_name IS NOT NULL AND model_name NOT IN (SELECT model_code FROM ai_model);
+    ALTER TABLE ai_analysis_result ADD CONSTRAINT fk_ai_result_model
+      FOREIGN KEY (model_name) REFERENCES ai_model(model_code) ON UPDATE CASCADE ON DELETE SET NULL;
+  END IF;
+  -- rule.created_by -> sys_user.username (username is unique but not PK)
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_rule_created_by') THEN
+    UPDATE rule SET created_by = NULL
+      WHERE created_by IS NOT NULL AND created_by NOT IN (SELECT username FROM sys_user);
+    ALTER TABLE rule ADD CONSTRAINT fk_rule_created_by
+      FOREIGN KEY (created_by) REFERENCES sys_user(username) ON UPDATE CASCADE ON DELETE SET NULL;
+  END IF;
+  -- plan.created_by -> sys_user.username
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_plan_created_by') THEN
+    UPDATE plan SET created_by = NULL
+      WHERE created_by IS NOT NULL AND created_by NOT IN (SELECT username FROM sys_user);
+    ALTER TABLE plan ADD CONSTRAINT fk_plan_created_by
+      FOREIGN KEY (created_by) REFERENCES sys_user(username) ON UPDATE CASCADE ON DELETE SET NULL;
+  END IF;
+  -- notice_template.created_by -> sys_user.username
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_notice_created_by') THEN
+    UPDATE notice_template SET created_by = NULL
+      WHERE created_by IS NOT NULL AND created_by NOT IN (SELECT username FROM sys_user);
+    ALTER TABLE notice_template ADD CONSTRAINT fk_notice_created_by
+      FOREIGN KEY (created_by) REFERENCES sys_user(username) ON UPDATE CASCADE ON DELETE SET NULL;
+  END IF;
+END$$;
+
+-- =====================================================================
+-- v2.1.0 数据层统一 (Task #1 P1)：events 升格为 source of truth，
+--   hazard_point 改为从 unified_event 投影的可写视图。
+--
+-- 升级步骤（务必按顺序）：
+--   1) 应用启动前：先执行 scripts/backfill_unified_event_hazards.py，
+--      把既有 hazard_point 数据搬运到 unified_event（kind='HAZARD'）。
+--   2) 应用启动：本 schema.sql 的迁移块自动完成：
+--        - 给 unified_event 补齐 `kind` 判别列 + 全部 hazard 领域列
+--        - 用 partial 索引替代原 hazard_point 上的索引
+--        - DROP hazard_point（物理表）→ CREATE VIEW hazard_point（自动可写视图）
+--        - 把 6 张子表的外键从 hazard_point 改挂到 unified_event(hazard_code)
+--
+-- 升级后 hazard_point 是视图，原 hazard_point INSERT/UPDATE/DELETE 仍可工作
+-- （PostgreSQL 自动可写视图会把 DML 重写到 unified_event，kind 默认 'HAZARD'）。
+-- Phase 2 再清理双写路径与 JPA 实体。
+-- =====================================================================
+
+-- ---- 1. `kind` 判别列 + state 默认值 + CHECK 约束 ----
+ALTER TABLE unified_event ADD COLUMN IF NOT EXISTS kind VARCHAR(16);
+-- 已有行的回填：warning_code / emergency_code 任一非空 → 对应类型；其余全部归 HAZARD
+UPDATE unified_event SET kind = 'WARNING'
+  WHERE warning_code IS NOT NULL AND kind IS NULL;
+UPDATE unified_event SET kind = 'EMERGENCY'
+  WHERE emergency_code IS NOT NULL AND warning_code IS NULL AND kind IS NULL;
+UPDATE unified_event SET kind = 'HAZARD'
+  WHERE kind IS NULL;
+ALTER TABLE unified_event ALTER COLUMN kind SET NOT NULL;
+ALTER TABLE unified_event ALTER COLUMN kind SET DEFAULT 'HAZARD';
+-- state 列允许视图写入时不显式提供（避免 data.sql / 视图重写时 NOT NULL 失败）
+ALTER TABLE unified_event ALTER COLUMN state SET DEFAULT 'DETECTED';
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_unified_kind') THEN
+    ALTER TABLE unified_event ADD CONSTRAINT ck_unified_kind
+      CHECK (kind IN ('HAZARD','WARNING','EMERGENCY'));
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_unified_state') THEN
+    ALTER TABLE unified_event ADD CONSTRAINT ck_unified_state
+      CHECK (state IN ('DETECTED','CONFIRMING','CONFIRMED','WARNING_ISSUED','EMERGENCY_ACTIVE','CLOSED','REJECTED'));
+  END IF;
+END$$;
+
+-- ---- 2. hazard 领域列（NULL 允许；非 HAZARD 行不需这些列）----
+ALTER TABLE unified_event ADD COLUMN IF NOT EXISTS name VARCHAR(128);
+ALTER TABLE unified_event ADD COLUMN IF NOT EXISTS hazard_type VARCHAR(64);
+ALTER TABLE unified_event ADD COLUMN IF NOT EXISTS risk_level VARCHAR(32);
+ALTER TABLE unified_event ADD COLUMN IF NOT EXISTS region_code VARCHAR(64);
+ALTER TABLE unified_event ADD COLUMN IF NOT EXISTS owner VARCHAR(128);
+ALTER TABLE unified_event ADD COLUMN IF NOT EXISTS hazard_status VARCHAR(32);
+ALTER TABLE unified_event ADD COLUMN IF NOT EXISTS longitude NUMERIC(10,6);
+ALTER TABLE unified_event ADD COLUMN IF NOT EXISTS latitude NUMERIC(10,6);
+ALTER TABLE unified_event ADD COLUMN IF NOT EXISTS geom geometry(Point, 4326);
+ALTER TABLE unified_event ADD COLUMN IF NOT EXISTS threat_object TEXT;
+ALTER TABLE unified_event ADD COLUMN IF NOT EXISTS last_inspection_at TIMESTAMPTZ;
+ALTER TABLE unified_event ADD COLUMN IF NOT EXISTS discovered_at TIMESTAMPTZ;
+ALTER TABLE unified_event ADD COLUMN IF NOT EXISTS detection_confidence DOUBLE PRECISION;
+ALTER TABLE unified_event ADD COLUMN IF NOT EXISTS last_inspection_device_type VARCHAR(64);
+ALTER TABLE unified_event ADD COLUMN IF NOT EXISTS historical_count INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE unified_event ADD COLUMN IF NOT EXISTS historical_max_score DOUBLE PRECISION NOT NULL DEFAULT 0;
+ALTER TABLE unified_event ADD COLUMN IF NOT EXISTS exposure_population BIGINT NOT NULL DEFAULT 0;
+ALTER TABLE unified_event ADD COLUMN IF NOT EXISTS exposure_buildings INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE unified_event ADD COLUMN IF NOT EXISTS land_use_type VARCHAR(32) NOT NULL DEFAULT 'unknown';
+ALTER TABLE unified_event ADD COLUMN IF NOT EXISTS hazard_source VARCHAR(32);
+
+-- ---- 3. unified_event 上的 hazard partial 索引（替代原 hazard_point 上的索引）----
+CREATE INDEX IF NOT EXISTS idx_unified_hazard_geom
+    ON unified_event USING GIST (geom) WHERE kind = 'HAZARD';
+CREATE INDEX IF NOT EXISTS idx_unified_hazard_region_level
+    ON unified_event(region_code, risk_level) WHERE kind = 'HAZARD';
+CREATE INDEX IF NOT EXISTS idx_unified_hazard_type
+    ON unified_event(hazard_type) WHERE kind = 'HAZARD';
+CREATE INDEX IF NOT EXISTS idx_unified_hazard_source
+    ON unified_event(hazard_source, discovered_at DESC) WHERE kind = 'HAZARD';
+CREATE INDEX IF NOT EXISTS idx_unified_hazard_discovered
+    ON unified_event(discovered_at DESC) WHERE kind = 'HAZARD' AND hazard_source = 'AI_MONITOR';
+-- hazard_key 暴露列：仅 HAZARD 行带值，WARNING/EMERGENCY 行带 NULL
+-- (PostgreSQL 不允许外键引用 partial unique index；这里改成普通 UNIQUE 索引，
+--  多 NULL 在 UNIQUE 下互不相等，所以 WARNING/EMERGENCY 行的 NULL 不影响唯一性。)
+ALTER TABLE unified_event ADD COLUMN IF NOT EXISTS hazard_key VARCHAR(64)
+  GENERATED ALWAYS AS (CASE WHEN kind = 'HAZARD' THEN hazard_code ELSE NULL END) STORED;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_unified_hazard_key
+    ON unified_event(hazard_key);
+
+-- ---- 4. 物理 hazard_point → 自动可写视图 ----
+DROP TABLE IF EXISTS hazard_point CASCADE;
+CREATE OR REPLACE VIEW hazard_point AS
+SELECT
+  id,
+  hazard_code,
+  name,
+  hazard_type,
+  risk_level,
+  region_code,
+  owner,
+  hazard_status AS status,
+  longitude,
+  latitude,
+  geom,
+  threat_object,
+  last_inspection_at,
+  hazard_source   AS source,
+  discovered_at,
+  detection_confidence,
+  last_inspection_device_type,
+  historical_count,
+  historical_max_score,
+  exposure_population,
+  exposure_buildings,
+  land_use_type
+FROM unified_event
+WHERE kind = 'HAZARD';
+
+COMMENT ON VIEW hazard_point IS
+  'v2.1.0 Task#1 P1: 自动可写视图，投影自 unified_event WHERE kind=''HAZARD''。'
+  '所有 INSERT/UPDATE/DELETE 会被 PostgreSQL 重写到 unified_event 表。'
+  '视图外的 unified_event 列（state、event_code、source 等）可通过 '
+  'unified_event 实体直接读写，不暴露给历史 hazard_point 消费者。';
+
+-- ---- 5. 重新指向 unified_event(hazard_code) 的外键 ----
+-- 原 6 张子表（inspection_task / inspection_record / monitoring_device /
+-- warning_event / risk_score_log / ai_comprehensive_score）的 hazard_code
+-- 外键在 DROP TABLE CASCADE 时已被卸下；这里统一挂回 unified_event。
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_inspection_task_hazard') THEN
+    ALTER TABLE inspection_task ADD CONSTRAINT fk_inspection_task_hazard
+      FOREIGN KEY (hazard_code) REFERENCES unified_event(hazard_key) ON DELETE SET NULL
+      DEFERRABLE INITIALLY DEFERRED;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_inspection_record_hazard') THEN
+    ALTER TABLE inspection_record ADD CONSTRAINT fk_inspection_record_hazard
+      FOREIGN KEY (hazard_code) REFERENCES unified_event(hazard_key) ON DELETE SET NULL
+      DEFERRABLE INITIALLY DEFERRED;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_monitoring_device_hazard') THEN
+    ALTER TABLE monitoring_device ADD CONSTRAINT fk_monitoring_device_hazard
+      FOREIGN KEY (hazard_code) REFERENCES unified_event(hazard_key) ON DELETE SET NULL
+      DEFERRABLE INITIALLY DEFERRED;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_warning_event_hazard') THEN
+    ALTER TABLE warning_event ADD CONSTRAINT fk_warning_event_hazard
+      FOREIGN KEY (hazard_code) REFERENCES unified_event(hazard_key) ON DELETE SET NULL
+      DEFERRABLE INITIALLY DEFERRED;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_risk_score_log_hazard') THEN
+    ALTER TABLE risk_score_log ADD CONSTRAINT fk_risk_score_log_hazard
+      FOREIGN KEY (hazard_code) REFERENCES unified_event(hazard_key) ON DELETE CASCADE
+      DEFERRABLE INITIALLY DEFERRED;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_ai_comprehensive_score_hazard') THEN
+    ALTER TABLE ai_comprehensive_score ADD CONSTRAINT fk_ai_comprehensive_score_hazard
+      FOREIGN KEY (hazard_code) REFERENCES unified_event(hazard_key) ON DELETE CASCADE
+      DEFERRABLE INITIALLY DEFERRED;
+  END IF;
+END$$;
+

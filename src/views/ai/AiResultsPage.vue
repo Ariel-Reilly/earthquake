@@ -19,6 +19,7 @@ import {
 } from "lucide-vue-next"
 import { dashboardApi } from "../../services/dashboardApi"
 import { getAuthUser, hasPermission } from "../../stores/auth"
+import AiHealthBadge from "../../components/AiHealthBadge.vue"
 
 const props = defineProps({
   searchTerm: { type: String, default: "" },
@@ -148,6 +149,7 @@ onMounted(() => loadResults())
         <p>查看 AI 模型推理出的疑似灾害结果，按置信度排序后可一键推送至人工确认或归档为误报。</p>
       </div>
       <div class="actions">
+        <AiHealthBadge />
         <button class="op-btn" @click="loadResults">
           <TrendingUp :size="14" />刷新
         </button>
@@ -223,7 +225,28 @@ onMounted(() => loadResults())
           </div>
         </div>
         <div class="actions" @click.stop>
-          <button v-if="has('confirmation:confirm')" class="primary-btn small" @click="pushToConfirmation(r)">
+          <!-- 值班员：转人工确认（推入确认工作台） -->
+          <button
+            v-if="has('ai:result:transfer')"
+            class="primary-btn small"
+            @click="pushToConfirmation(r)"
+          >
+            <Send :size="12" />转人工确认
+          </button>
+          <!-- 专家：复核通过（直接放行进预警） -->
+          <button
+            v-else-if="has('ai:result:review')"
+            class="primary-btn small"
+            @click="pushToConfirmation(r)"
+          >
+            <Check :size="12" />复核通过
+          </button>
+          <!-- 超管/AI工程师：推送确认 -->
+          <button
+            v-else-if="has('confirmation:confirm')"
+            class="primary-btn small"
+            @click="pushToConfirmation(r)"
+          >
             <Send :size="12" />推送确认
           </button>
           <button class="ghost-btn small danger" @click="archive(r)">

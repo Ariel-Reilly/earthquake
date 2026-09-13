@@ -35,6 +35,10 @@ public record HazardDto(
     String aiDisasterType,
     String aiDisasterTypeSource,
     String aiConcernLabel,
-    Boolean aiDeviceAvailable
+    Boolean aiDeviceAvailable,
+    // ---- v1.7.0+ P3-4：统一事件号（与 unified_event.eventCode 关联）----
+    // 用于在 /hazards 与 /events 两个页面间双向跳转。
+    String eventCode,
+    String eventState
 ) {
 }

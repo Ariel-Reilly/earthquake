@@ -18,6 +18,7 @@ import {
   ChevronRight,
   Clock4,
   Sparkles,
+  Info,
 } from 'lucide-vue-next'
 import { dashboardApi } from '../../services/dashboardApi'
 
@@ -410,6 +411,16 @@ defineExpose({ refresh })
 
 <template>
   <div class="approval-center-page" :class="{ 'drawer-open': detailOpen }">
+    <!-- 语义区分提示：AI 灾害初筛走人工确认工作台，行政审批走本页面 -->
+    <div class="approval-semantic-hint">
+      <Info :size="14" />
+      <span>这里是<strong>预警发布、预案启动、应急派单</strong>等行政流程的审批。
+        AI 初筛的疑似事件请前往
+        <RouterLink to="/dashboard/confirmation-workbench">人工确认工作台</RouterLink>
+        处理。
+      </span>
+    </div>
+
     <!-- 移动端筛选切换 -->
     <button class="mobile-filter-btn" @click="showMobileFilter = !showMobileFilter">
       <Filter :size="14" />
@@ -771,6 +782,23 @@ defineExpose({ refresh })
 }
 .approval-center-page.drawer-open { grid-template-columns: minmax(220px, 240px) minmax(0, 1fr) 360px; }
 
+.approval-semantic-hint {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 14px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  font-size: 12.5px;
+  color: #1e40af;
+  line-height: 1.6;
+}
+.approval-semantic-hint strong { font-weight: 700; }
+.approval-semantic-hint a { color: #2563eb; text-decoration: underline; font-weight: 600; }
+.approval-semantic-hint a:hover { color: #1d4ed8; }
+
 .mobile-filter-btn {
   display: none; align-items: center; gap: 6px;
   border: 1px solid #e3ebe7; background: #fff; padding: 8px 14px; border-radius: 8px;
@@ -1005,6 +1033,7 @@ defineExpose({ refresh })
   .mobile-filter-btn { display: inline-flex; }
   .filter-rail { display: none; }
   .filter-rail.open { display: flex; }
+  .approval-semantic-hint { flex-direction: column; gap: 4px; }
   .detail-drawer {
     position: fixed; top: 0; right: 0; bottom: 0; width: 90vw; max-width: 380px;
     border-radius: 0; z-index: 99;

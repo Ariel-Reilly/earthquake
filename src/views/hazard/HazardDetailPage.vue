@@ -3,6 +3,8 @@ import { computed, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import {
   ArrowLeft,
+  Check,
+  ClipboardCheck,
   FileText,
   Gauge,
   Layers3,
@@ -17,16 +19,104 @@ import {
   MapPinned,
   BrainCircuit,
   TrendingUp,
+  Send,
+  ThumbsDown,
 } from "lucide-vue-next";
 import PermissionButton from "../../components/PermissionButton.vue";
+import EventStatusTimeline from "../../components/EventStatusTimeline.vue";
 import { dashboardApi } from "../../services/dashboardApi";
 import { aiApi } from "../../services/aiApi";
+import { hasPermission } from "../../stores/auth";
+
+const emit = defineEmits(['notify'])
 
 const route = useRoute();
 const router = useRouter();
 const point = ref(null);
 const loading = ref(true);
 const editMode = ref(false);
+
+/**
+ * v1.7.0：区分"灾害详情"和"人工确认"两种入口上下文。
+ * 人工确认入口: /dashboard/confirmation-workbench/:id (route.name === 'confirmation-detail')
+ */
+const isConfirmationMode = computed(() => route.name === 'confirmation-detail')
+
+// 人工确认操作状态
+const confirmationState = ref({
+  status: '待确认', // 待确认 / 已认领 / 已确认 / 已驳回 / 已转派
+  assignee: null,
+  loadingClaim: false,
+  loadingConfirm: false,
+  loadingReject: false,
+  loadingTransfer: false,
+  rejectDialog: false,
+  rejectReason: '',
+  transferDialog: false,
+  transferTo: '',
+  transferReason: '',
+})
+
+async function claimItem() {
+  if (!isConfirmationMode.value) return
+  confirmationState.value.loadingClaim = true
+  try {
+    // TODO: 后端实现 POST /api/confirmation/{id}/claim 后替换此处
+    confirmationState.value.assignee = '当前用户'
+    confirmationState.value.status = '已认领'
+    emit('notify', '已认领该事件')
+  } catch {
+    emit('notify', '认领失败')
+  } finally {
+    confirmationState.value.loadingClaim = false
+  }
+}
+
+async function confirmItem() {
+  if (!isConfirmationMode.value) return
+  if (!window.confirm(`确认将"${point.value?.name}"纳入正式灾害档案？确认后将进入预警创建环节。`)) return
+  confirmationState.value.loadingConfirm = true
+  try {
+    confirmationState.value.status = '已确认'
+    emit('notify', `已确认 ${point.value?.name}，可创建预警`)
+  } catch {
+    emit('notify', '确认失败')
+  } finally {
+    confirmationState.value.loadingConfirm = false
+  }
+}
+
+async function rejectItem() {
+  if (!isConfirmationMode.value) return
+  if (!confirmationState.value.rejectReason.trim()) return emit('notify', '请填写驳回原因')
+  confirmationState.value.loadingReject = true
+  try {
+    confirmationState.value.status = '已驳回'
+    confirmationState.value.rejectDialog = false
+    emit('notify', '已驳回该推断')
+  } catch {
+    emit('notify', '驳回失败')
+  } finally {
+    confirmationState.value.loadingReject = false
+  }
+}
+
+async function transferItem() {
+  if (!isConfirmationMode.value) return
+  if (!confirmationState.value.transferTo.trim()) return emit('notify', '请选择转派对象')
+  confirmationState.value.loadingTransfer = true
+  try {
+    confirmationState.value.assignee = confirmationState.value.transferTo
+    confirmationState.value.status = '已转派'
+    confirmationState.value.transferDialog = false
+    emit('notify', `已转派给 ${confirmationState.value.transferTo}`)
+  } catch {
+    emit('notify', '转派失败')
+  } finally {
+    confirmationState.value.loadingTransfer = false
+  }
+}
+
 const form = ref({});
 const cesiumBusy = ref(false);
 const cesiumMessage = ref("");
@@ -37,6 +127,17 @@ const aiComprehensive = ref(null);
 const aiComprehensiveLoading = ref(false);
 const aiLevelLabel = (level) => ({ CRITICAL: '极高', HIGH: '高', MEDIUM: '中', LOW: '低' }[level] || '—');
 const aiLevelClass = (level) => ({ CRITICAL: 'orange', HIGH: 'yellow', MEDIUM: 'blue', LOW: 'teal' }[level] || 'blue');
+
+const EVENT_STATE_LABELS = {
+  DETECTED: '已发现',
+  CONFIRMING: '确认中',
+  CONFIRMED: '已确认',
+  WARNING_ISSUED: '预警发布',
+  EMERGENCY_ACTIVE: '应急处置',
+  CLOSED: '已关闭',
+  REJECTED: '已驳回',
+};
+const eventStateLabel = (s) => EVENT_STATE_LABELS[s] || '—';
 
 async function loadAiComprehensive() {
   if (!point.value) return;
@@ -160,6 +261,20 @@ async function refreshDetail() {
   await loadData();
 }
 
+/**
+ * v1.7.0+ P3-4：跳转到统一事件中心并定位该 hazard 对应的 eventCode。
+ * HazardService.toDto 已经反查 unified_event，把 eventCode 放进 HazardDto。
+ */
+function openEventOverview() {
+  if (!point.value) return;
+  const code = point.value.eventCode;
+  if (!code) {
+    emit('notify', '该灾害点尚未关联统一事件');
+    return;
+  }
+  router.push({ path: '/dashboard/events', query: { code } });
+}
+
 async function open3DView() {
   if (!point.value) return;
   cesiumBusy.value = true;
@@ -191,6 +306,124 @@ onMounted(loadData);
 
 <template>
   <div>
+    <!-- P1 统一事件中心：在详情页顶部嵌入全生命周期时间线 -->
+    <EventStatusTimeline
+      v-if="point"
+      :hazard-id="point.id"
+      :hazard-code="point.hazardCode ?? point.code"
+      @notify="(msg) => $emit('notify', msg)"
+    />
+
+    <!-- v1.7.0 人工确认模式操作栏：仅从 /dashboard/confirmation-workbench/:id 入口时显示 -->
+    <div v-if="isConfirmationMode" class="confirmation-ops">
+      <div class="confirmation-ops-left">
+        <ClipboardCheck :size="16" />
+        <strong>人工确认工作台</strong>
+        <span class="confirmation-badge" :class="confirmationState.status">
+          {{ confirmationState.status }}
+        </span>
+        <span v-if="confirmationState.assignee" class="assignee-tag">
+          当前认领人：{{ confirmationState.assignee }}
+        </span>
+        <span class="ops-hint">← 请先认领再处理，避免多人同时操作</span>
+      </div>
+      <div class="confirmation-ops-right">
+        <!-- 认领 -->
+        <button
+          v-if="confirmationState.status === '待确认' && !confirmationState.assignee"
+          class="ops-btn primary"
+          :disabled="confirmationState.loadingClaim"
+          @click="claimItem"
+        >
+          <Check :size="14" />{{ confirmationState.loadingClaim ? '认领中…' : '认领' }}
+        </button>
+        <!-- 确认 -->
+        <button
+          v-if="confirmationState.status === '已认领' && confirmationState.assignee === '当前用户'"
+          class="ops-btn success"
+          :disabled="confirmationState.loadingConfirm"
+          @click="confirmItem"
+        >
+          <Check :size="14" />{{ confirmationState.loadingConfirm ? '确认中…' : '确认为正式灾害' }}
+        </button>
+        <!-- 创建预警(确认后) -->
+        <button
+          v-if="confirmationState.status === '已确认'"
+          class="ops-btn primary"
+          @click="router.push('/dashboard/warnings/create')"
+        >
+          <BrainCircuit :size="14" />创建预警
+        </button>
+        <!-- 驳回 -->
+        <button
+          v-if="['待确认','已认领'].includes(confirmationState.status)"
+          class="ops-btn danger"
+          @click="confirmationState.rejectDialog = true"
+        >
+          <ThumbsDown :size="14" />驳回
+        </button>
+        <!-- 转派 -->
+        <button
+          v-if="confirmationState.status === '待确认' || confirmationState.status === '已认领'"
+          class="ops-btn"
+          @click="confirmationState.transferDialog = true"
+        >
+          <Send :size="14" />转派
+        </button>
+      </div>
+    </div>
+
+    <!-- 驳回弹窗 -->
+    <div v-if="confirmationState.rejectDialog" class="mask" @click.self="confirmationState.rejectDialog = false">
+      <div class="modal">
+        <h3>驳回 AI 推断</h3>
+        <p class="modal-hint">驳回后该事件进入"已驳回"档案，AI 推理结果将反馈到模型用于下次校准。</p>
+        <label>驳回原因
+          <textarea v-model="confirmationState.rejectReason" placeholder="例如：与现场复核一致、无新增迹象" rows="3"></textarea>
+        </label>
+        <div class="modal-actions">
+          <button class="secondary-btn" @click="confirmationState.rejectDialog = false">取消</button>
+          <button class="primary-btn danger" :disabled="confirmationState.loadingReject" @click="rejectItem">
+            {{ confirmationState.loadingReject ? '处理中…' : '确认驳回' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 转派弹窗 -->
+    <div v-if="confirmationState.transferDialog" class="mask" @click.self="confirmationState.transferDialog = false">
+      <div class="modal">
+        <h3>转派给专家</h3>
+        <label>接收人
+          <input v-model="confirmationState.transferTo" placeholder="输入专家姓名或账号" />
+        </label>
+        <label>转派说明
+          <textarea v-model="confirmationState.transferReason" placeholder="例如：需要地质专家判读岩层结构" rows="2"></textarea>
+        </label>
+        <div class="modal-actions">
+          <button class="secondary-btn" @click="confirmationState.transferDialog = false">取消</button>
+          <button class="primary-btn" :disabled="confirmationState.loadingTransfer" @click="transferItem">
+            {{ confirmationState.loadingTransfer ? '转派中…' : '确认转派' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- v1.7.0+ P3-4：统一事件号快速跳转条（与 EventCenterPage 互链） -->
+    <div v-if="point?.eventCode" class="event-overview-banner">
+      <div class="event-overview-left">
+        <GitBranch :size="16" />
+        <span class="event-overview-label">统一事件号</span>
+        <code class="event-overview-code">{{ point.eventCode }}</code>
+        <span class="event-overview-state" :data-state="point.eventState">
+          {{ eventStateLabel(point.eventState) }}
+        </span>
+      </div>
+      <button class="event-overview-btn" @click="openEventOverview" title="在统一事件中心查看血缘、状态机和时间线">
+        <GitBranch :size="13" />查看事件全貌
+      </button>
+    </div>
+
     <div class="content-grid">
       <section class="panel system-panel">
         <div class="panel-header compact">
@@ -528,3 +761,178 @@ onMounted(loadData);
     </div>
   </div>
 </template>
+
+<style scoped>
+/* v1.7.0 人工确认模式操作栏 */
+.confirmation-ops {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 10px 16px;
+  background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+  border: 1px solid #86efac;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+.confirmation-ops-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.confirmation-ops-left strong { color: #15803d; font-size: 14px; }
+.assignment-badge { color: #166534; }
+.assignee-tag { font-size: 12px; color: #4ade80; background: rgba(22,101,52,0.1); padding: 2px 8px; border-radius: 4px; }
+.ops-hint { font-size: 11.5px; color: #6b7280; }
+
+.confirmation-badge {
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 11.5px;
+  font-weight: 700;
+  border: 1px solid;
+}
+.confirmation-badge.待确认 { color: #c2410c; border-color: #fed7aa; background: #fff7ed; }
+.confirmation-badge.已认领   { color: #1d4ed8; border-color: #bfdbfe; background: #eff6ff; }
+.confirmation-badge.已确认   { color: #15803d; border-color: #bbf7d0; background: #f0fdf4; }
+.confirmation-badge.已驳回   { color: #6b7280; border-color: #e5e7eb; background: #f9fafb; }
+.confirmation-badge.已转派   { color: #7c3aed; border-color: #ddd6fe; background: #f5f3ff; }
+
+.confirmation-ops-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.ops-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  color: #374151;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.ops-btn:hover { background: #f9fafb; border-color: #9ca3af; }
+.ops-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.ops-btn.primary { background: #1d4ed8; color: #fff; border-color: #1d4ed8; }
+.ops-btn.primary:hover { background: #1e40af; }
+.ops-btn.success { background: #15803d; color: #fff; border-color: #15803d; }
+.ops-btn.success:hover { background: #166534; }
+.ops-btn.danger { background: #dc2626; color: #fff; border-color: #dc2626; }
+.ops-btn.danger:hover { background: #b91c1c; }
+
+/* 弹窗遮罩 */
+.mask {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.4);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 9999;
+}
+.modal {
+  background: #fff;
+  border-radius: 12px;
+  padding: 24px;
+  width: min(480px, 92vw);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+}
+.modal h3 { margin: 0 0 8px; font-size: 16px; color: #1f2937; }
+.modal-hint { font-size: 12.5px; color: #6b7280; margin-bottom: 12px; }
+.modal label {
+  display: block;
+  font-size: 12.5px;
+  color: #374151;
+  font-weight: 500;
+  margin-bottom: 10px;
+}
+.modal label textarea, .modal label input {
+  width: 100%;
+  margin-top: 4px;
+  padding: 7px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 13px;
+  box-sizing: border-box;
+}
+.modal-actions {
+  display: flex; gap: 8px; justify-content: flex-end;
+  margin-top: 16px;
+}
+
+/* v1.7.0+ P3-4：统一事件号快速跳转条 */
+.event-overview-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 12px 0 0;
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(79, 143, 153, 0.08), rgba(99, 143, 194, 0.05));
+  border: 1px solid rgba(79, 143, 153, 0.25);
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.event-overview-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.event-overview-label {
+  font-size: 12px;
+  color: #4a5568;
+  font-weight: 600;
+}
+.event-overview-code {
+  font-family: ui-monospace, monospace;
+  background: rgba(43, 108, 176, 0.1);
+  color: #2b6cb0;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.event-overview-state {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(155, 174, 173, 0.18);
+  color: #5a6a68;
+  letter-spacing: 0.3px;
+}
+.event-overview-state[data-state="DETECTED"]          { background: rgba(79, 143, 153, 0.18); color: #4f8f99; }
+.event-overview-state[data-state="CONFIRMING"]        { background: rgba(224, 160, 80, 0.20); color: #9b761e; }
+.event-overview-state[data-state="CONFIRMED"]         { background: rgba(99, 143, 194, 0.18); color: #2b6cb0; }
+.event-overview-state[data-state="WARNING_ISSUED"]    { background: rgba(216, 133, 97, 0.20); color: #c7553b; }
+.event-overview-state[data-state="EMERGENCY_ACTIVE"]  { background: rgba(224, 96, 96, 0.18); color: #e06060; }
+.event-overview-state[data-state="CLOSED"]            { background: rgba(155, 174, 173, 0.25); color: #5a6a68; }
+.event-overview-state[data-state="REJECTED"]          { background: rgba(122, 141, 137, 0.22); color: #7a8d89; }
+.event-overview-btn {
+  background: #ffffff;
+  border: 1px solid rgba(43, 108, 176, 0.4);
+  color: #2b6cb0;
+  padding: 6px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s;
+}
+.event-overview-btn:hover {
+  background: #2b6cb0;
+  color: #ffffff;
+  border-color: #2b6cb0;
+}
+</style>

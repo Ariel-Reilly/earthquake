@@ -352,7 +352,7 @@ onMounted(async () => {
               </div>
             </div>
             <div class="heading-actions" style="padding: 0 20px 18px; justify-content: flex-end;">
-              <PermissionButton permission="tasks:edit" :icon="Save" @click="async ({ allowed }) => {
+              <PermissionButton permission="ai:task:edit" :icon="Save" @click="async ({ allowed }) => {
                 if (!allowed) return
                 await saveDetail()
               }">保存</PermissionButton>
@@ -503,7 +503,7 @@ onMounted(async () => {
                   <span>适用于失败 / 超时 / 中断后再次执行</span>
                 </div>
                 <PermissionButton
-                  permission="tasks:retry"
+                  permission="ai:task:retry"
                   :icon="RefreshCcw"
                   :disabled="retrying"
                   @click="async ({ allowed, reason }) => {
@@ -518,7 +518,7 @@ onMounted(async () => {
                   <span>仅在任务运行中可用，终止后需要重新触发</span>
                 </div>
                 <PermissionButton
-                  permission="tasks:terminate"
+                  permission="ai:task:terminate"
                   :icon="Square"
                   :disabled="!canTerminate || terminating"
                   @click="({ allowed, reason }) => {

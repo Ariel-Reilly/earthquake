@@ -14,7 +14,7 @@
  */
 
 import { ref } from 'vue'
-import { geocodeAddress, reverseGeocode, geocoderProvider } from '../services/geocodeService.js'
+import { geocodeAddress, reverseGeocode, geocoderProvider } from '../services/_architecture/core/geocodeService.js'
 
 const DEBOUNCE_MS = 280
 

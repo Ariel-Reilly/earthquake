@@ -27,11 +27,28 @@ export const useRealtimeStore = defineStore('realtime', {
     pendingChanges: 0,
     /** 后端探活结果: true 表示后端可达(用于 banner 提示) */
     backendReachable: true,
+    /**
+     * AI 微服务健康状态(v1.7.0)
+     *   state: 'ok' | 'degraded' | 'down'
+     *   consecutiveFailures / Successes: 连续计数
+     *   lastProbeAt: 最近一次探活时间
+     *   lastAiLatencyMs: 最近一次探活延迟(ms)
+     */
+    aiHealth: {
+      reachable: true,
+      state: 'ok',
+      consecutiveFailures: 0,
+      consecutiveSuccesses: 0,
+      lastProbeAt: null,
+      lastAiLatencyMs: null,
+    },
   }),
   getters: {
     isRunning: (state) => state.status !== 'idle',
     isUsingWebSocket: (state) => state.status === 'ws',
     isPolling: (state) => state.status === 'polling',
+    isAiDegraded: (state) => state.aiHealth?.state === 'degraded',
+    isAiDown: (state) => state.aiHealth?.state === 'down',
   },
   actions: {
     setStatus(status) {
@@ -50,10 +67,22 @@ export const useRealtimeStore = defineStore('realtime', {
     setBackendReachable(flag) {
       this.backendReachable = Boolean(flag)
     },
+    /** v1.7.0: AI 健康状态由 healthService 调用 */
+    setAiHealth(payload = {}) {
+      this.aiHealth = { ...this.aiHealth, ...payload }
+    },
     reset() {
       this.status = 'idle'
       this.lastEvent = null
       this.pendingChanges = 0
+      this.aiHealth = {
+        reachable: true,
+        state: 'ok',
+        consecutiveFailures: 0,
+        consecutiveSuccesses: 0,
+        lastProbeAt: null,
+        lastAiLatencyMs: null,
+      }
     },
   },
 })

@@ -133,6 +133,32 @@ export function submitInspectionFallback(payload = {}) {
   };
 }
 
+// ---------------------- 巡检接口示例 payload ----------------------
+
+export function inspectionExampleFallback() {
+  return {
+    description: "巡检上报接口示例 payload（离线 mock），用于前端联调参考",
+    submitUrl: "/api/inspection/submit",
+    method: "POST",
+    sample: {
+      taskCode: "TK-DEMO-001",
+      hazardCode: "HZ-LA-001",
+      lon: 118.5421,
+      lat: 30.1284,
+      allowedRadius: 200,
+      inspector: "周小雨",
+      abnormalFlag: false,
+      note: "山体表面无异常，监测设备运行正常",
+      photoIds: ["photo-001", "photo-002"],
+      formData: {
+        displacement_mm: 2.3,
+        crack_width_mm: 0,
+        rainfall_mm: 5.2,
+      },
+    },
+  };
+}
+
 // ---------------------- 登录 demo 回执 ----------------------
 
 export function loginMockUser(username, role = "admin") {

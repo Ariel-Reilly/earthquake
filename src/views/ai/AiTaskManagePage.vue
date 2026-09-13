@@ -22,6 +22,7 @@ import {
 } from "lucide-vue-next"
 import { dashboardApi } from "../../services/dashboardApi"
 import { getAuthUser, hasPermission } from "../../stores/auth"
+import AiHealthBadge from "../../components/AiHealthBadge.vue"
 
 const props = defineProps({
   searchTerm: { type: String, default: "" },
@@ -199,6 +200,7 @@ onMounted(() => loadTasks())
         <p>编排 AI 自动巡查节奏 —— 周期调度 / 事件触发；启动后将持续 7x24h 无人值守。</p>
       </div>
       <div class="actions">
+        <AiHealthBadge />
         <button v-if="has('ai:task:create')" class="primary-btn" @click="openCreate">
           <Plus :size="14" />新建任务
         </button>

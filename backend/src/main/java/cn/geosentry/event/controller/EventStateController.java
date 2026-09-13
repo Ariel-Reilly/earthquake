@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
  *   POST /api/event/{code}/transition - 触发状态流转
  *   GET  /api/event/active           - 当前活动事件列表
  *   GET  /api/event/stats            - 各状态计数
+ *   GET  /api/event/list             - 通用列表（type=HAZARD/WARNING/EMERGENCY 过滤）
  *
  * 安全约束：当前未强制鉴权（保留给后续接入 PermissionRegistry 统一注册）；
  * 在生产环境应通过 SecurityConfig 限制到 warnings:dispatch / emergency:dispatch
@@ -45,6 +46,36 @@ public class EventStateController {
   @GetMapping("/active")
   public List<UnifiedEventEntity> active() {
     return service.listActive();
+  }
+
+  /**
+   * v1.7.0+ P3-4：通用列表端点，按 type / keyword / state 过滤。
+   * type ∈ {HAZARD, WARNING, EMERGENCY}；不传则全量。
+   *
+   * @return items + total + page + size + pages
+   */
+  @GetMapping("/list")
+  public Map<String, Object> list(
+      @RequestParam(required = false) String type,
+      @RequestParam(required = false) String keyword,
+      @RequestParam(required = false) EventState state,
+      @RequestParam(defaultValue = "1") int page,
+      @RequestParam(defaultValue = "20") int size
+  ) {
+    int safeSize = Math.min(Math.max(size, 1), 200);
+    int safePage = Math.max(page, 1);
+    java.util.List<UnifiedEventEntity> all = service.listByType(type, keyword, state);
+    int total = all.size();
+    int pages = (int) Math.max(1, Math.ceil(total / (double) safeSize));
+    int fromIndex = Math.min((safePage - 1) * safeSize, total);
+    int toIndex = Math.min(fromIndex + safeSize, total);
+    java.util.LinkedHashMap<String, Object> result = new java.util.LinkedHashMap<>();
+    result.put("items", all.subList(fromIndex, toIndex));
+    result.put("total", total);
+    result.put("page", safePage);
+    result.put("size", safeSize);
+    result.put("pages", pages);
+    return result;
   }
 
   @GetMapping("/{code}")

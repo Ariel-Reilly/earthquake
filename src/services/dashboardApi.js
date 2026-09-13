@@ -401,12 +401,11 @@ export const dashboardApi = {
     return response({ incidents: mock.seed.SEED_BASE.incidents });
   },
   getPersonnel: async () => {
-    // 生产模式：值守人员实时位置由移动端上报后端，此处仅透传（点 1、2）
     if (USE_BACKEND) {
       const data = await request(`/personnel/positions`);
       return Array.isArray(data) ? { list: data } : normalizePaged(data, []);
     }
-    return response({ list: mock.empty.emptyList() });
+    return response({ list: mock.runtime.getPersonnelListMock() });
   },
   closeIncident: async (id) => {
     requireBackend("关闭应急事件");
@@ -522,6 +521,92 @@ export const dashboardApi = {
     if (USE_BACKEND)
       {return request(`/inspection/hazard/${encodeURIComponent(hazardCode)}`);}
     return response(mock.empty.emptyList());
+  },
+
+  /**
+   * v1.9.0 P1：获取巡检上报接口的示例 payload（移动端联调参考）。
+   * GET /api/inspection/example
+   */
+  getInspectionExample: async () => {
+    if (USE_BACKEND) {return request("/inspection/example");}
+    return response(mock.empty.inspectionExampleFallback());
+  },
+
+  /**
+   * v1.9.0 P1：移动端位置上报（人员实时位置入 Redis，WebSocket 广播）。
+   * POST /api/personnel/positions/report
+   * @param {{userId: string, name?: string, lon: number, lat: number, taskCode?: string, hazardCode?: string, speed?: number, heading?: number}} payload
+   */
+  reportPersonnelPosition: async (payload = {}) => {
+    if (USE_BACKEND) {
+      return request("/personnel/positions/report", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+    }
+    return response(mock.runtime.reportPersonnelPositionMock(payload));
+  },
+
+  /**
+   * v1.7.0 P1：获取灾害点关联的全生命周期事件（统一事件中心）。
+   * 业务约束：hazard 是事件主实体，warning / emergency / inspection 是其子阶段。
+   *
+   * 实现要点：
+   *   - 演示模式从 seedState 直接过滤；
+   *   - 真实模式并发拉取 hazard 详情 / warnings / emergency，再用 hazardCode 客户端 join；
+   *     这样前端不依赖后端新增 /hazards/{id}/events 端点（P1 后端可在 v1.8 落库）。
+   *
+   * @param {string|number} hazardId
+   * @param {string} hazardCode  -- 已知的 hazardCode，省一次详情查询
+   * @returns {Promise<{
+   *   hazard: object|null,
+   *   warnings: Array,
+   *   emergencies: Array,
+   *   inspections: Array
+   * }>}
+   */
+  getRelatedEvents: async (hazardId, hazardCode) => {
+    let resolvedCode = hazardCode
+    let hazard = null
+    if (!USE_BACKEND) {
+      // 演示模式：seedState 直接定位（字段名 hazardPoints / incidents / tasks）
+      hazard = seedState.hazardPoints?.find(
+        (h) => String(h.id) === String(hazardId) || h.code === hazardCode,
+      ) ?? null
+      if (!resolvedCode) {resolvedCode = hazard?.code}
+      const warnings = (seedState.warnings ?? []).filter(
+        (w) => !resolvedCode || w.hazardCode === resolvedCode,
+      )
+      const emergencies = (seedState.incidents ?? []).filter(
+        (e) => !resolvedCode || e.hazardCode === resolvedCode,
+      )
+      const inspections = (seedState.tasks ?? []).filter(
+        (t) => !resolvedCode || t.hazardCode === resolvedCode,
+      )
+      return { hazard, warnings, emergencies, inspections }
+    }
+
+    // 真实模式：并发拉取 + 客户端 join
+    const [hazardDetail, warningsResp, emergencyResp] = await Promise.all([
+      resolvedCode
+        ? Promise.resolve(null)
+        : request(`/hazards/${hazardId}`).catch(() => null),
+      request(`/warnings?size=200`).catch(() => null),
+      request(`/emergency?size=200`).catch(() => null),
+    ])
+    if (!resolvedCode) {
+      hazard = hazardDetail?.item ?? hazardDetail ?? null
+      resolvedCode = hazard?.hazardCode ?? hazard?.code
+    }
+    const warningsRaw = warningsResp?.list ?? warningsResp?.records ?? []
+    const emergenciesRaw = emergencyResp?.incidents ?? emergencyResp?.records ?? []
+    const warnings = warningsRaw.filter(
+      (w) => !resolvedCode || w.hazardCode === resolvedCode,
+    )
+    const emergencies = emergenciesRaw.filter(
+      (e) => !resolvedCode || e.hazardCode === resolvedCode,
+    )
+    return { hazard, warnings, emergencies, inspections: [] }
   },
 
   /**
@@ -2072,4 +2157,227 @@ export const dashboardApi = {
   /** 兼容旧路径别名 */
   getZoneRelatedWarningsBy: (params) => dashboardApi.getZoneRelatedWarnings(params),
   getZoneRelatedEmergenciesBy: (params) => dashboardApi.getZoneRelatedEmergencies(params),
+
+  // =====================================================================
+  // v1.7.0+ P0 统一事件中心（Unified Event Center）
+  // ---------------------------------------------------------------------
+  // 后端：backend/src/main/java/cn/geosentry/event/
+  //   EventStateMachineConfig.java (7 状态 × 10 触发器)
+  //   EventStateController.java   (GET /api/event/active | /stats | /{code} | POST /{code}/transition)
+  //   UnifiedEventEntity.java     (跨 hazard/warning/emergency 三表的统一视图)
+  //
+  // 设计目标：把 hazard / warning / emergency 三个独立入口汇聚到同一个视图，
+  // 让用户从「AI 识别 → 人工确认 → 预警发布 → 应急处置 → 归档」全链路跟踪
+  // =====================================================================
+
+  /**
+   * 拉取统一事件列表（按 updated_at DESC 排序）。
+   * @param {Object} params
+   *   - type:      可选，HAZARD / WARNING / EMERGENCY —— 按关联实体类型过滤
+   *   - state:     可选，按状态过滤 (DETECTED/CONFIRMING/CONFIRMED/WARNING_ISSUED/EMERGENCY_ACTIVE/CLOSED/REJECTED)
+   *   - source:    可选，AI_AUTO / RULE_ENGINE / MANUAL
+   *   - keyword:   可选，模糊匹配 eventCode/title
+   *   - page/size: 分页
+   */
+  listUnifiedEvents: async (params = {}) => {
+    if (USE_BACKEND) {
+      const data = await request(`/event/list${withQuery(params)}`);
+      const list = Array.isArray(data) ? data : (data?.items ?? data?.records ?? []);
+      return {
+        items: list,
+        total: data?.total ?? list.length,
+        page: data?.page ?? 1,
+        size: data?.size ?? 20,
+        pages: data?.pages ?? 1,
+      };
+    }
+    return response(mock.workflow.getUnifiedEventsMock(params));
+  },
+
+  /**
+   * 各状态计数（KPI 仪表盘使用）。
+   * @returns {Promise<{DETECTED, CONFIRMING, CONFIRMED, WARNING_ISSUED, EMERGENCY_ACTIVE, CLOSED, REJECTED, total, active}>}
+   */
+  getUnifiedEventStats: async () => {
+    if (USE_BACKEND) {
+      const data = await request("/event/stats");
+      return data ?? {};
+    }
+    return response(mock.workflow.unifiedEventsStatsMock);
+  },
+
+  /**
+   * 单个事件详情（含 hazard/warning/emergency 三表关联）。
+   */
+  getUnifiedEventDetail: async (code) => {
+    if (USE_BACKEND) {
+      return request(`/event/${encodeURIComponent(code)}`);
+    }
+    return response(mock.workflow.getUnifiedEventDetailMock(code));
+  },
+
+  /**
+   * 触发状态流转（CONFIRM / REJECT / ISSUE_WARNING / TRIGGER_EMERGENCY / CLOSE 等）。
+   * 后端会通过 Spring StateMachine 校验跳转合法性。
+   * @param {string} code      事件号
+   * @param {Object} payload
+   *   - trigger:  EventTrigger 枚举字符串 (CONFIRM/REJECT/DISMISS/ISSUE_WARNING/TRIGGER_EMERGENCY/CLOSE/REOPEN/MANUAL_REPORT/START_CONFIRM/AI_DETECT)
+   *   - operator: 操作人
+   *   - reason:   原因（驳回/关闭时必填）
+   */
+  transitionUnifiedEvent: async (code, payload = {}) => {
+    requireBackend("触发事件状态流转");
+    return request(`/event/${encodeURIComponent(code)}/transition`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  /**
+   * 单个事件的可执行触发器（按当前状态动态计算）。
+   * 后端未提供独立端点时，前端按 EventStateMachineConfig 的转换规则本地计算。
+   * @param {string} code
+   */
+  getUnifiedEventAvailableTriggers: async (code) => {
+    // 后端暂无此端点 —— 复用 detail 接口，前端从 state 字段推断可用 triggers
+    const detail = await dashboardApi.getUnifiedEventDetail(code);
+    if (!detail) return [];
+    return dashboardApi.computeAvailableTriggers(detail.state);
+  },
+
+  /**
+   * 本地：根据 EventState 计算可用的 EventTrigger。
+   * 与 EventStateMachineConfig.java 保持完全一致。
+   */
+  computeAvailableTriggers: (currentState) => {
+    const MAP = {
+      DETECTED: [
+        { trigger: "AI_DETECT", label: "AI 复核", tone: "blue" },
+        { trigger: "MANUAL_REPORT", label: "人工上报", tone: "blue" },
+        { trigger: "DISMISS", label: "标记误报", tone: "gray" },
+      ],
+      CONFIRMING: [
+        { trigger: "CONFIRM", label: "确认签认", tone: "green" },
+        { trigger: "REJECT", label: "驳回", tone: "red" },
+        { trigger: "DISMISS", label: "标记误报", tone: "gray" },
+      ],
+      CONFIRMED: [
+        { trigger: "ISSUE_WARNING", label: "发布预警", tone: "orange" },
+        { trigger: "TRIGGER_EMERGENCY", label: "启动应急", tone: "red" },
+        { trigger: "DISMISS", label: "标记误报", tone: "gray" },
+      ],
+      WARNING_ISSUED: [
+        { trigger: "TRIGGER_EMERGENCY", label: "升级为应急", tone: "red" },
+        { trigger: "CLOSE", label: "解除预警", tone: "green" },
+      ],
+      EMERGENCY_ACTIVE: [
+        { trigger: "CLOSE", label: "应急闭环", tone: "green" },
+      ],
+      CLOSED: [
+        { trigger: "REOPEN", label: "重新打开", tone: "blue" },
+      ],
+      REJECTED: [
+        { trigger: "REOPEN", label: "重新打开", tone: "blue" },
+      ],
+    };
+    return MAP[currentState] ?? [];
+  },
+
+  /**
+   * 状态机可视化元数据（前端渲染 7 状态节点 + 转移箭头）。
+   * 与 EventStateMachineConfig.java 严格一致。
+   */
+  getStateMachineGraph: () => ({
+    states: [
+      { id: "DETECTED",          label: "已发现",      color: "#4f8f99", icon: "Eye" },
+      { id: "CONFIRMING",        label: "确认中",      color: "#e0a050", icon: "ClipboardCheck" },
+      { id: "CONFIRMED",         label: "已确认",      color: "#638fc2", icon: "CheckCircle2" },
+      { id: "WARNING_ISSUED",    label: "预警发布",    color: "#d88561", icon: "Bell" },
+      { id: "EMERGENCY_ACTIVE",  label: "应急处置",    color: "#e06060", icon: "Truck" },
+      { id: "CLOSED",            label: "已关闭",      color: "#9baead", icon: "Archive" },
+      { id: "REJECTED",          label: "已驳回",      color: "#7a8d89", icon: "XCircle" },
+    ],
+    transitions: [
+      { from: "DETECTED",         to: "CONFIRMING",       trigger: "AI_DETECT/MANUAL_REPORT" },
+      { from: "DETECTED",         to: "CLOSED",           trigger: "DISMISS" },
+      { from: "CONFIRMING",       to: "CONFIRMED",        trigger: "CONFIRM" },
+      { from: "CONFIRMING",       to: "REJECTED",         trigger: "REJECT" },
+      { from: "CONFIRMING",       to: "CLOSED",           trigger: "DISMISS" },
+      { from: "CONFIRMED",        to: "WARNING_ISSUED",   trigger: "ISSUE_WARNING" },
+      { from: "CONFIRMED",        to: "EMERGENCY_ACTIVE", trigger: "TRIGGER_EMERGENCY" },
+      { from: "CONFIRMED",        to: "CLOSED",           trigger: "DISMISS" },
+      { from: "WARNING_ISSUED",   to: "EMERGENCY_ACTIVE", trigger: "TRIGGER_EMERGENCY" },
+      { from: "WARNING_ISSUED",   to: "CLOSED",           trigger: "CLOSE" },
+      { from: "EMERGENCY_ACTIVE", to: "CLOSED",           trigger: "CLOSE" },
+      { from: "CLOSED",           to: "WARNING_ISSUED",   trigger: "REOPEN" },
+    ],
+  }),
+
+  // ==================== P1 灾害预测 + 损失评估 ====================
+
+  /**
+   * 时序预测（自动从 DB 拉取历史数据）。
+   * GET /api/ai/forecast/auto
+   * @param {{deviceCode: string, metric?: string, horizon?: number, historyLimit?: number}} params
+   * @returns {Promise<{deviceCode, metric, horizon, predictions: number[], confidence: number, model: string, degraded: boolean}>}
+   */
+  getDisasterForecast: async ({ deviceCode, metric = 'displacement', horizon = 24, historyLimit = 30 } = {}) => {
+    if (USE_BACKEND) {
+      return request(`/ai/forecast/auto${withQuery({ deviceCode, metric, horizon, historyLimit })}`);
+    }
+    return response(mock.ai.getDisasterForecastMock({ deviceCode, metric, horizon, historyLimit }));
+  },
+
+  /**
+   * 融合预警（自动聚合 DB 因子）。
+   * GET /api/ai/fusion-risk/auto?hazardCode=xxx
+   * @param {string} hazardCode
+   * @returns {Promise<{hazardCode, riskLevel: 'LOW'|'MEDIUM'|'HIGH'|'CRITICAL', riskScore: number, confidence: number, model: string, degraded: boolean}>}
+   */
+  getFusionRisk: async (hazardCode) => {
+    if (USE_BACKEND) {
+      return request(`/ai/fusion-risk/auto${withQuery({ hazardCode })}`);
+    }
+    return response(mock.ai.getFusionRiskMock(hazardCode));
+  },
+
+  /**
+   * 单独灾害评估（基于 hazardCode + DB 因子聚合）。
+   * GET /api/ai/disaster-assessment?hazardCode=xxx
+   * @param {string} hazardCode
+   * @returns {Promise<DisasterAssessmentResponseDto>}
+   */
+  getDisasterAssessment: async (hazardCode) => {
+    if (USE_BACKEND) {
+      return request(`/ai/disaster-assessment${withQuery({ hazardCode })}`);
+    }
+    return response(mock.ai.getDisasterAssessmentMock(hazardCode));
+  },
+
+  /**
+   * 灾害评估字典自检（六大灾种 / 四级风险 / 关注标签）。
+   * GET /api/ai/disaster-assessment/status
+   */
+  getDisasterAssessmentStatus: async () => {
+    if (USE_BACKEND) {
+      return request("/ai/disaster-assessment/status");
+    }
+    return response(mock.ai.disasterAssessmentStatusMock);
+  },
+
+  /**
+   * 全国独立测算（不依赖已知灾害点，基于坐标 + 可选天气/地理因子）。
+   * POST /api/ai/disaster-assessment/independent
+   * @param {{points: Array<{lon: number, lat: number, regionCode?: string, regionName?: string, rainfall24h?: number, rainfall7d?: number, temperature?: number, humidity?: number, elevationM?: number, slopeDeg?: number, soilGrade?: number, vegetationCover?: number, distanceToWaterM?: number, geologyGrade?: number, geologyLabel?: string}>, minRiskLevel?: string, mockWeather?: boolean}} payload
+   * @returns {Promise<{totalPoints: number, detectedCount: number, results: IndependentResultDto[], executionMs: number}>}
+   */
+  runIndependentAssessment: async (payload = {}) => {
+    if (USE_BACKEND) {
+      return request("/ai/disaster-assessment/independent", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+    }
+    return response(mock.ai.runIndependentAssessmentMock(payload));
+  },
 };

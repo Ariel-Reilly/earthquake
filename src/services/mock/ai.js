@@ -171,3 +171,153 @@ export const trainingJobsMock = [];
 
 // AI 训练日志空壳
 export const trainingJobLogMock = { entries: [], cursor: null };
+
+// =====================================================================
+// P1 灾害预测 + 损失评估 mock
+// =====================================================================
+
+/**
+ * 时序预测 mock —— 基于 deviceCode + horizon 派生稳定序列
+ * 对应后端 ForecastResult
+ */
+export function getDisasterForecastMock({ deviceCode, metric = 'displacement', horizon = 24, historyLimit = 30 } = {}) {
+  const seed = seedFromId(deviceCode);
+  // 基础值 + 趋势 + 周期性
+  const base = 10 + (seed % 20);
+  const trend = 0.05;
+  const predictions = [];
+  for (let i = 0; i < horizon; i++) {
+    predictions.push(
+      parseFloat((base + trend * i + Math.sin(i * 0.4 + seed) * 1.5 + (Math.random() - 0.5) * 0.5).toFixed(3)),
+    );
+  }
+  return {
+    deviceCode: deviceCode || 'DEV-001',
+    metric,
+    horizon,
+    predictions,
+    confidence: parseFloat((0.72 + (seed % 20) / 100).toFixed(3)),
+    model: seed % 3 === 0 ? 'lstm-v1' : 'heuristic-moving-average',
+    degraded: seed % 3 === 0 ? false : true,
+  };
+}
+
+/**
+ * 融合风险 mock —— 对应后端 FusionRiskResult
+ */
+export function getFusionRiskMock(hazardCode) {
+  const seed = seedFromId(hazardCode);
+  const score = 20 + (seed % 60);
+  const level = score >= 75 ? 'CRITICAL' : score >= 55 ? 'HIGH' : score >= 35 ? 'MEDIUM' : 'LOW';
+  return {
+    hazardCode: hazardCode || 'HZ-001',
+    riskLevel: level,
+    riskScore: parseFloat(score.toFixed(1)),
+    confidence: parseFloat((0.70 + (seed % 25) / 100).toFixed(3)),
+    model: seed % 2 === 0 ? 'xgboost-fusion-v3' : 'heuristic-geo-weather',
+    degraded: seed % 2 === 0 ? false : true,
+  };
+}
+
+/**
+ * 灾害评估 mock —— 对应后端 DisasterAssessmentResponseDto
+ */
+export function getDisasterAssessmentMock(hazardCode) {
+  const seed = seedFromId(hazardCode);
+  const score = 15 + (seed % 75);
+  const riskLevel = score >= 75 ? 'CRITICAL' : score >= 55 ? 'HIGH' : score >= 35 ? 'MEDIUM' : 'LOW';
+  const concernLabel = { LOW: '稳定', MEDIUM: '关注', HIGH: '预警', CRITICAL: '异常严重' }[riskLevel];
+  const disasterTypes = ['滑坡', '崩塌', '泥石流', '地裂缝', '地面沉降', '塌陷'];
+  const type = disasterTypes[seed % disasterTypes.length];
+  const reasoning = [
+    `近 7 日累计降雨 ${(20 + seed % 80).toFixed(1)} mm，土壤含水量偏高`,
+    `坡度 ${(25 + seed % 45).toFixed(0)}°，属于${seed % 2 === 0 ? '中等' : '高易发'}坡度`,
+    `${type}历史记录 ${seed % 3 + 1} 次，区域风险累积`,
+  ];
+  const suggestedActions = [
+    '立即启动应急预案',
+    '加密地表位移监测频次',
+    '通知受威胁群众做好转移准备',
+    '调度救援队伍进入待命状态',
+  ];
+  return {
+    hazardCode: hazardCode || 'HZ-001',
+    overall: {
+      riskLevel,
+      riskScore: parseFloat(score.toFixed(1)),
+      confidence: parseFloat((0.68 + (seed % 28) / 100).toFixed(3)),
+      concernLabel,
+      model: seed % 3 === 0 ? 'xgb-seven-dimension-v2' : 'heuristic-seven-dimension',
+      mock: seed % 3 !== 0,
+      deviceAvailable: seed % 2 === 0,
+    },
+    disasterType: {
+      disasterType: type,
+      source: seed % 2 === 0 ? 'declared' : 'inferred',
+      confidence: parseFloat((0.65 + (seed % 30) / 100).toFixed(3)),
+      reason: `基于历史灾害记录与实时监测数据综合判定`,
+    },
+    dimensions: {
+      geographic: { score: parseFloat((30 + seed % 35).toFixed(1)), weight: 0.30 },
+      precipitation: { score: parseFloat((20 + seed % 50).toFixed(1)), weight: 0.25 },
+      sensor: { score: parseFloat((15 + seed % 60).toFixed(1)), weight: 0.20 },
+      historical: { score: parseFloat((25 + seed % 45).toFixed(1)), weight: 0.15 },
+      image: { score: parseFloat((10 + seed % 55).toFixed(1)), weight: 0.10 },
+    },
+    reasoning,
+    suggestedActions: suggestedActions.slice(0, 2 + (seed % 3)),
+    model: seed % 3 === 0 ? 'xgb-seven-dimension-v2' : 'heuristic-seven-dimension',
+    mock: seed % 3 !== 0,
+    deviceAvailable: seed % 2 === 0,
+  };
+}
+
+/**
+ * 灾害评估字典自检 mock —— 对应后端 status 字典
+ */
+export const disasterAssessmentStatusMock = {
+  disasterTypes: ['滑坡', '崩塌', '泥石流', '地裂缝', '地面沉降', '塌陷'],
+  concernLabels: { LOW: '稳定', MEDIUM: '关注', HIGH: '预警', CRITICAL: '异常严重' },
+  riskLevels: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'],
+};
+
+/**
+ * 全国独立测算 mock —— 对应后端 IndependentAssessmentResponseDto
+ */
+export function runIndependentAssessmentMock(payload = {}) {
+  const points = payload?.points ?? [];
+  const results = points.map((pt, i) => {
+    const seed = seedFromId(`${pt.lon}-${pt.lat}`);
+    const score = 10 + (seed % 80);
+    const riskLevel = score >= 75 ? 'CRITICAL' : score >= 55 ? 'HIGH' : score >= 35 ? 'MEDIUM' : 'LOW';
+    return {
+      lon: pt.lon,
+      lat: pt.lat,
+      regionCode: pt.regionCode || null,
+      regionName: pt.regionName || null,
+      riskLevel,
+      riskScore: parseFloat(score.toFixed(1)),
+      concernLabel: { LOW: '稳定', MEDIUM: '关注', HIGH: '预警', CRITICAL: '异常严重' }[riskLevel],
+      disasterType: ['滑坡', '崩塌', '泥石流', '地裂缝', '待定'][seed % 5],
+      confidence: parseFloat((0.60 + (seed % 35) / 100).toFixed(3)),
+      geographicScore: parseFloat((20 + seed % 55).toFixed(1)),
+      precipitationScore: parseFloat((15 + (seed >> 1) % 60).toFixed(1)),
+      deviceAvailable: seed % 2 === 0,
+      reasoning: [
+        `坐标 [${pt.lon.toFixed(3)}, ${pt.lat.toFixed(3)}] 综合风险评分 ${score.toFixed(1)}`,
+        `地形因子得分 ${(20 + seed % 55).toFixed(1)}，降水因子得分 ${(15 + (seed >> 1) % 60).toFixed(1)}`,
+      ],
+      suggestedActions: score >= 55
+        ? ['启动预警发布流程', '通知应急指挥']
+        : ['持续监测'],
+      model: seed % 4 === 0 ? 'xgb-seven-dimension-v2' : 'heuristic-seven-dimension',
+      mockWeatherUsed: payload?.mockWeather !== false,
+    };
+  });
+  return {
+    totalPoints: points.length,
+    detectedCount: results.filter((r) => r.riskLevel !== 'LOW').length,
+    results,
+    executionMs: 50 + points.length * 8,
+  };
+}

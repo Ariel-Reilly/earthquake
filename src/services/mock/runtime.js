@@ -471,3 +471,43 @@ export function getZoneRelatedEmergenciesMock({ region = "all" } = {}) {
     startedAt: e.startedAt ?? new Date().toISOString(),
   }));
 }
+
+// =====================================================================
+// v1.9.0 P1：人员位置上报 mock（前端演示用，无后端时模拟 Redis 写入成功）
+// =====================================================================
+
+export function reportPersonnelPositionMock(payload = {}) {
+  return {
+    accepted: true,
+    cached: true,
+    recordedAt: new Date().toISOString(),
+    position: {
+      id: payload.userId,
+      name: payload.name ?? payload.userId,
+      lon: payload.lon,
+      lat: payload.lat,
+      taskCode: payload.taskCode ?? null,
+      hazardCode: payload.hazardCode ?? null,
+      speed: payload.speed ?? null,
+      heading: payload.heading ?? null,
+      status: "在线",
+      lastSeen: new Date().toISOString(),
+    },
+  };
+}
+
+// =====================================================================
+// v1.9.0 P1：人员列表 mock（Redis + DB 双源 fallback 时使用）
+// =====================================================================
+
+const PERSONNEL_DEMO = [
+  { id: "周小雨", name: "周小雨", role: "值班员", status: "巡检中", taskCode: "TK-001", taskName: "HZ-LA-001 巡检", hazardCode: "HZ-LA-001", lon: 118.542, lat: 30.128, region: "龙安镇", speed: 1.2 },
+  { id: "王建国", name: "王建国", role: "现场运维", status: "巡检中", taskCode: "TK-002", taskName: "HZ-LA-002 巡查", hazardCode: "HZ-LA-002", lon: 107.214, lat: 30.612, region: "石桥镇", speed: 0.8 },
+  { id: "陈晓峰", name: "陈晓峰", role: "值班员", status: "待出发", taskCode: "TK-003", taskName: "HZ-LA-003 待派", hazardCode: "HZ-LA-003", lon: 118.873, lat: 30.974, region: "清河镇", speed: 0 },
+  { id: "李宇航", name: "李宇航", role: "应急指挥", status: "在线", taskCode: null, taskName: "指挥调度", hazardCode: null, lon: 118.602, lat: 30.203, region: "指挥中心", speed: 0 },
+  { id: "张丽华", name: "张丽华", role: "领域专家", status: "在线", taskCode: null, taskName: "远程会商", hazardCode: null, lon: 118.487, lat: 30.083, region: "专家坐席", speed: 0 },
+];
+
+export function getPersonnelListMock() {
+  return PERSONNEL_DEMO.map((p) => ({ ...p, lastSeen: new Date().toISOString() }));
+}

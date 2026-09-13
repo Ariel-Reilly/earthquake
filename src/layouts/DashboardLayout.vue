@@ -6,6 +6,7 @@ import {
   AlertTriangle,
   BarChart3,
   Bell,
+  BellRing,
   BrainCircuit,
   ChevronDown,
   ChevronRight,
@@ -18,35 +19,48 @@ import {
   FileBarChart,
   FileSignature,
   FileText,
+  FileWarning,
+  GitMerge,
+  Globe2,
   HardDrive,
+  HardHat,
+  HelpCircle,
   History,
   Inbox,
   Layers,
   LayoutDashboard,
+  LifeBuoy,
   ListChecks,
   LogOut,
   Map as MapIcon,
   MapPin,
+  MessageCircle,
   MessageSquare,
   Mountain,
   Package,
   Radio,
+  Route,
   ScrollText,
   Search,
   Settings,
   ShieldCheck,
   Sparkles,
   Truck,
+  TrendingUp,
+  UserCheck,
+  UserCircle,
   Users,
 } from 'lucide-vue-next'
 import { dashboardMenu, NAV_GROUPS, moduleMeta } from '../data/dashboardData'
 import PermissionButton from '../components/PermissionButton.vue'
 import FormModal from '../components/FormModal.vue'
 import AppFeedback from '../components/AppFeedback.vue'
+import ServiceHealthBanner from '../components/ServiceHealthBanner.vue'
 import AnimatedSidebarBackground from '../components/AnimatedSidebarBackground.vue'
 import AnimatedDashboardBackground from '../components/AnimatedDashboardBackground.vue'
 import { dashboardApi, logoutRequest } from '../services/dashboardApi'
 import { stopRealtimeSync } from '../services/realtimeService'
+import { startAiHealthCheck, stopAiHealthCheck } from '../services/_architecture/core/healthService'
 import { clearAuthSession, getAllowedMenuPaths, getAuthUser, getRoleLabel, hasPermission } from '../stores/auth'
 
 const route = useRoute()
@@ -104,17 +118,16 @@ const groupedMenu = computed(() => {
 })
 
 const iconComponentMap = {
-  LayoutDashboard,
-  ListChecks,
-  Bell,
-  ShieldCheck,
-  Mountain,
-  Radio,
-  Settings,
   Activity,
   AlertTriangle,
   BarChart3,
+  Bell,
+  BellRing,
   BrainCircuit,
+  ChevronDown,
+  ChevronRight,
+  ChevronsLeft,
+  CircleHelp,
   ClipboardCheck,
   Cloud,
   CloudRain,
@@ -122,16 +135,34 @@ const iconComponentMap = {
   FileBarChart,
   FileText,
   FileSignature,
+  FileWarning,
+  GitMerge,
+  Globe2,
   HardDrive,
+  HardHat,
+  HelpCircle,
   History,
   Inbox,
   Layers,
+  LayoutDashboard,
+  LifeBuoy,
+  ListChecks,
+  LogOut,
   Map: MapIcon,
   MapPin,
+  MessageCircle,
   MessageSquare,
+  Mountain,
   Package,
+  Radio,
+  Route,
+  Settings,
+  ShieldCheck,
   Sparkles,
   Truck,
+  TrendingUp,
+  UserCheck,
+  UserCircle,
   Users,
   ScrollText,
 }
@@ -367,17 +398,21 @@ onMounted(() => {
   // 动态红点：进入页面拉一次，此后每 60s 拉一次
   refreshDynamicBadges()
   badgeTimer = window.setInterval(refreshDynamicBadges, 60_000)
+  // P1：启动 AI 服务健康探活（30s 一次，连续 3 次失败进入 down 态触发横幅）
+  startAiHealthCheck({ interval: 30_000, immediate: true })
 })
 
 onBeforeUnmount(() => {
   window.clearInterval(timerId)
   window.clearInterval(badgeTimer)
   window.clearTimeout(feedbackTimer)
+  stopAiHealthCheck()
 })
 </script>
 
 <template>
   <div class="app-shell">
+    <ServiceHealthBanner />
     <aside class="sidebar" :class="{ collapsed: sidebarCollapsed }">
       <AnimatedSidebarBackground />
       <div class="sidebar-content">

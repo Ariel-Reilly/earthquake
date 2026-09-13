@@ -186,6 +186,65 @@ public class EventStateService {
     return repository.findByStateNotIn(List.of(EventState.CLOSED, EventState.REJECTED));
   }
 
+  /**
+   * v1.7.0+ P3-4：按 hazard_code 反查 unified_event，给 HazardService 装配 eventCode / eventState 使用。
+   * 正常情况下每个 hazard_code 只对应一条事件记录（创建时 1:1 写入）。
+   */
+  public List<UnifiedEventEntity> findByHazardCode(String hazardCode) {
+    if (hazardCode == null || hazardCode.isBlank()) {
+      return List.of();
+    }
+    return repository.findByHazardCode(hazardCode);
+  }
+
+  /**
+   * 按"事件类型"过滤列表。type ∈ {HAZARD, WARNING, EMERGENCY}。
+   * 当前实现在内存里过滤（数据量小），后续可下沉到 Repository 的 @Query。
+   *
+   * @param type      类型过滤；null/空 = 全部
+   * @param keyword   事件号/标题模糊匹配
+   * @param state     状态过滤；null = 全部
+   */
+  public List<UnifiedEventEntity> listByType(String type, String keyword, EventState state) {
+    List<UnifiedEventEntity> all = repository.findAll();
+    return all.stream()
+        .filter(e -> matchesType(e, type))
+        .filter(e -> state == null || e.getState() == state)
+        .filter(e -> matchesKeyword(e, keyword))
+        .sorted((a, b) -> {
+          OffsetDateTime ta = a.getUpdatedAt() == null ? a.getCreatedAt() : a.getUpdatedAt();
+          OffsetDateTime tb = b.getUpdatedAt() == null ? b.getCreatedAt() : b.getUpdatedAt();
+          if (ta == null && tb == null) return 0;
+          if (ta == null) return 1;
+          if (tb == null) return -1;
+          return tb.compareTo(ta);
+        })
+        .toList();
+  }
+
+  private boolean matchesType(UnifiedEventEntity e, String type) {
+    if (type == null || type.isBlank()) return true;
+    return switch (type.toUpperCase()) {
+      case "HAZARD" -> e.getHazardCode() != null && !e.getHazardCode().isBlank();
+      case "WARNING" -> e.getWarningCode() != null && !e.getWarningCode().isBlank();
+      case "EMERGENCY" -> e.getEmergencyCode() != null && !e.getEmergencyCode().isBlank();
+      default -> true;
+    };
+  }
+
+  private boolean matchesKeyword(UnifiedEventEntity e, String keyword) {
+    if (keyword == null || keyword.isBlank()) return true;
+    String k = keyword.trim().toLowerCase();
+    return contains(e.getEventCode(), k)
+        || contains(e.getTitle(), k)
+        || contains(e.getHazardCode(), k)
+        || contains(e.getWarningCode(), k);
+  }
+
+  private boolean contains(String value, String keyword) {
+    return value != null && value.toLowerCase().contains(keyword);
+  }
+
   private String generateEventCode() {
     String date = OffsetDateTime.now().toLocalDate().toString().replace("-", "");
     String suffix = UUID.randomUUID().toString().substring(0, 4).toUpperCase();

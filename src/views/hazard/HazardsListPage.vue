@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   Database,
+  GitBranch,
   Gauge,
   Layers3,
   MapPin,
@@ -56,6 +57,20 @@ async function changePage(step) {
 function openRouteDetail() {
   if (!selected.value) return
   router.push(`/dashboard/hazards/${selected.value.id}`)
+}
+
+/**
+ * v1.7.0+ P3-4：跳转到对应的统一事件详情。
+ * HazardDto 已携带 eventCode（来自 unified_event.eventCode）。
+ */
+function openEventOverview() {
+  if (!selected.value) return
+  const code = selected.value.eventCode
+  if (!code) {
+    emit('notify', '该灾害点尚未关联统一事件（可能未走 AI / 人工新建流程）')
+    return
+  }
+  router.push({ path: '/dashboard/events', query: { code } })
 }
 
 function createTaskForSelected() {
@@ -246,6 +261,14 @@ function fmtRelTime(iso) {
           </div>
         </div>
         <div class="heading-actions" style="padding: 0 20px 18px; justify-content: flex-end;">
+          <button
+            v-if="selected.eventCode"
+            class="secondary-btn"
+            @click="openEventOverview"
+            title="查看完整事件全貌（血缘、状态机）"
+          >
+            <GitBranch :size="14" /> 查看事件全貌
+          </button>
           <button class="secondary-btn" @click="createTaskForSelected">创建任务</button>
           <PermissionButton permission="hazards:delete" :icon="Trash2" @click="({ allowed, reason }) => allowed ? emit('notify', `已删除 ${selected?.name}`) : emit('notify', reason)">删除</PermissionButton>
           <PermissionButton permission="hazards:export" :icon="Database" @click="({ allowed, reason }) => allowed ? emit('notify', '已生成灾害点巡检记录') : emit('notify', reason)">导出</PermissionButton>
@@ -265,10 +288,48 @@ function fmtRelTime(iso) {
       <label>空间坐标<input :value="`${selected.lon}, ${selected.lat}`" readonly /></label>
       <label>当前状态<input :value="selected.status" readonly /></label>
       <label>风险等级<input :value="selected.level" readonly /></label>
+      <!-- v1.7.0+ P3-4：显示统一事件号 + 跳转按钮 -->
+      <label v-if="selected.eventCode">
+        <span>统一事件号</span>
+        <input :value="selected.eventCode" readonly />
+        <small class="event-state-tag" :data-state="selected.eventState">
+          {{ selected.eventState || '—' }}
+        </small>
+      </label>
       <div class="modal-foot">
         <button class="secondary-btn" @click="closeDrawer">关闭</button>
+        <button
+          v-if="selected.eventCode"
+          class="secondary-btn"
+          @click="openEventOverview"
+          title="查看完整事件全貌（血缘、状态机）"
+        >
+          <GitBranch :size="14" /> 查看事件全貌
+        </button>
         <button class="primary-btn" @click="openRouteDetail">查看完整档案</button>
       </div>
     </div>
   </div>
 </template>
+
+<style scoped>
+.event-state-tag {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  font-family: ui-monospace, monospace;
+  background: rgba(79, 143, 153, 0.12);
+  color: #4f8f99;
+}
+.event-state-tag[data-state="DETECTED"]          { background: rgba(79, 143, 153, 0.12); color: #4f8f99; }
+.event-state-tag[data-state="CONFIRMING"]        { background: rgba(224, 160, 80, 0.14); color: #9b761e; }
+.event-state-tag[data-state="CONFIRMED"]         { background: rgba(99, 143, 194, 0.12); color: #2b6cb0; }
+.event-state-tag[data-state="WARNING_ISSUED"]    { background: rgba(216, 133, 97, 0.14); color: #c7553b; }
+.event-state-tag[data-state="EMERGENCY_ACTIVE"]  { background: rgba(224, 96, 96, 0.12); color: #e06060; }
+.event-state-tag[data-state="CLOSED"]            { background: rgba(155, 174, 173, 0.18); color: #5a6a68; }
+.event-state-tag[data-state="REJECTED"]          { background: rgba(122, 141, 137, 0.18); color: #7a8d89; }
+</style>
