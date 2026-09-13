@@ -1,6 +1,6 @@
 # 地脉智巡 · 地质灾害智能巡检与预警管理平台
 
-> Geohazard Inspection Dashboard (GeoSentry) · v1.7.0+
+> Geohazard Inspection Dashboard (GeoSentry) · v1.7.0
 
 基于 **Spring Boot 3 + Vue 3 + FastAPI** 的一体化地质灾害监测、巡检、预警与应急响应平台。
 
@@ -10,11 +10,11 @@
 
 - 🛰️ **多源数据融合** — Sentinel-1/2、Landsat、ERA5、GPM、SMAP、IoT 传感器、社交媒体
 - 🤖 **AI 智能研判** — YOLOv8 检测、LSTM 时序预测、XGBoost 融合评分、Isolation Forest 异常检测、模型漂移监控
-- 🌐 **统一事件状态机** — 跨 hazard / warning / emergency 的 7 状态 × 12 转移全链路闭环
+- 🌐 **统一事件中心** — 跨 hazard / warning / emergency 的 7 状态 × 12 转移，`EventCenterPage` 可视化 + `EventDetailDrawer` 详情回放
 - 📱 **多端适配** — Web 仪表盘 / 指挥大屏（`/screen`）/ 移动指挥终端（`/mobile`，PWA）
-- 🔐 **细粒度权限** — 7 角色 × 50+ 模块 × 4 操作（view/create/edit/delete）
+- 🔐 **细粒度权限** — 7 角色 × 34 模块 × 4 操作（view/create/edit/delete），`UserManagementPage` 内置权限矩阵
 - ⚡ **实时推送** — WebSocket（一次性 ticket 鉴权）+ EMQX MQTT 设备接入
-- 📑 **57 条业务路由** — 覆盖监测、AI、预警、应急、数据、系统全业务域
+- 📑 **57 条业务路由 / 54 个页面** — 覆盖监测、AI、预警、应急、数据、系统全业务域
 
 ---
 
@@ -32,6 +32,12 @@
 .\start-dev.ps1 -Backend
 .\start-dev.ps1 -Ai
 .\start-dev.ps1 -Frontend
+
+# 3. 健康度速览（端口 / Docker / Git）
+.\start-dev.ps1 -Status
+
+# 4. 常见问题诊断
+.\start-dev.ps1 -Doctor
 ```
 
 #### Linux / macOS / WSL
@@ -42,6 +48,8 @@ chmod +x start-dev.sh
 ./start-dev.sh backend    # 终端 1
 ./start-dev.sh ai         # 终端 2
 ./start-dev.sh frontend   # 终端 3
+./start-dev.sh status     # 健康度速览
+./start-dev.sh doctor     # 诊断常见问题
 ```
 
 ### 方法 2：Docker Compose（一体化）
@@ -133,31 +141,32 @@ docker compose up -d
 ```
 earthquake/
 ├── src/                          # 前端 Vue 3 源码
-│   ├── views/                    # 50+ 业务页面，按域分子目录
-│   │   ├── ai/                   # AI 研判 / 结果 / 模型
-│   │   ├── data/                 # 数据源 / 同步 / 目录
+│   ├── views/                    # 54 个业务页面，按域分子目录
+│   │   ├── ai/                   # AI 研判 / 结果 / 模型 / 灾损 / 预测 / 舆情
+│   │   ├── data/                 # 统计 / 目录 / 数据源 / 同步
 │   │   ├── device/               # 设备管理 / OTA
-│   │   ├── hazard/               # 灾害事件 / 人工确认
-│   │   ├── monitor/              # 实时地图 / 时相对比 / 气象
-│   │   ├── screen/               # 指挥大屏
+│   │   ├── hazard/               # 灾害事件 / 确认 / 巡检 / 会签
+│   │   ├── monitor/              # 实时地图 / 时相对比 / 气象 / 区域专项 / 设备地图
+│   │   ├── screen/               # 指挥大屏（CommandScreenPage）
 │   │   ├── settings/             # 个人设置 / 账号安全
-│   │   ├── system/               # 用户 / 审计 / 消息 / 审批
-│   │   ├── warning/              # 预警 / 应急 / 资源调度
-│   │   ├── mobile/               # 移动端入口
+│   │   ├── system/               # 用户 / 审计 / 消息 / 审批 / 事件中心 / 帮助 / 渠道
+│   │   ├── warning/              # 预警 / 应急 / 资源调度 / 路径规划
+│   │   ├── mobile/               # 移动指挥终端（PWA）
 │   │   ├── OverviewPage.vue      # 综合态势大屏
 │   │   ├── WelcomePage.vue       # 登录
 │   │   ├── ForbiddenPage.vue     # 403
 │   │   └── ServerErrorPage.vue   # 500
-│   ├── components/               # 26 个通用组件
-│   ├── composables/              # 复用逻辑
-│   ├── data/                     # 静态配置 + 菜单元数据
+│   ├── components/               # 通用组件（含 event/ / profile/ / rule/ 等子目录）
+│   ├── composables/              # 复用逻辑（useOverviewSearch 等）
+│   ├── data/                     # 静态配置 + 菜单元数据（dashboardData.js）
 │   ├── layouts/                  # DashboardLayout.vue
 │   ├── router/                   # 57 条业务路由
 │   ├── services/                 # 业务服务层
 │   │   ├── _architecture/        # 新版分层结构
-│   │   │   ├── core/             # httpClient / realtime / map / geocode / health
+│   │   │   ├── core/             # httpClient / realtime / map / geocode / health / sentinel
 │   │   │   └── domain/           # 各业务域服务（hazard/warning/ai/...）
-│   │   └── mock/                 # 离线 mock 数据
+│   │   ├── dashboardApi.js       # 统一 API 入口（按域聚合）
+│   │   └── mock/                 # 离线 mock 数据（按域可独立切换）
 │   ├── stores/                   # Pinia store（auth / realtime / userPreference）
 │   └── utils/                    # 工具函数（坐标转换 / 格式化）
 ├── backend/                      # Spring Boot 后端
@@ -180,21 +189,21 @@ earthquake/
 │       ├── models/               # 模型推理
 │       ├── schemas/              # Pydantic schema
 │       └── training/             # 训练流水线
-├── scripts/                      # 维护脚本（10 个）
-│   ├── audit_db.py               # 数据库审计
-│   ├── backfill_unified_event_hazards.py  # 事件数据回填
-│   ├── smoke_test_schema.py      # Schema 烟雾测试
-│   ├── gen_data_sql.py           # 生成 seed 数据
-│   ├── diagnose-schema-drift.ps1 # 诊断 Schema 漂移
-│   ├── fix-db-volume.ps1         # 修复 DB 数据卷
-│   ├── rewrite-operation-log.ps1 # 重写审计日志
-│   ├── check-vue.cjs             # Vue 文件静态检查
-│   ├── check_jsonb_sql.py        # data.sql JSONB 校验
-│   └── oneclick-fix.mjs          # 一键修复
+├── scripts/                      # 维护脚本（8 个）
+│   ├── audit_db.py               # 数据库 schema 审计（字段 / 索引 / 关系 / JSONB）
+│   ├── backfill_unified_event_hazards.py  # 统一事件中心历史数据回填
+│   ├── smoke_test_schema.py      # 启动前 schema 健康检查
+│   ├── gen_data_sql.py           # 生成 seed 数据 SQL
+│   ├── diagnose-schema-drift.ps1 # 诊断 DB schema 与 schema.sql 漂移
+│   ├── fix-db-volume.ps1         # 重建 Postgres 数据卷（漂移严重时）
+│   ├── check_jsonb_sql.py        # data.sql JSONB 字面量校验
+│   └── oneclick-fix.mjs          # 一键修复脚本（==/!= → ===/!==，由 `npm run fix` 调用）
 ├── docs/                         # 开发者文档
 │   ├── ARCHITECTURE.md
 │   ├── DEVELOPER.md
-│   └── UNIFIED_EVENT_STATEMACHINE.md
+│   ├── UNIFIED_EVENT_STATEMACHINE.md
+│   └── archive/
+│       └── STRUCTURE_OPTIMIZATION_PLAN.md   # 历史重构方案（已落地，仅留档）
 ├── infra/                        # 基础设施初始化
 │   ├── emqx/                     # EMQX 认证
 │   ├── nginx/                    # 生产 Nginx

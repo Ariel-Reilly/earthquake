@@ -7,6 +7,30 @@
 
 ## [Unreleased]
 
+### 🔧 优化（Step 9 — 二次清理 + 文档同步）
+- 清理冗余脚本与历史快照：
+  - 删除 `scripts/rewrite-operation-log.ps1`（一次性迁移工具，已完成使命）
+  - 删除 `scripts/check-vue.cjs`（一次性 Vue 语法检查脚本）
+  - 删除 `ai-service/models/history/xgboost_fusion-20260907-062517.json`（与现役模型重复的旧快照）
+  - 删除本地 `logs/`、`backend/logs/`、`backend/.github/modernize/` 等 AI 工具 / 开发期残留目录
+- `.gitignore` 增补规则：
+  - `.github/` / `backend/.github/`（Copilot App Modernization 等 AI 工具运行时产物）
+  - `ai-service/models/history/`（模型历史快照目录）
+- 文档同步：
+  - `README.md` 更新项目结构（`scripts/` 8 项、`views/` 54 项、组件目录、`_architecture/` 子目录）
+  - `README.md` 特性列表去重并细化权限矩阵（7 角色 × 34 模块）
+  - `start-dev.ps1` / `start-dev.sh` 增加 `status` 子命令（健康度速览）
+  - `docs/DEVELOPER.md` 顶部时间戳 + §28「项目结构与清理」章节
+  - `CHANGELOG.md` 新增本次清理条目（本文档）
+
+### 📝 文档
+- 维护脚本总数：**8 → 8**（删 2 旧 + 新增说明）
+- 模型历史快照：已统一忽略，避免下次训练误提交
+
+---
+
+## [Unreleased — Step 6/7/8 累计]
+
 ### ✨ 新增
 - **移动端指挥入口**（`/mobile`）— PWA 极简指挥界面，支持 KPI 看板、待办一键审批、预警一键发布/解除、视频会商、离线检测
 - **社交媒体舆情监测**（`/dashboard/social-media`）— 微博/微信/Twitter/抖音多平台聚合、关键词监控、情感分析、疑似灾害线索提取

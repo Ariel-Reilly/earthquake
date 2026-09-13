@@ -2,6 +2,7 @@
 
 > 地质灾害点智能巡检与预警管理平台（Geohazard Inspection Dashboard）
 > 本文档面向参与本项目的开发者，覆盖架构、代码组织、核心模块、接口、数据库、部署与二次开发指南。
+> 最近更新：2026-09-13（Step 9：二次清理 + 文档同步）
 
 ---
 
@@ -34,9 +35,10 @@
 25. [AI 实时灾害监测 v1.6.0/v1.7.0 —— 全国版](#25-ai-实时灾害监测-v160v170--全国版)
 26. [多源外部数据接入 v1.7.0 —— 真实免费 API](#26-多源外部数据接入-v170--真实免费-api)
 27. [审计日志归档 v1.6.0 —— PostgreSQL 函数化归档](#27-审计日志归档-v160--postgresql-函数化归档)
+28. [项目结构与清理规范（v1.7.0 Step 6/9）](#28-项目结构与清理规范v170-step-69)
 
 > 本文档基于仓库 v1.7.0 当前代码整理，随项目迭代请同步更新。
-> 章节 §1–§15 为核心开发文档，§16–§27 为按版本新增的特性专题章节（v1.4.0+ 演进）。
+> 章节 §1–§15 为核心开发文档，§16–§27 为按版本新增的特性专题章节（v1.4.0+ 演进），§28 为项目结构维护规范。
 
 ---
 
@@ -3571,6 +3573,149 @@ GROUP BY module_name ORDER BY 2 DESC;
 | PostgreSQL 函数归档（当前） | 简单可靠，原生 SQL 性能好 | 仍占用 PG 存储 | ✅ v1.6.0 已落地 |
 | 定时归档到 S3 / MinIO Parquet | 长期存储成本低，可对接 ClickHouse/BigQuery | 增加 ETL 复杂度 | 📋 规划中 |
 | 替换为 ELK / Loki 等专用日志系统 | 全文检索 + 可视化 | 引入新组件 | 📋 规划中 |
+
+---
+
+## 28. 项目结构与清理规范（v1.7.0 Step 6/9）
+
+> 自 v1.7.0 起，前端按域拆分（`views/ai|hazard|...`）、服务按 `_architecture/core|domain` 分层、Pinia 接管业务域 store、单页 80KB 的 `dashboardApi.js` 收敛到分层聚合器；本节定义这套结构如何长期维护、什么文件该留在仓库、什么该被 `.gitignore` 拒绝。
+
+### 28.1 前端目录分层（v1.7.0 目标结构）
+
+```
+src/
+├── views/
+│   ├── ai/         data/       device/      hazard/     monitor/
+│   ├── screen/     settings/   system/      warning/    mobile/
+│   ├── OverviewPage.vue         # 跨域总览页
+│   ├── WelcomePage.vue          # 登录
+│   ├── ForbiddenPage.vue        # 403
+│   └── ServerErrorPage.vue      # 500
+├── components/                  # 通用组件（含 event/ profile/ rule/ 子目录）
+├── composables/                 # 复用逻辑（useOverviewSearch 等）
+├── data/dashboardData.js        # 菜单 / topbar eyebrow 唯一来源
+├── layouts/DashboardLayout.vue  # 路由布局
+├── router/index.js              # 57 条业务路由 + 权限 meta
+├── services/
+│   ├── _architecture/
+│   │   ├── core/                # httpClient / realtime / map / geocode / health / sentinel
+│   │   └── domain/              # 各业务域薄封装（hazard/warning/ai/...）
+│   ├── dashboardApi.js          # 唯一对 View 暴露的入口
+│   └── mock/                    # 离线 mock（按域可独立切换）
+├── stores/                      # auth / realtime / userPreference（Pinia）
+└── utils/                       # 坐标转换 / 格式化
+```
+
+**红线**：
+
+- ❌ 不在 `views/` 直接 `import axios` —— 走 `services/_architecture/domain/*`
+- ❌ 不在 View 里写跨页 state —— 提到 `stores/`（Pinia）或 `composables/`
+- ❌ 不在 `src/services/` 顶层新增 `xxxService.js` —— 全部下沉到 `_architecture/`
+- ❌ 不在 `_architecture/core/` 写业务字段 —— core 只做横切（http / ws / map）
+
+### 28.2 后端目录分层（v1.7.0 目标结构）
+
+```
+backend/src/main/java/cn/geosentry/
+├── auth/                # 鉴权 + JWT + 当前用户 Profile
+├── hazard/              # 灾害点 + 状态机
+├── warning/             # 预警事件 + 流转
+├── event/               # 统一事件中心（7×12 状态机）
+├── emergency/           # 应急联动
+├── ai/                  # AI 推理客户端 + 调度器
+├── notification/        # 通知渠道
+├── ruleengine/          # 规则引擎
+├── device/              # 监测设备 + OTA
+├── realtime/            # WebSocket + 实时推送
+├── dashboard/           # 综合态势聚合
+├── personnel/           # 人员管理
+├── region/              # 行政区划（AI 实时监测使用）
+├── audit/               # 审计日志（含归档）
+├── attachment/          # MinIO 附件
+├── weather/             # 国家气象代理
+├── aop/                 # OperationLogAspect 切面
+├── common/              # 全局异常 / 公共基类
+└── config/              # 配置类（JWT / Security / WebSocket）
+```
+
+**红线**：
+
+- ❌ Controller 内禁止 `try-catch` —— 一律交给 `GlobalExceptionHandler`
+- ❌ Service 禁止直接返回 `Map<String, Object>` —— 必须用 DTO
+- ❌ 跨域枚举常量统一放在对应 module 下的 `constants/` 包（不允许散落）
+
+### 28.3 `scripts/` 维护脚本清单（v1.7.0 收敛到 8 个）
+
+| 文件 | 用途 | 调用时机 |
+|---|---|---|
+| `audit_db.py` | 数据库 schema 审计（字段 / 索引 / 关系 / JSONB 字面量校验） | 修改 `schema.sql` / `data.sql` 后必跑 |
+| `backfill_unified_event_hazards.py` | 统一事件中心历史数据回填 | 升级到 v1.7.0 一次性 |
+| `smoke_test_schema.py` | 启动前 schema 健康检查（不依赖 docker） | CI / 本地预检 |
+| `gen_data_sql.py` | 重新生成 `data.sql` 种子数据 | 修改 entity 后 |
+| `diagnose-schema-drift.ps1` | DB 列与 `schema.sql` 对齐检查 | 启动报 `column does not exist` 时 |
+| `fix-db-volume.ps1` | 重建 Postgres 数据卷（最后手段） | 漂移无法修复时 |
+| `check_jsonb_sql.py` | `data.sql` 内 JSONB 字面量预校验 | CI 流水线 |
+| `oneclick-fix.mjs` | `==` / `!=` → `===` / `!==` 全量升级 | 由 `npm run fix` 调用 |
+
+**红线**：
+
+- ❌ 新增一次性迁移脚本请在 PR 描述里标注 "一次性，合并后删除"，否则将永久驻留
+- ❌ 不要把脚本输出（`*.txt` / `*.log`）提交进仓库（已在 `.gitignore`）
+- ❌ 不要把 docker compose / psql 调试命令留在脚本里 —— 改用文档
+
+### 28.4 启动脚本（v1.7.0 统一入口）
+
+```
+.\start-dev.ps1 -Infra -Up      # 启动基础设施（Postgres / Redis / MinIO / EMQX / TDengine）
+.\start-dev.ps1 -Infra -Down    # 停止基础设施
+.\start-dev.ps1 -Infra -Reset   # ⚠ 销毁并重建基础设施（数据卷）
+.\start-dev.ps1 -Backend        # 仅启动后端
+.\start-dev.ps1 -Frontend       # 仅启动前端（默认）
+.\start-dev.ps1 -Ai             # 仅启动 AI 微服务
+.\start-dev.ps1 -Status         # 健康度速览（v1.7.0 新增，跨平台）
+.\start-dev.ps1 -All            # 提示全栈模式所需 3 个终端命令
+
+./start-dev.sh infra up|down|reset
+./start-dev.sh {backend|frontend|ai|status|all}
+```
+
+> 旧的 `run-backend.ps1` / `run-frontend.ps1` 保留为内部子命令入口；当 `start-dev.ps1` 抛错需要手工排查时仍可单独使用。
+
+### 28.5 已清理文件清单（v1.7.0 Step 6 + Step 9）
+
+| 文件 / 目录 | 类型 | 清理原因 |
+|---|---|---|
+| `scripts/audit_output.txt` 等 3 个 | 调试输出 | Step 6 删除 |
+| `scripts/test-exit.ps1` / `test-exit2.ps1` | 调试脚本 | Step 6 删除 |
+| `scripts/count_statements.ps1` | 一次性 helper | Step 6 删除 |
+| 17 个老版本兼容垫片（如 `src/services/hazardMapService.js`） | 旧版本兼容 | Step 6 合并到 `_architecture/domain/` |
+| `scripts/rewrite-operation-log.ps1` | 一次性迁移 | Step 9 删除（data.sql 已固化） |
+| `scripts/check-vue.cjs` | 一次性 Vue 检查 | Step 9 删除（已被 ESLint + `npm run lint` 覆盖） |
+| `ai-service/models/history/xgboost_fusion-20260907-062517.json` | 模型历史快照 | Step 9 删除（与现役模型重复，且 history 目录已加入 gitignore） |
+| 本地 `logs/` / `backend/logs/` | 开发期日志 | Step 9 清理（已在 gitignore） |
+| `backend/.github/modernize/` / `.github/` | AI 工具残留 | Step 9 清理（已在 gitignore） |
+
+### 28.6 `.gitignore` 红线清单
+
+| 模式 | 防止误提交 |
+|---|---|
+| `node_modules/` `dist/` `.vite/` | 前端构建产物 |
+| `backend/target/` | 后端构建产物 |
+| `ai-service/**/__pycache__/` | Python 缓存 |
+| `ai-service/models/*.pt` `*.onnx` `*.pkl` `*.joblib` | 模型权重（体积大） |
+| `ai-service/models/history/` | 模型历史快照 |
+| `ai-service/.venv/` | Python 虚拟环境 |
+| `logs/` `backend/logs/` `*.log` | 开发期日志 |
+| `.github/` `backend/.github/` | AI 工具运行时产物（modernize hook） |
+| `.env` `.env.local` `*.secret` `*.key` `*.pem` | 密钥 |
+| `postgres_data/` `redis_data/` `minio_data/` `emqx_data/` `tdengine_data/` | Docker 数据卷 |
+| `m2_cache/` | Maven 仓库镜像 |
+
+**红线**：
+
+- ❌ 新增大型中间产物（模型 / checkpoint / 数据卷）前先确认 `.gitignore` 是否覆盖
+- ❌ 提交前跑 `git status --ignored`，确认无新增 ignored 文件"漏出来"
+- ❌ 任何包含密码 / token / 私钥的文件请走 `.env.local`（已在 gitignore）
 
 ---
 
