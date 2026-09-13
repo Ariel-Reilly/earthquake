@@ -1,5 +1,6 @@
 import { dashboardApi, isBackendRuntime } from "../../dashboardApi.js";
 import { getAuthToken } from "../../../stores/auth.js";
+import { useRealtimeStore } from "../../../stores/realtime.js";
 
 const listeners = new Set();
 let socket = null;
@@ -128,6 +129,12 @@ function emit(payload) {
       // ignore listener errors
     }
   });
+  // Step 4: 把每次 emit 同步到 Pinia store,UI 可响应式观察
+  try {
+    useRealtimeStore().setEvent(payload);
+  } catch {
+    // Pinia 未注册时(早期错误路径)静默忽略
+  }
 }
 
 function normalizeWarning(item) {
@@ -403,21 +410,24 @@ function tryOpen(fullUrl) {
   socket = new WebSocket(fullUrl);
   socket.onopen = () => {
     emit({ type: "socket-open" });
-    // WebSocket 连接成功后暂停轮询（数据已由增量推送覆盖）
+    try { useRealtimeStore().setStatus("ws") } catch {}
     pausePolling();
   };
   socket.onclose = () => {
     emit({ type: "socket-close" });
-    // WebSocket 断开时恢复轮询兜底
+    try { useRealtimeStore().setStatus("polling") } catch {}
     resumePolling();
     if (!reconnectTimer) {
       reconnectTimer = window.setTimeout(() => {
         reconnectTimer = null;
-        connectSocket(wsUrl); // 重连时重新取 token / ticket（处理过期）
+        connectSocket(wsUrl);
       }, 5000);
     }
   };
-  socket.onerror = () => emit({ type: "socket-error" });
+  socket.onerror = () => {
+    emit({ type: "socket-error" });
+    try { useRealtimeStore().setStatus("polling") } catch {}
+  };
   socket.onmessage = (event) => {
     try {
       const message = JSON.parse(event.data);
@@ -532,6 +542,7 @@ function animatePersonnel() {
 }
 
 export function startRealtimeSync(options = {}) {
+  try { useRealtimeStore().setStatus("connecting") } catch {}
   const explicitWs = options.wsUrl ?? import.meta.env.VITE_WS_URL;
   // 未显式配置时，从 VITE_API_BASE_URL 自动推导：http://host:port/api → ws://host:port/ws
   // 后端不可达（演示/mock 模式）时不发起 WebSocket，仅依赖轮询兜底，避免无意义的连接失败
@@ -668,6 +679,7 @@ export function stopRealtimeSync({ keepListeners = false } = {}) {
   }
   socket = null;
   if (!keepListeners) {listeners.clear();}
+  try { useRealtimeStore().setStatus("idle") } catch {}
 }
 
 export function onRealtimeUpdate(listener) {
