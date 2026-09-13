@@ -1,12 +1,6 @@
 /**
- * 路径规划 API 封装。
+ * routePlanningService.js — 老路径兼容 shim
+ *
+ * 新位置：services/_architecture/domain/routePlanningService.js
  */
-import { dashboardApi } from './dashboardApi'
-
-export const routePlanningService = {
-  getObstacles: () => dashboardApi.getObstacleAreas(),
-  plan: (payload) => dashboardApi.planRoutes(payload),
-  exportGeoJson: (route) => dashboardApi.exportRouteGeoJson(route),
-}
-
-export default routePlanningService
+export * from "./_architecture/domain/routePlanningService.js";

@@ -18,6 +18,8 @@ let RUNTIME_MODE =
 let USE_BACKEND =
   String(import.meta.env.VITE_USE_BACKEND ?? "").toLowerCase() === "true";
 
+export { USE_BACKEND };
+
 export function getRuntimeMode() {
   return RUNTIME_MODE === "probing" ? "probing" : RUNTIME_MODE;
 }
@@ -60,7 +62,7 @@ function clone(data) {
     : JSON.parse(JSON.stringify(data));
 }
 
-function createApiError(message, code = "API_ERROR") {
+export function createApiError(message, code = "API_ERROR") {
   const error = new Error(message);
   error.code = code;
   return error;
@@ -84,7 +86,7 @@ function requireBackend(feature) {
   }
 }
 
-async function request(path, options = {}) {
+export async function request(path, options = {}) {
   const token = getAuthToken();
   const headers = {
     "Content-Type": "application/json",
@@ -151,7 +153,7 @@ async function downloadFile(path, fileName) {
   return { downloaded: true, fileName };
 }
 
-function response(data) {
+export function response(data) {
   return new Promise((resolve) => {
     window.setTimeout(() => resolve(clone(data)), latency);
   });

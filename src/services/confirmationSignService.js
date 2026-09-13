@@ -1,14 +1,6 @@
 /**
- * 会签与转派 API 封装。
+ * confirmationSignService.js — 老路径兼容 shim
+ *
+ * 新位置：services/_architecture/domain/confirmationSignService.js
  */
-import { dashboardApi } from './dashboardApi'
-
-export const confirmationSignService = {
-  listByEvent: (eventId) => dashboardApi.listSignRecords(eventId),
-  create: (payload) => dashboardApi.createSign(payload),
-  confirm: ({ signId, signerId, opinion }) => dashboardApi.confirmSign({ signId, signerId, opinion }),
-  reject:  ({ signId, signerId, opinion }) => dashboardApi.rejectSign({ signId, signerId, opinion }),
-  transfer: ({ eventId, toUser, reason }) => dashboardApi.transferEvent({ eventId, toUser, reason }),
-}
-
-export default confirmationSignService
+export * from "./_architecture/domain/confirmationSignService.js";
