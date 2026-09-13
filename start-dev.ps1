@@ -9,6 +9,8 @@
 #   .\start-dev.ps1 -Infra -Up       # 启动 Docker 基础设施
 #   .\start-dev.ps1 -Infra -Down     # 停止 Docker 基础设施
 #   .\start-dev.ps1 -Infra -Reset    # 销毁并重建基础设施（慎用）
+#   .\start-dev.ps1 -Status          # 健康度速览（端口 / Docker / Git）
+#   .\start-dev.ps1 -Doctor          # 诊断常见问题（端口占用 / Docker / 依赖）
 #
 # 依赖：Docker Desktop / Node.js 18+ / JDK 17+ / Python 3.10+
 #
@@ -41,6 +43,12 @@ param(
 
   [Parameter(ParameterSetName = "Infra")]
   [switch]$Reset,
+
+  [Parameter(ParameterSetName = "Status")]
+  [switch]$Status,
+
+  [Parameter(ParameterSetName = "Doctor")]
+  [switch]$Doctor,
 
   [string]$SpringProfile = "default",
   [string]$JwtSecret = "geosentry-dev-secret-key-at-least-32-chars-long-xyz",
@@ -286,6 +294,172 @@ function Invoke-All {
   Invoke-Frontend
 }
 
+# ─────────────────────────────────────────────
+# F. 健康度速览（端口 / Docker / Git）
+# ─────────────────────────────────────────────
+function Invoke-Status {
+  Write-Step "健康度速览"
+
+  $checks = @(
+    @{ Port = 15432; Name = "Postgres"  },
+    @{ Port = 16379; Name = "Redis"     },
+    @{ Port = 19000; Name = "MinIO API" },
+    @{ Port = 19001; Name = "MinIO UI"  },
+    @{ Port = 11883; Name = "EMQX MQTT" },
+    @{ Port = 28083; Name = "EMQX UI"   },
+    @{ Port = 16030; Name = "TDengine TCP" },
+    @{ Port = 16041; Name = "TDengine HTTP" },
+    @{ Port = 5173; Name = "Frontend (Vite)" },
+    @{ Port = 8080; Name = "Backend (Spring Boot)" },
+    @{ Port = 8001; Name = "AI Service (FastAPI)" }
+  )
+
+  foreach ($c in $checks) {
+    if (Test-PortListening $c.Port) {
+      $proc = Get-PortOwner $c.Port
+      $who = if ($proc) { " ($($proc.ProcessName))" } else { "" }
+      Write-Ok ("{0,-22} port {1,-5} OK{2}" -f $c.Name, $c.Port, $who)
+    } else {
+      Write-Err ("{0,-22} port {1,-5} DOWN" -f $c.Name, $c.Port)
+    }
+  }
+
+  # Docker 状态
+  Write-Host ""
+  Write-Info "Docker 状态："
+  try {
+    $dockerInfo = docker info 2>&1 | Out-String
+    if ($LASTEXITCODE -eq 0) {
+      Write-Ok "Docker Desktop 在线"
+      $containers = docker ps --format "{{.Names}}" 2>$null
+      $geosentry = $containers | Where-Object { $_ -like "geosentry-*" -or $_ -like "*geosentry*" }
+      if ($geosentry) {
+        Write-Info "geosentry 容器：$($geosentry -join ', ')"
+      } else {
+        Write-Warn "未发现 geosentry-* 容器"
+      }
+    } else {
+      Write-Err "Docker Desktop 未运行"
+    }
+  } catch {
+    Write-Err "Docker 命令不可用：$_"
+  }
+
+  # Git 状态
+  Write-Host ""
+  Write-Info "Git 状态："
+  Push-Location $PROJECT_ROOT
+  try {
+    $branch = git rev-parse --abbrev-ref HEAD 2>$null
+    $ahead  = git rev-list --count @{u}..HEAD 2>$null
+    $behind = git rev-list --count HEAD..@{u} 2>$null
+    if ($branch) {
+      Write-Ok "当前分支：$branch"
+      if ($ahead -gt 0)  { Write-Warn "ahead  $ahead 个提交未推送" }
+      if ($behind -gt 0) { Write-Warn "behind $behind 个远端提交未拉取" }
+      if ($ahead -eq 0 -and $behind -eq 0) { Write-Ok "与 origin/$branch 同步" }
+    } else {
+      Write-Warn "Git 仓库未初始化或异常"
+    }
+  } finally {
+    Pop-Location
+  }
+}
+
+# ─────────────────────────────────────────────
+# G. Doctor — 诊断常见问题
+# ─────────────────────────────────────────────
+function Invoke-Doctor {
+  Write-Step "Doctor — 诊断常见问题"
+
+  # 1. Docker
+  try {
+    docker info 2>&1 | Out-Null
+    if ($LASTEXITCODE -eq 0) {
+      Write-Ok "Docker Desktop 可用"
+    } else {
+      Write-Err "Docker Desktop 未启动 —— 后端 / AI 服务无法对外提供依赖"
+    }
+  } catch {
+    Write-Err "Docker 命令未找到 —— 请先安装 Docker Desktop 并加入 PATH"
+  }
+
+  # 2. Node.js
+  try {
+    $nodeVer = node --version 2>$null
+    if ($nodeVer) {
+      $major = [int]($nodeVer -replace 'v(\d+)\..*', '$1')
+      if ($major -ge 18) {
+        Write-Ok "Node.js $nodeVer (>=18)"
+      } else {
+        Write-Err "Node.js $nodeVer (<18) —— 请升级到 18+"
+      }
+    } else {
+      Write-Err "Node.js 未安装"
+    }
+  } catch {
+    Write-Err "Node.js 未安装"
+  }
+
+  # 3. Java
+  try {
+    $javaVer = java -version 2>&1 | Select-Object -First 1
+    if ($javaVer -match '"(\d+)\.') {
+      $major = [int]$Matches[1]
+      if ($major -ge 17) {
+        Write-Ok "Java $javaVer (>=17)"
+      } else {
+        Write-Err "Java $javaVer (<17) —— 后端需要 JDK 17+"
+      }
+    } else {
+      Write-Warn "无法解析 Java 版本：$javaVer"
+    }
+  } catch {
+    Write-Err "Java 未安装"
+  }
+
+  # 4. Python
+  try {
+    $pyVer = python --version 2>&1
+    if ($pyVer -match 'Python (\d+)\.(\d+)') {
+      $major = [int]$Matches[1]; $minor = [int]$Matches[2]
+      if ($major -ge 3 -and $minor -ge 10) {
+        Write-Ok "$pyVer (>=3.10)"
+      } else {
+        Write-Warn "$pyVer —— AI 服务建议 3.10+"
+      }
+    } else {
+      Write-Warn "Python 版本解析失败：$pyVer"
+    }
+  } catch {
+    Write-Err "Python 未安装"
+  }
+
+  # 5. Maven
+  try {
+    $mvnVer = mvn --version 2>&1 | Select-Object -First 1
+    Write-Ok "$mvnVer"
+  } catch {
+    Write-Err "Maven 未安装 —— 后端构建需要"
+  }
+
+  # 6. 端口冲突快速检查
+  Write-Host ""
+  Write-Info "关键端口占用："
+  $critical = @(5173, 8080, 8001, 15432, 16379, 19000)
+  foreach ($p in $critical) {
+    if (Test-PortListening $p) {
+      $proc = Get-PortOwner $p
+      Write-Warn "port $p → $($proc.ProcessName) (PID=$($proc.Id))"
+    } else {
+      Write-Ok "port $p 空闲"
+    }
+  }
+
+  Write-Host ""
+  Write-Info "如需修复常见问题，请参考 docs/DEVELOPER.md §15 与 §28"
+}
+
 # ─── 主调度 ───
 Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host "  GeoSentry 地脉智巡 · 一键开发启动" -ForegroundColor Magenta
@@ -299,6 +473,10 @@ if ($All) {
   Invoke-Backend
 } elseif ($Ai) {
   Invoke-Ai
+} elseif ($Status) {
+  Invoke-Status
+} elseif ($Doctor) {
+  Invoke-Doctor
 } else {
   # 默认启动前端
   Invoke-Frontend

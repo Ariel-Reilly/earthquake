@@ -70,6 +70,5 @@
     "logloss": 0.0175
   },
   "model_path": "D:\\earthquake\\ai-service\\models\\xgboost_fusion.json",
-  "archive_path": "D:\\earthquake\\ai-service\\models\\history\\xgboost_fusion-20260907-062517.json",
   "training_seconds": 0.74
 }

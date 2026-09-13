@@ -8,6 +8,8 @@
 #   ./start-dev.sh frontend         # 仅前端
 #   ./start-dev.sh ai               # 仅 AI 服务
 #   ./start-dev.sh infra up|down|reset
+#   ./start-dev.sh status           # 健康度速览（端口 / Docker / Git）
+#   ./start-dev.sh doctor           # 诊断常见问题
 #
 # 依赖：Docker / Node.js 18+ / JDK 17+ / Python 3.10+
 
@@ -238,6 +240,151 @@ EOF
   frontend
 }
 
+# ─────────────────────────────────────────────
+# 健康度速览（端口 / Docker / Git）
+# ─────────────────────────────────────────────
+status() {
+  step "健康度速览"
+
+  local entries=(
+    "15432:Postgres"
+    "16379:Redis"
+    "19000:MinIO API"
+    "19001:MinIO UI"
+    "11883:EMQX MQTT"
+    "28083:EMQX UI"
+    "16030:TDengine TCP"
+    "16041:TDengine HTTP"
+    "5173:Frontend (Vite)"
+    "8080:Backend (Spring Boot)"
+    "8001:AI Service (FastAPI)"
+  )
+
+  for entry in "${entries[@]}"; do
+    port="${entry%%:*}"
+    name="${entry##*:}"
+    if port_listening "$port"; then
+      ok "$name port $port OK"
+    else
+      err "$name port $port DOWN"
+    fi
+  done
+
+  echo
+  info "Docker 状态："
+  if command -v docker >/dev/null 2>&1; then
+    if docker info >/dev/null 2>&1; then
+      ok "Docker 在线"
+      local geosentry
+      geosentry=$(docker ps --format '{{.Names}}' 2>/dev/null | grep -E 'geosentry' || true)
+      if [ -n "$geosentry" ]; then
+        info "geosentry 容器：$geosentry"
+      else
+        warn "未发现 geosentry-* 容器"
+      fi
+    else
+      err "Docker Desktop 未运行"
+    fi
+  else
+    err "Docker 命令不可用"
+  fi
+
+  echo
+  info "Git 状态："
+  if git rev-parse --abbrev-ref HEAD >/dev/null 2>&1; then
+    local branch ahead behind
+    branch=$(git rev-parse --abbrev-ref HEAD)
+    ahead=$(git rev-list --count @{u}..HEAD 2>/dev/null || echo 0)
+    behind=$(git rev-list --count HEAD..@{u} 2>/dev/null || echo 0)
+    ok "当前分支：$branch"
+    [ "$ahead" -gt 0 ]  && warn "ahead  $ahead 个提交未推送"
+    [ "$behind" -gt 0 ] && warn "behind $behind 个远端提交未拉取"
+    [ "$ahead" -eq 0 ] && [ "$behind" -eq 0 ] && ok "与 origin/$branch 同步"
+  else
+    warn "Git 仓库未初始化或异常"
+  fi
+}
+
+# ─────────────────────────────────────────────
+# Doctor — 诊断常见问题
+# ─────────────────────────────────────────────
+doctor() {
+  step "Doctor — 诊断常见问题"
+
+  # 1. Docker
+  if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+    ok "Docker Desktop 可用"
+  else
+    err "Docker Desktop 未启动或命令不可用"
+  fi
+
+  # 2. Node.js
+  if command -v node >/dev/null 2>&1; then
+    local node_v node_maj
+    node_v=$(node --version 2>/dev/null | sed 's/v//')
+    node_maj=$(echo "$node_v" | cut -d. -f1)
+    if [ "$node_maj" -ge 18 ]; then
+      ok "Node.js v$node_v (>=18)"
+    else
+      err "Node.js v$node_v (<18) —— 请升级到 18+"
+    fi
+  else
+    err "Node.js 未安装"
+  fi
+
+  # 3. Java
+  if command -v java >/dev/null 2>&1; then
+    local java_v java_maj
+    java_v=$(java -version 2>&1 | head -n1)
+    java_maj=$(echo "$java_v" | grep -oE '"[0-9]+' | tr -d '"')
+    if [ "${java_maj:-0}" -ge 17 ]; then
+      ok "Java $java_v (>=17)"
+    else
+      err "Java $java_v (<17) —— 后端需要 JDK 17+"
+    fi
+  else
+    err "Java 未安装"
+  fi
+
+  # 4. Python
+  if command -v python3 >/dev/null 2>&1; then
+    local py_v py_maj py_min
+    py_v=$(python3 --version 2>&1)
+    py_maj=$(echo "$py_v" | grep -oE '[0-9]+' | head -n1)
+    py_min=$(echo "$py_v" | grep -oE '[0-9]+' | sed -n '2p')
+    if [ "${py_maj:-0}" -ge 3 ] && [ "${py_min:-0}" -ge 10 ]; then
+      ok "$py_v (>=3.10)"
+    else
+      warn "$py_v —— AI 服务建议 3.10+"
+    fi
+  else
+    err "Python3 未安装"
+  fi
+
+  # 5. Maven
+  if command -v mvn >/dev/null 2>&1; then
+    local mvn_v
+    mvn_v=$(mvn --version 2>&1 | head -n1)
+    ok "$mvn_v"
+  else
+    err "Maven 未安装 —— 后端构建需要"
+  fi
+
+  # 6. 端口冲突快速检查
+  echo
+  info "关键端口占用："
+  for p in 5173 8080 8001 15432 16379 19000; do
+    if port_listening "$p"; then
+      warn "port $p 被占用"
+    else
+      ok "port $p 空闲"
+    fi
+  done
+
+  echo
+  info "如需修复常见问题，请参考 docs/DEVELOPER.md §15 与 §28"
+}
+
 # ─── 主调度 ───
 printf "${C_CYAN}============================================================${C_RESET}\n"
 printf "${C_CYAN}  GeoSentry 地脉智巡 · 一键开发启动${C_RESET}\n"
@@ -249,5 +396,7 @@ case "$CMD" in
   ai)       ai ;;
   infra)    infra "${2:-up}" ;;
   all)      all ;;
-  *)        err "未知命令: $CMD"; err "用法: $0 [frontend|backend|ai|infra|all]"; exit 1 ;;
+  status)   status ;;
+  doctor)   doctor ;;
+  *)        err "未知命令: $CMD"; err "用法: $0 [frontend|backend|ai|infra|all|status|doctor]"; exit 1 ;;
 esac
