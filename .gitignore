@@ -90,3 +90,6 @@ data/
 # ===== Coverage =====
 coverage/
 .nyc_output/
+
+# ===== Data Volume Roots (Docker 挂载，根目录级) =====
+/data/
