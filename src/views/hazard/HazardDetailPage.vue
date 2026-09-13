@@ -126,7 +126,7 @@ async function loadAiForecast() {
       7,
       30,
     );
-  } catch (e) {
+  } catch (_e) {
     aiForecast.value = null;
   } finally {
     aiForecastLoading.value = false;

@@ -81,7 +81,7 @@ export async function submitSatelliteDiff(req) {
  * @returns {Promise<{ jobId: string, status: string, progress: number, message?: string, result?: SatelliteDiffResult }>}
  */
 export async function fetchSatelliteDiffJob(jobId) {
-  if (!jobId) throw new Error('fetchSatelliteDiffJob: jobId 必填')
+  if (!jobId) {throw new Error('fetchSatelliteDiffJob: jobId 必填')}
   const url = `${DEFAULT_AI_SERVICE_BASE}${DIFF_STATUS_PATH(jobId)}`
   const resp = await fetch(url, { headers: { Accept: 'application/json' } })
   if (!resp.ok) {
@@ -112,15 +112,15 @@ export async function pollSatelliteDiffJob(jobId, onProgress, options = {}) {
   const startedAt = Date.now()
 
   let job = await fetchSatelliteDiffJob(jobId)
-  if (onProgress) safeCallback(onProgress, job)
-  if (isTerminalStatus(job.status)) return job
+  if (onProgress) {safeCallback(onProgress, job)}
+  if (isTerminalStatus(job.status)) {return job}
 
   while (Date.now() - startedAt < timeoutMs) {
-    if (signal && signal.aborted) throw new DOMException('轮询被取消', 'AbortError')
+    if (signal && signal.aborted) {throw new DOMException('轮询被取消', 'AbortError')}
     await sleep(intervalMs)
     job = await fetchSatelliteDiffJob(jobId)
-    if (onProgress) safeCallback(onProgress, job)
-    if (isTerminalStatus(job.status)) return job
+    if (onProgress) {safeCallback(onProgress, job)}
+    if (isTerminalStatus(job.status)) {return job}
   }
   throw new Error(`差异计算任务超时（>${Math.round(timeoutMs / 1000)}s）`)
 }
@@ -145,7 +145,7 @@ export async function pollSatelliteDiffJob(jobId, onProgress, options = {}) {
  */
 export async function runCompareWorkflow(params, callbacks = {}) {
   const { bbox, beforeWindow, afterWindow } = params
-  if (!bbox || bbox.length !== 4) throw new Error('runCompareWorkflow: 需要 AOI bbox')
+  if (!bbox || bbox.length !== 4) {throw new Error('runCompareWorkflow: 需要 AOI bbox')}
 
   // 1. 灾前合成
   const beforeReq = await composeSentinelScene({
@@ -154,9 +154,9 @@ export async function runCompareWorkflow(params, callbacks = {}) {
     end: beforeWindow.end,
     maxCloud: params.maxCloud ?? 15,
   })
-  if (callbacks.onComposeProgress) callbacks.onComposeProgress('before', beforeReq)
+  if (callbacks.onComposeProgress) {callbacks.onComposeProgress('before', beforeReq)}
   const beforeDone = await pollCompose(beforeReq.jobId, callbacks.signal, (job) => {
-    if (callbacks.onComposeProgress) callbacks.onComposeProgress('before', job)
+    if (callbacks.onComposeProgress) {callbacks.onComposeProgress('before', job)}
   })
 
   // 2. 灾后合成
@@ -166,9 +166,9 @@ export async function runCompareWorkflow(params, callbacks = {}) {
     end: afterWindow.end,
     maxCloud: params.maxCloud ?? 15,
   })
-  if (callbacks.onComposeProgress) callbacks.onComposeProgress('after', afterReq)
+  if (callbacks.onComposeProgress) {callbacks.onComposeProgress('after', afterReq)}
   const afterDone = await pollCompose(afterReq.jobId, callbacks.signal, (job) => {
-    if (callbacks.onComposeProgress) callbacks.onComposeProgress('after', job)
+    if (callbacks.onComposeProgress) {callbacks.onComposeProgress('after', job)}
   })
 
   // 3. 差异计算
@@ -180,7 +180,7 @@ export async function runCompareWorkflow(params, callbacks = {}) {
     colormap: params.colormap ?? 'inferno',
   })
   const diffDone = await pollSatelliteDiffJob(diffReq.jobId, (job) => {
-    if (callbacks.onDiffProgress) callbacks.onDiffProgress(job)
+    if (callbacks.onDiffProgress) {callbacks.onDiffProgress(job)}
   }, { signal: callbacks.signal })
 
   if (diffDone.status !== 'succeeded') {
@@ -206,7 +206,7 @@ export function resolveDiffTileUrl(url) {
  * UI 用：差异任务状态映射成展示文案。
  */
 export function describeDiffJobStatus(job) {
-  if (!job) return { label: '空闲', tone: 'idle', percent: 0 }
+  if (!job) {return { label: '空闲', tone: 'idle', percent: 0 }}
   const percent = Math.max(0, Math.min(100, Math.round(job.progress || 0)))
   switch (job.status) {
     case 'queued':
@@ -228,7 +228,7 @@ export function describeDiffJobStatus(job) {
  * 把 bbox 内的一个归一化热点坐标（0..1）映射为地图经纬度（用于在地图上画标记）。
  */
 export function hotspotToLonLat(hotspot, bbox) {
-  if (!bbox || bbox.length !== 4) return null
+  if (!bbox || bbox.length !== 4) {return null}
   const [minLon, minLat, maxLon, maxLat] = bbox
   if (typeof hotspot.lon === 'number' && typeof hotspot.lat === 'number') {
     return { lon: hotspot.lon, lat: hotspot.lat }
@@ -244,12 +244,12 @@ export function hotspotToLonLat(hotspot, bbox) {
 
 function sanitizeDiffRequest(req) {
   const out = {}
-  if (req.beforeJobId) out.before_job_id = req.beforeJobId
-  if (req.afterJobId) out.after_job_id = req.afterJobId
-  if (req.beforeUrl) out.before_url = req.beforeUrl
-  if (req.afterUrl) out.after_url = req.afterUrl
-  if (req.bbox && Array.isArray(req.bbox) && req.bbox.length === 4) out.bbox = req.bbox
-  if (Number.isFinite(req.threshold)) out.threshold = Math.max(0, Math.min(255, req.threshold))
+  if (req.beforeJobId) {out.before_job_id = req.beforeJobId}
+  if (req.afterJobId) {out.after_job_id = req.afterJobId}
+  if (req.beforeUrl) {out.before_url = req.beforeUrl}
+  if (req.afterUrl) {out.after_url = req.afterUrl}
+  if (req.bbox && Array.isArray(req.bbox) && req.bbox.length === 4) {out.bbox = req.bbox}
+  if (Number.isFinite(req.threshold)) {out.threshold = Math.max(0, Math.min(255, req.threshold))}
   if (['inferno', 'viridis', 'red', 'grayscale'].includes(req.colormap)) {
     out.colormap = req.colormap
   }
@@ -271,20 +271,20 @@ async function pollCompose(jobId, signal, onProgress) {
   const timeoutMs = 5 * 60 * 1000
   const startedAt = Date.now()
   let job = await fetchSentinelJob(jobId)
-  if (onProgress) onProgress(job)
-  if (isTerminalStatus(job.status)) return job
+  if (onProgress) {onProgress(job)}
+  if (isTerminalStatus(job.status)) {return job}
   while (Date.now() - startedAt < timeoutMs) {
-    if (signal && signal.aborted) throw new DOMException('轮询被取消', 'AbortError')
+    if (signal && signal.aborted) {throw new DOMException('轮询被取消', 'AbortError')}
     await sleep(intervalMs)
     job = await fetchSentinelJob(jobId)
-    if (onProgress) onProgress(job)
-    if (isTerminalStatus(job.status)) return job
+    if (onProgress) {onProgress(job)}
+    if (isTerminalStatus(job.status)) {return job}
   }
   throw new Error('Sentinel 合成任务超时')
 }
 
 function safeCallback(cb, value) {
-  try { cb(value) } catch (e) { /* swallow */ }
+  try { cb(value) } catch (_e) { /* swallow */ }
 }
 
 function sleep(ms) {

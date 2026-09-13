@@ -1,7 +1,9 @@
-// Step 3: 基础设施已抽到 _architecture/core/,此处仅 re-export 保持向后兼容
-export { createApiError } from "./_architecture/core/errors.js";
-export { request, downloadFile } from "./_architecture/core/httpClient.js";
-export {
+// Step 3: 基础设施已抽到 _architecture/core/,此处仅 re-export 保持向后兼容。
+// 注意: 必须是 `import + export`,不能直接 `export { foo } from '...'`,
+// 否则 ESLint flat config 的 no-undef 规则会把 foo 当作未定义。
+import { createApiError } from "./_architecture/core/errors.js";
+import { request, downloadFile } from "./_architecture/core/httpClient.js";
+import {
   getRuntimeMode,
   isBackendRuntime,
   getUseBackend,
@@ -9,10 +11,22 @@ export {
   requireBackend,
   API_BASE,
 } from "./_architecture/core/runtime.js";
+
+export {
+  createApiError,
+  request,
+  downloadFile,
+  getRuntimeMode,
+  isBackendRuntime,
+  getUseBackend,
+  initBackendMode,
+  requireBackend,
+  API_BASE,
+};
+
 // USE_BACKEND 由 runtime.js 持有,通过 getUseBackend() 访问;
 // 这里保留 export { USE_BACKEND } 作为旧式 boolean 直读(已包装为当前快照)
-import { getUseBackend as _getUseBackend } from "./_architecture/core/runtime.js";
-export const USE_BACKEND = _getUseBackend();
+export const USE_BACKEND = getUseBackend();
 
 // response(): mock 模式延迟返回 (latency ms), 模拟网络往返
 const _latency = 240;
@@ -31,7 +45,6 @@ export function response(data) {
   });
 }
 
-import { getAuthToken, redirectToLogin } from "../stores/auth";
 import * as mock from "./mock";
 
 function normalizePaged(payload, fallback = []) {

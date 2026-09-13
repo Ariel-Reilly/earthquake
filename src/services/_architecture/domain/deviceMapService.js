@@ -74,7 +74,7 @@ export async function fetchDeviceMap(baseUrl) {
         return payload.data
       }
     }
-  } catch (e) {
+  } catch (_e) {
     // ignore, fallback to mock
   }
   return generateMockDeviceMap()
@@ -105,7 +105,7 @@ export async function fetchDeviceTrajectory(deviceCode, options = {}, baseUrl) {
         return { ...payload.data, mock: false }
       }
     }
-  } catch (e) {
+  } catch (_e) {
     // fallback
   }
   return { deviceCode, totalPoints: 0, points: generateMockTrajectory(deviceCode), mock: true }
@@ -120,9 +120,9 @@ export async function regenerateTrajectories(baseUrl) {
     const resp = await fetchWithAuth(url, { method: 'POST' })
     if (resp.ok) {
       const payload = await resp.json().catch(() => null)
-      if (payload && payload.code === 0) return payload.data
+      if (payload && payload.code === 0) {return payload.data}
     }
-  } catch (e) {
+  } catch (_e) {
     // ignore
   }
   return null
@@ -132,9 +132,9 @@ export async function regenerateTrajectories(baseUrl) {
  * 把设备列表按在线状态着色。返回给前端用于 marker 颜色选择。
  */
 export function statusColor(onlineStatus) {
-  if (onlineStatus === '在线') return '#16a34a'
-  if (onlineStatus === '离线') return '#94a3b8'
-  if (onlineStatus === '故障') return '#dc2626'
+  if (onlineStatus === '在线') {return '#16a34a'}
+  if (onlineStatus === '离线') {return '#94a3b8'}
+  if (onlineStatus === '故障') {return '#dc2626'}
   return '#64748b'
 }
 
@@ -142,9 +142,9 @@ export function statusColor(onlineStatus) {
  * 把移动子类型映射为图标。返回 SVG 字符串或 emoji，UI 自行渲染。
  */
 export function mobilityIcon(mobilityKind) {
-  if (mobilityKind === 'drone') return 'UAV'
-  if (mobilityKind === 'vehicle') return 'CAR'
-  if (mobilityKind === 'handheld') return 'HAND'
+  if (mobilityKind === 'drone') {return 'UAV'}
+  if (mobilityKind === 'vehicle') {return 'CAR'}
+  if (mobilityKind === 'handheld') {return 'HAND'}
   return 'DEV'
 }
 
@@ -155,7 +155,7 @@ export function mobilityIcon(mobilityKind) {
 function withQuery(params) {
   const search = new URLSearchParams()
   Object.entries(params || {}).forEach(([k, v]) => {
-    if (v !== undefined && v !== null && `${v}`.trim() !== '') search.set(k, String(v))
+    if (v !== undefined && v !== null && `${v}`.trim() !== '') {search.set(k, String(v))}
   })
   const s = search.toString()
   return s ? `?${s}` : ''

@@ -72,7 +72,7 @@ async function loadFusionResult() {
   try {
     const result = await getInsight(selectedCode.value)
     fusionResult.value = result
-  } catch (e) {
+  } catch (_e) {
     // 使用模拟数据
     fusionResult.value = mockFusionResult(selectedCode.value)
   } finally {
@@ -267,7 +267,7 @@ const reloading = ref(false)
 async function loadModelInfo() {
   try {
     modelInfo.value = await aiApi.getModelInfo()
-  } catch (e) {
+  } catch (_e) {
     // 静默失败：徽标区域降级为不显示
     modelInfo.value = null
   }
@@ -277,7 +277,7 @@ async function reloadAiModel() {
   try {
     await aiApi.reloadModel()
     await loadModelInfo()
-  } catch (e) {
+  } catch (_e) {
     // 失败忽略
   } finally {
     reloading.value = false

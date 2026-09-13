@@ -78,7 +78,7 @@ const endPoint = computed(() => {
 async function loadObstacles() {
   try {
     obstacles.value = await dashboardApi.getObstacleAreas()
-  } catch (e) {
+  } catch (_e) {
     obstacles.value = []
   }
 }

@@ -31,7 +31,6 @@ import ConfirmationWorkbenchPage from "../views/hazard/ConfirmationWorkbenchPage
 import WarningCreatePage from "../views/warning/WarningCreatePage.vue";
 import ResourceDispatchPage from "../views/warning/ResourceDispatchPage.vue";
 import DataSourcesPage from "../views/data/DataSourcesPage.vue";
-import DataSyncPage from "../views/data/DataSyncPage.vue";
 import HistoryHazardsPage from "../views/monitor/HistoryHazardsPage.vue";
 import UserManagementPage from "../views/system/UserManagementPage.vue";
 import AuditLogPage from "../views/system/AuditLogPage.vue";

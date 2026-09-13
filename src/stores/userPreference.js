@@ -15,7 +15,7 @@ import { dashboardApi } from '../services/dashboardApi.js'
 const PREF_KEY_PREFIX = 'geosentry_pref_'
 
 function safeParse(raw) {
-  if (!raw) return null
+  if (!raw) {return null}
   try { return JSON.parse(raw) } catch { return null }
 }
 
@@ -40,7 +40,7 @@ function loadInitialState(userId = 'u-admin') {
 }
 
 function persist(userId, snapshot) {
-  if (typeof window === 'undefined') return
+  if (typeof window === 'undefined') {return}
   window.localStorage.setItem(PREF_KEY_PREFIX + userId, JSON.stringify(snapshot))
 }
 
@@ -66,15 +66,15 @@ export const useUserPreferenceStore = defineStore('userPreference', {
       persist(this.userId, this.$state)
     },
     toggleChannel(name) {
-      if (!(name in this.channels)) return
+      if (!(name in this.channels)) {return}
       this.channels[name] = !this.channels[name]
       persist(this.userId, this.$state)
     },
     toggleLevelChannel(level, channel) {
       const list = this.levels[level] ?? []
       const idx = list.indexOf(channel)
-      if (idx >= 0) list.splice(idx, 1)
-      else list.push(channel)
+      if (idx >= 0) {list.splice(idx, 1)}
+      else {list.push(channel)}
       this.levels[level] = [...list]
       persist(this.userId, this.$state)
     },
@@ -95,9 +95,9 @@ export const useUserPreferenceStore = defineStore('userPreference', {
       persist(this.userId, this.$state)
     },
     setQuietHours({ enabled, start, end }) {
-      if (typeof enabled === 'boolean') this.quietHoursEnabled = enabled
-      if (start) this.quietStart = start
-      if (end) this.quietEnd = end
+      if (typeof enabled === 'boolean') {this.quietHoursEnabled = enabled}
+      if (start) {this.quietStart = start}
+      if (end) {this.quietEnd = end}
       persist(this.userId, this.$state)
     },
     /**
@@ -110,16 +110,16 @@ export const useUserPreferenceStore = defineStore('userPreference', {
           this.channels = { ...this.channels, ...(data.channels ?? {}) }
           if (data.levels) {
             Object.keys(data.levels).forEach((lvl) => {
-              if (Array.isArray(data.levels[lvl])) this.levels[lvl] = [...data.levels[lvl]]
+              if (Array.isArray(data.levels[lvl])) {this.levels[lvl] = [...data.levels[lvl]]}
             })
           }
-          if (data.language) this.language = data.language
-          if (data.theme) this.theme = data.theme
-          if (data.landingPage) this.landingPage = data.landingPage
-          if (typeof data.compactMode === 'boolean') this.compactMode = data.compactMode
-          if (typeof data.quietHoursEnabled === 'boolean') this.quietHoursEnabled = data.quietHoursEnabled
-          if (data.quietStart) this.quietStart = data.quietStart
-          if (data.quietEnd) this.quietEnd = data.quietEnd
+          if (data.language) {this.language = data.language}
+          if (data.theme) {this.theme = data.theme}
+          if (data.landingPage) {this.landingPage = data.landingPage}
+          if (typeof data.compactMode === 'boolean') {this.compactMode = data.compactMode}
+          if (typeof data.quietHoursEnabled === 'boolean') {this.quietHoursEnabled = data.quietHoursEnabled}
+          if (data.quietStart) {this.quietStart = data.quietStart}
+          if (data.quietEnd) {this.quietEnd = data.quietEnd}
           persist(this.userId, this.$state)
           return this.$state
         }
@@ -135,16 +135,16 @@ export const useUserPreferenceStore = defineStore('userPreference', {
         Object.assign(this.channels, cached.channels ?? {})
         if (cached.levels) {
           Object.keys(cached.levels).forEach((lvl) => {
-            if (Array.isArray(cached.levels[lvl])) this.levels[lvl] = [...cached.levels[lvl]]
+            if (Array.isArray(cached.levels[lvl])) {this.levels[lvl] = [...cached.levels[lvl]]}
           })
         }
-        if (cached.language) this.language = cached.language
-        if (cached.theme) this.theme = cached.theme
-        if (cached.landingPage) this.landingPage = cached.landingPage
-        if (typeof cached.compactMode === 'boolean') this.compactMode = cached.compactMode
-        if (typeof cached.quietHoursEnabled === 'boolean') this.quietHoursEnabled = cached.quietHoursEnabled
-        if (cached.quietStart) this.quietStart = cached.quietStart
-        if (cached.quietEnd) this.quietEnd = cached.quietEnd
+        if (cached.language) {this.language = cached.language}
+        if (cached.theme) {this.theme = cached.theme}
+        if (cached.landingPage) {this.landingPage = cached.landingPage}
+        if (typeof cached.compactMode === 'boolean') {this.compactMode = cached.compactMode}
+        if (typeof cached.quietHoursEnabled === 'boolean') {this.quietHoursEnabled = cached.quietHoursEnabled}
+        if (cached.quietStart) {this.quietStart = cached.quietStart}
+        if (cached.quietEnd) {this.quietEnd = cached.quietEnd}
       }
       return this.$state
     },

@@ -128,7 +128,7 @@ export const ROLE_PERMISSION_MAP = {
 // ===X===X===X===X===X===X===X===X===X===X===X===X===X===X===X
 
 function safeParse(raw) {
-  if (!raw) return null
+  if (!raw) {return null}
   try { return JSON.parse(raw) } catch { return null }
 }
 
@@ -220,13 +220,13 @@ export function canAccessPath(role, path) {
  */
 export function isTokenExpired() {
   const token = getAuthToken()
-  if (!token) return true
+  if (!token) {return true}
   const parts = token.split('.')
-  if (parts.length !== 3) return true
+  if (parts.length !== 3) {return true}
   try {
     const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
     const payload = JSON.parse(atob(base64))
-    if (!payload.exp) return false
+    if (!payload.exp) {return false}
     return payload.exp * 1000 < Date.now()
   } catch {
     return true
@@ -236,7 +236,7 @@ export function isTokenExpired() {
 /** 模块级 401 重定向锁:防止并发请求同时触发多次 redirectToLogin。 */
 let _redirecting = false
 export function redirectToLogin() {
-  if (_redirecting) return
+  if (_redirecting) {return}
   _redirecting = true
   clearAuthSession()
   window.location.replace('/login')

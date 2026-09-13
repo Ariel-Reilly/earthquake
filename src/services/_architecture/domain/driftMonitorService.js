@@ -154,7 +154,7 @@ export async function getModelHealthSummary(modelId) {
       features: driftResult.features,
       lastChecked: driftResult.detectedAt,
     };
-  } catch (error) {
+  } catch (_error) {
     return {
       modelId,
       overallStatus: "UNKNOWN",

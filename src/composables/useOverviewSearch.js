@@ -73,7 +73,7 @@ export function useOverviewSearch({ mapController, emit }) {
   function onSearchSubmit() {
     clearTimer()
     const term = searchTerm.value.trim()
-    if (!term) return
+    if (!term) {return}
     runSearch(term)
   }
 
@@ -92,7 +92,7 @@ export function useOverviewSearch({ mapController, emit }) {
       searchResults.value = results
       searchPanelState.value = 'results'
     } catch (err) {
-      if (err?.name === 'AbortError') return
+      if (err?.name === 'AbortError') {return}
       searchResults.value = []
       searchPanelState.value = 'empty'
       searchError.value = err?.message || '搜索失败'
@@ -101,7 +101,7 @@ export function useOverviewSearch({ mapController, emit }) {
 
   /** 在地图上选中一个搜索结果: 画 marker、zoom、关闭面板。 */
   function selectSearchResult(item) {
-    if (!mapController?.value || !item) return
+    if (!mapController?.value || !item) {return}
     searchMarker.value = {
       lon: item.lon,
       lat: item.lat,

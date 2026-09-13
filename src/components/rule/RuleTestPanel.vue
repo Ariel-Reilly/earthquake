@@ -53,7 +53,7 @@ async function runTest() {
       inputData: { ...testData },
     }
     result.value = await testRule(request)
-  } catch (e) {
+  } catch (_e) {
     // Mock 模式：本地计算
     const matched = []
     const failed = []

@@ -1,9 +1,7 @@
 /**
  * 通知服务 API 封装
  */
-import { request, response, createApiError, USE_BACKEND } from "../../dashboardApi.js";
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api";
+import { request, createApiError, USE_BACKEND } from "../../dashboardApi.js";
 
 function withQuery(params) {
   const search = new URLSearchParams();

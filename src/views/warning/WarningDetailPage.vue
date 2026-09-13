@@ -50,7 +50,7 @@ async function loadAiRisk() {
   aiRiskLoading.value = true;
   try {
     aiRisk.value = await aiApi.fusionRiskAuto(hazardCode);
-  } catch (e) {
+  } catch (_e) {
     aiRisk.value = null;
   } finally {
     aiRiskLoading.value = false;

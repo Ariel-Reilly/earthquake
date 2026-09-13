@@ -315,7 +315,7 @@ async function loadDriftMonitor() {
       driftResult.value = drift
       driftTrend.value = trend.trend || []
     }
-  } catch (e) {
+  } catch (_e) {
     // 使用模拟数据
     driftResult.value = {
       modelId: selectedDriftModel.value?.id || 'xgboost_fusion',
@@ -354,7 +354,7 @@ async function handleRetrain() {
       startedAt: new Date().toISOString(),
     })
     emit('notify', '重训任务已创建')
-  } catch (e) {
+  } catch (_e) {
     // 模拟添加
     retrainJobs.value.unshift({
       id: `retrain-${Date.now()}`,
