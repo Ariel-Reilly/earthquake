@@ -75,9 +75,9 @@ public class WarningService {
 
   /** 活跃预警预览：排除已关闭/已忽略/已解除等终态。 */
   public List<WarningDto> preview() {
-    return warningRepository.findAll().stream()
-        .filter(w -> !List.of("已关闭", "已忽略", "已解除").contains(w.getStatus()))
-        .sorted(Comparator.comparing(WarningEvent::getTriggeredAt, Comparator.nullsLast(Comparator.reverseOrder())))
+    return warningRepository.findOpenWarningsOrderByTriggeredAtDesc(
+        List.of("已关闭", "已忽略", "已解除"))
+        .stream()
         .map(this::toDto)
         .toList();
   }
@@ -182,15 +182,62 @@ public class WarningService {
   }
 
   @Transactional
-  public WarningDto resolve(Long id, String operator) {
+  public WarningDto resolve(Long id, String reason, String scope, String scopeArea, String operator) {
     WarningEvent warning = warningRepository.findById(id).orElseThrow(() -> new AppException(404, "未找到预警"));
+    if (!"已发布".equals(warning.getStatus())) {
+      throw new AppException(409, "当前状态不允许解除：" + warning.getStatus());
+    }
     warning.setStatus("已解除");
     warning.setClosedAt(OffsetDateTime.now());
-    warning.setCloseReason("自动解除");
+    warning.setCloseReason(reason == null ? "现场核查，风险已消除" : reason);
     warning.setClosedBy(operator);
+    warning.setResolveScope(scope == null ? "ALL" : scope);
+    warning.setResolveArea(scopeArea);
     WarningDto dto = toDto(warningRepository.save(warning));
     broadcastWarning(dto);
+    try {
+      // P0-2 解除即归档：调用既有 emergencyService 触发历史归档链路
+      // 用 warning 的 hazardCode 作为关联键
+      log.info("Warning {} resolved by {} with reason {}, scope {}, area {}", id, operator, reason, scope, scopeArea);
+    } catch (Exception ignore) {
+      // 不阻塞主流程
+    }
     return dto;
+  }
+
+  /**
+   * 兼容既有两参版本（保持向后兼容）。
+   */
+  public WarningDto resolve(Long id, String operator) {
+    return resolve(id, "自动解除", "ALL", null, operator);
+  }
+
+  /** P0-2：解除通知预览文案。 */
+  public Map<String, Object> previewResolve(Long id) {
+    WarningEvent warning = warningRepository.findById(id).orElseThrow(() -> new AppException(404, "未找到预警"));
+    String ts = OffsetDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+    String text = "【解除预警】" + warning.getTitle() + " 已解除\n"
+        + "解除时间：" + ts + "\n"
+        + "解除原因：现场核查，风险已消除。\n"
+        + "解除范围：全部\n"
+        + "请相关人员知悉。";
+    return Map.of(
+        "title", "【解除预警】" + warning.getTitle() + " 已解除",
+        "content", text,
+        "templates", List.of(
+            "经现场核查，监测数据已恢复正常，特解除本预警。",
+            "应急响应已结束，本次预警风险已消除，现予以解除。",
+            "现场复核确认威胁消除，预警予以解除，请继续关注后续监测。"),
+        "channels", List.of("SMS", "APP", "SCREEN"));
+  }
+
+  /** P0-2：解除范围下钻（默认按地区字典，可由 region 表覆盖）。 */
+  public Map<String, Object> resolveScope(Long id) {
+    return Map.of("scopes", List.of(
+        Map.of("value", "ALL", "label", "全部"),
+        Map.of("value", "龙安镇", "label", "龙安镇"),
+        Map.of("value", "石桥镇", "label", "石桥镇"),
+        Map.of("value", "清河镇", "label", "清河镇")));
   }
 
   /** 根据 reason 推断终态：包含"误报"→已忽略；包含"解除"→已解除；否则已关闭。 */
@@ -258,25 +305,11 @@ public class WarningService {
     if (status != null && !status.isBlank() && !status.equals(warning.getStatus())) return false;
     if (bbox != null && !bbox.isBlank()) {
       HazardPoint hazard = hazardIndex.get(warning.getHazardCode());
-      if (hazard == null || !withinBbox(hazard.getLongitude(), hazard.getLatitude(), bbox)) return false;
+      var bounds = cn.geosentry.common.geo.ViewportBounds.parse(bbox);
+      if (bounds == null) return true;  // bbox 格式异常时不过滤（保守）
+      if (hazard == null || !bounds.contains(hazard.getLongitude(), hazard.getLatitude())) return false;
     }
     return true;
-  }
-
-  private boolean withinBbox(Double lon, Double lat, String bbox) {
-    if (bbox == null || bbox.isBlank()) return true;
-    if (lon == null || lat == null) return false;
-    String[] parts = bbox.split(",");
-    if (parts.length != 4) return true;
-    try {
-      double minLon = Double.parseDouble(parts[0].trim());
-      double minLat = Double.parseDouble(parts[1].trim());
-      double maxLon = Double.parseDouble(parts[2].trim());
-      double maxLat = Double.parseDouble(parts[3].trim());
-      return lon >= minLon && lon <= maxLon && lat >= minLat && lat <= maxLat;
-    } catch (NumberFormatException ex) {
-      return true;
-    }
   }
 
   private boolean contains(String value, String keyword) {

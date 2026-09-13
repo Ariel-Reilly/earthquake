@@ -1,9 +1,22 @@
 <script setup>
-import { onMounted } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Database, Gauge, Layers3, MapPin, Mountain, Search, X, PencilLine, Trash2 } from 'lucide-vue-next'
+import {
+  Database,
+  Gauge,
+  Layers3,
+  MapPin,
+  Mountain,
+  Radio,
+  Search,
+  Sparkles,
+  Trash2,
+  X,
+  PencilLine,
+} from 'lucide-vue-next'
 import PermissionButton from '../components/PermissionButton.vue'
 import { useHazardList } from '../composables/useHazardList'
+import { getRealtimeState, onRealtimeUpdate } from '../services/realtimeService'
 
 const props = defineProps({
   searchTerm: { type: String, default: '' },
@@ -17,6 +30,7 @@ const {
   selected,
   drawerOpen,
   loading,
+  hazards,
   filteredHazards,
   paging,
   loadData,
@@ -25,6 +39,15 @@ const {
   setLevelFilter,
 } = useHazardList(props)
 
+const sourceFilter = ref('all')  // 'all' | 'AI_MONITOR' | 'MANUAL'
+const aiMonitorCount = ref(0)     // AI 实时监测发现的灾害总数（用于"AI 实时监测"徽标）
+const lastAiDetectedAt = ref(null)
+
+const filteredBySource = computed(() => {
+  if (sourceFilter.value === 'all') return filteredHazards.value
+  return filteredHazards.value.filter((h) => (h.source || 'MANUAL') === sourceFilter.value)
+})
+
 async function changePage(step) {
   const nextPage = Math.min(Math.max(paging.value.page + step, 1), paging.value.pages || 1)
   if (nextPage !== paging.value.page) await loadData(nextPage)
@@ -32,7 +55,7 @@ async function changePage(step) {
 
 function openRouteDetail() {
   if (!selected.value) return
-  router.push(`/hazards/${selected.value.id}`)
+  router.push(`/dashboard/hazards/${selected.value.id}`)
 }
 
 function createTaskForSelected() {
@@ -41,13 +64,68 @@ function createTaskForSelected() {
     name: `${selected.value.name} 巡检`,
     scope: selected.value.name,
     hazardId: selected.value.id,
-    hazardCode: selected.value.code ?? `HZ-${String(selected.value.id).padStart(3, '0')}`,
+    hazardCode: selected.value.hazardCode ?? `HZ-${String(selected.value.id).padStart(3, '0')}`,
     hazardLon: selected.value.lon,
     hazardLat: selected.value.lat,
   })
 }
 
-onMounted(loadData)
+function aiLevelLabel(level) {
+  return { CRITICAL: '极高', HIGH: '高', MEDIUM: '中', LOW: '低' }[level] || '—'
+}
+
+/**
+ * v1.6.0：监听 realtimeService 的 hazard 事件，新发现的 AI 灾害实时显示在列表里。
+ * 无需手动刷新页面 —— 后端 AiHazardMonitorScheduler 每 90s 一次推送。
+ */
+function refreshAiMonitorStats() {
+  const all = getRealtimeState().hazards || []
+  const aiOnly = all.filter((h) => h.source === 'AI_MONITOR')
+  aiMonitorCount.value = aiOnly.length
+  if (aiOnly.length) {
+    const ts = aiOnly.map((h) => h.discoveredAt || h.updatedAt || '').filter(Boolean).sort()
+    if (ts.length) lastAiDetectedAt.value = ts[ts.length - 1]
+  }
+}
+
+const stopRealtime = ref(null)
+onMounted(() => {
+  loadData()
+  stopRealtime.value = onRealtimeUpdate((payload) => {
+    if (payload.type === 'hazard' && payload.data) {
+      // 新灾害到达：插入到列表顶部
+      const next = payload.data
+      const existingIdx = hazards.value.findIndex((h) => h.id === next.id || h.hazardCode === next.hazardCode)
+      if (existingIdx >= 0) {
+        hazards.value.splice(existingIdx, 1, { ...hazards.value[existingIdx], ...next })
+      } else {
+        hazards.value.unshift(next)
+        // 给用户一个轻量提示（不打扰）
+        if (next.source === 'AI_MONITOR') {
+          emit('notify', `AI 实时监测发现：${next.name}`)
+        }
+      }
+      refreshAiMonitorStats()
+    } else if (payload.type === 'poll') {
+      refreshAiMonitorStats()
+    }
+  })
+  refreshAiMonitorStats()
+})
+
+onBeforeUnmount(() => {
+  if (stopRealtime.value) stopRealtime.value()
+})
+
+function fmtRelTime(iso) {
+  if (!iso) return ''
+  const ms = Date.now() - Date.parse(iso)
+  if (!Number.isFinite(ms) || ms < 0) return iso
+  if (ms < 60_000) return `${Math.floor(ms / 1000)}s 前`
+  if (ms < 3_600_000) return `${Math.floor(ms / 60_000)}m 前`
+  if (ms < 86_400_000) return `${Math.floor(ms / 3_600_000)}h 前`
+  return `${Math.floor(ms / 86_400_000)}d 前`
+}
 </script>
 
 <template>
@@ -63,7 +141,9 @@ onMounted(loadData)
           <PermissionButton permission="hazards:export" :icon="Database" @click="({ allowed, reason }) => allowed ? emit('notify', '已同步灾害点数据') : emit('notify', reason)">导出</PermissionButton>
         </div>
       </div>
-      <div v-if="loading" style="padding: 0 20px 18px; color: #7a8d89;">正在加载灾害点数据...</div>
+      <div v-if="loading" style="padding: 0 20px 18px; color: #7a8d89;">
+        <span><Radio :size="13" class="spin" />AI 监测初始化中…</span>
+      </div>
       <template v-else>
         <div class="map-toolbar">
           <div class="map-legend">
@@ -72,21 +152,65 @@ onMounted(loadData)
             </button>
           </div>
           <div class="map-tools">
-            <button @click="emit('notify', '已打开空间搜索')"><Search :size="15" />搜索</button>
-            <button @click="emit('notify', '已切换地形图层')"><Layers3 :size="15" />图层</button>
+            <button
+              v-for="item in [{ key: 'all', label: '全部来源' }, { key: 'AI_MONITOR', label: 'AI 监测', icon: Sparkles }, { key: 'MANUAL', label: '人工新增' }]"
+              :key="item.key"
+              :class="{ 'source-active': sourceFilter === item.key }"
+              @click="sourceFilter = item.key"
+            >
+              <span v-if="item.icon" :class="`source-dot source-${item.key}`"></span>{{ item.label }}
+            </button>
           </div>
         </div>
-        <div v-if="filteredHazards.length" class="warning-list">
-          <article v-for="point in filteredHazards" :key="point.id" class="warning-item" @click="openDetail(point)">
+
+        <!-- v1.6.0：AI 实时监测状态条 -->
+        <div v-if="aiMonitorCount > 0 || sourceFilter === 'AI_MONITOR'" class="ai-monitor-bar">
+          <Sparkles :size="14" />
+          <span class="ai-monitor-text">
+            AI 实时监测：已发现 <strong>{{ aiMonitorCount }}</strong> 个灾害点
+            <small v-if="lastAiDetectedAt"> · 最新 {{ fmtRelTime(lastAiDetectedAt) }}</small>
+          </span>
+          <small class="ai-monitor-hint">每 90 秒由 AiHazardMonitorScheduler 自动巡查</small>
+        </div>
+
+        <div v-if="filteredBySource.length" class="warning-list">
+          <article v-for="point in filteredBySource" :key="point.id" class="warning-item" @click="openDetail(point)">
             <div class="warning-symbol" :class="point.level === '高风险' ? 'orange' : point.level === '关注' ? 'yellow' : 'blue'">{{ point.level === '高风险' ? '!' : point.level === '关注' ? '?' : '✓' }}</div>
             <div class="warning-body">
-              <div class="warning-title"><strong>{{ point.name }}</strong><span :class="point.level === '高风险' ? 'orange' : point.level === '关注' ? 'yellow' : 'blue'">{{ point.level }}</span></div>
+              <div class="warning-title">
+                <strong>{{ point.name }}</strong>
+                <span :class="point.level === '高风险' ? 'orange' : point.level === '关注' ? 'yellow' : 'blue'">{{ point.level }}</span>
+                <!-- v1.6.0：AI 实时监测徽标 -->
+                <span
+                  v-if="point.source === 'AI_MONITOR'"
+                  class="source-badge source-ai"
+                  :title="point.discoveredAt ? `AI 于 ${fmtRelTime(point.discoveredAt)} 首次识别` : 'AI 实时监测识别'"
+                >
+                  <Sparkles :size="10" />AI 实时监测
+                </span>
+                <span
+                  v-if="point.aiScore != null"
+                  :class="`ai-tag ai-tag-${(point.aiLevel || '').toLowerCase()}`"
+                  :title="`AI 综合分 ${Number(point.aiScore).toFixed(1)} / 100`"
+                >
+                  <Sparkles :size="10" />AI {{ aiLevelLabel(point.aiLevel) }} {{ Number(point.aiScore).toFixed(0) }}
+                </span>
+              </div>
               <p>{{ point.type }} · {{ point.owner }} · {{ point.status }}</p>
-              <small><MapPin :size="12" />{{ point.distance }} · {{ point.lon }}, {{ point.lat }}</small>
+              <small>
+                <MapPin :size="12" />
+                {{ point.distance }} · {{ point.lon }}, {{ point.lat }}
+                <span v-if="point.discoveredAt && point.source === 'AI_MONITOR'"> · 发现 {{ fmtRelTime(point.discoveredAt) }}</span>
+              </small>
             </div>
           </article>
         </div>
-        <div v-else class="panel-empty" style="padding: 0 20px 18px; color: #7a8d89;">当前条件下没有匹配的灾害点</div>
+        <div v-else class="panel-empty" style="padding: 0 20px 18px; color: #7a8d89;">
+          <template v-if="sourceFilter === 'AI_MONITOR'">
+            AI 实时监测尚未发现 {{ levelFilter !== '全部' ? `${levelFilter} ` : '' }}灾害 —— 等待下一个 90s 调度周期
+          </template>
+          <template v-else>当前条件下没有匹配的灾害点</template>
+        </div>
         <div class="panel-footer pagination-bar">
           <span>共 {{ paging.total }} 条，{{ paging.page }}/{{ paging.pages || 1 }} 页</span>
           <div class="detail-utility">

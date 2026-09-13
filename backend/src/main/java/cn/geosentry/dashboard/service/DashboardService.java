@@ -1,22 +1,18 @@
 package cn.geosentry.dashboard.service;
 
 import cn.geosentry.common.api.PageResponse;
-import cn.geosentry.common.exception.AppException;
 import cn.geosentry.dashboard.dto.DashboardDtos.ChartData;
-import cn.geosentry.dashboard.dto.DashboardDtos.LoginProfile;
-import cn.geosentry.dashboard.dto.DashboardDtos.LoginResult;
 import cn.geosentry.dashboard.dto.DashboardDtos.OverviewCard;
 import cn.geosentry.dashboard.dto.DashboardDtos.RegionRisk;
 import cn.geosentry.dashboard.dto.DashboardDtos.RiskZone;
 import cn.geosentry.device.repository.DeviceMetricRepository;
 import cn.geosentry.device.repository.MonitoringDeviceRepository;
+import cn.geosentry.hazard.entity.HazardPoint;
 import cn.geosentry.hazard.repository.HazardPointRepository;
-import cn.geosentry.inspection.repository.InspectionRecordRepository;
 import cn.geosentry.task.repository.InspectionTaskRepository;
 import cn.geosentry.warning.repository.WarningEventRepository;
 import java.time.YearMonth;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -31,40 +27,30 @@ public class DashboardService {
   private final DeviceMetricRepository metricRepository;
   private final WarningEventRepository warningRepository;
   private final InspectionTaskRepository taskRepository;
-  private final InspectionRecordRepository recordRepository;
 
   public DashboardService(HazardPointRepository hazardRepository,
                           MonitoringDeviceRepository deviceRepository,
                           DeviceMetricRepository metricRepository,
                           WarningEventRepository warningRepository,
-                          InspectionTaskRepository taskRepository,
-                          InspectionRecordRepository recordRepository) {
+                          InspectionTaskRepository taskRepository) {
     this.hazardRepository = hazardRepository;
     this.deviceRepository = deviceRepository;
     this.metricRepository = metricRepository;
     this.warningRepository = warningRepository;
     this.taskRepository = taskRepository;
-    this.recordRepository = recordRepository;
   }
 
-  public LoginResult login(String username, String role) {
-    String resolvedRole = (role == null || role.isBlank()) ? "admin" : role;
-    return new LoginResult("mock-jwt-token", new LoginProfile("李晨曦", resolvedRole, username));
-  }
+  // ------------------------------------------------------------------
+  // 概览卡片：全部用 DB 侧 COUNT，避免 findAll + stream 加载实体
+  // ------------------------------------------------------------------
 
   public List<OverviewCard> overviewCards() {
     long hazardCount = hazardRepository.count();
     long deviceCount = deviceRepository.count();
-    long onlineDevices = deviceRepository.findAll().stream()
-        .filter(d -> "在线".equals(d.getOnlineStatus()))
-        .count();
-    long activeWarnings = warningRepository.findAll().stream()
-        .filter(w -> !"已关闭".equals(w.getStatus()))
-        .count();
+    long onlineDevices = deviceRepository.countByOnlineStatus("在线");  // ✅ 替代 findAll().stream().filter().count()
+    long activeWarnings = warningRepository.countActiveWarnings(List.of("已关闭", "已忽略", "已解除"));
     long taskTotal = taskRepository.count();
-    long taskDone = taskRepository.findAll().stream()
-        .filter(t -> "已完成".equals(t.getStatus()))
-        .count();
+    long taskDone = taskRepository.countByStatus("已完成");  // ✅ 替代 findAll().stream().filter().count()
     double completion = taskTotal == 0 ? 100.0 : Math.round(taskDone * 1000.0 / taskTotal) / 10.0;
 
     return List.of(
@@ -75,59 +61,48 @@ public class DashboardService {
     );
   }
 
-  public ChartData chartData() {
-    Map<String, Long> warningByLevel = new LinkedHashMap<>();
-    warningRepository.findAll().stream()
-        .sorted(Comparator.comparing(w -> w.getStatus() == null ? "" : w.getStatus()))
-        .forEach(w -> warningByLevel.merge(
-            w.getWarningLevel() == null || w.getWarningLevel().isBlank() ? "未分级" : w.getWarningLevel(),
-            1L, Long::sum));
+  // ------------------------------------------------------------------
+  // 图表数据：全部用 DB 侧 GROUP BY 聚合，避免 findAll
+  // ------------------------------------------------------------------
 
+  public ChartData chartData() {
+    // 预警按等级聚合（DB 侧 GROUP BY ✅）
+    List<Object[]> levelRows = warningRepository.countByLevel();
     String[] colors = {"#e27d5b", "#d7a546", "#5db486", "#658fc1"};
     List<Map<String, Object>> warningType = new ArrayList<>();
     int idx = 0;
-    for (Map.Entry<String, Long> entry : warningByLevel.entrySet()) {
-      warningType.add(Map.of(
-          "label", entry.getKey(),
-          "value", entry.getValue(),
-          "color", colors[idx % colors.length]
-      ));
+    for (Object[] row : levelRows) {
+      Map<String, Object> item = new LinkedHashMap<>();
+      item.put("label", (String) row[0]);
+      item.put("value", ((Number) row[1]).longValue());
+      item.put("color", colors[idx % colors.length]);
+      warningType.add(item);
       idx++;
     }
     if (warningType.isEmpty()) {
-      warningType.add(Map.of("label", "暂无预警", "value", 0, "color", "#658fc1"));
+      Map<String, Object> empty = new LinkedHashMap<>();
+      empty.put("label", "暂无预警");
+      empty.put("value", 0);
+      empty.put("color", "#658fc1");
+      warningType.add(empty);
     }
 
-    // 最近 12 个月巡检完成数（真实：按已完成任务 startTime 归月）
-    YearMonth now = YearMonth.now();
-    Map<YearMonth, Long> doneByMonth = new HashMap<>();
-    for (var t : taskRepository.findAll()) {
-      if ("已完成".equals(t.getStatus()) && t.getStartTime() != null) {
-        doneByMonth.merge(YearMonth.from(t.getStartTime()), 1L, Long::sum);
-      }
-    }
-    List<Integer> monthlyInspection = series(doneByMonth, now, 12);
+    // 最近 12 个月巡检完成数（DB 侧按月聚合 ✅）
+    Map<String, Long> doneByMonth = toMonthMap(taskRepository.countDoneByMonth());
+    List<Integer> monthlyInspection = series(doneByMonth, YearMonth.now(), 12);
 
-    // 最近 7 个月预警触发数（真实）
-    Map<YearMonth, Long> warnByMonth = new HashMap<>();
-    for (var w : warningRepository.findAll()) {
-      if (w.getTriggeredAt() != null) {
-        warnByMonth.merge(YearMonth.from(w.getTriggeredAt()), 1L, Long::sum);
-      }
-    }
-    List<Integer> riskTrend = series(warnByMonth, now, 7);
+    // 最近 7 个月预警触发数（DB 侧按月聚合 ✅）
+    Map<String, Long> warnByMonth = toMonthMap(warningRepository.countByMonth());
+    List<Integer> riskTrend = series(warnByMonth, YearMonth.now(), 7);
 
-    // 最近 12 个月设备上报量（真实：来自 device_metric）
-    Map<YearMonth, Long> reportByMonth = new HashMap<>();
-    for (var m : metricRepository.findAll()) {
-      if (m.getRecordedAt() != null) {
-        reportByMonth.merge(YearMonth.from(m.getRecordedAt()), 1L, Long::sum);
-      }
-    }
-    List<Integer> deviceTrend = series(reportByMonth, now, 12);
+    // 最近 12 个月设备上报量（DB 侧按月聚合 ✅ — 最高危，metric 表数据量最大）
+    Map<String, Long> reportByMonth = toMonthMap(metricRepository.countByMonth());
+    List<Integer> deviceTrend = series(reportByMonth, YearMonth.now(), 12);
 
-    List<RegionRisk> heatmap = buildHeatmap(hazardRepository.findAll());
-    List<RiskZone> riskZones = buildRiskZones(hazardRepository.findAll());
+    // 热力图 / 风险分区：hazard_point 表数据量小（~5 条种子数据），findAll 可接受
+    List<HazardPoint> allHazards = hazardRepository.findAll();
+    List<RegionRisk> heatmap = buildHeatmap(allHazards);
+    List<RiskZone> riskZones = buildRiskZones(allHazards);
 
     return new ChartData(
         riskTrend,
@@ -139,24 +114,41 @@ public class DashboardService {
     );
   }
 
-  /** 区域风险热力：按 region_code 聚合 hazard_point 数量与最高风险等级，生成真实热力。 */
-  private List<RegionRisk> buildHeatmap(List<cn.geosentry.hazard.entity.HazardPoint> hazards) {
+  // ------------------------------------------------------------------
+  // 辅助：将 Object[] 聚合行转为 { "yyyy-mm": count } Map
+  // ------------------------------------------------------------------
+
+  private Map<String, Long> toMonthMap(List<Object[]> rows) {
+    Map<String, Long> result = new HashMap<>();
+    if (rows == null) return result;
+    for (Object[] row : rows) {
+      String ym = (String) row[0];
+      long cnt = ((Number) row[1]).longValue();
+      result.put(ym, cnt);
+    }
+    return result;
+  }
+
+  // ------------------------------------------------------------------
+  // 区域风险热力 / 风险分区：纯内存计算（hazard_point 表数据量小）
+  // ------------------------------------------------------------------
+
+  private List<RegionRisk> buildHeatmap(List<HazardPoint> hazards) {
     if (hazards == null || hazards.isEmpty()) {
       return List.of(new RegionRisk("暂无数据", 0, "低"));
     }
-    Map<String, List<cn.geosentry.hazard.entity.HazardPoint>> byRegion = new HashMap<>();
+    Map<String, List<HazardPoint>> byRegion = new HashMap<>();
     for (var h : hazards) {
       String key = h.getRegionCode() != null ? h.getRegionCode() : "未知";
       byRegion.computeIfAbsent(key, k -> new java.util.ArrayList<>()).add(h);
     }
     List<RegionRisk> result = new java.util.ArrayList<>();
     for (var entry : byRegion.entrySet()) {
-      List<cn.geosentry.hazard.entity.HazardPoint> list = entry.getValue();
+      List<HazardPoint> list = entry.getValue();
       String regionLabel = inferRegionName(entry.getKey(), list);
       int highCount = (int) list.stream().filter(h -> "高风险".equals(h.getRiskLevel())).count();
       int watchCount = (int) list.stream().filter(h -> "关注".equals(h.getRiskLevel())).count();
       int total = list.size();
-      // intensity: 高风险*30 + 关注*15 + 正常*5，上限 100
       int intensity = Math.min(100, highCount * 30 + watchCount * 15 + Math.max(1, total));
       String risk = highCount > 0 ? "高" : watchCount > 0 ? "中" : "低";
       result.add(new RegionRisk(regionLabel, intensity, risk));
@@ -165,12 +157,11 @@ public class DashboardService {
     return result;
   }
 
-  /** 风险分区：按区域聚合，生成前端可视化布局坐标。 */
-  private List<RiskZone> buildRiskZones(List<cn.geosentry.hazard.entity.HazardPoint> hazards) {
+  private List<RiskZone> buildRiskZones(List<HazardPoint> hazards) {
     if (hazards == null || hazards.isEmpty()) {
       return List.of(new RiskZone("默认区域", "低", 0, 10, 10, 30, 20, "#658fc1"));
     }
-    Map<String, List<cn.geosentry.hazard.entity.HazardPoint>> byRegion = new HashMap<>();
+    Map<String, List<HazardPoint>> byRegion = new HashMap<>();
     for (var h : hazards) {
       String key = h.getRegionCode() != null ? h.getRegionCode() : "未知";
       byRegion.computeIfAbsent(key, k -> new java.util.ArrayList<>()).add(h);
@@ -178,12 +169,11 @@ public class DashboardService {
     List<RiskZone> result = new java.util.ArrayList<>();
     String[] palette = {"#e27d5b", "#d7a546", "#5db486", "#658fc1", "#9b6bb5", "#c77a5a"};
     int idx = 0;
-    // 简单布局：2 列从上到下
     int x = 10, y = 10;
     int colWidth = 40;
     int rowHeight = 28;
     for (var entry : byRegion.entrySet()) {
-      List<cn.geosentry.hazard.entity.HazardPoint> list = entry.getValue();
+      List<HazardPoint> list = entry.getValue();
       String regionLabel = inferRegionName(entry.getKey(), list);
       int highCount = (int) list.stream().filter(h -> "高风险".equals(h.getRiskLevel())).count();
       int watchCount = (int) list.stream().filter(h -> "关注".equals(h.getRiskLevel())).count();
@@ -204,8 +194,7 @@ public class DashboardService {
     return result;
   }
 
-  /** 通过 regionCode 字典或 hazard.owner 推断区域名。 */
-  private String inferRegionName(String regionCode, List<cn.geosentry.hazard.entity.HazardPoint> sample) {
+  private String inferRegionName(String regionCode, List<HazardPoint> sample) {
     Map<String, String> codeToName = Map.of(
         "100000", "龙川县",
         "100100", "龙安镇",
@@ -219,17 +208,13 @@ public class DashboardService {
     return regionCode;
   }
 
-  /** 预留骨架方法，暂未被 Controller 调用，保留供后续扩展。 */
-  public PageResponse<Map<String, Object>> pageOfSamples(String type) {
-    return new PageResponse<>(List.of(Map.of("type", type == null ? "all" : type)), 1, 1, 10, 1);
-  }
-
   /** 生成「最近 n 个月」由旧到新对齐的整型序列（缺失月份补 0）。 */
-  private List<Integer> series(Map<YearMonth, Long> byMonth, YearMonth end, int months) {
+  private List<Integer> series(Map<String, Long> byMonth, YearMonth end, int months) {
     List<Integer> result = new ArrayList<>();
     for (int i = months - 1; i >= 0; i--) {
       YearMonth ym = end.minusMonths(i);
-      result.add(Math.toIntExact(byMonth.getOrDefault(ym, 0L)));
+      String key = ym.toString();  // "2026-08"
+      result.add(Math.toIntExact(byMonth.getOrDefault(key, 0L)));
     }
     return result;
   }

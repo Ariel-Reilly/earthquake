@@ -12,6 +12,14 @@ spring:
 geosentry:
   frontend-origin: ${FRONTEND_ORIGIN:http://localhost:5173}
   file-base-url: ${FILE_BASE_URL:http://minio:9000}
+  external-data:
+    enabled: ${EXTERNAL_DATA_ENABLED:true}
+    timeout-seconds: ${EXTERNAL_DATA_TIMEOUT:10}
+    cache-ttl-seconds: ${EXTERNAL_DATA_CACHE_TTL:300}
+    open-meteo-url: ${OPEN_METEO_URL:https://api.open-meteo.com/v1/forecast}
+    usgs-url: ${USGS_FDSN_URL:https://earthquake.usgs.gov/fdsnws/event/1/query}
+    open-elevation-url: ${OPEN_ELEVATION_URL:https://api.open-elevation.com/api/v1/lookup}
+    enabled-sources: ${EXTERNAL_DATA_SOURCES:openmeteo,usgs,openelevation,gdacs,osm,gpm,smap,copernicus}
 
 ai:
   service-base-url: ${AI_SERVICE_BASE_URL:http://ai-service:8000/api/ai}
@@ -30,5 +38,7 @@ emqx:
   enabled: ${EMQX_ENABLED:true}
 
 tdengine:
-  host: ${TDENGINE_HOST:tdengine}
-  port: ${TDENGINE_PORT:6030}
+  url: ${TDENGINE_URL:jdbc:TAOS-RS://tdengine:6041/geohazard}
+  username: ${TDENGINE_USERNAME:root}
+  password: ${TDENGINE_PASSWORD:taosdata}
+  enabled: ${TDENGINE_ENABLED:false}

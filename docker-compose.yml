@@ -32,8 +32,9 @@ services:
         "redis-server",
         "--appendonly",
         "yes",
+        # ⚠️ 生产环境必须修改为强随机密码（长度 ≥ 16）。生成方式：openssl rand -base64 24
         "--requirepass",
-        "${REDIS_PASSWORD:-redis123}",
+        "${REDIS_PASSWORD:-CHANGE_ME_redis_secure_password_2024}",
       ]
     ports:
       - "${REDIS_HOST_PORT:-16379}:6379"
@@ -51,8 +52,9 @@ services:
     restart: unless-stopped
     command: server /data --console-address ':9001'
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-geosentry}
+      # ⚠️ 生产环境必须修改为强随机密钥（长度 ≥ 24）。生成方式：openssl rand -base64 32
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-CHANGE_ME_24chars_minio_secret_key_2024}
       TZ: ${TZ:-Asia/Shanghai}
     ports:
       - "${MINIO_API_HOST_PORT:-19000}:9000"
@@ -77,7 +79,8 @@ services:
       EMQX_NODE_NAME: emqx@127.0.0.1
       EMQX_NODE_COOKIE: ${EMQX_NODE_COOKIE:-geosentry-cookie}
       EMQX_DASHBOARD__DEFAULT_USERNAME: ${EMQX_DASHBOARD_USER:-admin}
-      EMQX_DASHBOARD__DEFAULT_PASSWORD: ${EMQX_DASHBOARD_PASSWORD:-emqx123}
+      # ⚠️ 生产环境必须修改为强随机密码（长度 ≥ 16）。生成方式：openssl rand -base64 24
+      EMQX_DASHBOARD__DEFAULT_PASSWORD: ${EMQX_DASHBOARD_PASSWORD:-CHANGE_ME_emqx_secure_password_2024}
       # 启用内置数据库鉴权，并预置 geosentry_backend 用户
       # EMQX 5.x 使用 Built-in Database 认证插件（auth.mnesia）
       EMQX_AUTH__MNESIA__PASSWORD_HASH: bcrypt
@@ -111,6 +114,12 @@ services:
     volumes:
       - tdengine_data:/var/lib/taos
       - tdengine_log:/var/log/taos
+      - ./infra/tdengine/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD", "tdengine", "-s", "show servers"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
 
   backend:
     image: maven:3.9.9-eclipse-temurin-17
@@ -122,9 +131,10 @@ services:
       SPRING_PROFILES_ACTIVE: docker
       SERVER_PORT: ${SERVER_PORT:-8080}
       FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:5173}
-      # ⚠️ 生产环境必须设置强随机密钥（>=32 字符）。未设置或匹配弱密钥模式时应用启动失败。
+      # ⚠️ 生产环境必须通过 .env 或环境变量覆盖为强随机密钥（>=32 字符）。
       # 生成方式：openssl rand -base64 48
-      JWT_SECRET: ${JWT_SECRET:-REPLACE_ME_WITH_A_STRONG_SECRET_AT_LEAST_32_CHARS_LONG_XXX}
+      # 未覆盖时使用 application.yml 的 dev 默认值（仅限本地开发）
+      # JWT_SECRET is intentionally NOT set here to let application.yml default apply
       JWT_EXPIRE_MINUTES: ${JWT_EXPIRE_MINUTES:-120}
       FILE_BASE_URL: ${FILE_BASE_URL:-http://localhost:19000}
       DEV_USERS_ENABLED: ${DEV_USERS_ENABLED:-false}
@@ -136,17 +146,21 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-geosentry123}
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis123}
+      # ⚠️ 生产环境必须修改为强随机密码（长度 ≥ 16）。生成方式：openssl rand -base64 24
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-CHANGE_ME_redis_secure_password_2024}
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
       # EMQX MQTT 鉴权（broker 侧用户名密码，需与 EMQX_DASHBOARD 配置的认证用户一致）
       EMQX_USERNAME: ${EMQX_USERNAME:-geosentry_backend}
-      EMQX_PASSWORD: ${EMQX_PASSWORD:-CHANGE_ME_EMQX_PASSWORD}
+      # ⚠️ 生产环境必须修改为强随机密码（长度 ≥ 16）。生成方式：openssl rand -base64 24
+      EMQX_PASSWORD: ${EMQX_PASSWORD:-CHANGE_ME_emqx_secure_password_2024}
       EMQX_ENABLED: ${EMQX_ENABLED:-true}
       EMQX_WS_PORT: ${EMQX_WS_PORT:-8083}
       EMQX_HTTP_PORT: ${EMQX_HTTP_PORT:-18083}
-      TDENGINE_TCP_PORT: ${TDENGINE_TCP_PORT:-6030}
-      TDENGINE_HTTP_PORT: ${TDENGINE_HTTP_PORT:-6041}
+      TDENGINE_URL: ${TDENGINE_URL:-jdbc:TAOS-RS://tdengine:6041/geohazard}
+      TDENGINE_USERNAME: ${TDENGINE_USERNAME:-root}
+      TDENGINE_PASSWORD: ${TDENGINE_PASSWORD:-taosdata}
+      TDENGINE_ENABLED: ${TDENGINE_ENABLED:-false}
       AI_SERVICE_BASE_URL: ${AI_SERVICE_BASE_URL:-http://ai-service:8000/api/ai}
       AI_ENABLED: ${AI_ENABLED:-true}
       AI_SCHEDULER_ENABLED: ${AI_SCHEDULER_ENABLED:-false}
@@ -156,7 +170,13 @@ services:
       - ./:/app
       - m2_cache:/root/.m2
     ports:
-      - "${BACKEND_HOST_PORT:-8081}:8080"
+      - "${BACKEND_HOST_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/api/system/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 10
+      start_period: 90s
     depends_on:
       postgres:
         condition: service_healthy
@@ -171,6 +191,8 @@ services:
     restart: unless-stopped
     environment:
       TZ: ${TZ:-Asia/Shanghai}
+      # 生产环境应配置为前端实际域名，禁止使用 "*"
+      AI_CORS_ORIGINS: ${AI_CORS_ORIGINS:-http://localhost:5173,http://localhost:8080}
     volumes:
       - ./ai-service:/app
     ports:

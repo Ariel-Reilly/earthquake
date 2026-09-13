@@ -37,4 +37,35 @@ public interface DeviceMetricRepository extends JpaRepository<DeviceMetric, Long
   @Modifying
   @Query("DELETE FROM DeviceMetric m WHERE m.recordedAt < :cutoff")
   int deleteOlderThan(@Param("cutoff") OffsetDateTime cutoff);
+
+  /**
+   * 聚合某设备某指标在指定时间窗口内的累计值（用于 rainfall_24h / rainfall_7d 真实计算）。
+   */
+  @Query(value = "SELECT SUM(m.value) FROM device_metric m "
+      + "WHERE m.device_code = :deviceCode AND m.metric_code = :metricCode "
+      + "AND m.recorded_at >= NOW() - (:windowHours || ' hours')::interval",
+      nativeQuery = true)
+  Double sumRecentHours(@Param("deviceCode") String deviceCode,
+                        @Param("metricCode") String metricCode,
+                        @Param("windowHours") int windowHours);
+
+  /**
+   * 聚合某灾害点下所有关联设备某指标的累计值（跨设备 SUM）。
+   */
+  @Query(value = "SELECT SUM(m.value) FROM device_metric m "
+      + "JOIN monitoring_device d ON d.device_code = m.device_code "
+      + "WHERE d.hazard_code = :hazardCode AND m.metric_code = :metricCode "
+      + "AND m.recorded_at >= NOW() - (:windowHours || ' hours')::interval",
+      nativeQuery = true)
+  Double sumByHazardRecentHours(@Param("hazardCode") String hazardCode,
+                                @Param("metricCode") String metricCode,
+                                @Param("windowHours") int windowHours);
+
+  /**
+   * 按月统计设备指标上报量：返回 [yyyy-mm, count]。
+   * 直接在 DB 侧聚合，避免将全表加载到 JVM。
+   */
+  @Query(value = "SELECT TO_CHAR(recorded_at, 'YYYY-MM') AS ym, COUNT(*) AS cnt "
+      + "FROM device_metric WHERE recorded_at IS NOT NULL GROUP BY 1 ORDER BY 1", nativeQuery = true)
+  List<Object[]> countByMonth();
 }

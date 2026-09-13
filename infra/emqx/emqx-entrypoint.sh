@@ -25,7 +25,8 @@ fi
 echo "[emqx-entrypoint] 执行 broker 初始化脚本 init.sh ..."
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [ -f "${SCRIPT_DIR}/init.sh" ]; then
-  chmod +x "${SCRIPT_DIR}/init.sh"
+  # Windows NTFS → Linux 只读挂载时 chmod 会失败，非致命
+  chmod +x "${SCRIPT_DIR}/init.sh" 2>/dev/null || true
   # init.sh 内置 3 次重试；失败时阻断容器，让 docker restart 自动重试
   if bash "${SCRIPT_DIR}/init.sh"; then
     echo "[emqx-entrypoint] init.sh 执行成功"

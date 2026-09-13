@@ -5,7 +5,6 @@ import jakarta.annotation.PostConstruct;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -44,8 +43,6 @@ public class ProductionConfigValidator {
       "qwerty", "admin", "admin123", "changeme", "letmein",
       "welcome", "monkey", "dragon", "baseball", "iloveyou"
   );
-
-  private static final Pattern TOO_SHORT = Pattern.compile(".{1,15}");
 
   @Value("${geosentry.security.dev-users-enabled:true}")
   boolean devUsersEnabled;

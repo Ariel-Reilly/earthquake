@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 
 public interface HazardPointRepository extends JpaRepository<HazardPoint, Long>, JpaSpecificationExecutor<HazardPoint> {
   boolean existsByHazardCode(String hazardCode);
+  HazardPoint findByHazardCode(String hazardCode);
   List<HazardPoint> findByRegionCode(String regionCode);
 
   /** 视口内灾害点（PostGIS GiST 加速，bbox: minLon,minLat,maxLon,maxLat） */
@@ -25,4 +26,16 @@ public interface HazardPointRepository extends JpaRepository<HazardPoint, Long>,
       @Param("lon") double lon,
       @Param("lat") double lat,
       @Param("radiusMeters") double radiusMeters);
+
+  // ===== v1.6.0 AI 实时监测专用查询 =====
+
+  /** 按 source 过滤（AI_MONITOR / MANUAL / DEMO），用于 HazardController ?source= 查询参数 */
+  List<HazardPoint> findBySourceOrderByDiscoveredAtDesc(String source);
+
+  /** AI 监测发现的灾害（最近 N 条，按 discovered_at 倒序） */
+  List<HazardPoint> findTop50BySourceOrderByDiscoveredAtDesc(String source);
+
+  /** 某个区域下最近被 AI 识别出的灾害，用于 deduplication 防重（30 分钟内同区同类型不重复创建） */
+  List<HazardPoint> findByRegionCodeAndHazardTypeAndDiscoveredAtAfterOrderByDiscoveredAtDesc(
+      String regionCode, String hazardType, java.time.OffsetDateTime after);
 }

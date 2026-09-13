@@ -89,17 +89,11 @@ public class JwtHandshakeInterceptor implements HandshakeInterceptor {
   }
 
   private boolean injectAuth(String username, String role, ServerHttpRequest request, Map<String, Object> attributes) {
-    var authorities = java.util.List.of(
-        new SimpleGrantedAuthority("ROLE_" + role.toUpperCase()),
-        new SimpleGrantedAuthority("wss:connect")
-    );
-    UserDetails principal = User.withUsername(username).password("").authorities(authorities).build();
-    UsernamePasswordAuthenticationToken auth =
-        new UsernamePasswordAuthenticationToken(principal, null, authorities);
-    SecurityContextHolder.getContext().setAuthentication(auth);
-
+    // 用户身份存入 WebSocket session attributes（WebSocket 会话不经过 Spring Security filter chain，
+    // SecurityContext 在线程池复用时会污染后续 HTTP 请求，因此不在这里注入）
     attributes.put("wsUser", username);
     attributes.put("wsRole", role);
+    attributes.put("wsRoleNormalized", role.toUpperCase());
     log.info("WebSocket 握手成功 user={}, role={}, remote={}", username, role, request.getRemoteAddress());
     return true;
   }

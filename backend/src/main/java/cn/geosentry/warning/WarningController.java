@@ -102,8 +102,34 @@ public class WarningController {
 
   @PostMapping("/{id}/resolve")
   @PreAuthorize("hasAuthority('warnings:close')")
-  public ApiResponse<WarningDto> resolve(@PathVariable Long id) {
-    return ApiResponse.success(warningService.resolve(id, currentOperator()));
+  public ApiResponse<WarningDto> resolve(
+      @PathVariable Long id,
+      @RequestBody(required = false) Map<String, Object> payload) {
+    String reason = payload == null ? null : asString(payload.get("reason"));
+    String scope = payload == null ? null : asString(payload.get("scope"));
+    String scopeArea = payload == null ? null : asString(payload.get("scopeArea"));
+    String resolvedBy = payload == null ? null : asString(payload.get("resolvedBy"));
+    if (resolvedBy == null) resolvedBy = currentOperator();
+    return ApiResponse.success(warningService.resolve(id, reason, scope, scopeArea, resolvedBy));
+  }
+
+  /** P0-2：预览解除通知。 */
+  @GetMapping("/{id}/resolve/preview")
+  @PreAuthorize("hasAuthority('warnings:close')")
+  public ApiResponse<Map<String, Object>> previewResolve(@PathVariable Long id) {
+    return ApiResponse.success(warningService.previewResolve(id));
+  }
+
+  /** P0-2：解除范围。 */
+  @GetMapping("/{id}/resolve/scope")
+  @PreAuthorize("hasAuthority('warnings:close')")
+  public ApiResponse<Map<String, Object>> resolveScope(@PathVariable Long id) {
+    return ApiResponse.success(warningService.resolveScope(id));
+  }
+
+  private String asString(Object value) {
+    if (value == null) return null;
+    return String.valueOf(value);
   }
 
   /** 从 SecurityContext 取当前登录人，取不到时回落为 "system"。 */

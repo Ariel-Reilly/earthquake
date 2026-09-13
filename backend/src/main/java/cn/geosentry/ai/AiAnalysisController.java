@@ -6,6 +6,7 @@ import cn.geosentry.ai.service.AiForecastScheduler;
 import cn.geosentry.common.api.ApiResponse;
 import java.util.List;
 import java.util.Map;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -28,6 +29,7 @@ public class AiAnalysisController {
   }
 
   @GetMapping
+  @PreAuthorize("hasAuthority('analytics:view')")
   public ApiResponse<List<AiAnalysisRecordDto>> list(
       @RequestParam String businessType,
       @RequestParam String businessCode
@@ -36,13 +38,15 @@ public class AiAnalysisController {
   }
 
   @DeleteMapping("/{id}")
+  @PreAuthorize("hasRole('ADMIN')")
   public ApiResponse<Void> delete(@PathVariable Long id) {
     service.delete(id);
     return ApiResponse.success("删除成功", null);
   }
 
-  /** 手动触发一次批量预测（联调用）。 */
+  /** 手动触发一次批量预测（联调用，仅管理员）。 */
   @PostMapping("/forecast/run")
+  @PreAuthorize("hasRole('ADMIN')")
   public ApiResponse<Map<String, Object>> runForecast() {
     return ApiResponse.success(scheduler.runOnce());
   }

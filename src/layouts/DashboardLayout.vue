@@ -3,22 +3,43 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   Activity,
+  AlertTriangle,
+  BarChart3,
   Bell,
+  BrainCircuit,
   ChevronDown,
   ChevronRight,
   ChevronsLeft,
   CircleHelp,
+  ClipboardCheck,
+  Cloud,
+  CloudRain,
+  Database,
+  FileBarChart,
+  FileSignature,
   FileText,
+  HardDrive,
+  History,
+  Inbox,
+  Layers,
   LayoutDashboard,
   ListChecks,
   LogOut,
+  Map as MapIcon,
+  MapPin,
+  MessageSquare,
   Mountain,
+  Package,
   Radio,
+  ScrollText,
   Search,
   Settings,
   ShieldCheck,
+  Sparkles,
+  Truck,
+  Users,
 } from 'lucide-vue-next'
-import { dashboardMenu } from '../data/dashboardData'
+import { dashboardMenu, NAV_GROUPS, moduleMeta } from '../data/dashboardData'
 import PermissionButton from '../components/PermissionButton.vue'
 import FormModal from '../components/FormModal.vue'
 import AppFeedback from '../components/AppFeedback.vue'
@@ -51,22 +72,111 @@ const taskForm = reactive({
   hazardLat: null,
 })
 const feedback = reactive({ loading: false, message: '', error: '', success: '' })
+// 动态红点（待确认数 / 待发布预警 / 消息 / 待办 / 待审批）
+const dynamicBadges = reactive({
+  '/dashboard/confirmation-workbench': '0',
+  '/dashboard/warnings': '0',
+  '/dashboard/message-center': '0',
+  '/dashboard/todo': '0',
+  '/dashboard/approvals': '0',
+})
 let timerId
 let feedbackTimer
+let badgeTimer
 
 const currentPath = computed(() => route.path)
 const userRoleLabel = computed(() => getRoleLabel(user.value.role))
-const visibleMenu = computed(() => dashboardMenu.filter((item) => getAllowedMenuPaths(user.value.role).includes(item.path)))
-const activeMenu = computed(() => visibleMenu.value.find((item) => (item.path === '/' ? currentPath.value === '/' : currentPath.value.startsWith(item.path))) ?? visibleMenu.value[0] ?? dashboardMenu[0])
+const visibleMenu = computed(() =>
+  dashboardMenu.filter((item) => getAllowedMenuPaths(user.value.role).includes(item.path))
+)
 
-const timeLabel = computed(() => currentTime.value.toLocaleTimeString('zh-CN', { hour12: false }))
+// 按 NAV_GROUPS 分组后的菜单（仅保留当前角色可见的）
+const groupedMenu = computed(() => {
+  const map = new Map()
+  for (const g of NAV_GROUPS) map.set(g.id, { ...g, items: [] })
+  for (const item of visibleMenu.value) {
+    const bucket = map.get(item.group)
+    if (bucket) bucket.items.push(item)
+  }
+  return [...map.values()]
+    .filter((g) => g.items.length)
+    .map((g) => ({ ...g, items: g.items.sort((a, b) => (a.order ?? 0) - (b.order ?? 0)) }))
+})
+
+const iconComponentMap = {
+  LayoutDashboard,
+  ListChecks,
+  Bell,
+  ShieldCheck,
+  Mountain,
+  Radio,
+  Settings,
+  Activity,
+  AlertTriangle,
+  BarChart3,
+  BrainCircuit,
+  ClipboardCheck,
+  Cloud,
+  CloudRain,
+  Database,
+  FileBarChart,
+  FileText,
+  FileSignature,
+  HardDrive,
+  History,
+  Inbox,
+  Layers,
+  Map: MapIcon,
+  MapPin,
+  MessageSquare,
+  Package,
+  Sparkles,
+  Truck,
+  Users,
+  ScrollText,
+}
+
+function pickIcon(name) {
+  return iconComponentMap[name] ?? Activity
+}
+
+const activeMenu = computed(() => {
+  const all = visibleMenu.value
+  return (
+    all.find((item) =>
+      item.path === '/dashboard' ? currentPath.value === '/dashboard' : currentPath.value.startsWith(item.path)
+    ) ?? all[0] ?? dashboardMenu[0]
+  )
+})
+
+const activeGroupLabel = computed(() => {
+  if (!activeMenu.value) return ''
+  const group = NAV_GROUPS.find((g) => g.id === activeMenu.value.group)
+  return group?.label ?? ''
+})
+
+const topHeaderEyebrow = computed(() => {
+  const meta = moduleMeta[route.path] ?? moduleMeta[activeMenu.value?.path]
+  return meta?.title ?? ''
+})
+const topHeaderDesc = computed(() => {
+  const meta = moduleMeta[route.path] ?? moduleMeta[activeMenu.value?.path]
+  return meta?.desc ?? ''
+})
+
+const timeLabel = computed(() =>
+  currentTime.value.toLocaleTimeString('zh-CN', { hour12: false })
+)
 const currentLeafLabel = computed(() => {
   const segments = route.path.split('/').filter(Boolean)
   if (!segments.length) return ''
   if (route.path.includes('/hazards/')) return '灾害点详情'
   if (route.path.includes('/devices/')) return '设备详情'
   if (route.path.includes('/tasks/')) return '任务详情'
-  if (route.path.includes('/warnings/')) return '预警详情'
+  if (route.path.includes('/warnings/')) {
+    if (route.path.endsWith('/create')) return '新建预警'
+    return '预警详情'
+  }
   return decodeURIComponent(segments[segments.length - 1])
 })
 
@@ -133,16 +243,12 @@ async function logout() {
   setFeedback({ loading: true, message: '正在退出登录...' })
 
   try {
-    // 1) 通知后端作废会话（尽力而为，失败不阻断本地退出）
     await logoutRequest()
   } catch {
     // 忽略后端登出失败，保证本地退出始终可用
   } finally {
-    // 2) 停止实时数据通道（WebSocket / 定时轮询）
     stopRealtimeSync({ keepListeners: false })
-    // 3) 清理本地登录态
     clearAuthSession()
-    // 4) 关闭弹窗并跳转登录页（replace 防止回退到受保护页）
     logoutModal.value = false
     loggingOut.value = false
     setFeedback({})
@@ -163,7 +269,7 @@ async function submitTask() {
       hazardLon: taskForm.hazardLon,
       hazardLat: taskForm.hazardLat,
     }),
-    { loadingText: '巡检任务创建中...', successText: '巡检任务已创建', failureText: '创建巡检任务失败' },
+    { loadingText: '巡检任务创建中...', successText: '巡检任务已创建', failureText: '创建巡检任务失败' }
   )
   taskModal.value = false
   resetTaskForm()
@@ -198,22 +304,74 @@ function prefillTaskForm(payload = {}) {
   taskModal.value = true
 }
 
+/**
+ * 动态红点加载：拉取后端"待确认数 / 待发布预警数 / 未读消息数"。
+ * 失败时静默 keep stale 而非报错（仪表盘快速加载优先）。
+ */
+async function refreshDynamicBadges() {
+  try {
+    const [confirm, warn, msg, todoSummary, approvalStat] = await Promise.all([
+      dashboardApi.getConfirmationQueueStats?.().catch(() => null),
+      dashboardApi.getWarningStats?.().catch(() => null),
+      dashboardApi.getMessageStats?.().catch(() => null),
+      // P2-1：统一待办汇总 → 顶栏红点接齐
+      dashboardApi.getTodoSummary?.().catch(() => null),
+      // 审批中心独立统计（与 todoSummary 中的 approval 字段相互兜底）
+      dashboardApi.getApprovalStats?.().catch(() => null),
+    ])
+    if (confirm && typeof confirm.pending === 'number') {
+      dynamicBadges['/dashboard/confirmation-workbench'] = String(confirm.pending)
+    }
+    if (warn && typeof warn.pending === 'number') {
+      dynamicBadges['/dashboard/warnings'] = String(warn.pending)
+    }
+    if (msg && typeof msg.unread === 'number') {
+      dynamicBadges['/dashboard/message-center'] = String(msg.unread)
+    }
+    // 待办红点：取四个子计数之和，避免任何子项为零被吞
+    if (todoSummary && typeof todoSummary === 'object') {
+      const todoTotal =
+        (Number(todoSummary.confirmation) || 0) +
+        (Number(todoSummary.approval) || 0) +
+        (Number(todoSummary.pendingWarnings) || 0) +
+        (Number(todoSummary.openEmergency) || 0)
+      dynamicBadges['/dashboard/todo'] = String(todoTotal)
+      // 审批中心：优先用 approvalStat.pending，否则用 todoSummary.approval 兜底
+      const approvalPending =
+        (approvalStat && typeof approvalStat.pending === 'number'
+          ? Number(approvalStat.pending)
+          : Number(todoSummary.approval) || 0)
+      dynamicBadges['/dashboard/approvals'] = String(approvalPending)
+    } else if (approvalStat && typeof approvalStat.pending === 'number') {
+      // todo 不可达但 approval 可达 → 退化为审批单独红点
+      dynamicBadges['/dashboard/approvals'] = String(approvalStat.pending)
+      dynamicBadges['/dashboard/todo'] = String(approvalStat.pending)
+    }
+  } catch {
+    // 后端不可用时不影响主流程
+  }
+}
+
 watch(
   () => route.path,
   () => {
     showSearch.value = false
     showNotifications.value = false
-  },
+  }
 )
 
 onMounted(() => {
   timerId = window.setInterval(() => {
     currentTime.value = new Date()
   }, 1000)
+  // 动态红点：进入页面拉一次，此后每 60s 拉一次
+  refreshDynamicBadges()
+  badgeTimer = window.setInterval(refreshDynamicBadges, 60_000)
 })
 
 onBeforeUnmount(() => {
   window.clearInterval(timerId)
+  window.clearInterval(badgeTimer)
   window.clearTimeout(feedbackTimer)
 })
 </script>
@@ -225,7 +383,7 @@ onBeforeUnmount(() => {
       <div class="sidebar-content">
         <div class="brand">
           <div class="brand-mark"><Mountain :size="22" :stroke-width="2.4" /></div>
-          <div class="brand-copy"><strong>地脉智巡</strong><span>GEO-SENTRY</span></div>
+          <div class="brand-copy"><strong>地脉智巡</strong><span>GEO-SENTRY v1.7</span></div>
           <button class="sidebar-collapse-btn" :title="sidebarCollapsed ? '展开侧边栏' : '折叠侧边栏'" @click="toggleSidebar">
             <ChevronsLeft :size="17" />
           </button>
@@ -238,23 +396,29 @@ onBeforeUnmount(() => {
         </div>
 
         <nav class="main-nav">
-          <div class="nav-label">工作台</div>
-          <button
-            v-for="item in visibleMenu"
-            :key="item.path"
-            class="nav-item"
-            :class="{ active: currentPath === item.path || (item.path !== '/' && currentPath.startsWith(item.path)) }"
-            :title="sidebarCollapsed ? item.label : undefined"
-            @click="goTo(item.path)"
-          >
-            <component :is="item.path === '/' ? LayoutDashboard : item.path === '/hazards' ? Mountain : item.path === '/tasks' ? ListChecks : item.path === '/devices' ? Radio : item.path === '/warnings' ? Bell : item.path === '/emergency' ? ShieldCheck : Activity" :size="18" />
-            <span>{{ item.label }}</span>
-            <em v-if="item.badge" :class="{ danger: item.danger }">{{ item.badge }}</em>
-          </button>
+          <template v-for="group in groupedMenu" :key="group.id">
+            <div class="nav-label">{{ group.label }}</div>
+            <button
+              v-for="item in group.items"
+              :key="item.path"
+              class="nav-item"
+              :class="{ active: currentPath === item.path || (item.path !== '/dashboard' && currentPath.startsWith(item.path)) }"
+              :title="sidebarCollapsed ? item.label : undefined"
+              @click="goTo(item.path)"
+            >
+              <component :is="pickIcon(item.icon)" :size="18" />
+              <span>{{ item.label }}</span>
+              <em
+                v-if="dynamicBadges[item.path] && +dynamicBadges[item.path] > 0"
+                :class="{ danger: item.danger }"
+              >{{ dynamicBadges[item.path] }}</em>
+              <em v-else-if="item.badge" :class="{ danger: item.danger }">{{ item.badge }}</em>
+            </button>
+          </template>
         </nav>
 
         <div class="sidebar-footer">
-          <button class="nav-item" :class="{ active: route.path === '/settings' }" title="系统设置" @click="goTo('/settings')"><Settings :size="18" /><span>系统设置</span></button>
+          <button class="nav-item" :class="{ active: route.path === '/dashboard/settings' }" title="系统设置" @click="goTo('/dashboard/settings')"><Settings :size="18" /><span>系统设置</span></button>
           <button class="nav-item" title="帮助中心"><CircleHelp :size="18" /><span>帮助中心</span></button>
           <button class="nav-item" title="退出登录" @click="openLogoutModal"><LogOut :size="18" /><span>退出登录</span></button>
           <div class="online-card">
@@ -270,7 +434,7 @@ onBeforeUnmount(() => {
       <AnimatedDashboardBackground />
       <header class="topbar">
         <div class="breadcrumb">
-          <span>工作台</span>
+          <span>{{ activeGroupLabel }}</span>
           <ChevronRight :size="14" />
           <strong>{{ activeMenu.label }}</strong>
           <template v-if="route.path !== activeMenu.path">
@@ -295,15 +459,21 @@ onBeforeUnmount(() => {
             }"
           >导出报告</PermissionButton>
           <PermissionButton
-            v-if="hasPermission(user.role, 'tasks:create')"
-            permission="tasks:create"
+            v-if="hasPermission(user.role, 'ai:task:create')"
+            permission="ai:task:create"
             variant="primary"
             :icon="ListChecks"
             class="topbar-action"
             @click="({ allowed, reason }) => allowed ? openCreateTaskModal() : notify(reason)"
           >创建巡检任务</PermissionButton>
           <button class="icon-btn" @click="showSearch = !showSearch"><Search :size="18" /></button>
-          <button class="icon-btn notification-btn" @click="showNotifications = !showNotifications"><Bell :size="18" /><i></i></button>
+          <button
+            class="icon-btn notification-btn"
+            @click="showNotifications = !showNotifications"
+          >
+            <Bell :size="18" />
+            <i v-if="+dynamicBadges['/dashboard/message-center'] > 0"></i>
+          </button>
           <div class="user-profile">
             <div class="user-avatar">李</div>
             <div><strong>{{ user.name }}</strong><span>{{ userRoleLabel }}</span></div>
@@ -320,15 +490,43 @@ onBeforeUnmount(() => {
 
         <Transition name="drop">
           <div v-if="showNotifications" class="notification-popover">
-            <strong>通知中心</strong>
-            <p><span class="notice-dot orange"></span>青龙坡预警待处置 <small>刚刚</small></p>
-            <p><span class="notice-dot yellow"></span>今日巡检任务还有 3 项 <small>12分钟前</small></p>
-            <p><span class="notice-dot orange"></span>设备离线 1 台 <small>21分钟前</small></p>
+            <div class="notice-head">
+              <strong>消息中心</strong>
+              <a @click="goTo('/dashboard/message-center')">查看全部</a>
+            </div>
+            <p>
+              <span class="notice-dot orange"></span>
+              <span>人工确认工作台</span>
+              <small v-if="dynamicBadges['/dashboard/confirmation-workbench']">
+                {{ dynamicBadges['/dashboard/confirmation-workbench'] }} 条待确认
+              </small>
+            </p>
+            <p>
+              <span class="notice-dot yellow"></span>
+              <span>待发布预警</span>
+              <small v-if="dynamicBadges['/dashboard/warnings']">
+                {{ dynamicBadges['/dashboard/warnings'] }} 起
+              </small>
+            </p>
+            <p>
+              <span class="notice-dot orange"></span>
+              <span>设备离线 1 台 · RAIN-052</span>
+              <small>21分钟前</small>
+            </p>
+            <p>
+              <span class="notice-dot yellow"></span>
+              <span>今日巡检任务还有 3 项</span>
+              <small>12分钟前</small>
+            </p>
           </div>
         </Transition>
       </header>
 
       <section class="page-content">
+        <div class="page-eyebrow">
+          <h1>{{ topHeaderEyebrow }}</h1>
+          <p>{{ topHeaderDesc }}</p>
+        </div>
         <div v-if="visibleMenu.length < dashboardMenu.length" class="role-banner">
           当前角色仅开放 {{ userRoleLabel }} 可访问模块，未开放模块已自动隐藏。
         </div>

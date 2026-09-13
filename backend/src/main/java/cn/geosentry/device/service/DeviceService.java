@@ -1,5 +1,6 @@
 package cn.geosentry.device.service;
 
+import cn.geosentry.ai.service.AiRiskEnricher;
 import cn.geosentry.common.api.PageResponse;
 import cn.geosentry.common.exception.AppException;
 import cn.geosentry.common.export.DeviceExportRow;
@@ -27,10 +28,12 @@ public class DeviceService {
 
   private final MonitoringDeviceRepository repository;
   private final HazardPointRepository hazardRepository;
+  private final AiRiskEnricher aiEnricher;
 
-  public DeviceService(MonitoringDeviceRepository repository, HazardPointRepository hazardRepository) {
+  public DeviceService(MonitoringDeviceRepository repository, HazardPointRepository hazardRepository, AiRiskEnricher aiEnricher) {
     this.repository = repository;
     this.hazardRepository = hazardRepository;
+    this.aiEnricher = aiEnricher;
   }
 
   public PageResponse<DeviceDto> page(int page, int size, String keyword, String state) {
@@ -57,7 +60,14 @@ public class DeviceService {
   }
 
   public List<DeviceDto> listAll() {
-    return repository.findAll().stream().map(this::toDto).toList();
+    return repository.findAll().stream()
+        .map(this::toDto)
+        // 优先展示"高 AI 分灾害点下的设备"——按所属灾害点的 AI 分倒序
+        .sorted(Comparator.comparing(
+            (DeviceDto dto) -> dto.aiScore() == null ? Double.NEGATIVE_INFINITY : dto.aiScore(),
+            Comparator.reverseOrder()
+        ).thenComparing(DeviceDto::id))
+        .toList();
   }
 
   /** 导出用：返回监测设备导出行。 */
@@ -70,14 +80,46 @@ public class DeviceService {
   }
 
   public List<DeviceDto> listByViewport(String bbox, String keyword, String state) {
+    // 第一步：DB 侧过滤 keyword + state（大幅缩小结果集）
+    Specification<MonitoringDevice> spec = (root, query, cb) -> {
+      Predicate p = cb.conjunction();
+      if (keyword != null && !keyword.isBlank()) {
+        String like = "%" + keyword.trim().toLowerCase() + "%";
+        p = cb.and(p, cb.or(
+            cb.like(cb.lower(root.get("deviceName")), like),
+            cb.like(cb.lower(root.get("deviceType")), like),
+            cb.like(cb.lower(root.get("installLocation")), like)
+        ));
+      }
+      if (state != null && !state.isBlank()) {
+        p = cb.and(p, cb.equal(root.get("onlineStatus"), state));
+      }
+      return p;
+    };
+    List<MonitoringDevice> candidates = repository.findAll(spec);
+
+    // 第二步：内存中做 bbox 过滤（需关联 hazard_point 坐标，无法用 JPA Specification 表达）
     Map<String, HazardPoint> hazardIndex = hazardRepository.findAll().stream()
         .filter(item -> item.getHazardCode() != null && !item.getHazardCode().isBlank())
         .collect(HashMap::new, (map, hazard) -> map.put(hazard.getHazardCode(), hazard), Map::putAll);
 
-    return repository.findAll().stream()
-        .filter(item -> matches(item, hazardIndex, bbox, keyword, state))
+    return candidates.stream()
+        .filter(item -> matchesBbox(item, hazardIndex, bbox))
         .map(this::toDto)
+        .sorted(Comparator.comparing(
+            (DeviceDto dto) -> dto.aiScore() == null ? Double.NEGATIVE_INFINITY : dto.aiScore(),
+            Comparator.reverseOrder()
+        ).thenComparing(DeviceDto::id))
         .toList();
+  }
+
+  private boolean matchesBbox(MonitoringDevice device, Map<String, HazardPoint> hazardIndex, String bbox) {
+    if (bbox == null || bbox.isBlank()) return true;
+    HazardPoint hazard = device.getHazardCode() == null ? null : hazardIndex.get(device.getHazardCode());
+    if (hazard != null) {
+      return withinBbox(hazard.getLongitude(), hazard.getLatitude(), bbox);
+    }
+    return withinBboxFromLocation(device.getInstallLocation(), bbox);
   }
 
   public DeviceDto getById(Long id) {
@@ -129,6 +171,8 @@ public class DeviceService {
   }
 
   private DeviceDto toDto(MonitoringDevice device) {
+    // 设备的"关注度"以所属灾害点的 AI 综合分为准：高 AI 分灾害点下的设备优先级最高
+    AiRiskEnricher.AiRiskBrief ai = device.getHazardCode() == null ? null : aiEnricher.of(device.getHazardCode());
     return new DeviceDto(
         device.getId(),
         device.getDeviceCode(),
@@ -140,55 +184,36 @@ public class DeviceService {
         device.getBatteryLevel(),
         device.getSignalLevel(),
         device.getLastReportAt(),
-        device.getLastReportAt() == null ? "刚刚" : "刚刚",
-        device.getInstallLocation()
+        relativeTime(device.getLastReportAt()),
+        device.getInstallLocation(),
+        ai == null ? null : ai.riskLevel(),
+        ai == null ? null : ai.levelLabel(),
+        ai == null ? null : ai.riskScore(),
+        ai == null ? null : ai.analyzedAt()
     );
   }
 
-  private boolean matches(MonitoringDevice device, Map<String, HazardPoint> hazardIndex, String bbox, String keyword, String state) {
-    if (keyword != null && !keyword.isBlank()) {
-      String like = keyword.trim().toLowerCase();
-      boolean matched = contains(device.getDeviceName(), like) || contains(device.getDeviceType(), like) || contains(device.getInstallLocation(), like);
-      if (!matched) return false;
-    }
-    if (state != null && !state.isBlank() && !state.equals(device.getOnlineStatus())) return false;
-    if (bbox != null && !bbox.isBlank()) {
-      if (!withinBbox(device, hazardIndex, bbox)) return false;
-    }
-    return true;
-  }
-
-  private boolean withinBbox(MonitoringDevice device, Map<String, HazardPoint> hazardIndex, String bbox) {
-    HazardPoint hazard = device.getHazardCode() == null ? null : hazardIndex.get(device.getHazardCode());
-    if (hazard != null) {
-      return withinBbox(hazard.getLongitude(), hazard.getLatitude(), bbox);
-    }
-    return withinBboxFromLocation(device.getInstallLocation(), bbox);
+  /** 将 OffsetDateTime 转为人类可读的相对时间（刚刚/N分钟前/N小时前/N天前）。 */
+  private static String relativeTime(OffsetDateTime time) {
+    if (time == null) return "无数据";
+    long seconds = java.time.Duration.between(time, OffsetDateTime.now()).getSeconds();
+    if (seconds < 60) return "刚刚";
+    if (seconds < 3600) return (seconds / 60) + " 分钟前";
+    if (seconds < 86400) return (seconds / 3600) + " 小时前";
+    return (seconds / 86400) + " 天前";
   }
 
   private boolean withinBbox(Double lon, Double lat, String bbox) {
     if (bbox == null || bbox.isBlank()) return true;
-    if (lon == null || lat == null) return false;
-    String[] parts = bbox.split(",");
-    if (parts.length != 4) return true;
-    try {
-      double minLon = Double.parseDouble(parts[0].trim());
-      double minLat = Double.parseDouble(parts[1].trim());
-      double maxLon = Double.parseDouble(parts[2].trim());
-      double maxLat = Double.parseDouble(parts[3].trim());
-      return lon >= minLon && lon <= maxLon && lat >= minLat && lat <= maxLat;
-    } catch (NumberFormatException ex) {
-      return true;
-    }
+    var bounds = cn.geosentry.common.geo.ViewportBounds.parse(bbox);
+    if (bounds == null) return true;  // bbox 格式异常时不过滤（保守）
+    return bounds.contains(lon, lat);
   }
 
   private boolean withinBboxFromLocation(String location, String bbox) {
     if (bbox == null || bbox.isBlank()) return true;
-    if (location == null || location.isBlank()) return false;
-    return true;
-  }
-
-  private boolean contains(String value, String keyword) {
-    return value != null && value.toLowerCase().contains(keyword);
+    // 设备无关联 hazard 也无坐标信息时，不在 bbox 过滤范围内返回 false
+    // （避免把未知位置的设备混入视口结果集）
+    return false;
   }
 }

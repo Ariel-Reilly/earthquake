@@ -3,7 +3,6 @@ package cn.geosentry.aop;
 import cn.geosentry.audit.entity.OperationLog;
 import cn.geosentry.audit.repository.OperationLogRepository;
 import cn.geosentry.auth.jwt.JwtService;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.OffsetDateTime;
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -25,27 +24,34 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 public class OperationLogAspect {
 
   private static final Logger log = LoggerFactory.getLogger(OperationLogAspect.class);
-  private static final int MAX_BODY = 500;
 
   private final OperationLogRepository repository;
   private final JwtService jwtService;
-  private final ObjectMapper objectMapper;
 
-  public OperationLogAspect(OperationLogRepository repository, JwtService jwtService, ObjectMapper objectMapper) {
+  public OperationLogAspect(OperationLogRepository repository, JwtService jwtService) {
     this.repository = repository;
     this.jwtService = jwtService;
-    this.objectMapper = objectMapper;
   }
 
-  @Around("execution(* cn.geosentry..controller..*.*(..)) && @annotation(org.springframework.security.access.prepost.PreAuthorize)")
+  /**
+   * 对所有 Controller 方法进行审计，在切面内部跳过 GET/HEAD 读操作。
+   * 去掉了 @PreAuthorize 注解依赖，覆盖所有写操作 Controller（即使没显式加权限注解也会被审计）。
+   *
+   * <p>切点匹配策略：项目 Controller 直接放在各业务包下（如 cn.geosentry.warning.WarningController），
+   * 不使用中间 controller 子包。因此按类名后缀 {@code *Controller} 匹配，避免遗漏任何控制器。
+   */
+  @Around("execution(* cn.geosentry..*Controller.*(..))")
   public Object audit(ProceedingJoinPoint pjp) throws Throwable {
     long start = System.currentTimeMillis();
     ServletRequestAttributes attrs = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
-    String method = attrs != null ? attrs.getRequest().getMethod() : null;
+    if (attrs == null) {
+      return pjp.proceed();
+    }
+    HttpServletRequest req = attrs.getRequest();
+    String method = req.getMethod();
     // 只记录写操作
-    if (method != null && !"GET".equalsIgnoreCase(method) && !"HEAD".equalsIgnoreCase(method)) {
+    if (!"GET".equalsIgnoreCase(method) && !"HEAD".equalsIgnoreCase(method)) {
       OperationLog op = new OperationLog();
-      HttpServletRequest req = attrs.getRequest();
       op.setRequestMethod(method);
       op.setRequestPath(req.getRequestURI());
       op.setIpAddress(resolveIp(req));

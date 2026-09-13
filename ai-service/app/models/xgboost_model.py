@@ -10,7 +10,7 @@ from __future__ import annotations
 import math
 import random
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Tuple
 
 import numpy as np
 
@@ -137,6 +137,14 @@ class FusionRiskModel:
         if score >= 35:
             return "MEDIUM"
         return "LOW"
+
+    # 公开的 device 维度加权评分，供 comprehensive_model 复用
+    @classmethod
+    def device_weighted_score(cls, factors: Dict[str, float]) -> Tuple[float, float]:
+        """仅复用 device 维度 7 因子的加权融合，返回 (score, confidence)。"""
+        instance = cls.__new__(cls)
+        result = instance._run_weighted(factors)
+        return result["risk_score"], result["confidence"]
 
 
 _fusion_model: Optional[FusionRiskModel] = None

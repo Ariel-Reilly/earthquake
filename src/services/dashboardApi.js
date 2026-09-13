@@ -1,8 +1,9 @@
 const API_BASE =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:8081/api";
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api";
 const latency = 240;
 
-import { clearAuthSession, getAuthToken } from "../stores/auth";
+import { getAuthToken, redirectToLogin } from "../stores/auth";
+import * as mock from "./mock";
 
 /**
  * 运行模式：
@@ -16,7 +17,6 @@ let RUNTIME_MODE =
     : "probing";
 let USE_BACKEND =
   String(import.meta.env.VITE_USE_BACKEND ?? "").toLowerCase() === "true";
-let seeded = false;
 
 export function getRuntimeMode() {
   return RUNTIME_MODE === "probing" ? "probing" : RUNTIME_MODE;
@@ -66,13 +66,9 @@ function createApiError(message, code = "API_ERROR") {
   return error;
 }
 
-function redirectToLogin() {
-  if (
-    typeof window !== "undefined" &&
-    !window.location.pathname.startsWith("/login")
-  ) {
-    window.location.replace("/login");
-  }
+function redirectToLoginLocal() {
+  // 委托给 auth.js 的 redirectToLogin（已内置并发锁防重复）
+  redirectToLogin();
 }
 
 function isBackendCompatibleToken(token) {
@@ -105,8 +101,7 @@ async function request(path, options = {}) {
   const payload = await response.json().catch(() => null);
 
   if (response.status === 401 && !path.startsWith("/auth/")) {
-    clearAuthSession();
-    redirectToLogin();
+    redirectToLoginLocal();
     throw createApiError(payload?.message || "登录已过期，请重新登录", "401");
   }
 
@@ -119,6 +114,43 @@ async function request(path, options = {}) {
   return payload.data;
 }
 
+/**
+ * 触发浏览器下载后端生成的二进制文件（xlsx 等）。
+ * 后端导出接口返回附件流（ExcelExportService），不能走 request() 的 JSON 解析。
+ */
+async function downloadFile(path, fileName) {
+  if (!USE_BACKEND) {
+    throw createApiError("导出需要后端服务。请启动后端后重试。", "BACKEND_REQUIRED");
+  }
+  const token = getAuthToken();
+  const headers = isBackendCompatibleToken(token)
+    ? { Authorization: `Bearer ${token}` }
+    : {};
+  const response = await fetch(`${API_BASE}${path}`, {
+    method: "POST",
+    headers,
+    credentials: "include",
+  });
+  if (response.status === 401) {
+    redirectToLoginLocal();
+    throw createApiError("登录已过期，请重新登录", "401");
+  }
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null);
+    throw createApiError(payload?.message || `导出失败：${response.status}`, String(response.status));
+  }
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+  return { downloaded: true, fileName };
+}
+
 function response(data) {
   return new Promise((resolve) => {
     window.setTimeout(() => resolve(clone(data)), latency);
@@ -127,14 +159,14 @@ function response(data) {
 
 function normalizePaged(payload, fallback = []) {
   if (!payload)
-    return {
+    {return {
       records: fallback,
       total: fallback.length,
       page: 1,
       size: fallback.length,
       pages: 1,
-    };
-  if (Array.isArray(payload.records)) return payload;
+    };}
+  if (Array.isArray(payload.records)) {return payload;}
   return {
     records: fallback,
     total: fallback.length,
@@ -148,588 +180,25 @@ function withQuery(params) {
   const search = new URLSearchParams();
   Object.entries(params).forEach(([key, value]) => {
     if (value !== undefined && value !== null && `${value}`.trim() !== "")
-      search.set(key, String(value));
+      {search.set(key, String(value));}
   });
   const suffix = search.toString();
   return suffix ? `?${suffix}` : "";
 }
 
-const SEED_BASE = {
-  overviewStats: [
-    {
-      label: "监测灾害点",
-      value: "128",
-      suffix: "处",
-      change: "↑ 4.2% 较上月",
-      color: "teal",
-    },
-    {
-      label: "在线监测设备",
-      value: "1,486",
-      suffix: "台",
-      change: "↑ 2.8% 较上月",
-      color: "blue",
-    },
-    {
-      label: "当前预警事件",
-      value: "05",
-      suffix: "起",
-      change: "↑ 1 起 较昨日",
-      color: "orange",
-    },
-    {
-      label: "今日巡检完成率",
-      value: "92.4",
-      suffix: "%",
-      change: "↑ 6.3% 较昨日",
-      color: "purple",
-    },
-  ],
-  hazardPoints: [
-    {
-      id: 1,
-      code: "HZ-001",
-      name: "青龙坡滑坡隐患点",
-      type: "滑坡",
-      level: "高风险",
-      distance: "1.2 km",
-      status: "位移 +12mm",
-      owner: "龙安镇",
-      lon: "107.21",
-      lat: "30.61",
-    },
-    {
-      id: 2,
-      code: "HZ-002",
-      name: "大岭村崩塌点",
-      type: "崩塌",
-      level: "关注",
-      distance: "2.8 km",
-      status: "裂缝 18mm",
-      owner: "石桥镇",
-      lon: "107.34",
-      lat: "30.48",
-    },
-    {
-      id: 3,
-      code: "HZ-003",
-      name: "白石沟泥石流",
-      type: "泥石流",
-      level: "正常",
-      distance: "5.6 km",
-      status: "雨量 8.2mm",
-      owner: "清河镇",
-      lon: "107.55",
-      lat: "30.42",
-    },
-    {
-      id: 4,
-      code: "HZ-004",
-      name: "云台山地裂缝",
-      type: "地裂缝",
-      level: "关注",
-      distance: "3.3 km",
-      status: "倾角 2.1°",
-      owner: "清河镇",
-      lon: "107.61",
-      lat: "30.67",
-    },
-    {
-      id: 5,
-      code: "HZ-005",
-      name: "石门沟滑坡点",
-      type: "滑坡",
-      level: "正常",
-      distance: "4.1 km",
-      status: "位移稳定",
-      owner: "龙安镇",
-      lon: "107.14",
-      lat: "30.56",
-    },
-  ],
-  tasks: [
-    {
-      id: 1,
-      name: "雨后重点灾害点复查",
-      type: "雨后复查",
-      owner: "王建国",
-      due: "18:00",
-      progress: 92,
-      status: "执行中",
-      hazardId: 1,
-      hazardCode: "HZ-001",
-      hazardLon: 107.21,
-      hazardLat: 30.61,
-    },
-    {
-      id: 2,
-      name: "青龙坡高风险点加密巡检",
-      type: "应急巡检",
-      owner: "周小雨",
-      due: "16:30",
-      progress: 68,
-      status: "待处理",
-      hazardId: 1,
-      hazardCode: "HZ-001",
-      hazardLon: 107.21,
-      hazardLat: 30.61,
-    },
-    {
-      id: 3,
-      name: "云台山地裂缝专项排查",
-      type: "专项排查",
-      owner: "陈晓峰",
-      due: "20:00",
-      progress: 100,
-      status: "已完成",
-      hazardId: 4,
-      hazardCode: "HZ-004",
-      hazardLon: 107.61,
-      hazardLat: 30.67,
-    },
-    {
-      id: 4,
-      name: "石门沟设备巡检与校准",
-      type: "常规巡检",
-      owner: "李敏",
-      due: "17:20",
-      progress: 54,
-      status: "执行中",
-      hazardId: 5,
-      hazardCode: "HZ-005",
-      hazardLon: 107.14,
-      hazardLat: 30.56,
-    },
-  ],
-  devices: [
-    {
-      id: 1,
-      name: "GNSS-001",
-      type: "GNSS位移",
-      point: "青龙坡",
-      hazardId: 1,
-      state: "在线",
-      battery: 92,
-      signal: "强",
-      last: "2分钟前",
-      lon: 107.21,
-      lat: 30.61,
-    },
-    {
-      id: 2,
-      name: "CRK-014",
-      type: "裂缝计",
-      point: "大岭村",
-      hazardId: 2,
-      state: "在线",
-      battery: 88,
-      signal: "强",
-      last: "1分钟前",
-      lon: 107.34,
-      lat: 30.48,
-    },
-    {
-      id: 3,
-      name: "RAIN-052",
-      type: "雨量计",
-      point: "白石沟",
-      hazardId: 3,
-      state: "离线",
-      battery: 34,
-      signal: "弱",
-      last: "18分钟前",
-      lon: 107.55,
-      lat: 30.42,
-    },
-    {
-      id: 4,
-      name: "INC-223",
-      type: "倾角计",
-      point: "云台山",
-      hazardId: 4,
-      state: "在线",
-      battery: 76,
-      signal: "中",
-      last: "刚刚",
-      lon: 107.61,
-      lat: 30.67,
-    },
-  ],
-  warnings: [
-    {
-      id: 1,
-      bizNo: "W-20260813-001",
-      level: "橙色预警",
-      class: "orange",
-      title: "青龙坡滑坡隐患点",
-      desc: "位移速率连续 3 小时超过阈值",
-      time: "10:42",
-      point: "青龙坡 · 龙安镇",
-      status: "待确认",
-      version: 1,
-      updatedAt: "2026-08-13T10:42:00+08:00",
-      lon: 107.21,
-      lat: 30.61,
-      hazardId: 1,
-    },
-    {
-      id: 2,
-      bizNo: "W-20260813-002",
-      level: "蓝色提醒",
-      class: "blue",
-      title: "云台山地裂缝",
-      desc: "倾角变化达到关注值",
-      time: "09:15",
-      point: "云台山 · 清河镇",
-      status: "待确认",
-      version: 1,
-      updatedAt: "2026-08-13T09:15:00+08:00",
-      lon: 107.61,
-      lat: 30.67,
-      hazardId: 4,
-    },
-  ],
-  incidents: [
-    {
-      id: 1,
-      title: "青龙坡橙色预警",
-      step: "专家复核中",
-      time: "10:52",
-      owner: "自然资源局值班组",
-      warningId: 1,
-      level: "橙色预警",
-    },
-  ],
-};
-
 /**
  * 演示数据回退控制：
  * - USE_BACKEND=false 时返回真实 seedState 数据（开发/演示模式）
  * - USE_BACKEND=true 时返回空数组，防止 API 返回 null 时误用 mock 数据
+ * 数据源已迁出到 ./mock/seed.js。
  */
 function fallback(key) {
-  if (USE_BACKEND) return [];
-  return SEED_BASE[key] ?? [];
+  if (USE_BACKEND) {return [];}
+  return mock.seed.SEED_BASE[key] ?? [];
 }
 
-const seedState = SEED_BASE;
-
-const SEED_ATTACHMENTS = {
-  hazard: [
-    { name: "青龙坡位移监测月报.pdf", size: "2.4 MB" },
-    { name: "隐患点现场核查照片.zip", size: "18.6 MB" },
-    { name: "群测群防巡查记录表.xlsx", size: "356 KB" },
-  ],
-  device: [
-    { name: "GNSS 安装调试记录.pdf", size: "1.2 MB" },
-    { name: "设备校准证书.png", size: "880 KB" },
-    { name: "运维工单派发单.pdf", size: "512 KB" },
-  ],
-  task: [
-    { name: "巡检任务书.pdf", size: "960 KB" },
-    { name: "现场巡检照片.zip", size: "24.1 MB" },
-    { name: "巡检结果签认表.xlsx", size: "428 KB" },
-  ],
-  warning: [
-    { name: "预警处置单.pdf", size: "680 KB" },
-    { name: "监测数据导出.xlsx", size: "1.6 MB" },
-  ],
-};
-
-function findHazardById(id) {
-  return (
-    seedState.hazardPoints.find((entry) => String(entry.id) === String(id)) ??
-    null
-  );
-}
-
-function findTaskById(id) {
-  return (
-    seedState.tasks.find((entry) => String(entry.id) === String(id)) ?? null
-  );
-}
-
-function findDeviceById(id) {
-  return (
-    seedState.devices.find((entry) => String(entry.id) === String(id)) ?? null
-  );
-}
-
-function findWarningById(id) {
-  return (
-    seedState.warnings.find((entry) => String(entry.id) === String(id)) ?? null
-  );
-}
-
-function tasksOfHazard(hazardId) {
-  return seedState.tasks.filter(
-    (task) => String(task.hazardId) === String(hazardId),
-  );
-}
-
-function devicesOfHazard(hazardId) {
-  return seedState.devices.filter(
-    (device) => String(device.hazardId) === String(hazardId),
-  );
-}
-
-function warningsOfHazard(hazardId) {
-  return seedState.warnings.filter(
-    (warning) => String(warning.hazardId) === String(hazardId),
-  );
-}
-
-function incidentsOfWarning(warningId) {
-  return seedState.incidents.filter(
-    (incident) => String(incident.warningId) === String(warningId),
-  );
-}
-
-function historyOfHazard(hazardId) {
-  const history = [];
-  const hazard = findHazardById(hazardId);
-  if (hazard) {
-    history.push({
-      title: "隐患点建档",
-      desc: `${hazard.type}隐患点纳入监测台账，风险等级 ${hazard.level}`,
-      time: "2026-06-18",
-    });
-  }
-  for (const task of tasksOfHazard(hazardId)) {
-    history.push({
-      title: `巡检任务「${task.name}」`,
-      desc: `${task.status}，当前进度 ${task.progress}%`,
-      time: "今天",
-    });
-  }
-  for (const warning of warningsOfHazard(hazardId)) {
-    history.push({
-      title: `预警触发「${warning.level}」`,
-      desc: warning.desc,
-      time: warning.time,
-    });
-  }
-  return history;
-}
-
-function linkedOfHazard(hazardId) {
-  return [
-    ...devicesOfHazard(hazardId).map((device) => ({
-      type: "监测设备",
-      label: device.name,
-      path: `/devices/${device.id}`,
-    })),
-    ...tasksOfHazard(hazardId).map((task) => ({
-      type: "巡检任务",
-      label: task.name,
-      path: `/tasks/${task.id}`,
-    })),
-    ...warningsOfHazard(hazardId).map((warning) => ({
-      type: "预警事件",
-      label: `${warning.level} · ${warning.title}`,
-      path: `/warnings/${warning.id}`,
-    })),
-  ];
-}
-
-function historyOfDevice(deviceId) {
-  const device = findDeviceById(deviceId);
-  const history = [];
-  if (device) {
-    history.push({
-      title: "设备接入",
-      desc: `${device.name}（${device.type}）接入监测网络`,
-      time: "2026-06-01",
-    });
-    history.push({
-      title: "数据上报",
-      desc: `${device.state === "离线" ? "离线，最后上报于" : "最近上报于"} ${device.last}，信号 ${device.signal}`,
-      time: device.last,
-    });
-  }
-  const hazard = device ? findHazardById(device.hazardId) : null;
-  if (hazard) {
-    history.push({
-      title: `绑定灾害点「${hazard.name}」`,
-      desc: `监测对象风险等级 ${hazard.level}`,
-      time: "建档",
-    });
-  }
-  return history;
-}
-
-function linkedOfDevice(deviceId) {
-  const device = findDeviceById(deviceId);
-  if (!device) return [];
-  const links = [];
-  const hazard = findHazardById(device.hazardId);
-  if (hazard)
-    links.push({
-      type: "绑定灾害点",
-      label: hazard.name,
-      path: `/hazards/${hazard.id}`,
-    });
-  for (const warning of warningsOfHazard(device.hazardId)) {
-    links.push({
-      type: "关联预警",
-      label: `${warning.level} · ${warning.title}`,
-      path: `/warnings/${warning.id}`,
-    });
-  }
-  for (const task of tasksOfHazard(device.hazardId)) {
-    links.push({
-      type: "关联任务",
-      label: task.name,
-      path: `/tasks/${task.id}`,
-    });
-  }
-  return links;
-}
-
-function historyOfTask(taskId) {
-  const task = findTaskById(taskId);
-  if (!task) return [];
-  return [
-    {
-      title: "任务创建",
-      desc: `${task.name}（${task.type}）已创建，负责人 ${task.owner}`,
-      time: "今天 08:00",
-    },
-    {
-      title: "GPS 围栏校验",
-      desc: `巡检员已到达任务点位附近，围栏校验通过`,
-      time: "今天",
-    },
-    {
-      title: "任务执行",
-      desc: `${task.status}，完成进度 ${task.progress}%`,
-      time: "实时",
-    },
-  ];
-}
-
-function linkedOfTask(taskId) {
-  const task = findTaskById(taskId);
-  if (!task) return [];
-  const links = [];
-  const hazard = findHazardById(task.hazardId);
-  if (hazard)
-    links.push({
-      type: "关联灾害点",
-      label: hazard.name,
-      path: `/hazards/${hazard.id}`,
-    });
-  for (const warning of warningsOfHazard(task.hazardId)) {
-    links.push({
-      type: "关联预警",
-      label: `${warning.level} · ${warning.title}`,
-      path: `/warnings/${warning.id}`,
-    });
-  }
-  for (const device of devicesOfHazard(task.hazardId)) {
-    links.push({
-      type: "监测设备",
-      label: device.name,
-      path: `/devices/${device.id}`,
-    });
-  }
-  return links;
-}
-
-function historyOfWarning(warningId) {
-  const warning = findWarningById(warningId);
-  if (!warning) return [];
-  const history = [
-    { title: "预警触发", desc: warning.desc, time: warning.time },
-  ];
-  if (warning.status !== "待确认")
-    history.push({
-      title: `预警${warning.status === "已忽略" ? "忽略（误报）" : warning.status === "已解除" ? "解除（自动）" : warning.status}`,
-      desc: warning.closeReason || "处置流程正常推进",
-      time: "实时",
-    });
-  return history;
-}
-
-function linkedOfWarning(warningId) {
-  const warning = findWarningById(warningId);
-  if (!warning) return [];
-  const links = [];
-  const hazard = findHazardById(warning.hazardId);
-  if (hazard)
-    links.push({
-      type: "触发灾害点",
-      label: hazard.name,
-      path: `/hazards/${hazard.id}`,
-    });
-  for (const device of devicesOfHazard(warning.hazardId)) {
-    links.push({
-      type: "监测设备",
-      label: device.name,
-      path: `/devices/${device.id}`,
-    });
-  }
-  for (const task of tasksOfHazard(warning.hazardId)) {
-    links.push({
-      type: "关联任务",
-      label: task.name,
-      path: `/tasks/${task.id}`,
-    });
-  }
-  for (const incident of incidentsOfWarning(warningId)) {
-    links.push({ type: "应急事件", label: incident.title, path: `/emergency` });
-  }
-  return links;
-}
-
-const WARNING_LEVEL_RULES = [
-  {
-    match: (level) => /橙|红/.test(level),
-    escalate: true,
-    action: "自动启动应急响应",
-  },
-  {
-    match: (level) => /黄|蓝/.test(level),
-    escalate: false,
-    action: "加密巡查，按需手动启动应急",
-  },
-  { match: () => true, escalate: false, action: "常规处置" },
-];
-
-function resolveWarningLevelRule(level = "") {
-  return (
-    WARNING_LEVEL_RULES.find((rule) => rule.match(level)) ??
-    WARNING_LEVEL_RULES[WARNING_LEVEL_RULES.length - 1]
-  );
-}
-
-function handleWarningTermination(id, reason) {
-  if (!USE_BACKEND) {
-    return closeWarningImplPath(id, reason);
-  }
-  return request(`/warnings/${id}/close`, {
-    method: "POST",
-    body: JSON.stringify({ reason }),
-  });
-}
-
-function closeWarningImplPath(id, reason) {
-  const current = seedState.warnings.find(
-    (item) => String(item.id) === String(id),
-  );
-  const status =
-    reason === "误报" ? "已忽略" : reason === "自动解除" ? "已解除" : "已关闭";
-  const item = {
-    ...(current ?? { id }),
-    status,
-    closeReason: reason,
-    closedBy: "值班台",
-    version: (current?.version ?? 0) + 1,
-    updatedAt: new Date().toISOString(),
-  };
-  if (current) Object.assign(current, item);
-  return response({ item });
-}
+const seedState = mock.seed.SEED_BASE;
+const SEED_ATTACHMENTS = mock.seed.SEED_ATTACHMENTS;
 
 export async function loginRequest(payload) {
   if (USE_BACKEND) {
@@ -748,30 +217,23 @@ export async function loginRequest(payload) {
     throw createApiError("请输入账号和密码");
   }
 
-  return response({
-    token: `token_${btoa(`${username}:${Date.now()}`)}`,
-    user: {
-      name: "李晨曦",
-      role,
-      username,
-    },
-  });
+  return response(mock.empty.loginMockUser(username, role));
 }
 
 export async function logoutRequest() {
   if (USE_BACKEND) {
     return request("/auth/logout", { method: "POST" }).catch(() => null);
   }
-  return response({ success: true });
+  return response(mock.empty.logoutOk);
 }
 
 export const dashboardApi = {
   getOverview: async () => {
-    if (!USE_BACKEND) requireBackend("加载总览数据");
+    if (!USE_BACKEND) {requireBackend("加载总览数据");}
     return request("/dashboard/overview");
   },
   getHazards: async (params = {}) => {
-    if (!USE_BACKEND) requireBackend("加载灾害点列表");
+    if (!USE_BACKEND) {requireBackend("加载灾害点列表");}
     const data = await request(`/hazards${withQuery(params)}`);
     const normalized = normalizePaged(data, fallback("hazardPoints"));
     return {
@@ -782,6 +244,16 @@ export const dashboardApi = {
       pages: normalized.pages,
     };
   },
+
+  /**
+   * v1.6.0：AI 实时监测专用接口 —— 严格按 discovered_at DESC 排序，最新发现的点排第一。
+   * 不分页（最多 50 条）。前端"AI 实时监测"面板秒级轮询使用。
+   */
+  getAiMonitorHazards: async () => {
+    if (!USE_BACKEND) {requireBackend("加载 AI 实时监测灾害");}
+    const data = await request("/hazards/ai-monitor");
+    return Array.isArray(data) ? data : (data.list ?? data.records ?? []);
+  },
   getHazardsByViewport: async ({
     bbox,
     zoom,
@@ -791,14 +263,14 @@ export const dashboardApi = {
     type,
   } = {}) => {
     const params = { bbox, zoom, level, keyword, regionCode, type };
-    if (!USE_BACKEND) requireBackend("加载灾害点视口数据");
+    if (!USE_BACKEND) {requireBackend("加载灾害点视口数据");}
     const data = await request(`/hazards/viewport${withQuery(params)}`);
     return Array.isArray(data)
       ? data
       : normalizePaged(data, fallback("hazardPoints")).records;
   },
   getHazardDetail: async (id) => {
-    if (!USE_BACKEND) requireBackend("查看灾害点详情");
+    if (!USE_BACKEND) {requireBackend("查看灾害点详情");}
     return request(`/hazards/${id}`);
   },
   createHazard: async (payload) => {
@@ -840,13 +312,13 @@ export const dashboardApi = {
     });
   },
   getTaskDetail: async (id) => {
-    if (USE_BACKEND) return request(`/tasks/${id}`);
-    const item = findTaskById(id) ?? seedState.tasks[0];
+    if (USE_BACKEND) {return request(`/tasks/${id}`);}
+    const item = mock.seed.findTaskById(id) ?? mock.seed.SEED_BASE.tasks[0];
     return response({
       item,
-      history: historyOfTask(item.id),
+      history: mock.seed.historyOfTask(item.id),
       attachments: SEED_ATTACHMENTS.task,
-      linked: linkedOfTask(item.id),
+      linked: mock.seed.linkedOfTask(item.id),
     });
   },
   createTask: async (payload) => {
@@ -904,13 +376,13 @@ export const dashboardApi = {
     );
   },
   getDeviceDetail: async (id) => {
-    if (USE_BACKEND) return request(`/devices/${id}`);
-    const item = findDeviceById(id) ?? seedState.devices[0];
+    if (USE_BACKEND) {return request(`/devices/${id}`);}
+    const item = mock.seed.findDeviceById(id) ?? mock.seed.SEED_BASE.devices[0];
     return response({
       item,
-      history: historyOfDevice(item.id),
+      history: mock.seed.historyOfDevice(item.id),
       attachments: SEED_ATTACHMENTS.device,
-      linked: linkedOfDevice(item.id),
+      linked: mock.seed.linkedOfDevice(item.id),
     });
   },
   updateDevice: async (id, payload) => {
@@ -973,13 +445,13 @@ export const dashboardApi = {
     return response(seedState.warnings);
   },
   getWarningDetail: async (id) => {
-    if (USE_BACKEND) return request(`/warnings/${id}`);
-    const item = findWarningById(id) ?? seedState.warnings[0];
+    if (USE_BACKEND) {return request(`/warnings/${id}`);}
+    const item = mock.seed.findWarningById(id) ?? mock.seed.SEED_BASE.warnings[0];
     return response({
       item,
-      history: historyOfWarning(item.id),
+      history: mock.seed.historyOfWarning(item.id),
       attachments: SEED_ATTACHMENTS.warning,
-      linked: linkedOfWarning(item.id),
+      linked: mock.seed.linkedOfWarning(item.id),
     });
   },
   updateWarning: async (id, payload) => {
@@ -1036,7 +508,7 @@ export const dashboardApi = {
       }));
       return { incidents };
     }
-    return response({ incidents: seedState.incidents });
+    return response({ incidents: mock.seed.SEED_BASE.incidents });
   },
   getPersonnel: async () => {
     // 生产模式：值守人员实时位置由移动端上报后端，此处仅透传（点 1、2）
@@ -1044,121 +516,46 @@ export const dashboardApi = {
       const data = await request(`/personnel/positions`);
       return Array.isArray(data) ? { list: data } : normalizePaged(data, []);
     }
-    return response({ list: [] });
+    return response({ list: mock.empty.emptyList() });
   },
   closeIncident: async (id) => {
     requireBackend("关闭应急事件");
-    return request(`/emergency/${id}`, { method: "DELETE" });
+    // 闭环语义：POST /emergency/{id}/close 保留事件记录置为"已闭环"，
+    // 不是 DELETE 物理删除
+    return request(`/emergency/${id}/close`, {
+      method: "POST",
+      body: JSON.stringify({ summary: "处置完成，事件闭环" }),
+    });
   },
   exportOverviewReport: async () => {
-    requireBackend("导出总览报表");
-    return request("/dashboard/overview/export", { method: "POST" });
+    return downloadFile("/dashboard/overview/export", "总览报表.xlsx");
   },
   exportHazardReport: async () => {
-    requireBackend("导出灾害点报表");
-    return request("/hazards/export", { method: "POST" });
+    return downloadFile("/hazards/export", "灾害点导出.xlsx");
   },
   exportTaskReport: async () => {
-    requireBackend("导出巡检任务报表");
-    return request("/tasks/export", { method: "POST" });
+    return downloadFile("/tasks/export", "巡检任务导出.xlsx");
   },
   exportDeviceReport: async () => {
-    requireBackend("导出设备报表");
-    return request("/devices/export", { method: "POST" });
+    return downloadFile("/devices/export", "设备状态导出.xlsx");
   },
   exportWarningReport: async () => {
-    requireBackend("导出预警报表");
-    return request("/warnings/export", { method: "POST" });
+    return downloadFile("/warnings/export", "预警处置导出.xlsx");
   },
   exportEmergencyReport: async () => {
-    requireBackend("导出应急报表");
-    return request("/emergency/export", { method: "POST" });
+    return downloadFile("/emergency/export", "应急处置导出.xlsx");
   },
   getAnalytics: async () => {
-    if (USE_BACKEND) return request("/dashboard/analytics");
-    return response({
-      hazardPoints: seedState.hazardPoints,
-      overviewStats: seedState.overviewStats,
-      charts: {
-        riskTrend: [62, 68, 66, 71, 74, 79, 78],
-        monthlyInspection: [54, 62, 67, 73, 81, 85, 88, 91, 93, 92, 94, 96],
-        warningType: [
-          { label: "位移异常", value: 42, color: "#e27d5b" },
-          { label: "裂缝扩展", value: 27, color: "#d7a546" },
-          { label: "雨量阈值", value: 18, color: "#5db486" },
-          { label: "设备离线", value: 13, color: "#658fc1" },
-        ],
-        deviceTrend: [88, 89, 90, 92, 91, 93, 95, 94, 96, 97, 98, 98],
-        heatmap: [
-          { region: "龙安镇", intensity: 92, risk: "高" },
-          { region: "石桥镇", intensity: 68, risk: "中" },
-          { region: "清河镇", intensity: 54, risk: "中" },
-          { region: "白石乡", intensity: 31, risk: "低" },
-        ],
-        riskZones: [
-          {
-            name: "龙安东片区",
-            level: "高",
-            count: 4,
-            x: 18,
-            y: 22,
-            width: 28,
-            height: 20,
-            color: "#e27d5b",
-          },
-          {
-            name: "石桥中片区",
-            level: "中",
-            count: 3,
-            x: 48,
-            y: 38,
-            width: 24,
-            height: 18,
-            color: "#d7a546",
-          },
-          {
-            name: "清河南片区",
-            level: "中",
-            count: 2,
-            x: 72,
-            y: 18,
-            width: 20,
-            height: 24,
-            color: "#5db486",
-          },
-          {
-            name: "白石北片区",
-            level: "低",
-            count: 1,
-            x: 30,
-            y: 60,
-            width: 18,
-            height: 18,
-            color: "#658fc1",
-          },
-        ],
-      },
-    });
+    if (USE_BACKEND) {return request("/dashboard/analytics");}
+    return response(mock.analytics.getAnalyticsMock());
   },
   getModuleMeta: async () =>
     USE_BACKEND
       ? request("/dashboard/summary")
-      : response({ item: { title: "地脉智巡", desc: "本地模拟模式" } }),
+      : response(mock.analytics.moduleMetaMock),
   uploadAttachment: async ({ businessType, businessCode, file, uploader }) => {
     if (!USE_BACKEND) {
-      return response({
-        item: {
-          id: Date.now(),
-          businessType,
-          businessCode,
-          fileName: file?.name ?? "file",
-          fileSize: file?.size ?? 0,
-          fileType: file?.type ?? "",
-          storagePath: "",
-          fileUrl: "",
-          uploader,
-        },
-      });
+      return response(mock.empty.uploadReceipt({ businessType, businessCode, file, uploader }));
     }
     const formData = new FormData();
     formData.append("businessType", businessType);
@@ -1172,15 +569,15 @@ export const dashboardApi = {
     });
     const payload = await responseData.json().catch(() => null);
     if (!responseData.ok || payload?.code !== 0)
-      throw createApiError(payload?.message || "上传失败");
+      {throw createApiError(payload?.message || "上传失败");}
     return payload.data;
   },
   getAttachments: async ({ businessType, businessCode }) => {
     if (USE_BACKEND)
-      return request(
+      {return request(
         `/attachments?businessType=${encodeURIComponent(businessType)}&businessCode=${encodeURIComponent(businessCode)}`,
-      );
-    return response([]);
+      );}
+    return response(mock.empty.emptyAttachments);
   },
   /** 刷新附件 presigned URL（检测到 403/410 时调用）。返回新 URL 字符串。 */
   refreshAttachmentUrl: async (attachmentId) => {
@@ -1213,17 +610,9 @@ export const dashboardApi = {
         }),
       });
     }
-    return response({
-      taskCode,
-      hazardCode,
-      distanceM: 32.5,
-      allowedRadius: allowedRadius ?? 100,
-      withinFence: true,
-      fenceStatus: "已进入围栏",
-      lon,
-      lat,
-      checkedAt: new Date().toISOString(),
-    });
+    return response(
+      mock.empty.gpsCheckFallback({ taskCode, hazardCode, lon, lat, allowedRadius }),
+    );
   },
   submitInspection: async (payload) => {
     if (USE_BACKEND) {
@@ -1232,30 +621,1565 @@ export const dashboardApi = {
         body: JSON.stringify(payload),
       });
     }
-    return response({
-      id: Date.now(),
-      recordCode: `IR-${Date.now()}`,
-      taskCode: payload.taskCode,
-      hazardCode: payload.hazardCode,
-      inspector: payload.inspector,
-      inspectAt: new Date().toISOString(),
-      signInLon: payload.lon,
-      signInLat: payload.lat,
-      distanceM: 32.5,
-      abnormalFlag: Boolean(payload.abnormalFlag),
-      note: payload.note,
-      photoIds: payload.photoIds ?? [],
-      formData: payload.formData ?? {},
-    });
+    return response(mock.empty.submitInspectionFallback(payload));
   },
   getInspectionByTask: async (taskCode) => {
     if (USE_BACKEND)
-      return request(`/inspection/task/${encodeURIComponent(taskCode)}`);
-    return response([]);
+      {return request(`/inspection/task/${encodeURIComponent(taskCode)}`);}
+    return response(mock.empty.emptyList());
   },
   getInspectionByHazard: async (hazardCode) => {
     if (USE_BACKEND)
-      return request(`/inspection/hazard/${encodeURIComponent(hazardCode)}`);
-    return response([]);
+      {return request(`/inspection/hazard/${encodeURIComponent(hazardCode)}`);}
+    return response(mock.empty.emptyList());
   },
+
+  /**
+   * AI 综合分析落库数据：获取所有灾害点的最新分数（每 5 分钟自动刷新）。
+   * @returns {Promise<Array<{
+   *   hazardCode, riskLevel, riskScore, confidence, model, analyzedAt,
+   *   dimensions, reasoning, suggestedActions
+   * }>>}
+   */
+  getAiComprehensiveAll: () => {
+    if (USE_BACKEND) {return request("/ai/comprehensive-analysis/all");}
+    return response(mock.ai.getAiComprehensiveAllMock());
+  },
+
+  /** 单条综合分析（读落库缓存，不强制重算）。给 HazardDetailPage 顶部研判区用。 */
+  getAiComprehensiveCached: (hazardCode) => {
+    if (USE_BACKEND)
+      {return request(`/ai/comprehensive-analysis/cached?hazardCode=${encodeURIComponent(hazardCode)}`);}
+    return response(mock.ai.aiComprehensiveCachedMock);
+  },
+
+  /** 强制刷新所有 hazard 的 AI 综合分析。 */
+  refreshAiComprehensive: () => {
+    if (USE_BACKEND)
+      {return request("/ai/comprehensive-analysis/refresh", { method: "POST" });}
+    return response(mock.ai.aiComprehensiveRefreshMock);
+  },
+
+  /**
+   * 把 AI 综合分数合并进任务列表 / 灾害点列表：按 hazardCode 匹配。
+   * 用于 TasksPage/AnalyticsPage/WarningsPage 的统一 AI 评分入口。
+   * @param {Array<{id, hazardCode, ...}>} rows
+   * @param {Map<string, {riskLevel, riskScore}>} aiMap
+   */
+  attachAiScores: (rows, aiList) => {
+    const map = new Map();
+    (aiList ?? []).forEach((s) => map.set(s.hazardCode, s));
+    return rows.map((r) => {
+      const ai = map.get(r.hazardCode);
+      return {
+        ...r,
+        aiScore: ai?.riskScore ?? null,
+        aiLevel: ai?.riskLevel ?? null,
+        aiAnalyzedAt: ai?.analyzedAt ?? null,
+        // v1.3.0 起 ai_comprehensive_score 落库表新增这些字段
+        aiDisasterType: ai?.disasterType ?? null,
+        aiDisasterTypeSource: ai?.disasterTypeSource ?? null,
+        aiConcernLabel: ai?.concernLabel ?? null,
+        aiDeviceAvailable: ai?.deviceAvailable ?? null,
+      };
+    });
+  },
+
+  // ----------------------- AI 设备健康评分 -----------------------
+
+  /**
+   * 全量 AI 设备健康评分（按 healthScore 升序，异常在前）。
+   * @returns {Promise<Array<{
+   *   deviceCode, healthLevel, healthScore, anomalyScore, forecastRisk,
+   *   metricCoverage, lastAnomalyAt, reasoning, suggestedActions,
+   *   confidence, model, analyzedAt
+   * }>>}
+   */
+  getAiDeviceHealthAll: () => {
+    if (USE_BACKEND) {return request("/ai/device-health/all");}
+    return response(mock.ai.aiDeviceHealthAllMock);
+  },
+
+  /** 单设备 AI 健康评分。 */
+  getAiDeviceHealth: (deviceCode) => {
+    if (USE_BACKEND)
+      {return request(`/ai/device-health?deviceCode=${encodeURIComponent(deviceCode)}`);}
+    return response(null);
+  },
+
+  /** 强制刷新所有设备 AI 健康评分。 */
+  refreshAiDeviceHealth: () => {
+    if (USE_BACKEND)
+      {return request("/ai/device-health/refresh", { method: "POST" });}
+    return response(mock.ai.aiDeviceHealthRefreshMock);
+  },
+
+  /**
+   * 把 AI 设备健康分合并进设备列表：按 deviceCode 匹配。
+   */
+  attachAiDeviceHealth: (rows, aiList) => {
+    const map = new Map();
+    (aiList ?? []).forEach((s) => {
+      if (s?.deviceCode) {map.set(s.deviceCode, s);}
+    });
+    return rows.map((r) => {
+      const ai = map.get(r.deviceCode ?? r.code);
+      return {
+        ...r,
+        aiHealthScore: ai?.healthScore ?? null,
+        aiHealthLevel: ai?.healthLevel ?? null,
+        aiAnomalyScore: ai?.anomalyScore ?? null,
+        aiForecastRisk: ai?.forecastRisk ?? null,
+        aiReasoning: ai?.reasoning ?? [],
+        aiSuggestedActions: ai?.suggestedActions ?? [],
+        aiAnalyzedAt: ai?.analyzedAt ?? null,
+      };
+    });
+  },
+
+  // ===X===X===X===X===X===X===X===X===X===X===X===X===X===X===
+  // v1.7.0 目标架构新增接口
+  // ===X===X===X===X===X===X===X===X===X===X===X===X===X===X===
+
+  // ---------- 3.3 人工确认工作台 ----------
+  /**
+   * 获取"待确认"队列（按紧急度排序）
+   * @returns {Promise<{items: Array<{id, hazardCode, name, type, level, confidence, aiScore, reason, discoveredAt, status, assignee}>, total: number, pending: number}>}
+   */
+  getConfirmationQueue: async (params = {}) => {
+    if (USE_BACKEND) {
+      const data = await request(`/confirmation/queue${withQuery(params)}`);
+      return data ?? { items: [], total: 0, pending: 0 };
+    }
+    return response(mock.workflow.getConfirmationQueueMock());
+  },
+
+  /** 待确认统计（仅返回数量，用于顶栏红点） */
+  getConfirmationQueueStats: async () => {
+    if (USE_BACKEND) {return request("/confirmation/queue/stats");}
+    return response(mock.workflow.confirmationQueueStatsMock);
+  },
+
+  /** 认领待确认任务：assignee 设为当前操作人 */
+  claimConfirmation: async (id, operator) => {
+    requireBackend("认领待确认任务");
+    return request(`/confirmation/queue/${id}/claim`, {
+      method: "POST",
+      body: JSON.stringify({ operator }),
+    });
+  },
+
+  /** 转派给指定专家 */
+  transferConfirmation: async (id, toUser, reason) => {
+    requireBackend("转派待确认任务");
+    return request(`/confirmation/queue/${id}/transfer`, {
+      method: "POST",
+      body: JSON.stringify({ toUser, reason }),
+    });
+  },
+
+  /** 确认：通过（即视为正式灾害事件，落 hazard_point） */
+  confirmHazard: async (id, payload = {}) => {
+    requireBackend("确认灾害事件");
+    return request(`/confirmation/queue/${id}/confirm`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  /** 驳回（误报，归档） */
+  rejectHazard: async (id, payload = {}) => {
+    requireBackend("驳回灾害事件");
+    return request(`/confirmation/queue/${id}/reject`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  // ---------- 4.2 预警创建 ----------
+  createWarning: async (payload) => {
+    requireBackend("创建预警");
+    return request("/warnings", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  /** 预警统计（用于顶栏红点） */
+  getWarningStats: async () => {
+    if (USE_BACKEND) {return request("/warnings/stats");}
+    return response(mock.workflow.warningStatsMock);
+  },
+
+  // ---------- 6.3 资源调度 ----------
+  getResources: async (params = {}) => {
+    if (USE_BACKEND) {
+      const data = await request(`/resources${withQuery(params)}`);
+      return normalizePaged(data, { items: [] });
+    }
+    return response(mock.operations.getResourcesMock());
+  },
+
+  assignResource: async (payload) => {
+    requireBackend("资源指派");
+    return request(`/resources/assign`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  // ---------- 5.5 数据源配置 ----------
+  getDataSources: async () => {
+    if (USE_BACKEND) {return request("/datasources");}
+    return response(mock.operations.getDataSourcesMock());
+  },
+
+  toggleDataSource: async (code, enabled) => {
+    requireBackend("切换数据源");
+    return request(`/datasources/${encodeURIComponent(code)}/toggle`, {
+      method: "POST",
+      body: JSON.stringify({ enabled }),
+    });
+  },
+
+  // ---------- 5.6 数据同步监控（P3-1） ----------
+  /**
+   * 数据同步统计：总源数、在线、异常、今日同步次数、平均延迟、分钟入库。
+   * 对应后端接口：GET /sync/stats。离线模式 requireBackend 兜底。
+   */
+  getSyncStats: async () => {
+    if (USE_BACKEND) {return request("/sync/stats");}
+    requireBackend("加载同步统计");
+  },
+
+  /**
+   * 同步任务列表（含实时状态、延迟、入库行数、错误）。
+   * 对应后端接口：GET /sync/tasks。
+   */
+  getSyncTasks: async () => {
+    if (USE_BACKEND) {return request("/sync/tasks");}
+    requireBackend("加载同步任务");
+  },
+
+  /**
+   * 同步历史记录。
+   * 对应后端接口：GET /sync/history?from=&to=&task=&status=。
+   */
+  getSyncHistory: async (params = {}) => {
+    if (USE_BACKEND) {return request("/sync/history", { params });}
+    requireBackend("加载同步历史");
+  },
+
+  /**
+   * 数据完整性报告（按表统计完整度 + 字段级问题清单）。
+   * 对应后端接口：GET /sync/integrity。
+   */
+  getIntegrityReport: async () => {
+    if (USE_BACKEND) {return request("/sync/integrity");}
+    requireBackend("加载完整性报告");
+  },
+
+  /**
+   * 异常值告警列表（按严重度、字段、设备筛选）。
+   * 对应后端接口：GET /sync/anomalies。
+   */
+  getSyncAnomalies: async () => {
+    if (USE_BACKEND) {return request("/sync/anomalies");}
+    requireBackend("加载异常值告警");
+  },
+
+  /**
+   * 手动触发同步任务。
+   * 对应后端接口：POST /sync/tasks/:id/trigger。
+   */
+  triggerSyncTask: async (id) => {
+    requireBackend("触发同步任务");
+    return request(`/sync/tasks/${encodeURIComponent(id)}/trigger`, {
+      method: "POST",
+    });
+  },
+
+  /**
+   * 暂停同步任务。
+   * 对应后端接口：POST /sync/tasks/:id/pause。
+   */
+  pauseSyncTask: async (id) => {
+    requireBackend("暂停同步任务");
+    return request(`/sync/tasks/${encodeURIComponent(id)}/pause`, {
+      method: "POST",
+    });
+  },
+
+  /**
+   * 忽略异常值告警。
+   * 对应后端接口：POST /sync/anomalies/:id/ignore。
+   */
+  ignoreAnomaly: async (id, reason) => {
+    requireBackend("忽略异常值");
+    return request(`/sync/anomalies/${encodeURIComponent(id)}/ignore`, {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+    });
+  },
+
+  testDataSource: async (code) => {
+    requireBackend("测试数据源连接");
+    return request(`/datasources/${encodeURIComponent(code)}/test`, {
+      method: "POST",
+    });
+  },
+
+  // ---------- 8.1 用户管理 ----------
+  getUsers: async (params = {}) => {
+    if (USE_BACKEND) {
+      const data = await request(`/users${withQuery(params)}`);
+      return normalizePaged(data, { items: [] });
+    }
+    return response(mock.system.getUsersMock());
+  },
+
+  createUser: async (payload) => {
+    requireBackend("创建用户");
+    return request("/users", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  updateUser: async (id, payload) => {
+    requireBackend("更新用户");
+    return request(`/users/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  deleteUser: async (id) => {
+    requireBackend("删除用户");
+    return request(`/users/${id}`, { method: "DELETE" });
+  },
+
+  getRoles: async () => {
+    if (USE_BACKEND) {return request("/roles");}
+    return response(mock.system.getRolesMock());
+  },
+
+  // ---------- 8.3 日志审计 ----------
+  getAuditLogs: async (params = {}) => {
+    if (USE_BACKEND) {
+      const data = await request(`/audit/logs${withQuery(params)}`);
+      return normalizePaged(data, { items: [] });
+    }
+    return response(mock.system.getAuditLogsMock());
+  },
+
+  // ---------- 8.4 系统监控 ----------
+  getSystemMonitor: async () => {
+    if (USE_BACKEND) {return request("/system/monitor");}
+    return response(mock.system.getSystemMonitorMock());
+  },
+
+  // ---------- 9.1 消息中心 ----------
+  getMessages: async (params = {}) => {
+    if (USE_BACKEND) {
+      const data = await request(`/messages${withQuery(params)}`);
+      return normalizePaged(data, { items: [] });
+    }
+    return response(mock.workflow.getMessagesMock());
+  },
+
+  /** 消息统计（用于顶栏红点） */
+  getMessageStats: async () => {
+    if (USE_BACKEND) {return request("/messages/stats");}
+    return response(mock.workflow.messageStatsMock);
+  },
+
+  markMessageRead: async (id) => {
+    requireBackend("标记已读");
+    return request(`/messages/${id}/read`, { method: "POST" });
+  },
+
+  markAllMessagesRead: async () => {
+    requireBackend("全部标已读");
+    return request(`/messages/read-all`, { method: "POST" });
+  },
+
+  // ---------- 通用：sentinel 卫星合成图层 ----------
+  getSentinelCoverage: async (bbox) => {
+    if (USE_BACKEND) {return request(`/sentinel/coverage${bbox ? `?bbox=${encodeURIComponent(bbox)}` : ""}`);}
+    return response(mock.analytics.sentinelCoverageMock);
+  },
+
+  // ---------- v1.7.x：任务执行监控（运行时 / 日志 / 重试 / 终止） ----------
+  /**
+   * 获取任务运行时指标：CPU/GPU/内存/时长/重试次数/吞吐。
+   * 离线模式下根据 taskId + 状态派生稳定 mock，避免每次刷新结果大跳变。
+   * @param {string|number} id 任务 ID
+   * @returns {Promise<{status: 'RUNNING'|'SUCCESS'|'FAILED'|'PENDING'|'PAUSED'|'TERMINATED'|'TIMEOUT', cpu: number, gpu: number, memMB: number, startedAt: string, finishedAt?: string, duration: number, retries: number, throughput: number}>}
+   */
+  getTaskRuntime: async (id) => {
+    if (USE_BACKEND) {return request(`/tasks/${id}/runtime`);}
+    return response(mock.ai.getTaskRuntimeMock(id));
+  },
+
+  /**
+   * 获取任务执行日志（增量拉取：`since` 为上次游标 ISO 时间）。
+   * 离线模式基于 taskId 派生 8-20 条稳定 mock，按 ts 升序。
+   * @param {string|number} id 任务 ID
+   * @param {{since?: string}} params
+   * @returns {Promise<{entries: Array<{ts: string, level: 'INFO'|'WARN'|'ERR'|'DEBUG', message: string}>, cursor: string}>}
+   */
+  getTaskExecutionLog: async (id, params = {}) => {
+    if (USE_BACKEND) {
+      const data = await request(`/tasks/${id}/log${withQuery(params)}`);
+      return data ?? { entries: [], cursor: new Date().toISOString() };
+    }
+    return response(mock.ai.getTaskExecutionLogMock(id));
+  },
+
+  /**
+   * 立即重试任务（手动触发一次新执行）。
+   * 离线模式用 requireBackend 拦截并返回安全值，UI 上层做 toast 提示。
+   * @param {string|number} id 任务 ID
+   */
+  retryTask: async (id) => {
+    requireBackend("重试任务");
+    return request(`/tasks/${id}/retry`, { method: "POST" });
+  },
+
+  /**
+   * 手动终止任务（仅运行中可用）。
+   * 离线模式用 requireBackend 拦截，UI 上层根据错误提示用户启用后端。
+   * @param {string|number} id 任务 ID
+   */
+  terminateTask: async (id) => {
+    requireBackend("终止任务");
+    return request(`/tasks/${id}/terminate`, { method: "POST" });
+  },
+
+  // ───────────────────────── 待办中心 / 审批中心 ─────────────────────────
+  // 下列方法仅作为前端骨架入口，后端尚未实现 /todo/* 与 /approvals/* 时，
+  // 离线模式直接 throw BACKEND_REQUIRED，由页面 try/catch 兜底成「暂无待办」。
+
+  /**
+   * 待办中心顶部 4 个汇总数字。
+   * @returns {Promise<{confirmation:number, approval:number, pendingWarnings:number, openEmergency:number}>}
+   */
+  getTodoSummary: async () => {
+    if (!USE_BACKEND) {requireBackend("加载待办汇总");}
+    return request("/todo/summary");
+  },
+
+  /**
+   * 待我确认（确认工作台入口）。
+   * 离线模式返回 seedState 中 hazards 的前 N 条作为演示数据。
+   */
+  listMyConfirmations: async () => {
+    if (USE_BACKEND) {return request("/todo/confirmations");}
+    return response(mock.workflow.listMyConfirmationsMock());
+  },
+
+  /**
+   * 待我审批。
+   * 离线模式以 seedState.warnings 中 status=待确认 作为演示数据。
+   */
+  listMyApprovals: async () => {
+    if (USE_BACKEND) {return request("/todo/approvals");}
+    return response(mock.workflow.listMyApprovalsMock());
+  },
+
+  /**
+   * 待发布预警。
+   */
+  listMyPendingWarnings: async () => {
+    if (USE_BACKEND) {return request("/todo/warnings");}
+    return response(mock.workflow.listMyPendingWarningsMock());
+  },
+
+  /**
+   * 待跟踪任务（含已派发任务和已派发预警的进度）。
+   */
+  listMyOpenTasks: async () => {
+    if (USE_BACKEND) {return request("/todo/tasks");}
+    return response(mock.workflow.listMyOpenTasksMock());
+  },
+
+  // ───────────────────────── 审批中心 ─────────────────────────
+
+  /**
+   * 审批列表（支持过滤）。
+   * 离线模式：直接 requireBackend 拦截，UI 上层以「暂无数据」占位。
+   */
+  listApprovals: async (filters = {}) => {
+    if (!USE_BACKEND) {requireBackend("加载审批列表");}
+    return request(`/approvals${withQuery(filters)}`);
+  },
+
+  /**
+   * 审批统计：总待审、已审、通过率、平均耗时 + 14 天每日审批量。
+   * 离线模式回退零值骨架。
+   */
+  getApprovalStats: async () => {
+    if (!USE_BACKEND) {requireBackend("加载审批统计");}
+    return request("/approvals/stats");
+  },
+
+  /**
+   * 审批决策（通过 / 驳回）。
+   * @param {string|number} id
+   * @param {{decision:'approve'|'reject', comment:string}} payload
+   */
+  decideApproval: async (id, payload) => {
+    if (!USE_BACKEND) {requireBackend("提交审批决策");}
+    return request(`/approvals/${id}/decide`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  // ---------- v1.7.x：预警发布回执页 ----------
+  /**
+   * 获取预警的多渠道发布汇总（应发 / 已送达 / 已阅读 / 已确认回执）。
+   * 离线模式下返回零值结构，供 UI 在未接后端时仍能渲染骨架。
+   * @param {string|number} id 预警 ID
+   */
+  getDeliverySummary: async (id) => {
+    if (USE_BACKEND) {return request(`/warnings/${id}/delivery/summary`);}
+    return response(mock.empty.emptyDeliverySummary(id));
+  },
+
+  /**
+   * 按渠道 / 状态拉取预警的发布明细记录。
+   * 离线模式返回空 records，避免误用模拟数据。
+   * @param {string|number} id 预警 ID
+   * @param {{channel?: string, status?: string}} params
+   */
+  getDeliveryRecords: async (id, params = {}) => {
+    if (USE_BACKEND) {
+      const data = await request(
+        `/warnings/${id}/delivery/records${withQuery(params)}`,
+      );
+      return normalizePaged(data, []);
+    }
+    return response(mock.empty.emptyPaged);
+  },
+
+  /**
+   * 重发指定渠道 / 目标的预警。必须接后端（写操作）。
+   * @param {string|number} id 预警 ID
+   * @param {{channel: string, targetIds?: Array<string|number>}} payload
+   */
+  redeliver: async (id, payload = {}) => {
+    requireBackend("重发预警");
+    return request(`/warnings/${id}/delivery/redeliver`, {
+      method: "POST",
+      body: JSON.stringify(payload ?? {}),
+    });
+  },
+
+  // ---------- v1.7.x：灾种 / 区域专项大屏 ----------
+  /**
+   * 灾种 / 区域专项大屏聚合数据。离线模式下从 seedState 聚合过滤后回退。
+   * @param {{kind?: string, region?: string}} params
+   */
+  getZoneSummary: async ({ kind, region } = {}) => {
+    if (USE_BACKEND) {
+      return request(`/zones/summary${withQuery({ kind, region })}`);
+    }
+    return response(mock.analytics.getZoneSummaryMock({ kind, region }));
+  },
+
+  /**
+   * 灾种 / 区域专项的 14 天风险趋势。离线模式按 kind 派生稳定的伪序列。
+   * @param {{kind?: string, region?: string}} params
+   */
+  getZoneRiskTrend: async ({ kind, region } = {}) => {
+    if (USE_BACKEND) {
+      return request(`/zones/risk-trend${withQuery({ kind, region })}`);
+    }
+    return response(mock.analytics.getZoneRiskTrendMock({ kind, region }));
+  },
+
+  // ---------- v1 PRD 2.5: AI 模型管理 ----------
+  /**
+   * 模型版本库列表，支持按模型族与状态过滤。
+   * @param {{family?: string, status?: string}} params
+   */
+  listModels: async ({ family, status } = {}) => {
+    if (USE_BACKEND) {
+      return request(
+        `/ai/models${withQuery({ family, status })}`,
+      );
+    }
+    return response(mock.system.modelsListMock);
+  },
+
+  /**
+   * 模型版本详情（含特征重要性、训练曲线、评估指标）。
+   * @param {string|number} versionId
+   */
+  getModelDetail: async (versionId) => {
+    if (USE_BACKEND) {
+      return request(`/ai/models/${versionId}`);
+    }
+    return response(mock.system.modelDetailMock);
+  },
+
+  /**
+   * 模型族统计聚合（在线数、今日推理次数、平均时延、综合 F1）。
+   */
+  getModelFamilyStats: async () => {
+    if (USE_BACKEND) {
+      return request("/ai/models/stats");
+    }
+    return response(mock.ai.modelFamilyStatsMock);
+  },
+
+  /**
+   * 训练任务列表。
+   */
+  getModelTrainingJobs: async () => {
+    if (USE_BACKEND) {
+      return request("/ai/models/training-jobs");
+    }
+    return response(mock.ai.trainingJobsMock);
+  },
+
+  /**
+   * 新建训练任务。
+   * @param {{family: string, dataset: string, epochs: number, lr: number, batchSize: number, remark?: string}} payload
+   */
+  createModelTrainingJob: async (payload = {}) => {
+    if (USE_BACKEND) {
+      return request("/ai/models/training-jobs", {
+        method: "POST",
+        body: JSON.stringify(payload ?? {}),
+      });
+    }
+    return response(mock.empty.ok);
+  },
+
+  /**
+   * 启动训练任务。
+   * @param {string|number} id
+   */
+  startTrainingJob: async (id) => {
+    if (USE_BACKEND) {
+      return request(`/ai/models/training-jobs/${id}/start`, {
+        method: "POST",
+      });
+    }
+    return response(mock.empty.ok);
+  },
+
+  /**
+   * 停止训练任务。
+   * @param {string|number} id
+   */
+  stopTrainingJob: async (id) => {
+    if (USE_BACKEND) {
+      return request(`/ai/models/training-jobs/${id}/stop`, {
+        method: "POST",
+      });
+    }
+    return response(mock.empty.ok);
+  },
+
+  /**
+   * 拉取训练日志（支持 since 游标增量拉取）。
+   * @param {string|number} id
+   * @param {{since?: string}} params
+   */
+  getTrainingJobLog: async (id, params = {}) => {
+    if (USE_BACKEND) {
+      return request(
+        `/ai/models/training-jobs/${id}/log${withQuery(params)}`,
+      );
+    }
+    return response(mock.ai.trainingJobLogMock);
+  },
+
+  /**
+   * 激活指定模型版本为当前生产版本。
+   * @param {string|number} versionId
+   */
+  activateModelVersion: async (versionId) => {
+    if (USE_BACKEND) {
+      return request(`/ai/models/${versionId}/activate`, {
+        method: "POST",
+      });
+    }
+    return response(mock.empty.ok);
+  },
+
+  /**
+   * 下线（软删除）指定模型版本。
+   * @param {string|number} versionId
+   */
+  deleteModelVersion: async (versionId) => {
+    if (USE_BACKEND) {
+      return request(`/ai/models/${versionId}`, {
+        method: "DELETE",
+      });
+    }
+    return response(mock.empty.ok);
+  },
+
+  // ===================== 5.3 设备轨迹回放 =====================
+  /**
+   * 获取设备轨迹点。
+   * @param {string|number} deviceId
+   * @param {{from: string, to: string}} params
+   * @returns {Promise<Array<{lon: number, lat: number, ts: string, speed?: number}>>}
+   */
+  getDeviceTrack: async (deviceId, { from, to } = {}) => {
+    if (USE_BACKEND) {
+      const data = await request(`/devices/${deviceId}/track${withQuery({ from, to })}`);
+      return Array.isArray(data) ? data : (data.points ?? []);
+    }
+    return response(mock.runtime.getDeviceTrackMock(deviceId, { from, to }));
+  },
+
+  // ===================== 6.4 路径规划 =====================
+  /**
+   * 路径规划。
+   * @param {{startLon: number, startLat: number, endLon: number, endLat: number, avoidZones?: Array}} payload
+   * @returns {Promise<Array<{type: 'fastest'|'safest', distance: number, duration: string, warning?: string, geometry: Array}>>}
+   */
+  planRoute: async (payload = {}) => {
+    if (USE_BACKEND) {
+      return request("/resources/route", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+    }
+    return response(mock.runtime.planRouteMock(payload));
+  },
+
+  // ===================== 2.4 AI 巡检报告 =====================
+  /**
+   * AI 巡检报告数据。
+   * @param {{days?: number, from?: string, to?: string}} params
+   * @returns {Promise<{
+   *   coverage: number, discoveredEvents: number, falsePositiveRate: number, missRate: number,
+   *   coverageTrend: number[], stackedBars: Array<{fp: number, miss: number}>,
+   *   modelF1: {xgboost: number[], lstm: number[], yolo: number[]},
+   *   matrix: number[][]
+   * }>}
+   */
+  getInspectionReport: async (params = {}) => {
+    if (USE_BACKEND) {
+      return request(`/analytics/inspection-report${withQuery(params)}`);
+    }
+    return response(mock.analytics.getInspectionReportMock(params));
+  },
+
+  // ---------- OTA 与边缘计算 ----------
+  /**
+   * 固件包库列表。
+   * @param {{deviceType?: string, keyword?: string}} filters
+   */
+  listFirmware: async (filters = {}) => {
+    if (USE_BACKEND) {
+      return request(`/ota/firmwares${withQuery(filters)}`);
+    }
+    return response(mock.empty.emptyPaged);
+  },
+
+  /**
+   * 上传固件包（multipart）。
+   * @param {{file: Blob, version: string, deviceType: string, remark?: string}} payload
+   */
+  uploadFirmware: async (payload = {}) => {
+    if (USE_BACKEND) {
+      const form = new FormData();
+      if (payload.file) {form.append("file", payload.file);}
+      Object.entries(payload).forEach(([k, v]) => {
+        if (k === "file") {return;}
+        if (v === undefined || v === null) {return;}
+        form.append(k, String(v));
+      });
+      return request("/ota/firmwares", { method: "POST", body: form });
+    }
+    return response(mock.empty.ok);
+  },
+
+  /**
+   * 删除固件包。
+   * @param {string|number} firmwareId
+   */
+  deleteFirmware: async (firmwareId) => {
+    if (USE_BACKEND) {
+      return request(`/ota/firmwares/${firmwareId}`, { method: "DELETE" });
+    }
+    return response(mock.empty.ok);
+  },
+
+  /**
+   * 升级任务列表（支持 status 筛选）。
+   * @param {{status?: string, deviceId?: string}} filters
+   */
+  listOtaTasks: async (filters = {}) => {
+    if (USE_BACKEND) {
+      return request(`/ota/tasks${withQuery(filters)}`);
+    }
+    return response(mock.empty.emptyPaged);
+  },
+
+  /**
+   * 新建批量升级任务。
+   * @param {{firmwareId: string|number, deviceIds: Array<string|number>, resumeOnReconnect?: boolean, rollbackOnFailure?: boolean}} payload
+   */
+  createOtaTask: async (payload = {}) => {
+    if (USE_BACKEND) {
+      return request("/ota/tasks", {
+        method: "POST",
+        body: JSON.stringify(payload ?? {}),
+      });
+    }
+    return response(mock.empty.ok);
+  },
+
+  /**
+   * 取消升级任务。
+   * @param {string|number} taskId
+   */
+  cancelOtaTask: async (taskId) => {
+    if (USE_BACKEND) {
+      return request(`/ota/tasks/${taskId}/cancel`, { method: "POST" });
+    }
+    return response(mock.empty.ok);
+  },
+
+  /**
+   * 重试升级任务。
+   * @param {string|number} taskId
+   */
+  retryOtaTask: async (taskId) => {
+    if (USE_BACKEND) {
+      return request(`/ota/tasks/${taskId}/retry`, { method: "POST" });
+    }
+    return response(mock.empty.ok);
+  },
+
+  /**
+   * 升级任务详情（含步骤时间轴与错误日志）。
+   * @param {string|number} taskId
+   */
+  getOtaTaskDetail: async (taskId) => {
+    if (USE_BACKEND) {
+      return request(`/ota/tasks/${taskId}`);
+    }
+    return response(null);
+  },
+
+  // ---------- 通知模板 ----------
+  /**
+   * 通知模板列表（按灾种/等级/渠道/状态过滤）。
+   * @param {{hazardType?: string, level?: string, channel?: string, status?: string}} filters
+   */
+  listNoticeTemplates: async (filters = {}) => {
+    if (USE_BACKEND) {
+      return request(`/notice-templates${withQuery(filters)}`);
+    }
+    return response(mock.empty.emptyPaged);
+  },
+
+  /**
+   * 通知模板详情。
+   * @param {string|number} id
+   */
+  getNoticeTemplate: async (id) => {
+    if (USE_BACKEND) {
+      return request(`/notice-templates/${id}`);
+    }
+    return response(null);
+  },
+
+  /**
+   * 新建或更新通知模板（payload.id 存在时为 PUT）。
+   * @param {{id?: string|number, name: string, hazardType: string, level: string, channels: Record<string, string>, enabled?: boolean}} payload
+   */
+  upsertNoticeTemplate: async (payload = {}) => {
+    if (USE_BACKEND) {
+      const hasId = payload?.id !== undefined && payload?.id !== null && `${payload.id}` !== "";
+      const path = hasId ? `/notice-templates/${payload.id}` : "/notice-templates";
+      const method = hasId ? "PUT" : "POST";
+      const body = hasId ? payload : (({ id: _id, ...rest }) => rest)(payload);
+      return request(path, { method, body: JSON.stringify(body) });
+    }
+    return response(mock.empty.ok);
+  },
+
+  /**
+   * 删除通知模板。
+   * @param {string|number} id
+   */
+  deleteNoticeTemplate: async (id) => {
+    if (USE_BACKEND) {
+      return request(`/notice-templates/${id}`, { method: "DELETE" });
+    }
+    return response(mock.empty.ok);
+  },
+
+  /**
+   * 切换通知模板启用状态。
+   * @param {string|number} id
+   */
+  toggleNoticeTemplate: async (id) => {
+    if (USE_BACKEND) {
+      return request(`/notice-templates/${id}/toggle`, { method: "POST" });
+    }
+    return response(mock.empty.ok);
+  },
+
+  // ---------- 应急预案 ----------
+  /**
+   * 预案库列表。
+   * @param {{hazardType?: string, level?: string, status?: string}} filters
+   */
+  listPlans: async (filters = {}) => {
+    if (USE_BACKEND) {
+      return request(`/plans${withQuery(filters)}`);
+    }
+    return response(mock.empty.emptyPaged);
+  },
+
+  /**
+   * 预案详情（含启动流程、附件、负责人）。
+   * @param {string|number} planId
+   */
+  getPlanDetail: async (planId) => {
+    if (USE_BACKEND) {
+      return request(`/plans/${planId}`);
+    }
+    return response(null);
+  },
+
+  /**
+   * 新建或更新预案（payload.id 存在时为 PUT）。
+   * @param {{id?: string|number, name: string, hazardType: string, level: string, steps: Array, attachments?: Array, owner?: string, enabled?: boolean}} payload
+   */
+  upsertPlan: async (payload = {}) => {
+    if (USE_BACKEND) {
+      const hasId = payload?.id !== undefined && payload?.id !== null && `${payload.id}` !== "";
+      const path = hasId ? `/plans/${payload.id}` : "/plans";
+      const method = hasId ? "PUT" : "POST";
+      const body = hasId ? payload : (({ id: _id, ...rest }) => rest)(payload);
+      return request(path, { method, body: JSON.stringify(body) });
+    }
+    return response(mock.empty.ok);
+  },
+
+  /**
+   * 删除预案。
+   * @param {string|number} planId
+   */
+  deletePlan: async (planId) => {
+    if (USE_BACKEND) {
+      return request(`/plans/${planId}`, { method: "DELETE" });
+    }
+    return response(mock.empty.ok);
+  },
+
+  /**
+   * 模拟启动预案：推进 timeline 至第 1 步并生成启动记录。
+   * @param {string|number} planId
+   */
+  simulatePlanLaunch: async (planId) => {
+    if (USE_BACKEND) {
+      return request(`/plans/${planId}/simulate-launch`, { method: "POST" });
+    }
+    return response(mock.empty.ok);
+  },
+
+  /**
+   * 预案启动记录列表。
+   */
+  listPlanLaunches: async () => {
+    if (USE_BACKEND) {
+      return request("/plans/launches");
+    }
+    return response(mock.empty.emptyPaged);
+  },
+
+  // ===================== 8.5 备份与恢复 =====================
+  /**
+   * 备份记录列表（含状态、大小、耗时等）。
+   * @param {{type?: string, source?: string, status?: string, page?: number, size?: number}} filters
+   */
+  listBackups: async (filters = {}) => {
+    if (USE_BACKEND) {
+      return request(`/backup/records${withQuery(filters)}`);
+    }
+    return response(mock.empty.emptyPaged);
+  },
+
+  /**
+   * 创建一次备份任务（手动）。
+   * @param {{scope: string[], remark?: string}} payload
+   */
+  createBackup: async (payload = {}) => {
+    if (USE_BACKEND) {
+      return request("/backup/records", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+    }
+    return response(mock.empty.ok);
+  },
+
+  /**
+   * 触发备份校验（异步，调用方应轮询 verifyStatus 获取进度）。
+   * @param {string|number} id
+   */
+  verifyBackup: async (id) => {
+    if (USE_BACKEND) {
+      return request(`/backup/records/${id}/verify`, {
+        method: "POST",
+      });
+    }
+    return response(mock.empty.ok);
+  },
+
+  /**
+   * 触发恢复流程。
+   * @param {string|number} id
+   * @param {{environment: 'dev'|'test'|'prod'|'sandbox', confirm?: boolean}} payload
+   */
+  restoreBackup: async (id, payload = {}) => {
+    if (USE_BACKEND) {
+      return request(`/backup/records/${id}/restore`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+    }
+    return response(mock.empty.ok);
+  },
+
+  /**
+   * 删除备份记录。
+   * @param {string|number} id
+   */
+  deleteBackup: async (id) => {
+    if (USE_BACKEND) {
+      return request(`/backup/records/${id}`, { method: "DELETE" });
+    }
+    return response(mock.empty.ok);
+  },
+
+  /**
+   * 备份策略列表。
+   */
+  listBackupStrategies: async () => {
+    if (USE_BACKEND) {
+      return request("/backup/strategies");
+    }
+    return response(mock.empty.emptyPaged);
+  },
+
+  /**
+   * 新建或更新备份策略（payload.id 存在时为 PUT）。
+   * @param {{id?: string|number, name: string, scope: string[], cron: string, retention: number, trigger?: string, notify?: string[], enabled?: boolean}} payload
+   */
+  upsertBackupStrategy: async (payload = {}) => {
+    if (USE_BACKEND) {
+      const hasId = payload?.id !== undefined && payload?.id !== null && `${payload.id}` !== "";
+      const path = hasId ? `/backup/strategies/${payload.id}` : "/backup/strategies";
+      const method = hasId ? "PUT" : "POST";
+      const body = hasId ? payload : (({ id: _id, ...rest }) => rest)(payload);
+      return request(path, { method, body: JSON.stringify(body) });
+    }
+    return response(mock.empty.ok);
+  },
+
+  /**
+   * 删除备份策略。
+   * @param {string|number} id
+   */
+  deleteBackupStrategy: async (id) => {
+    if (USE_BACKEND) {
+      return request(`/backup/strategies/${id}`, { method: "DELETE" });
+    }
+    return response(mock.empty.ok);
+  },
+
+  /**
+   * 立即触发指定备份策略的执行。
+   * @param {string|number} id
+   */
+  runBackupStrategy: async (id) => {
+    if (USE_BACKEND) {
+      return request(`/backup/strategies/${id}/run`, {
+        method: "POST",
+      });
+    }
+    return response(mock.empty.ok);
+  },
+
+  /**
+   * 恢复历史列表。
+   */
+  listRestoreHistory: async () => {
+    if (USE_BACKEND) {
+      return request("/backup/restores");
+    }
+    return response(mock.empty.emptyPaged);
+  },
+
+  // ===================== 账号与安全 =====================
+  /**
+   * 获取当前账号的安全配置（基本信息、2FA、备用码、近期会话）。
+   */
+  getAccountSecurity: async () => {
+    requireBackend("getAccountSecurity");
+    return request("/account/security");
+  },
+
+  /**
+   * 启用/关闭双因子认证并配置方式。
+   * @param {{enabled: boolean, methods: ('totp'|'sms'|'email')[]}} payload
+   */
+  toggle2FA: async (payload = {}) => {
+    requireBackend("toggle2FA");
+    return request("/account/security/2fa", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  /**
+   * 重新生成备用恢复码（一次性展示，需用户自行保存）。
+   */
+  regenerateBackupCodes: async () => {
+    requireBackend("regenerateBackupCodes");
+    return request("/account/security/backup-codes/regenerate", {
+      method: "POST",
+    });
+  },
+
+  /**
+   * 账号登录历史。
+   * @param {{page?: number, size?: number, status?: string}} filters
+   */
+  listLoginHistory: async (filters = {}) => {
+    requireBackend("listLoginHistory");
+    return request(`/account/login-history${withQuery(filters)}`);
+  },
+
+  /**
+   * 当前账号活跃会话列表。
+   */
+  listActiveSessions: async () => {
+    requireBackend("listActiveSessions");
+    return request("/account/sessions");
+  },
+
+  /**
+   * 登出指定会话。
+   * @param {string|number} id
+   */
+  revokeSession: async (id) => {
+    requireBackend("revokeSession");
+    return request(`/account/sessions/${id}`, { method: "DELETE" });
+  },
+
+  /**
+   * 当前账号操作审计。
+   * @param {{page?: number, size?: number, type?: string}} filters
+   */
+  listAccountAudit: async (filters = {}) => {
+    requireBackend("listAccountAudit");
+    return request(`/account/audit${withQuery(filters)}`);
+  },
+
+  // ===================== 报表中心 =====================
+  /**
+   * 报表模板库（支持按分类 / 关键字筛选）。
+   * @param {{category?: 'operation'|'supervision'|'custom', keyword?: string, page?: number, size?: number}} filters
+   */
+  listReportTemplates: async (filters = {}) => {
+    if (USE_BACKEND) {
+      return request(`/reports/templates${withQuery(filters)}`);
+    }
+    return response(mock.empty.emptyPaged);
+  },
+
+  /**
+   * 新建报表模板（草稿状态）。
+   * @param {{name: string, category: 'operation'|'supervision'|'custom', description?: string, fields: string[], palette?: string}} payload
+   */
+  createReportTemplate: async (payload = {}) => {
+    if (USE_BACKEND) {
+      return request("/reports/templates", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+    }
+    return response(mock.empty.ok, { id: `tpl-${Date.now()}` });
+  },
+
+  /**
+   * 删除报表模板。
+   * @param {string|number} id
+   */
+  deleteReportTemplate: async (id) => {
+    if (USE_BACKEND) {
+      return request(`/reports/templates/${id}`, { method: "DELETE" });
+    }
+    return response(mock.empty.ok);
+  },
+
+  /**
+   * 触发一次报表生成（手动运行）。
+   * @param {string|number} id
+   * @param {{range?: string, format?: 'pdf'|'excel'|'csv', recipients?: string[]}} payload
+   */
+  runReportTemplate: async (id, payload = {}) => {
+    if (USE_BACKEND) {
+      return request(`/reports/templates/${id}/run`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+    }
+    return response({ ...mock.empty.ok, historyId: `h-${Date.now()}` });
+  },
+
+  /**
+   * 新增 / 更新报表订阅配置。
+   * @param {{templateId: string|number, cron: 'daily'|'weekly'|'monthly', time: string, recipients: string[], enabled: boolean}} payload
+   */
+  updateReportSubscription: async (payload = {}) => {
+    if (USE_BACKEND) {
+      return request("/reports/subscriptions", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+    }
+    return response(mock.empty.ok);
+  },
+
+  /**
+   * 报表生成历史（支持按状态、模板、时间筛选）。
+   * @param {{templateId?: string|number, status?: 'pending'|'running'|'success'|'failed', trigger?: 'manual'|'scheduled'|'event', range?: string, page?: number, size?: number}} filters
+   */
+  listReportHistory: async (filters = {}) => {
+    if (USE_BACKEND) {
+      return request(`/reports/history${withQuery(filters)}`);
+    }
+    return response(mock.empty.emptyPaged);
+  },
+
+  /**
+   * 重跑一次历史任务。
+   * @param {string|number} id
+   */
+  rerunReportHistory: async (id) => {
+    if (USE_BACKEND) {
+      return request(`/reports/history/${id}/rerun`, {
+        method: "POST",
+      });
+    }
+    return response(mock.empty.ok);
+  },
+
+  /**
+   * 取消进行中的报表任务。
+   * @param {string|number} id
+   */
+  cancelReportHistory: async (id) => {
+    if (USE_BACKEND) {
+      return request(`/reports/history/${id}/cancel`, {
+        method: "POST",
+      });
+    }
+    return response(mock.empty.ok);
+  },
+
+  // ===================== 多时相对比 =====================
+  /**
+   * 获取两段时间在同一指标维度下的对比数据。
+   * - base / compare：形如 "24h" / "7d" / "30d" / "custom:2025-09-01T00:00:00Z,2025-09-07T23:59:59Z"
+   * - mode：并排 / 叠加 / 差异率（用于 KPI 矩阵展示差异）
+   * 在线模式：调用后端 `/analytics/compare`；离线模式按 base+compare 哈希出稳定可复现的伪随机序列，
+   * 保证每次刷新同一查询条件得到的对比结果一致（基于 seedState 的 incidents/warnings/hazards/devices 派生）。
+   * @param {{base: string, compare: string, mode?: 'side'|'overlay'|'delta'}} params
+   */
+  getTimeRangeComparison: async ({ base, compare, mode = "side" } = {}) => {
+    const safeBase = base || "24h";
+    const safeCompare = compare || "previous";
+    const safeMode = ["side", "overlay", "delta"].includes(mode) ? mode : "side";
+    if (USE_BACKEND) {
+      const data = await request(
+        `/analytics/compare${withQuery({ base: safeBase, compare: safeCompare, mode: safeMode })}`,
+      );
+      return data ?? response({ base: {}, compare: {}, series: [], kpis: [], categories: {}, regions: {} });
+    }
+    return response(
+      mock.analytics.getTimeRangeComparisonMock({ base: safeBase, compare: safeCompare, mode: safeMode }),
+    );
+  },
+
+  // ===================== 数据资产目录 =====================
+  /**
+   * 目录顶部 KPI 概览（资源总数 / 表数量 / 总字段数 / 上次更新时间）。
+   */
+  getCatalogSummary: async () => {
+    requireBackend("getCatalogSummary");
+    return request("/catalog/summary");
+  },
+
+  /**
+   * 数据资源列表（带筛选）。
+   * @param {{type?: string, category?: string, source?: string, keyword?: string, page?: number, size?: number}} filters
+   */
+  listDataAssets: async (filters = {}) => {
+    requireBackend("listDataAssets");
+    return request(`/catalog/assets${withQuery(filters)}`);
+  },
+
+  /**
+   * 资源详情（字段 / 血缘 / 标签 / 元数据）。
+   * @param {string|number} id
+   */
+  getDataAssetDetail: async (id) => {
+    requireBackend("getDataAssetDetail");
+    return request(`/catalog/assets/${id}`);
+  },
+
+  /**
+   * 提交资源访问权限申请。
+   * @param {string|number} id
+   * @param {{scenario: string, duration: string|number, reason: string}} payload
+   */
+  requestDataAssetAccess: async (id, payload = {}) => {
+    requireBackend("requestDataAssetAccess");
+    return request(`/catalog/assets/${id}/access-requests`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  /**
+   * 更新资源标签。
+   * @param {string|number} id
+   * @param {{tags: string[]}} payload
+   */
+  updateDataAssetTags: async (id, payload = {}) => {
+    requireBackend("updateDataAssetTags");
+    return request(`/catalog/assets/${id}/tags`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  /**
+   * 资源使用排行（按 7/30 天查询次数排序）。
+   */
+  listCatalogUsage: async () => {
+    requireBackend("listCatalogUsage");
+    return request("/catalog/usage");
+  },
+
+  /**
+   * 订阅资源变更通知。
+   * @param {string|number} id
+   */
+  subscribeAssetChange: async (id) => {
+    requireBackend("subscribeAssetChange");
+    return request(`/catalog/assets/${id}/subscribe-change`, {
+      method: "POST",
+    });
+  },
+
+  // ==========================================================================
+  // P0 阶段新增接口
+  // ==========================================================================
+
+  // ---------- P0-1 路径规划 ----------
+  /** 获取当前灾害影响区域作为避障多边形 */
+  getObstacleAreas: async () => {
+    if (USE_BACKEND) {return request("/path-planning/obstacles");}
+    return response(mock.runtime.getObstacleAreasMock());
+  },
+  /** 计算路径：返回多条方案 */
+  planRoutes: async (payload = {}) => {
+    if (USE_BACKEND) {
+      return request("/path-planning/calculate", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+    }
+    return response(mock.runtime.planRoutesWithObstaclesMock(payload));
+  },
+  /** 导出路径为 GeoJSON */
+  exportRouteGeoJson: async (route) => {
+    if (USE_BACKEND) {
+      return request("/path-planning/export", {
+        method: "POST",
+        body: JSON.stringify(route),
+      });
+    }
+    return response({ geojson: mock.runtime.exportRouteGeoJsonMock(route) });
+  },
+
+  // ---------- P0-2 预警解除 ----------
+  /** 预览解除通知文案 */
+  previewWarningResolve: async (warning) => {
+    if (USE_BACKEND) {
+      return request(`/warnings/${warning?.id ?? warning?.warningId}/resolve/preview`);
+    }
+    return response(mock.runtime.previewWarningResolveMock(warning));
+  },
+  /** 解除范围（行政区域下钻） */
+  getWarningResolveScope: async (id) => {
+    if (USE_BACKEND) {return request(`/warnings/${id}/resolve/scope`);}
+    return response({ scopes: [
+      { value: "ALL", label: "全部" },
+      { value: "龙安镇", label: "龙安镇" },
+      { value: "石桥镇", label: "石桥镇" },
+      { value: "清河镇", label: "清河镇" },
+    ] });
+  },
+  /** 解除预警（终结既有 resolve 端点 + 理由/范围/渠道） */
+  resolveWarning: async (id, payload = {}) => {
+    requireBackend("解除预警");
+    return request(`/warnings/${id}/resolve`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  // ---------- P0-3 个人偏好 ----------
+  getProfile: async () => {
+    if (USE_BACKEND) {return request("/profile");}
+    return response(mock.system.getUsersMock?.()?.[0] ?? {
+      id: "u-admin", username: "admin", name: "李晨曦",
+      phone: "138****8888", email: "admin@geosentry.cn", department: "应急指挥中心",
+      avatar: "", role: "admin",
+    });
+  },
+  updateProfile: async (payload) => {
+    if (USE_BACKEND) {
+      return request("/profile", { method: "PUT", body: JSON.stringify(payload) });
+    }
+    return response({ ok: true, data: payload, updatedAt: new Date().toISOString() });
+  },
+  changeMyPassword: async (payload) => {
+    if (USE_BACKEND) {
+      return request("/profile/password", { method: "PUT", body: JSON.stringify(payload) });
+    }
+    if (payload?.current === "123456") {
+      return response({ ok: true });
+    }
+    const err = new Error("旧密码不正确");
+    err.code = "PWD";
+    throw err;
+  },
+  getUserPreference: async (userId) => {
+    if (USE_BACKEND) {return request("/profile/notification-preference");}
+    return response(mock.runtime.getUserPreferenceMock(userId));
+  },
+  updateUserPreference: async (payload) => {
+    if (USE_BACKEND) {
+      return request("/profile/notification-preference", {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      });
+    }
+    return response(mock.runtime.saveUserPreferenceMock("u-admin", payload));
+  },
+  updateThemeLanguage: async (payload) => {
+    if (USE_BACKEND) {
+      return request("/profile/theme-language", {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      });
+    }
+    return response({ ok: true, ...payload });
+  },
+
+  // ---------- P0-4 会签 ----------
+  listSignRecords: async (eventId) => {
+    if (USE_BACKEND) {return request(`/events/${eventId}/sign`);}
+    return response(mock.runtime.listSignRecordsMock(eventId));
+  },
+  createSign: async (payload) => {
+    if (USE_BACKEND) {
+      return request(`/events/${payload.eventId}/sign`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+    }
+    return response(mock.runtime.createSignMock(payload));
+  },
+  confirmSign: async ({ signId, signerId, opinion }) => {
+    if (USE_BACKEND) {
+      return request(`/events/${signId}/sign/${signId}/confirm`, {
+        method: "PUT",
+        body: JSON.stringify({ signerId, opinion }),
+      });
+    }
+    return response(mock.runtime.signConfirmMock(signId, signerId, opinion));
+  },
+  rejectSign: async ({ signId, signerId, opinion }) => {
+    if (USE_BACKEND) {
+      return request(`/events/${signId}/sign/${signId}/reject`, {
+        method: "PUT",
+        body: JSON.stringify({ signerId, opinion }),
+      });
+    }
+    return response(mock.runtime.signRejectMock(signId, signerId, opinion));
+  },
+  transferEvent: async ({ eventId, toUser, reason }) => {
+    if (USE_BACKEND) {
+      return request(`/events/${eventId}/transfer`, {
+        method: "POST",
+        body: JSON.stringify({ toUser, reason }),
+      });
+    }
+    return response(mock.runtime.transferEventMock(eventId, toUser, reason));
+  },
+
+  // ---------- P0-5 区域专项大屏 ----------
+  getZoneKpi: async (params = {}) => {
+    if (USE_BACKEND) {return request("/dashboard/zone/kpi" + withQuery(params));}
+    return response(mock.runtime.getZoneKpiMock(params));
+  },
+  getZoneTrend: async (params = {}) => {
+    if (USE_BACKEND) {return request("/dashboard/zone/trend" + withQuery(params));}
+    return response(mock.runtime.getZoneTrendMock(params));
+  },
+  getZoneTopHazards: async (params = {}) => {
+    if (USE_BACKEND) {return request("/dashboard/zone/top-hazards" + withQuery(params));}
+    return response(mock.runtime.getZoneTopHazardsMock(params));
+  },
+  getZoneRelatedWarnings: async (params = {}) => {
+    if (USE_BACKEND) {return request("/dashboard/zone/related-warnings" + withQuery(params));}
+    return response(mock.runtime.getZoneRelatedWarningsMock(params));
+  },
+  getZoneRelatedEmergencies: async (params = {}) => {
+    if (USE_BACKEND) {return request("/dashboard/zone/related-emergencies" + withQuery(params));}
+    return response(mock.runtime.getZoneRelatedEmergenciesMock(params));
+  },
+
+  // ===X= ZoneDashboardPage 向后兼容 shim（聚合 KPI / 趋势 / Top5 / 关联预警 / 关联应急） ===X=
+  /** @deprecated 用 getZoneKpi/getZoneTrend/getZoneTopHazards 分别替代 */
+  getZoneSummary: async (filter = {}) => {
+    const [kpi, trend, topHazards, relatedWarnings, relatedIncidents] = await Promise.all([
+      dashboardApi.getZoneKpi(filter).catch(() => ({})),
+      dashboardApi.getZoneTrend(filter).catch(() => ({ points: [] })),
+      dashboardApi.getZoneTopHazards(filter).catch(() => []),
+      dashboardApi.getZoneRelatedWarnings(filter).catch(() => []),
+      dashboardApi.getZoneRelatedEmergencies(filter).catch(() => []),
+    ]);
+    return { ...kpi, topHazards, relatedWarnings, relatedIncidents, points: trend.points ?? [] };
+  },
+  /** @deprecated 用 getZoneTrend 替代 */
+  getZoneRiskTrend: async (filter = {}) => {
+    return dashboardApi.getZoneTrend(filter);
+  },
+  /** 兼容旧路径别名 */
+  getZoneRelatedWarningsBy: (params) => dashboardApi.getZoneRelatedWarnings(params),
+  getZoneRelatedEmergenciesBy: (params) => dashboardApi.getZoneRelatedEmergencies(params),
 };

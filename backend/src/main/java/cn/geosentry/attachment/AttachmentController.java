@@ -6,6 +6,8 @@ import cn.geosentry.common.api.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import java.util.Map;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -38,7 +40,12 @@ public class AttachmentController {
       @RequestPart("file") MultipartFile file,
       HttpServletRequest request
   ) {
-    String uploader = request.getHeader("X-User") == null ? "admin" : request.getHeader("X-User");
+    // 从 SecurityContext 获取当前认证用户（JWT 中的 username），而非可伪造的 X-User header
+    String uploader = "unknown";
+    Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+    if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getPrincipal())) {
+      uploader = auth.getName();
+    }
     return ApiResponse.success("上传成功", attachmentService.upload(businessType, businessCode, file, uploader));
   }
 

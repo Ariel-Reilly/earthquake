@@ -15,6 +15,7 @@ import io.minio.http.Method;
 import java.io.InputStream;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import jakarta.annotation.PostConstruct;
@@ -28,6 +29,17 @@ import org.springframework.web.multipart.MultipartFile;
 public class AttachmentService {
 
   private static final Logger log = LoggerFactory.getLogger(AttachmentService.class);
+
+  /** 单文件大小上限：50 MB（配置项可覆盖）。超过拒绝上传避免磁盘占满 + OOM。 */
+  private static final long MAX_FILE_SIZE = 50L * 1024 * 1024;
+
+  /** 允许的文件扩展名白名单：Office + 图片 + PDF + 常用工程格式。 */
+  private static final Set<String> ALLOWED_EXTENSIONS = Set.of(
+      "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx",
+      "png", "jpg", "jpeg", "gif", "bmp", "webp", "tiff",
+      "csv", "txt", "zip", "rar", "7z",
+      "dwg", "dxf", "shp", "geojson"
+  );
 
   private final FileAttachmentRepository repository;
   private final MinioClient minioClient;
@@ -67,8 +79,24 @@ public class AttachmentService {
     if (file == null || file.isEmpty()) {
       throw new AppException(400, "请选择上传文件");
     }
-    String fileName = file.getOriginalFilename() == null ? "file.bin" : file.getOriginalFilename();
-    String objectKey = businessType + "/" + businessCode + "/" + UUID.randomUUID() + "/" + fileName;
+    // 文件大小校验
+    long size = file.getSize();
+    if (size > MAX_FILE_SIZE) {
+      throw new AppException(413, "文件过大，最大允许 " + (MAX_FILE_SIZE / 1024 / 1024) + " MB");
+    }
+    // 文件名清洗：去除路径穿越字符，保留纯文件名
+    String rawName = file.getOriginalFilename() == null ? "file.bin" : file.getOriginalFilename();
+    String safeName = sanitizeFileName(rawName);
+    if (safeName.isEmpty()) {
+      safeName = "unnamed.bin";
+    }
+    // 扩展名白名单校验
+    String ext = getExtension(safeName);
+    if (!ext.isEmpty() && !ALLOWED_EXTENSIONS.contains(ext.toLowerCase())) {
+      throw new AppException(400, "不支持的文件类型: " + ext + "。允许: " + String.join(", ", ALLOWED_EXTENSIONS));
+    }
+    // objectKey 不再携带原始文件名（避免 MinIO 内部路径穿越 + 下载时用户看到陌生文件名）
+    String objectKey = businessType + "/" + businessCode + "/" + UUID.randomUUID();
 
     String bucket = minioProperties.bucket();
     try {
@@ -80,10 +108,12 @@ public class AttachmentService {
         minioClient.putObject(PutObjectArgs.builder()
             .bucket(bucket)
             .object(objectKey)
-            .stream(stream, file.getSize(), -1)
-            .contentType(file.getContentType())
+            .stream(stream, size, -1)
+            .contentType(file.getContentType() == null ? "application/octet-stream" : file.getContentType())
             .build());
       }
+    } catch (AppException e) {
+      throw e;
     } catch (Exception e) {
       log.error("MinIO 写入失败: {}", e.getMessage());
       throw new AppException(500, "文件存储失败，请稍后重试");
@@ -94,8 +124,8 @@ public class AttachmentService {
     FileAttachment attachment = new FileAttachment();
     attachment.setBusinessType(businessType);
     attachment.setBusinessCode(businessCode);
-    attachment.setFileName(fileName);
-    attachment.setFileSize(file.getSize());
+    attachment.setFileName(safeName);  // 存清洗后的文件名
+    attachment.setFileSize(size);
     attachment.setFileType(file.getContentType());
     attachment.setStoragePath(objectKey);
     attachment.setFileUrl(fileUrl);
@@ -104,10 +134,33 @@ public class AttachmentService {
     return toDto(repository.save(attachment));
   }
 
+  /** 从原始文件名提取小写扩展名（不含点号）。无扩展名返回空串。 */
+  private static String getExtension(String fileName) {
+    int dot = fileName.lastIndexOf('.');
+    if (dot < 0 || dot == fileName.length() - 1) return "";
+    return fileName.substring(dot + 1).toLowerCase();
+  }
+
+  /** 文件名安全化：移除所有路径分隔符和控制字符，只保留合法文件名字符。 */
+  private static String sanitizeFileName(String name) {
+    // 移除 \ / : * ? " < > | 以及所有控制字符，同时裁掉前导点和尾部空白
+    String safe = name.replaceAll("[\\\\/:*?\"<>|\\p{Cntrl}]", "_").trim();
+    // 防止以 . 开头（隐藏文件）或以空格开头
+    while (safe.startsWith(".") || safe.startsWith(" ")) {
+      safe = safe.substring(1);
+    }
+    // 防止文件名过长（MinIO object key 上限 1024，这里保守限制 200）
+    if (safe.length() > 200) {
+      safe = safe.substring(0, 200);
+    }
+    return safe;
+  }
+
+  /** 查询附件详情 + 刷新 presigned URL（每次访问更新 DB，保证 7 天过期自动续期）。 */
+  @Transactional
   public AttachmentDto getById(Long id) {
     FileAttachment attachment = repository.findById(id)
         .orElseThrow(() -> new AppException(404, "未找到附件"));
-    // 每次详情访问都生成新的 presigned URL，避免 7 天过期导致前端 403
     String freshUrl = presignedUrl(minioProperties.bucket(), attachment.getStoragePath());
     attachment.setFileUrl(freshUrl);
     repository.save(attachment);
@@ -118,6 +171,7 @@ public class AttachmentService {
    * 为指定附件强制刷新 presigned URL（前端检测到 403 时调用）。
    * 返回新 URL，同时更新 DB。
    */
+  @Transactional
   public String refreshUrl(Long id) {
     FileAttachment attachment = repository.findById(id)
         .orElseThrow(() -> new AppException(404, "未找到附件"));

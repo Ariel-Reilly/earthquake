@@ -108,7 +108,12 @@ public class DeviceAuthFilter extends OncePerRequestFilter {
         new UsernamePasswordAuthenticationToken(principal, null, authorities);
     SecurityContextHolder.getContext().setAuthentication(auth);
 
-    filterChain.doFilter(request, response);
+    try {
+      filterChain.doFilter(request, response);
+    } finally {
+      // 必须清理 SecurityContext：Tomcat 线程池复用时残留身份会污染后续请求
+      SecurityContextHolder.clearContext();
+    }
   }
 
   private void writeError(HttpServletResponse response, int code, String message) throws IOException {

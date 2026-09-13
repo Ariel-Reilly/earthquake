@@ -1,6 +1,5 @@
 package cn.geosentry.ai.service;
 
-import cn.geosentry.ai.AiServiceClient;
 import cn.geosentry.ai.entity.AiAnalysisResult;
 import cn.geosentry.ai.repository.AiAnalysisResultRepository;
 import cn.geosentry.ai.dto.AiAnalysisRecordDto;

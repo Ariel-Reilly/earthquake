@@ -12,7 +12,7 @@ const WEATHER_FALLBACK = {
 }
 
 function normalizeWeather(payload, fallbackLocation = '龙川县') {
-  if (!payload) return { ...WEATHER_FALLBACK, location: fallbackLocation }
+  if (!payload) {return { ...WEATHER_FALLBACK, location: fallbackLocation }}
   const temp = payload.main?.temp ?? payload.temperature ?? WEATHER_FALLBACK.temperature
   return {
     location: payload.name || payload.location || fallbackLocation,
@@ -50,7 +50,7 @@ export function getWeatherAlertLevel(weather) {
   const rain = Number(weather?.precipitationProbability ?? 0)
   const humidity = Number(weather?.humidity ?? 0)
   const temp = Number(weather?.temperature ?? 0)
-  if (rain >= 70 || humidity >= 88) return '高'
-  if (rain >= 40 || humidity >= 75 || temp <= 0) return '中'
+  if (rain >= 70 || humidity >= 88) {return '高'}
+  if (rain >= 40 || humidity >= 75 || temp <= 0) {return '中'}
   return '低'
 }

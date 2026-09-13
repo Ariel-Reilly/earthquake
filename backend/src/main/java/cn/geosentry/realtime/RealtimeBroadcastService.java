@@ -54,7 +54,9 @@ public class RealtimeBroadcastService extends TextWebSocketHandler {
 
   @Override
   public void handleTransportError(WebSocketSession session, Throwable exception) {
-    log.warn("WebSocket 传输错误: session={}, error={}", session.getId(), exception.getMessage());
+    log.warn("WebSocket 传输错误: session={}, error={}，将清理 session", session.getId(), exception.getMessage());
+    // 某些异常场景（如中间服务器 RST）不会触发 afterConnectionClosed，这里兜底清理
+    sessions.remove(session.getId());
   }
 
   /** 广播预警事件（新建/状态变更）。 */
@@ -77,6 +79,14 @@ public class RealtimeBroadcastService extends TextWebSocketHandler {
     send("emergency", emergencyData);
   }
 
+  /**
+   * v1.6.0：广播 AI 实时监测发现的新灾害点。
+   * payload 是 HazardDto，前端 realtimeService.js 监听 hazard 事件并 upsert 到列表。
+   */
+  public void broadcastHazard(Object hazardData) {
+    send("hazard", hazardData);
+  }
+
   /** 当前活跃连接数。 */
   public int connectionCount() {
     return sessions.size();
@@ -84,21 +94,28 @@ public class RealtimeBroadcastService extends TextWebSocketHandler {
 
   private void send(String type, Object data) {
     if (sessions.isEmpty()) return;
+    String json;
     try {
-      Map<String, Object> payload = Map.of(
+      json = mapper.writeValueAsString(Map.of(
           "type", type,
           "data", data,
           "version", versionCounter.incrementAndGet()
-      );
-      String json = mapper.writeValueAsString(payload);
-      TextMessage msg = new TextMessage(json);
-      for (WebSocketSession session : sessions.values()) {
+      ));
+    } catch (IOException e) {
+      log.warn("WebSocket 广播序列化失败 type={}: {}", type, e.getMessage());
+      return;
+    }
+    TextMessage msg = new TextMessage(json);
+    // per-session try-catch：一个断线 session 不影响其余客户端
+    for (WebSocketSession session : sessions.values()) {
+      try {
         if (session.isOpen()) {
           session.sendMessage(msg);
         }
+      } catch (Exception ex) {
+        log.debug("WebSocket 发送失败 session={}，将移除: {}", session.getId(), ex.getMessage());
+        sessions.remove(session.getId());
       }
-    } catch (IOException e) {
-      log.warn("WebSocket 广播失败 type={}: {}", type, e.getMessage());
     }
   }
 }

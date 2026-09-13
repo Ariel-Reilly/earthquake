@@ -8,7 +8,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-@EnableConfigurationProperties({AppProperties.class, JwtProperties.class, AiProperties.class, MinioProperties.class})
+@EnableConfigurationProperties({AppProperties.class, JwtProperties.class, AiProperties.class, MinioProperties.class, WeatherProperties.class, ExternalDataProperties.class})
 public class PropertiesConfig {
 
   @Bean

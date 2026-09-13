@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
@@ -54,9 +55,15 @@ public class WsTicketRepository {
   }
 
   /** 定期清理过期 ticket（避免内存增长）。 */
+  @Scheduled(fixedRate = 30_000)
   public void sweep() {
     Instant now = Instant.now();
+    int before = tickets.size();
     tickets.entrySet().removeIf(e -> e.getValue().expires().isBefore(now));
+    int removed = before - tickets.size();
+    if (removed > 0) {
+      log.debug("清理过期 WS ticket {} 条（剩余 {}）", removed, tickets.size());
+    }
   }
 
   public record Ticket(String username, String role, Instant expires) {}

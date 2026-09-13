@@ -1,4 +1,4 @@
-import { dashboardApi } from "./dashboardApi";
+import { dashboardApi, isBackendRuntime } from "./dashboardApi";
 import { getAuthToken } from "../stores/auth";
 
 const listeners = new Set();
@@ -92,14 +92,24 @@ const PERSONNEL_ROSTER = [
   },
 ];
 
-/** 人员实时位置：模拟模式为 false 时（生产）人员坐标由移动端上报后端，前端仅展示与轮询。 */
+/**
+ * 人员实时位置：
+ * - 当 VITE_USE_PERSONNEL_LIVE=true 显式开启，或 VITE_USE_BACKEND=true（真实后端模式）时，
+ *   从后端 /api/personnel/positions 拉取真实位置；
+ * - 否则使用本地 mock 数据（演示模式）。
+ */
+const _useBackend =
+  String(import.meta.env.VITE_USE_BACKEND ?? "false").toLowerCase() === "true";
 const USE_LIVE_PERSONNEL =
-  String(import.meta.env.VITE_USE_PERSONNEL_LIVE ?? "false") === "true";
+  String(import.meta.env.VITE_USE_PERSONNEL_LIVE ?? "false").toLowerCase() ===
+    "true" || _useBackend;
 
 const state = {
   warnings: [],
   devices: [],
   personnel: [],
+  /** v1.6.0：AI 实时监测的灾害点（WebSocket hazard 事件 + 轮询增量） */
+  hazards: [],
 };
 
 /** 全局数据版本号：轮询与 WebSocket 消息均携带版本，供订阅方做一致性比对 */
@@ -140,6 +150,37 @@ function normalizeWarning(item) {
     incidentRef: item.incidentRef ?? "",
     /** 幂等字段：后端推送携带业务版本号，前端据此丢弃过期/重复消息 */
     version: Number(item.version ?? 0),
+    updatedAt: item.updatedAt ?? new Date().toISOString(),
+  };
+}
+
+function normalizeHazard(item) {
+  // 后端 HazardDto 字段全部展开到前端通用格式
+  return {
+    id: item.id,
+    hazardCode: item.hazardCode,
+    name: item.name,
+    type: item.type,
+    level: item.level,
+    regionCode: item.regionCode,
+    owner: item.owner,
+    status: item.status,
+    lon: item.lon,
+    lat: item.lat,
+    threatObject: item.threatObject,
+    // v1.6.0：AI 实时监测元信息
+    source: item.source ?? "MANUAL",
+    discoveredAt: item.discoveredAt,
+    detectionConfidence: item.detectionConfidence,
+    // AI 综合分（v1.3.0）
+    aiLevel: item.aiLevel,
+    aiLevelLabel: item.aiLevelLabel,
+    aiScore: item.aiScore,
+    aiAnalyzedAt: item.aiAnalyzedAt,
+    aiDisasterType: item.aiDisasterType,
+    aiConcernLabel: item.aiConcernLabel,
+    aiDeviceAvailable: item.aiDeviceAvailable,
+    version: Number(item.version ?? Date.now()),
     updatedAt: item.updatedAt ?? new Date().toISOString(),
   };
 }
@@ -193,8 +234,8 @@ function timestamp(value) {
 function isNewer(existing, incoming) {
   const curVer = Number(existing?.version ?? 0);
   const nextVer = Number(incoming?.version ?? existing?.version ?? 0);
-  if (nextVer > curVer) return true;
-  if (nextVer < curVer) return false;
+  if (nextVer > curVer) {return true;}
+  if (nextVer < curVer) {return false;}
   return timestamp(incoming.updatedAt) >= timestamp(existing?.updatedAt);
 }
 
@@ -205,8 +246,8 @@ function upsert(list, nextItem) {
   const index = list.findIndex(
     (item) => String(item.id) === String(nextItem.id),
   );
-  if (index === -1) return [nextItem, ...list];
-  if (!isNewer(list[index], nextItem)) return list;
+  if (index === -1) {return [nextItem, ...list];}
+  if (!isNewer(list[index], nextItem)) {return list;}
   const copy = list.slice();
   copy[index] = { ...copy[index], ...nextItem };
   return copy;
@@ -222,14 +263,6 @@ function mergeSnapshot(list, incomingList) {
     merged = upsert(merged, incoming);
   }
   return merged;
-}
-
-function mapMotion(step, index) {
-  return {
-    lon: Number(step.lon ?? 107.21) + index * 0.0006,
-    lat: Number(step.lat ?? 30.61) + index * 0.00045,
-    at: step.at ?? new Date(Date.now() - index * 30000).toISOString(),
-  };
 }
 
 /**
@@ -275,20 +308,20 @@ function bakeMockPersonnel(staff, index) {
 
 function applySnapshot(snapshot = {}) {
   if (Array.isArray(snapshot.warnings))
-    state.warnings = mergeSnapshot(
+    {state.warnings = mergeSnapshot(
       state.warnings,
       snapshot.warnings.map(normalizeWarning),
-    );
+    );}
   if (Array.isArray(snapshot.devices))
-    state.devices = mergeSnapshot(
+    {state.devices = mergeSnapshot(
       state.devices,
       snapshot.devices.map(normalizeDevice),
-    );
+    );}
   if (Array.isArray(snapshot.personnel))
-    state.personnel = mergeSnapshot(
+    {state.personnel = mergeSnapshot(
       state.personnel,
       snapshot.personnel.map(normalizePersonnel),
-    );
+    );}
   emit({
     type: "snapshot",
     warnings: state.warnings,
@@ -301,25 +334,35 @@ function applySnapshot(snapshot = {}) {
  * 从 API base URL 自动推导 WebSocket URL：
  *   http://localhost:8081/api  → ws://localhost:8081/ws
  *   https://api.example.com    → wss://api.example.com/ws
+ *   /api (相对路径)             → 基于 window.location.origin 推导
  */
 function deriveWsUrl() {
   const base = import.meta.env.VITE_API_BASE_URL;
-  if (!base) return "";
   try {
-    const url = new URL(base);
-    // 替换协议
-    const wsProto = url.protocol === "https:" ? "wss:" : "ws:";
-    // 去掉 /api 后缀，拼 /ws
-    const pathname = url.pathname.replace(/\/api\/?$/, "").replace(/\/$/, "");
-    return `${wsProto}//${url.host}${pathname}/ws`;
+    if (!base) {
+      // 无配置：用当前页面 origin 兜底
+      return `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}/ws`;
+    }
+    // base 可能是相对路径（如 "/api"），先拼接 origin
+    const absolute = new URL(base, window.location.origin);
+    const wsProto = absolute.protocol === "https:" ? "wss:" : "ws:";
+    const pathname = absolute.pathname
+      .replace(/\/api\/?$/, "")
+      .replace(/\/$/, "");
+    return `${wsProto}//${absolute.host}${pathname}/ws`;
   } catch {
-    return "";
+    // 任何异常都退回 window.location.origin（绝对兜底）
+    try {
+      return `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}/ws`;
+    } catch {
+      return "";
+    }
   }
 }
 
 /** 优先用一次性 ticket 连接，失败时 fallback 到 raw JWT。 */
 async function connectSocket(url) {
-  if (!url || typeof WebSocket === "undefined") return null;
+  if (!url || typeof WebSocket === "undefined") {return null;}
   wsUrl = url; // 保存 base url 用于重连
   let connectUrl;
   const token = getAuthToken();
@@ -358,9 +401,15 @@ function tryOpen(fullUrl) {
     // ignore close failure
   }
   socket = new WebSocket(fullUrl);
-  socket.onopen = () => emit({ type: "socket-open" });
+  socket.onopen = () => {
+    emit({ type: "socket-open" });
+    // WebSocket 连接成功后暂停轮询（数据已由增量推送覆盖）
+    pausePolling();
+  };
   socket.onclose = () => {
     emit({ type: "socket-close" });
+    // WebSocket 断开时恢复轮询兜底
+    resumePolling();
     if (!reconnectTimer) {
       reconnectTimer = window.setTimeout(() => {
         reconnectTimer = null;
@@ -373,14 +422,18 @@ function tryOpen(fullUrl) {
     try {
       const message = JSON.parse(event.data);
       if (message.type === "warning" && message.data)
-        state.warnings = upsert(state.warnings, normalizeWarning(message.data));
+        {state.warnings = upsert(state.warnings, normalizeWarning(message.data));}
       if (message.type === "device" && message.data)
-        state.devices = upsert(state.devices, normalizeDevice(message.data));
+        {state.devices = upsert(state.devices, normalizeDevice(message.data));}
       if (message.type === "personnel" && message.data)
-        state.personnel = upsert(
+        {state.personnel = upsert(
           state.personnel,
           normalizePersonnel(message.data),
-        );
+        );}
+      // v1.6.0：AI 实时监测到的灾害（hazard 事件来自 AiHazardMonitorScheduler）
+      if (message.type === "hazard" && message.data) {
+        state.hazards = upsert(state.hazards, normalizeHazard(message.data));
+      }
       emit(message);
     } catch {
       emit({ type: "socket-message", raw: event.data });
@@ -393,9 +446,10 @@ function tryOpen(fullUrl) {
  * 设备离线判定由后端按"最后上报时间超阈值"完成，前端只读状态字段（点 7）。
  */
 async function pollSnapshot() {
-  const [warnings, devices] = await Promise.all([
+  const [warnings, devices, hazards] = await Promise.all([
     dashboardApi.getWarnings(),
     dashboardApi.getDevices(),
+    dashboardApi.getHazards({ size: 50 }),
   ]);
   state.warnings = mergeSnapshot(
     state.warnings,
@@ -405,11 +459,17 @@ async function pollSnapshot() {
     state.devices,
     (devices.list ?? devices.records ?? []).map(normalizeDevice),
   );
+  // 灾害列表轮询兜底：合并 WebSocket 已收到的 hazard 单条增量
+  state.hazards = mergeSnapshot(
+    state.hazards,
+    (hazards.list ?? hazards.records ?? []).map(normalizeHazard),
+  );
   emit({
     type: "poll",
     warnings: state.warnings,
     devices: state.devices,
     personnel: state.personnel,
+    hazards: state.hazards,
   });
 }
 
@@ -449,7 +509,7 @@ async function pollPersonnel() {
 
 /** 本地轨迹动画：演示专用。真实系统以移动端上报频率驱动，无需定时推演（点 2、8）。 */
 function animatePersonnel() {
-  if (USE_LIVE_PERSONNEL) return; // 生产模式：位置来自上报，不做本地推演
+  if (USE_LIVE_PERSONNEL) {return;} // 生产模式：位置来自上报，不做本地推演
   state.personnel = state.personnel.map((person, index) => {
     const route = person.route?.length
       ? person.route
@@ -474,7 +534,17 @@ function animatePersonnel() {
 export function startRealtimeSync(options = {}) {
   const explicitWs = options.wsUrl ?? import.meta.env.VITE_WS_URL;
   // 未显式配置时，从 VITE_API_BASE_URL 自动推导：http://host:port/api → ws://host:port/ws
-  wsUrl = explicitWs || deriveWsUrl();
+  // 后端不可达（演示/mock 模式）时不发起 WebSocket，仅依赖轮询兜底，避免无意义的连接失败
+  if (explicitWs) {
+    wsUrl = explicitWs;
+  } else if (!isBackendRuntime()) {
+    wsUrl = "";
+    console.info(
+      "[realtimeService] 后端不可达（演示模式），跳过 WebSocket，实时数据由轮询兜底。",
+    );
+  } else {
+    wsUrl = deriveWsUrl();
+  }
   if (!wsUrl) {
     console.warn(
       "[realtimeService] WebSocket URL 未配置，VITE_WS_URL 未设置且 VITE_API_BASE_URL 无法推导。" +
@@ -498,8 +568,8 @@ export function startRealtimeSync(options = {}) {
   );
 
   stopRealtimeSync({ keepListeners: true });
-  if (options.snapshot) applySnapshot(options.snapshot);
-  if (wsUrl) connectSocket(wsUrl);
+  if (options.snapshot) {applySnapshot(options.snapshot);}
+  if (wsUrl) {connectSocket(wsUrl);}
 
   pollingTimer = window.setInterval(
     () => {
@@ -519,13 +589,55 @@ export function startRealtimeSync(options = {}) {
     },
     Math.max(10000, personnelInterval),
   );
-  personnelRouteTimer = window.setInterval(() => {
-    animatePersonnel();
-  }, 10000);
+  // 仅在演示模式（!USE_LIVE_PERSONNEL）下启用本地轨迹动画定时器
+  if (!USE_LIVE_PERSONNEL) {
+    personnelRouteTimer = window.setInterval(() => {
+      animatePersonnel();
+    }, 10000);
+  }
 
   pollSnapshot().catch(() => {});
   pollWarningsPreview().catch(() => {});
   pollPersonnel().catch(() => {});
+}
+
+/** WebSocket 已连接时暂停所有轮询（避免重复请求）。 */
+function pausePolling() {
+  if (pollingTimer) {
+    window.clearInterval(pollingTimer);
+    pollingTimer = null;
+  }
+  if (warningTimer) {
+    window.clearInterval(warningTimer);
+    warningTimer = null;
+  }
+  if (personnelTimer) {
+    window.clearInterval(personnelTimer);
+    personnelTimer = null;
+  }
+}
+
+/** WebSocket 断开时恢复轮询兜底。 */
+function resumePolling() {
+  if (pollingTimer) {return;} // 已在运行
+  pollingTimer = window.setInterval(
+    () => {
+      pollSnapshot().catch(() => {});
+    },
+    Math.max(15000, pollingInterval),
+  );
+  warningTimer = window.setInterval(
+    () => {
+      pollWarningsPreview().catch(() => {});
+    },
+    Math.max(5000, warningInterval),
+  );
+  personnelTimer = window.setInterval(
+    () => {
+      pollPersonnel().catch(() => {});
+    },
+    Math.max(10000, personnelInterval),
+  );
 }
 
 export function stopRealtimeSync({ keepListeners = false } = {}) {
@@ -555,7 +667,7 @@ export function stopRealtimeSync({ keepListeners = false } = {}) {
     // ignore close failure
   }
   socket = null;
-  if (!keepListeners) listeners.clear();
+  if (!keepListeners) {listeners.clear();}
 }
 
 export function onRealtimeUpdate(listener) {
@@ -568,6 +680,7 @@ export function getRealtimeState() {
     warnings: state.warnings.slice(),
     devices: state.devices.slice(),
     personnel: state.personnel.slice(),
+    hazards: state.hazards.slice(),
     version: globalVersion,
   };
 }

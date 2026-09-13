@@ -36,7 +36,12 @@ public class JwtService {
       "12345678901234567890123456789012",
       "00000000000000000000000000000000",
       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      // docker-compose / 脚手架中常见的占位符
+      "replace_me_with_a_strong_secret_at_least_32_chars_long_xxx",
+      "replace_me_with_a_strong_secret_at_least_32_chars_long",
+      "your-32-char-secret-key-here",
+      "please-change-this-secret-key-immediately-123456"
   );
 
   /** 模式黑名单：纯数字、纯字母、全相同字符（长度 ≥16 时才算弱）。 */
@@ -55,10 +60,15 @@ public class JwtService {
   @PostConstruct
   void validate() {
     String secret = properties.secret();
-    if (secret == null || secret.length() < 32) {
+    if (secret == null || secret.isBlank()) {
       throw new IllegalStateException(
-          "JWT_SECRET must be at least 32 characters (current length: " + (secret == null ? 0 : secret.length())
-              + "). Set via JWT_SECRET environment variable. Generate with: openssl rand -base64 48");
+          "JWT_SECRET 环境变量未设置或为空！生产环境必须设置至少 32 字符的强随机密钥。"
+              + " 生成方式：openssl rand -base64 48");
+    }
+    if (secret.length() < 32) {
+      throw new IllegalStateException(
+          "JWT_SECRET 必须至少 32 字符（当前长度: " + secret.length()
+              + "）。设置 via JWT_SECRET 环境变量。生成方式：openssl rand -base64 48");
     }
     String trimmed = secret.trim().toLowerCase();
     if (EXACT_BLACKLIST.contains(trimmed)) {

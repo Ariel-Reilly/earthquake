@@ -2,6 +2,8 @@ fastapi==0.115.6
 uvicorn[standard]==0.34.0
 pydantic==2.10.4
 python-multipart==0.0.20
+aiohttp==3.11.11
+Pillow==11.1.0
 
 # 可选推理依赖：模型文件存在时启用真实推理（可移除，降级逻辑仍可用）
 onnxruntime==1.20.1

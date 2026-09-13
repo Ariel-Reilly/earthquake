@@ -1,7 +1,7 @@
 <script setup>
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, Database, Gauge, GitBranch, History, Layers3, MapPin, MessageSquareText, PencilLine, Save, Radio, Paperclip } from 'lucide-vue-next'
+import { ArrowLeft, Database, Gauge, GitBranch, History, Layers3, MapPin, MessageSquareText, PencilLine, Save, Radio, Paperclip, Sparkles, Stethoscope } from 'lucide-vue-next'
 import PermissionButton from '../components/PermissionButton.vue'
 import { dashboardApi } from '../services/dashboardApi'
 
@@ -11,6 +11,13 @@ const device = ref(null)
 const loading = ref(true)
 const editMode = ref(false)
 const form = ref({})
+const aiHealth = ref(null)
+const aiRefreshing = ref(false)
+
+const aiHealthLabel = computed(() => {
+  const m = { HEALTHY: '健康', ATTENTION: '注意', WARN: '预警', CRITICAL: '严重' }
+  return m[aiHealth.value?.healthLevel] || '—'
+})
 
 async function loadData() {
   loading.value = true
@@ -25,12 +32,45 @@ async function loadData() {
     signal: data.item.signal,
   }
   loading.value = false
+  loadAiHealth()
+}
+
+async function loadAiHealth() {
+  if (!device.value) return
+  try {
+    const code = device.value.code ?? device.value.deviceCode
+    if (!code) return
+    aiHealth.value = await dashboardApi.getAiDeviceHealth(code)
+  } catch (_) {
+    aiHealth.value = null
+  }
+}
+
+async function refreshAi() {
+  aiRefreshing.value = true
+  try {
+    const code = device.value?.code ?? device.value?.deviceCode
+    if (!code) return
+    const result = await fetch('/api/ai/device-health/refresh-one?deviceCode=' + encodeURIComponent(code), {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + (localStorage.getItem('geosentry_token') || '') }
+    })
+    const json = await result.json()
+    if (json?.code === 0) {
+      aiHealth.value = json.data
+    }
+  } catch (_) {
+    // silent
+  } finally {
+    aiRefreshing.value = false
+  }
 }
 
 async function saveDetail() {
   if (!device.value) return
   const result = await dashboardApi.updateDevice(device.value.id, { ...form.value, battery: Number(form.value.battery) })
-  device.value = { ...device.value, ...result.item }
+  // 后端 PUT /devices/{id} 返回 DeviceDto（无 item 包装），直接合并
+  device.value = { ...device.value, ...result }
   editMode.value = false
 }
 
@@ -75,6 +115,51 @@ onMounted(loadData)
               <span>信号：{{ device.signal }}</span>
               <div class="task-bars"><i :style="{ width: `${device.battery}%` }"></i></div>
               <p>支持平台自动巡检和离线告警</p>
+            </div>
+          </div>
+
+          <!-- AI 设备健康研判（详情页） -->
+          <div class="ai-health-card" :class="`ai-card ai-card-${(aiHealth?.healthLevel || 'unknown').toLowerCase()}`">
+            <div class="ai-card-head">
+              <div>
+                <small><Sparkles :size="12" />AI 设备健康研判</small>
+                <strong v-if="aiHealth" :class="`ai-tag ai-tag-${(aiHealth.healthLevel || '').toLowerCase()}`">
+                  {{ aiHealthLabel }} · {{ Number(aiHealth.healthScore || 0).toFixed(1) }} / 100
+                </strong>
+                <strong v-else style="color:#7a8d89">AI 暂未评分（5 分钟内自动更新）</strong>
+              </div>
+              <span v-if="aiHealth?.analyzedAt" class="ai-card-time">{{ new Date(aiHealth.analyzedAt).toLocaleString('zh-CN', { hour12: false }) }}</span>
+            </div>
+            <div v-if="aiHealth" class="ai-health-meters">
+              <div class="ai-meter">
+                <small>异常分</small>
+                <div class="ai-bar-track"><i :style="{ width: (aiHealth.anomalyScore ?? 0) + '%', background: (aiHealth.anomalyScore ?? 0) > 50 ? '#d57252' : (aiHealth.anomalyScore ?? 0) > 20 ? '#c69132' : '#4c8b87' }"></i></div>
+                <strong>{{ Number(aiHealth.anomalyScore ?? 0).toFixed(1) }}</strong>
+              </div>
+              <div class="ai-meter">
+                <small>预测风险</small>
+                <div class="ai-bar-track"><i :style="{ width: (aiHealth.forecastRisk ?? 0) + '%', background: (aiHealth.forecastRisk ?? 0) > 50 ? '#d57252' : (aiHealth.forecastRisk ?? 0) > 20 ? '#c69132' : '#4c8b87' }"></i></div>
+                <strong>{{ Number(aiHealth.forecastRisk ?? 0).toFixed(1) }}</strong>
+              </div>
+              <div class="ai-meter">
+                <small>指标覆盖</small>
+                <div class="ai-bar-track"><i :style="{ width: ((aiHealth.metricCoverage ?? 0) / 4 * 100) + '%', background: '#4c8b87' }"></i></div>
+                <strong>{{ aiHealth.metricCoverage ?? 0 }} / 4</strong>
+              </div>
+            </div>
+            <ul v-if="aiHealth?.reasoning?.length" class="ai-health-reasons">
+              <li v-for="(r, i) in aiHealth.reasoning.slice(0, 3)" :key="i">{{ r }}</li>
+            </ul>
+            <div v-if="aiHealth?.suggestedActions?.length" class="ai-health-actions">
+              <small>建议：</small>
+              <span v-for="(a, i) in aiHealth.suggestedActions.slice(0, 3)" :key="i" class="ai-action-pill">{{ a }}</span>
+            </div>
+            <div class="heading-actions" style="padding: 8px 0 0; justify-content: flex-end; gap: 6px;">
+              <span v-if="aiHealth?.model" style="font-size: 10px; color: #99a7a1;">模型：{{ aiHealth.model }} · 置信度 {{ ((aiHealth.confidence ?? 0) * 100).toFixed(0) }}%</span>
+              <PermissionButton permission="ai:insight:refresh" :icon="Stethoscope" @click="async ({ allowed, reason }) => {
+                if (!allowed) return
+                await refreshAi()
+              }">立即重算</PermissionButton>
             </div>
           </div>
           <div class="heading-actions" style="padding: 0 20px 18px; justify-content: flex-end;">

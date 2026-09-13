@@ -34,9 +34,16 @@ public class SecurityConfig {
         .authorizeHttpRequests(auth -> auth
             .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html",
                 "/api/system/health", "/api/auth/login").permitAll()
+            // WebSocket 握手由 JwtHandshakeInterceptor 在握手层鉴权，Spring Security 放行
+            .requestMatchers("/ws").permitAll()
+            // 国家气象数据接入：公开资源（NSMC / NMC 不需要鉴权），CORS 由 CorsConfig 接管
+            .requestMatchers("/api/weather/**").permitAll()
+            .requestMatchers("/api/devices/{deviceCode}/data").hasRole("DEVICE")
             .anyRequest().authenticated())
+        // 显式顺序：DeviceAuthFilter 先于 JwtAuthenticationFilter
+        // 否则 JWT 过滤器会拦截 /api/devices/**/data 请求返回 401
         .addFilterBefore(deviceAuthFilter, UsernamePasswordAuthenticationFilter.class)
-        .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+        .addFilterAfter(jwtAuthenticationFilter, DeviceAuthFilter.class)
         .httpBasic(AbstractHttpConfigurer::disable)
         .formLogin(AbstractHttpConfigurer::disable)
         .build();

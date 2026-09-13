@@ -11,7 +11,7 @@ export function haversineDistance(lon1, lat1, lon2, lat2) {
 }
 
 export function formatDistance(value) {
-  if (!Number.isFinite(value)) return '--'
-  if (value >= 1000) return `${(value / 1000).toFixed(2)} km`
+  if (!Number.isFinite(value)) {return '--'}
+  if (value >= 1000) {return `${(value / 1000).toFixed(2)} km`}
   return `${Math.round(value)} m`
 }

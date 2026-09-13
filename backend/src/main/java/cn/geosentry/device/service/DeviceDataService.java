@@ -72,14 +72,20 @@ public class DeviceDataService {
     }
 
     Object metricsObj = payload.get("metrics");
-    Map<String, Object> metrics;
+    Map<String, Object> metrics = new LinkedHashMap<>();
     if (metricsObj instanceof Map<?, ?> m) {
-      metrics = (Map<String, Object>) m;
+      // 显式迭代并统一 key 为字符串，避免 unchecked cast
+      for (Map.Entry<?, ?> entry : m.entrySet()) {
+        metrics.put(String.valueOf(entry.getKey()), entry.getValue());
+      }
     } else {
-      metrics = payload;
+      metrics.putAll(payload);
     }
 
-    OffsetDateTime recordedAt = OffsetDateTime.now();
+    // 去重时间戳：优先使用设备侧时间戳（ts / recordedAt / timestamp），
+    // 避免同一批次里多个指标共享服务端 now() 与双通道重复上报互相冲突，
+    // 也避免设备重发时（同 ts）被误判为两条不同数据。
+    OffsetDateTime recordedAt = resolveTimestamp(payload);
     int count = 0;
     for (Map.Entry<String, Object> entry : metrics.entrySet()) {
       Number value = toNumber(entry.getValue());
@@ -97,32 +103,19 @@ public class DeviceDataService {
         metricRepository.save(metric);
         count++;
       } catch (DataIntegrityViolationException ex) {
-        // HTTP/MQTT 双通道重复上报——跳过（唯一索引 device_code+metric_code+recorded_at）
+        // 唯一索引 (device_code, metric_code, recorded_at_ms) 冲突 → 双通道重复上报，跳过
         log.debug("设备数据去重跳过 device={}, metric={}, recordedAt={}",
             deviceCode, entry.getKey(), recordedAt);
         continue;
+      } catch (Exception ex) {
+        // 其他数据库异常（外键、NOT NULL 等约束违规）才需要 warn
+        log.warn("设备指标写入失败 device={}, metric={}: {}", deviceCode, entry.getKey(), ex.getMessage());
+        continue;
       }
 
-      // TDengine 写入（尽力而为，不影响主事务；含 3 次指数退避重试）
+      // TDengine 写入：异步执行，不阻塞主上报事务（最多重试 3 次，含指数退避）
       if (tdengineMetricService.isEnabled()) {
-        Exception lastError = null;
-        for (int attempt = 1; attempt <= 3; attempt++) {
-          try {
-            tdengineMetricService.writeMetric(deviceCode, entry.getKey(), value.doubleValue(), recordedAt);
-            lastError = null;
-            break;
-          } catch (Exception ex) {
-            lastError = ex;
-            if (attempt < 3) {
-              long sleepMs = (long) Math.pow(2, attempt) * 100;  // 200ms / 400ms
-              try { Thread.sleep(sleepMs); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); break; }
-            }
-          }
-        }
-        if (lastError != null) {
-          log.warn("TDengine 写入最终失败 device={}, metric={}（已重试 3 次）: {}",
-              deviceCode, entry.getKey(), lastError.getMessage());
-        }
+        self.asyncTdengineWrite(deviceCode, entry.getKey(), value.doubleValue(), recordedAt);
       }
     }
 
@@ -171,6 +164,80 @@ public class DeviceDataService {
     } catch (Exception e) {
       log.debug("AI 异步异常检测失败（忽略）: {}", e.getMessage());
     }
+  }
+
+  /**
+   * 异步 TDengine 写入：不阻塞主上报事务。含 3 次指数退避重试。
+   * 通过 self 代理调用以触发 @Async（同类内调用绕过代理）。
+   */
+  @Async
+  public void asyncTdengineWrite(String deviceCode, String metricCode, double value, OffsetDateTime recordedAt) {
+    Exception lastError = null;
+    for (int attempt = 1; attempt <= 3; attempt++) {
+      try {
+        tdengineMetricService.writeMetric(deviceCode, metricCode, value, recordedAt);
+        return;  // 成功即退出
+      } catch (Exception ex) {
+        lastError = ex;
+        if (attempt < 3) {
+          long sleepMs = (long) Math.pow(2, attempt) * 100;  // 200ms / 400ms
+          try { Thread.sleep(sleepMs); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); return; }
+        }
+      }
+    }
+    log.warn("TDengine 异步写入最终失败 device={}, metric={}（已重试 3 次）: {}",
+        deviceCode, metricCode, lastError != null ? lastError.getMessage() : "unknown");
+  }
+
+  /**
+   * 从上报 payload 解析设备侧时间戳，兼容多种格式：
+   * <ul>
+   *   <li>{@code ts / recorded_at / timestamp} 数字：epoch 秒或毫秒</li>
+   *   <li>同一字段 ISO-8601 / "yyyy-MM-dd HH:mm:ss" 字符串</li>
+   * </ul>
+   * 解析失败或缺失时回退到服务端 now()。
+   */
+  private OffsetDateTime resolveTimestamp(Map<String, Object> payload) {
+    for (String key : List.of("ts", "recorded_at", "recordedAt", "timestamp", "time")) {
+      Object value = payload.get(key);
+      OffsetDateTime ts = tryParseTimestamp(value);
+      if (ts != null) {
+        return ts;
+      }
+    }
+    return OffsetDateTime.now();
+  }
+
+  private OffsetDateTime tryParseTimestamp(Object value) {
+    if (value == null) {
+      return null;
+    }
+    if (value instanceof Number n) {
+      long epoch = n.longValue();
+      // > 10^12 视为毫秒，否则视为秒
+      return epoch > 1_000_000_000_000L
+          ? java.time.Instant.ofEpochMilli(epoch).atOffset(java.time.ZoneOffset.UTC)
+          : java.time.Instant.ofEpochSecond(epoch).atOffset(java.time.ZoneOffset.UTC);
+    }
+    if (value instanceof String s) {
+      String text = s.trim();
+      if (text.isEmpty()) {
+        return null;
+      }
+      try {
+        return OffsetDateTime.parse(text);
+      } catch (Exception ignore) {
+        // 继续尝试其他格式
+      }
+      try {
+        return java.time.LocalDateTime.parse(
+                text, java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+            .atOffset(java.time.ZoneOffset.ofHours(8));  // 默认东八区（设备端约定）
+      } catch (Exception ignore) {
+        return null;
+      }
+    }
+    return null;
   }
 
   private Map<String, Object> buildDeviceDto(MonitoringDevice device) {

@@ -32,28 +32,24 @@ async function loadData() {
   loading.value = true;
   const data = await dashboardApi.getWarningDetail(route.params.id);
   warning.value = data.item;
+  // 仅 title/level/status 为可编辑字段（后端 WarningUpdateRequest 契约），
+  // point(=hazardCode)/time/desc(=triggerValue) 属于只读展示，不加入表单回传。
   form.value = {
     title: data.item.title,
     level: data.item.level,
-    point: data.item.point,
-    time: data.item.time,
     status: data.item.status,
-    desc: data.item.desc,
   };
   loading.value = false;
   loadAiRisk();
 }
 
 async function loadAiRisk() {
-  if (!warning.value?.point) return;
+  // point 在后端契约中即为 hazardCode，但显式用 hazardCode 字段更清晰、避免歧义
+  const hazardCode = warning.value?.hazardCode;
+  if (!hazardCode) return;
   aiRiskLoading.value = true;
   try {
-    aiRisk.value = await aiApi.fusionRisk(warning.value.point, {
-      displacement_rate: 15.2,
-      rainfall_24h: 80.0,
-      rainfall_7d: 250.0,
-      site_grade: 3.0,
-    });
+    aiRisk.value = await aiApi.fusionRiskAuto(hazardCode);
   } catch (e) {
     aiRisk.value = null;
   } finally {
@@ -86,7 +82,8 @@ async function saveDetail() {
   const result = await dashboardApi.updateWarning(warning.value.id, {
     ...form.value,
   });
-  warning.value = { ...warning.value, ...result.item };
+  // 后端 PUT /warnings/{id} 返回 WarningDto（无 item 包装），直接合并
+  warning.value = { ...warning.value, ...result };
   editMode.value = false;
 }
 
@@ -134,18 +131,20 @@ onMounted(loadData);
             </div>
             <div>
               <span><Layers3 :size="16" />触发点位</span
-              ><strong v-if="!editMode">{{ warning.point }}</strong
-              ><input v-else v-model="form.point" />
+              ><strong>{{ warning.point }}</strong>
             </div>
             <div>
               <span><MapPin :size="16" />触发时间</span
-              ><strong v-if="!editMode">{{ warning.time }}</strong
-              ><input v-else v-model="form.time" />
+              ><strong>{{ warning.time }}</strong>
             </div>
             <div>
               <span><ShieldCheck :size="16" />当前状态</span
               ><strong v-if="!editMode">{{ warning.status }}</strong
-              ><input v-else v-model="form.status" />
+              ><select v-else v-model="form.status">
+                <option>待确认</option>
+                <option>已确认</option>
+                <option>处理中</option>
+              </select>
             </div>
             <div v-if="warning.closeReason && !editMode">
               <span><GitBranch :size="16" />关闭原因</span
@@ -219,22 +218,35 @@ onMounted(loadData);
           <div class="task-summary">
             <div class="progress-ring">
               <span
-                >{{
-                  warning.level.includes("橙色")
-                    ? "86"
-                    : warning.level.includes("黄色")
-                      ? "71"
-                      : "54"
-                }}<small>%</small></span
+                :style="
+                  aiRisk ? { color: riskLevelColor(aiRisk.risk_level) } : {}
+                "
               >
+                {{ aiRisk ? aiRisk.risk_score : "--" }}<small>%</small>
+              </span>
             </div>
             <div class="task-overview">
               <strong v-if="!editMode">{{ warning.title }}</strong>
               <input v-else v-model="form.title" />
               <span v-if="!editMode">{{ warning.desc }}</span>
-              <textarea v-else v-model="form.desc" rows="3"></textarea>
-              <div class="task-bars"><i style="width: 78%"></i></div>
-              <p>建议立即复核并通知责任人</p>
+              <span v-else style="color: #7a8d89">{{ warning.desc }}</span>
+              <div class="task-bars">
+                <i
+                  v-if="aiRisk"
+                  :style="{
+                    width: aiRisk.risk_score + '%',
+                    background: riskLevelColor(aiRisk.risk_level),
+                  }"
+                ></i>
+                <i v-else style="width: 0%"></i>
+              </div>
+              <p v-if="aiRisk" style="color: #57817d">
+                AI 融合评分：{{ riskLevelLabel(aiRisk.risk_level) }}（置信度
+                {{ (aiRisk.confidence * 100).toFixed(0) }}%）
+              </p>
+              <p v-else style="color: #d88a6a">
+                AI 识别服务不可用，未生成风险评分（无虚拟数据）
+              </p>
             </div>
           </div>
           <div

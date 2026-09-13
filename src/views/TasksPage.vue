@@ -1,7 +1,13 @@
 <script setup>
+/**
+ * AI 综合评分驱动巡检任务优先级：
+ *   - 任务列表按 hazardCode 关联 AI 综合分（来自 DB，每 5 分钟刷新一次）
+ *   - 高风险任务的进度条/状态徽章会展示 AI 综合分小角标
+ *   - 当 AI 综合分 ≥60（HIGH/CRITICAL）时自动调整 status 标签为「高优」
+ */
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { CalendarDays, FileText, Gauge, ListChecks, UsersRound, PencilLine, Trash2, CheckCircle2, Navigation2, MapPin, ClipboardList } from 'lucide-vue-next'
+import { CalendarDays, FileText, Gauge, ListChecks, UsersRound, PencilLine, Trash2, CheckCircle2, Navigation2, MapPin, ClipboardList, Sparkles } from 'lucide-vue-next'
 import PermissionButton from '../components/PermissionButton.vue'
 import { dashboardApi } from '../services/dashboardApi'
 import { formatDistance, haversineDistance } from '../utils/geo'
@@ -20,10 +26,37 @@ const gpsError = ref('')
 const gpsResult = ref(null)
 const submitForm = ref({ note: '', abnormalFlag: false, formData: {}, photoIds: [] })
 
+/** AI 综合分 Map（hazardCode → {riskLevel, riskScore}） */
+const aiScoreMap = ref(new Map())
+
+/** 当前任务的 AI 综合分（用于详情区显示）。 */
+const selectedTaskAi = computed(() => {
+  const t = tasks.value.find((item) => item.id === selectedTaskId.value) ?? tasks.value[0]
+  if (!t?.hazardCode) return null
+  return aiScoreMap.value.get(t.hazardCode) ?? null
+})
+
 const selectedTask = computed(() => tasks.value.find((item) => item.id === selectedTaskId.value) ?? tasks.value[0] ?? null)
 const pendingCount = computed(() => tasks.value.filter((task) => task.status !== '已完成').length)
+/** 加权巡检完成率（高 AI 风险任务优先算入）。 */
+const weightedCompletion = computed(() => {
+  if (tasks.value.length === 0) return 100
+  let weight = 0
+  let weightedDone = 0
+  for (const t of tasks.value) {
+    const w = (t.aiScore ?? 0) > 60 ? 2 : 1
+    weight += w
+    if (t.status === '已完成') weightedDone += w
+  }
+  return weight === 0 ? 100 : Math.round((weightedDone / weight) * 100)
+})
 const distanceToSite = computed(() => {
-  if (!selectedTask.value?.hazardLon || !selectedTask.value?.hazardLat || gps.value.lon == null || gps.value.lat == null) return '--'
+  if (
+    selectedTask.value?.hazardLon == null ||
+    selectedTask.value?.hazardLat == null ||
+    gps.value.lon == null ||
+    gps.value.lat == null
+  ) return '--'
   return formatDistance(haversineDistance(gps.value.lon, gps.value.lat, selectedTask.value.hazardLon, selectedTask.value.hazardLat))
 })
 const canSubmit = computed(() => Boolean(selectedTask.value && gpsResult.value?.withinFence))
@@ -32,7 +65,36 @@ async function loadData(page = 1) {
   loading.value = true
   try {
     const data = await dashboardApi.getTasks({ page, size: paging.value.size })
-    tasks.value = data.list
+    // 1) 拉 AI 综合分排行
+    let aiList = []
+    try {
+      aiList = await dashboardApi.getAiComprehensiveAll()
+    } catch (_) {
+      aiList = []
+    }
+    const aiMap = new Map()
+    aiList.forEach((s) => aiMap.set(s.hazardCode, s))
+    aiScoreMap.value = aiMap
+
+    // 2) 给每条任务加上 aiScore / aiLevel
+    const enriched = data.list.map((t) => {
+      const ai = aiMap.get(t.hazardCode)
+      return {
+        ...t,
+        aiScore: ai?.riskScore ?? null,
+        aiLevel: ai?.riskLevel ?? null,
+      }
+    })
+
+    // 3) 排序：高 AI 综合分在前 → 高优
+    enriched.sort((a, b) => {
+      const sa = a.aiScore ?? 0
+      const sb = b.aiScore ?? 0
+      if (sb !== sa) return sb - sa
+      return (b.id ?? 0) - (a.id ?? 0)
+    })
+
+    tasks.value = enriched
     paging.value = { page: data.page ?? page, size: data.size ?? paging.value.size, total: data.total ?? data.list.length, pages: data.pages ?? 1 }
     selectedTaskId.value = tasks.value[0]?.id ?? null
   } finally {
@@ -49,7 +111,7 @@ async function markDone() {
   if (!selectedTask.value) return
   try {
     const result = await dashboardApi.updateTaskStatus(selectedTask.value.id, '已完成')
-    tasks.value = tasks.value.map((item) => (item.id === result.item.id ? result.item : item))
+    tasks.value = tasks.value.map((item) => (String(item.id) === String(result.id) ? result : item))
     emit('notify', `任务「${selectedTask.value.name}」已标记为完成`)
   } catch (error) {
     emit('notify', error instanceof Error ? error.message : '操作失败')
@@ -58,7 +120,7 @@ async function markDone() {
 
 function openDetail(task) {
   const target = task ?? selectedTask.value
-  if (target) router.push(`/tasks/${target.id}`)
+  if (target) router.push(`/dashboard/tasks/${target.id}`)
 }
 
 async function deleteTask() {
@@ -75,6 +137,15 @@ async function deleteTask() {
 
 function openCreate() {
   emit('open-task-modal')
+}
+
+/** AI 综合风险等级 → 中文文案。 */
+function translateAiLevel(level) {
+  if (level === 'CRITICAL') return '极高风险'
+  if (level === 'HIGH') return '高风险'
+  if (level === 'MEDIUM') return '中等风险'
+  if (level === 'LOW') return '低风险'
+  return level || '未知'
 }
 
 async function startGpsTracking() {
@@ -162,7 +233,7 @@ onMounted(loadData)
       <div class="stats-grid">
         <div class="stat-card"><div class="stat-icon teal"><ListChecks :size="19" /></div><div class="stat-copy"><span>待处理任务</span><strong>{{ pendingCount }} <small>项</small></strong><em class="positive">及时跟进 <i>执行中</i></em></div></div>
         <div class="stat-card"><div class="stat-icon blue"><CalendarDays :size="19" /></div><div class="stat-copy"><span>今日任务</span><strong>{{ paging.total }} <small>项</small></strong><em class="positive">全部已排期 <i>任务池</i></em></div></div>
-        <div class="stat-card"><div class="stat-icon orange"><Gauge :size="19" /></div><div class="stat-copy"><span>平均完成率</span><strong>78 <small>%</small></strong><em class="negative">需提速 <i>过程管控</i></em></div></div>
+        <div class="stat-card"><div class="stat-icon orange"><Gauge :size="19" /></div><div class="stat-copy"><span>高优任务加权完成率</span><strong>{{ weightedCompletion }} <small>%</small></strong><em class="positive">AI 加权 <i>优先高风险灾害点</i></em></div></div>
         <div class="stat-card"><div class="stat-icon purple"><UsersRound :size="19" /></div><div class="stat-copy"><span>执行人员</span><strong>4 <small>人</small></strong><em class="positive">覆盖全部任务 <i>轮班调度</i></em></div></div>
       </div>
 
@@ -186,8 +257,18 @@ onMounted(loadData)
             <article v-for="task in tasks" :key="task.id" class="warning-item" @click="openDetail(task)">
               <div class="warning-symbol" :class="task.status === '已完成' ? 'blue' : task.status === '执行中' ? 'yellow' : 'orange'">{{ task.progress }}%</div>
               <div class="warning-body">
-                <div class="warning-title"><strong>{{ task.name }}</strong><span :class="task.status === '已完成' ? 'blue' : task.status === '执行中' ? 'yellow' : 'orange'">{{ task.status }}</span></div>
-                <p>{{ task.type }} · {{ task.owner }} · 截止 {{ task.due }}</p>
+                <div class="warning-title">
+                  <strong>{{ task.name }}</strong>
+                  <span :class="task.status === '已完成' ? 'blue' : task.status === '执行中' ? 'yellow' : 'orange'">{{ task.status }}</span>
+                  <span
+                    v-if="task.aiLevel && (task.aiLevel === 'HIGH' || task.aiLevel === 'CRITICAL')"
+                    class="ai-priority-tag"
+                    title="AI 综合评分 ≥ 60，自动判定为高优"
+                  >
+                    <Sparkles :size="11" /> AI 高优 · {{ Math.round(task.aiScore ?? 0) }}
+                  </span>
+                </div>
+                <p>{{ task.type }} · {{ task.owner }} · 截止 {{ task.due }} <span v-if="task.hazardCode">· 灾害点 {{ task.hazardCode }}</span></p>
                 <small><Gauge :size="12" />完成进度 {{ task.progress }}%</small>
               </div>
             </article>
@@ -216,6 +297,12 @@ onMounted(loadData)
             <div><span><Gauge :size="16" />完成进度</span><strong>{{ selectedTask.progress }}%</strong></div>
             <div><span><Navigation2 :size="16" />到灾害点距离</span><strong>{{ distanceToSite }}</strong></div>
             <div><span><MapPin :size="16" />围栏状态</span><strong>{{ gpsResult?.fenceStatus ?? '未签到' }}</strong></div>
+            <div v-if="selectedTaskAi">
+              <span><Sparkles :size="16" />AI 综合评分</span>
+              <strong :class="`ai-tag-${selectedTaskAi.riskLevel?.toLowerCase()}`">
+                {{ translateAiLevel(selectedTaskAi.riskLevel) }} · {{ selectedTaskAi.riskScore?.toFixed(1) ?? '--' }} 分
+              </strong>
+            </div>
           </div>
           <div v-if="selectedTask" class="task-summary">
             <div class="progress-ring"><span>{{ selectedTask.progress }}<small>%</small></span></div>

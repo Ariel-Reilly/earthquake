@@ -19,7 +19,6 @@ import java.util.Map;
 import java.util.UUID;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
-import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.PrecisionModel;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,11 +30,15 @@ public class InspectionService {
   private final InspectionRecordRepository recordRepository;
   private final InspectionTaskRepository taskRepository;
   private final HazardPointRepository hazardPointRepository;
+  private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
-  public InspectionService(InspectionRecordRepository recordRepository, InspectionTaskRepository taskRepository, HazardPointRepository hazardPointRepository) {
+  public InspectionService(InspectionRecordRepository recordRepository, InspectionTaskRepository taskRepository,
+                           HazardPointRepository hazardPointRepository,
+                           com.fasterxml.jackson.databind.ObjectMapper objectMapper) {
     this.recordRepository = recordRepository;
     this.taskRepository = taskRepository;
     this.hazardPointRepository = hazardPointRepository;
+    this.objectMapper = objectMapper;
   }
 
   public GpsCheckResult checkFence(GpsCheckRequest request) {
@@ -59,10 +62,10 @@ public class InspectionService {
   @Transactional
   public InspectionRecordDto submit(InspectionSubmitRequest request) {
     HazardPoint hazardPoint = findHazard(request.hazardCode());
-    InspectionTask task = taskRepository.findAll().stream()
-        .filter(item -> request.taskCode().equals(item.getTaskCode()))
-        .findFirst()
-        .orElseThrow(() -> new AppException(404, "未找到任务"));
+    InspectionTask task = taskRepository.findByTaskCode(request.taskCode());
+    if (task == null) {
+      throw new AppException(404, "未找到任务: " + request.taskCode());
+    }
 
     BigDecimal distance = distanceMeters(request.lon(), request.lat(), BigDecimal.valueOf(hazardPoint.getLongitude()), BigDecimal.valueOf(hazardPoint.getLatitude()));
     BigDecimal radius = request.allowedRadius() == null ? BigDecimal.valueOf(100) : request.allowedRadius();
@@ -142,6 +145,10 @@ public class InspectionService {
   }
 
   private String toJson(Object value) {
-    return value.toString().replace('=', ':');
+    try {
+      return objectMapper.writeValueAsString(value);
+    } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+      return "{}";
+    }
   }
 }

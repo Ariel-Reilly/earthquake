@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 设备离线状态定时心跳检查。
@@ -43,18 +44,21 @@ public class DeviceOnlineChecker {
 
   /** 默认 60s 执行一次，可通过 offline-check-interval-seconds 覆盖。 */
   @Scheduled(fixedDelayString = "${geosentry.device.offline-check-interval-seconds:60000}")
+  @Transactional  // 批量离线标记保证原子性：中途异常不留下部分离线部分在线的不一致状态
   void scan() {
     OffsetDateTime cutoff = OffsetDateTime.now().minus(offlineThresholdMinutes, ChronoUnit.MINUTES);
     int totalProcessed = 0;
     int totalMarkedOffline = 0;
-    // 分批处理，避免一次性加载过多
+    // 游标式分批：每批处理完把设备置为离线，下一次查询会自然排除已处理设备，
+    // 不依赖固定 offset 翻页（offset 翻页在数据变化时会跳过设备）。
     while (true) {
-      List<MonitoringDevice> stale = repository.findByOnlineStatusAndLastReportAtBefore(
+      List<MonitoringDevice> stale = repository.findOfflineCandidates(
           "在线", cutoff, PageRequest.of(0, BATCH_SIZE));
       if (stale.isEmpty()) {
         break;
       }
       for (MonitoringDevice device : stale) {
+        // lastReportAt 为 NULL 表示从未上报，也计入离线（避免"假在线"）
         device.setOnlineStatus("离线");
         repository.save(device);
         totalMarkedOffline++;

@@ -2,12 +2,14 @@ package cn.geosentry.emergency.service;
 
 import cn.geosentry.common.api.PageResponse;
 import cn.geosentry.common.exception.AppException;
+import cn.geosentry.common.export.EmergencyExportRow;
 import cn.geosentry.emergency.dto.EmergencyDto;
 import cn.geosentry.emergency.entity.EmergencyEvent;
 import cn.geosentry.emergency.repository.EmergencyEventRepository;
 import cn.geosentry.realtime.RealtimeBroadcastService;
 import jakarta.persistence.criteria.Predicate;
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -122,6 +124,16 @@ public class EmergencyService {
 
   public boolean exists(Long id) {
     return repository.existsById(id);
+  }
+
+  /** 导出用：返回应急事件导出行。 */
+  public List<EmergencyExportRow> exportRows() {
+    return repository.findAll().stream()
+        .sorted(java.util.Comparator.comparing(EmergencyEvent::getId, java.util.Comparator.nullsLast(Long::compareTo)))
+        .map(e -> new EmergencyExportRow(
+            e.getEventCode(), e.getWarningCode(), e.getHazardCode(), e.getTitle(), e.getStatus(),
+            e.getCommander(), e.getStepName(), e.getResultSummary(), e.getStartedAt(), e.getClosedAt()))
+        .toList();
   }
 
   @Transactional

@@ -41,9 +41,10 @@ public class HazardController {
       @RequestParam(required = false) String regionCode,
       @RequestParam(required = false, name = "level") String level,
       @RequestParam(required = false, name = "type") String type,
-      @RequestParam(required = false) String bbox
+      @RequestParam(required = false) String bbox,
+      @RequestParam(required = false) String source
   ) {
-    return ApiResponse.success(hazardService.page(page, size, keyword, regionCode, level, type, bbox));
+    return ApiResponse.success(hazardService.page(page, size, keyword, regionCode, level, type, bbox, source));
   }
 
   @GetMapping("/viewport")
@@ -52,9 +53,10 @@ public class HazardController {
       @RequestParam(required = false) String keyword,
       @RequestParam(required = false) String regionCode,
       @RequestParam(required = false, name = "level") String level,
-      @RequestParam(required = false, name = "type") String type
+      @RequestParam(required = false, name = "type") String type,
+      @RequestParam(required = false) String source
   ) {
-    return ApiResponse.success(hazardService.listByViewport(bbox, keyword, regionCode, level, type));
+    return ApiResponse.success(hazardService.listByViewport(bbox, keyword, regionCode, level, type, source));
   }
 
   @GetMapping("/{id}")
@@ -103,8 +105,18 @@ public class HazardController {
       @RequestParam(required = false) String keyword,
       @RequestParam(required = false) String regionCode,
       @RequestParam(required = false, name = "level") String level,
-      @RequestParam(required = false, name = "type") String type
+      @RequestParam(required = false, name = "type") String type,
+      @RequestParam(required = false) String source
   ) {
-    return ApiResponse.success(hazardService.geojson(bbox, keyword, regionCode, level, type));
+    return ApiResponse.success(hazardService.geojson(bbox, keyword, regionCode, level, type, source));
+  }
+
+  /**
+   * v1.6.0：AI 实时监测专用列表 —— 严格按 discovered_at DESC 排序。
+   * 不分页（最多 50 条），供"AI 实时监测"面板秒级刷新用。
+   */
+  @GetMapping("/ai-monitor")
+  public ApiResponse<List<HazardDto>> aiMonitorList() {
+    return ApiResponse.success(hazardService.listAiMonitoredRecent(50));
   }
 }

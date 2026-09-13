@@ -22,6 +22,7 @@ spring:
     init:
       mode: always
       continue-on-error: false
+      encoding: UTF-8
   data:
     redis:
       host: ${REDIS_HOST:localhost}
@@ -40,19 +41,56 @@ springdoc:
     path: /swagger-ui.html
   api-docs:
     path: /v3/api-docs
+  # 项目无 Kotlin 运行时，避免 springdoc 反射 Kotlin 类触发 NoClassDefFoundError
+  kotlin:
+    enabled: false
 
 geosentry:
   frontend-origin: ${FRONTEND_ORIGIN:http://localhost:5173}
   security:
-    dev-users-enabled: ${DEV_USERS_ENABLED:true}
+    dev-users-enabled: ${DEV_USERS_ENABLED:false}
   jwt:
-    secret: ${JWT_SECRET}
+    # ⚠️ 生产环境必须通过 JWT_SECRET 环境变量覆盖为强随机密钥（>=32 字符）。
+    # 生成方式：openssl rand -base64 48
+    # 应用启动时会校验密钥强度，若检测到弱密钥将拒绝启动。
+    secret: ${JWT_SECRET:}
     expire: ${JWT_EXPIRE:PT2H}
     issuer: ${JWT_ISSUER:geosentry}
   file-base-url: ${FILE_BASE_URL:http://localhost:9000}
+  # 气象数据接入（NSMC / NMC 公开资源）。详见 cn.geosentry.weather.WeatherService。
+  weather:
+    cache-enabled: ${WEATHER_CACHE_ENABLED:true}
+    cache-ttl-seconds: ${WEATHER_CACHE_TTL_SECONDS:300}
+    proxy-enabled: ${WEATHER_PROXY_ENABLED:true}
+  # 外部数据源接入（公开免费 API，无需账号）
+  external-data:
+    enabled: ${EXTERNAL_DATA_ENABLED:true}
+    timeout-seconds: ${EXTERNAL_DATA_TIMEOUT:10}
+    cache-ttl-seconds: ${EXTERNAL_DATA_CACHE_TTL:300}
+    open-meteo-url: ${OPEN_METEO_URL:https://api.open-meteo.com/v1/forecast}
+    usgs-url: ${USGS_FDSN_URL:https://earthquake.usgs.gov/fdsnws/event/1/query}
+    open-elevation-url: ${OPEN_ELEVATION_URL:https://api.open-elevation.com/api/v1/lookup}
+    # 启用的数据源：openmeteo, usgs, openelevation, gdacs, osm, gpm, smap, copernicus
+    enabled-sources: ${EXTERNAL_DATA_SOURCES:openmeteo,usgs,openelevation,gdacs,osm,gpm,smap,copernicus}
   warning:
     rule-engine-enabled: ${RULE_ENGINE_ENABLED:true}
     rule-engine-cron: ${RULE_ENGINE_CRON:*/30 * * * * *}
+  # AI 综合分析（全项目后台引擎）：落库调度 + AI 分联动预警。详见 cn.geosentry.ai.service.AiInsightService
+  ai:
+    comprehensive-scheduler-cron: ${AI_COMPREHENSIVE_CRON:0 */5 * * * *}
+    comprehensive-to-warning-cron: ${AI_TO_WARNING_CRON:0 */10 * * * *}
+    comprehensive-to-warning-enabled: ${AI_TO_WARNING_ENABLED:true}
+    # AI 设备健康评分：每台 monitoring_device 跑 anomaly + forecast，落库 ai_device_health
+    device-health-scheduler-enabled: ${AI_DEVICE_HEALTH_ENABLED:true}
+    device-health-scheduler-cron: ${AI_DEVICE_HEALTH_CRON:0 */5 * * * *}
+    # v1.7.0 AI 实时灾害监测（全国版）：从 region 表动态加载监控区域，不依赖接入设备
+    hazard-monitor-enabled: ${AI_HAZARD_MONITOR_ENABLED:true}
+    hazard-monitor-interval-ms: ${AI_HAZARD_MONITOR_INTERVAL_MS:90000}
+    hazard-monitor-initial-delay-ms: ${AI_HAZARD_MONITOR_INITIAL_DELAY_MS:8000}
+    hazard-monitor-max-regions-per-tick: ${AI_HAZARD_MONITOR_MAX_REGIONS:200}
+    hazard-monitor-include-plain: ${AI_HAZARD_MONITOR_INCLUDE_PLAIN:false}
+    hazard-monitor-min-level: ${AI_HAZARD_MONITOR_MIN_LEVEL:town}
+    hazard-monitor-min-risk-level: ${AI_HAZARD_MONITOR_MIN_RISK_LEVEL:HIGH}
   device:
     auth-strict-mode: ${DEVICE_AUTH_STRICT:false}
     offline-threshold-minutes: ${DEVICE_OFFLINE_THRESHOLD_MIN:5}
@@ -77,8 +115,11 @@ ai:
 
 minio:
   endpoint: ${MINIO_ENDPOINT:http://localhost:19000}
-  access-key: ${MINIO_ACCESS_KEY:minioadmin}
-  secret-key: ${MINIO_SECRET_KEY:minioadmin123}
+  access-key: ${MINIO_ACCESS_KEY:geosentry}
+  # ⚠️ 生产环境必须修改为强随机密钥（建议 24+ 字符）。
+  # MINIO_SECRET_KEY 必须为强密码：长度 ≥ 16，不含常见弱密码模式。
+  # 生成方式：openssl rand -base64 32
+  secret-key: ${MINIO_SECRET_KEY:CHANGE_ME_24chars_minio_secret_key_2024}
   bucket: ${MINIO_BUCKET:geosentry}
 
 emqx:
@@ -97,6 +138,8 @@ tdengine:
   enabled: ${TDENGINE_ENABLED:false}
 
 logging:
+  file:
+    name: logs/backend.log
   level:
     root: info
     org.springframework.web: info

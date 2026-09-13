@@ -2,6 +2,8 @@ package cn.geosentry.emergency;
 
 import cn.geosentry.common.api.ApiResponse;
 import cn.geosentry.common.api.PageResponse;
+import cn.geosentry.common.export.EmergencyExportRow;
+import cn.geosentry.common.export.ExcelExportService;
 import cn.geosentry.emergency.dto.EmergencyDto;
 import cn.geosentry.emergency.service.EmergencyService;
 import java.util.Map;
@@ -20,9 +22,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class EmergencyController {
 
   private final EmergencyService emergencyService;
+  private final ExcelExportService excelExportService;
 
-  public EmergencyController(EmergencyService emergencyService) {
+  public EmergencyController(EmergencyService emergencyService, ExcelExportService excelExportService) {
     this.emergencyService = emergencyService;
+    this.excelExportService = excelExportService;
   }
 
   @GetMapping
@@ -58,8 +62,8 @@ public class EmergencyController {
   }
 
   @PostMapping("/export")
-  @PreAuthorize("hasAuthority('emergency:close')")
-  public ApiResponse<Void> export() {
-    return ApiResponse.success("已生成应急处置报表（演示模式）", null);
+  @PreAuthorize("hasAuthority('emergency:export')")
+  public void export(jakarta.servlet.http.HttpServletResponse response) throws java.io.IOException {
+    excelExportService.export(response, "应急处置导出.xlsx", EmergencyExportRow.class, emergencyService.exportRows());
   }
 }

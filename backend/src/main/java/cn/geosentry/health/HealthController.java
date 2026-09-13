@@ -7,6 +7,7 @@ import javax.sql.DataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -31,6 +32,9 @@ public class HealthController {
   @Autowired(required = false)
   private DataSource dataSource;
 
+  @Value("${tdengine.enabled:false}")
+  private boolean tdengineEnabled;
+
   @GetMapping("/health")
   public ResponseEntity<ApiResponse<Map<String, Object>>> health(
       @RequestParam(defaultValue = "false") boolean detailed) {
@@ -53,8 +57,7 @@ public class HealthController {
       details.put("jvm_heap_used_mb", usedHeapMb);
       details.put("jvm_heap_max_mb", maxHeapMb);
       details.put("thread_count", Thread.activeCount());
-      details.put("tdengine_enabled",
-          "true".equalsIgnoreCase(System.getenv().getOrDefault("TDENGINE_ENABLED", "false")));
+      details.put("tdengine_enabled", tdengineEnabled);
     }
 
     body.put("status", allOk ? "UP" : "DEGRADED");

@@ -14,7 +14,7 @@ export function useHazardList(props) {
     const keyword = normalizedSearch.value
     return hazards.value.filter((item) => {
       const matchLevel = levelFilter.value === '全部' || item.level === levelFilter.value
-      const matchKeyword = !keyword || [item.name, item.type, item.level, item.owner, item.status].some((value) => String(value).toLowerCase().includes(keyword))
+      const matchKeyword = !keyword || [item.name, item.type, item.level, item.owner, item.status, item.hazardCode].some((value) => String(value).toLowerCase().includes(keyword))
       return matchLevel && matchKeyword
     })
   })
@@ -28,7 +28,29 @@ export function useHazardList(props) {
         keyword: props.searchTerm,
         level: levelFilter.value === '全部' ? '' : levelFilter.value,
       })
-      hazards.value = data.list ?? []
+      let list = data.list ?? []
+      // AI 综合分已由后端 AiRiskEnricher 注入到 HazardDto.aiLevel/aiScore 字段；这里做兜底 + 排序
+      // （如果后端某天没注入，前端自己从 /comprehensive-analysis/all 拉一次）
+      const missingAi = list.some((h) => h.aiScore == null)
+      if (missingAi) {
+        try {
+          const aiList = await dashboardApi.getAiComprehensiveAll()
+          const map = new Map()
+          aiList.forEach((s) => map.set(s.hazardCode, s))
+          list = list.map((h) => {
+            const ai = map.get(h.hazardCode ?? h.code)
+            return {
+              ...h,
+              aiScore: h.aiScore ?? ai?.riskScore ?? null,
+              aiLevel: h.aiLevel ?? ai?.riskLevel ?? null,
+              aiAnalyzedAt: h.aiAnalyzedAt ?? ai?.analyzedAt ?? null,
+            }
+          })
+        } catch (_) { /* 忽略，AI 不可用 */ }
+      }
+      // 按 AI 综合分排序（高 → 低），无 AI 分的排最后
+      list.sort((a, b) => (b.aiScore ?? -1) - (a.aiScore ?? -1))
+      hazards.value = list
       paging.value = {
         page: data.page ?? page,
         size: data.size ?? paging.value.size,

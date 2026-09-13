@@ -1,15 +1,18 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import { ShieldCheck, UsersRound, MapPin, MessageSquareText, FileText, Clock3, ListChecks, XCircle, Send } from 'lucide-vue-next'
+import { ShieldCheck, UsersRound, MapPin, MessageSquareText, FileText, Clock3, ListChecks, XCircle, Send, Sparkles, BrainCircuit } from 'lucide-vue-next'
 import PermissionButton from '../components/PermissionButton.vue'
 import { dashboardApi } from '../services/dashboardApi'
 
 const emit = defineEmits(['notify'])
 const incidents = ref([])
 const loading = ref(true)
+const aiScoreMap = ref(new Map())
 
 const activeCount = computed(() => incidents.value.length)
-
+const aiCriticalCount = computed(() => {
+  return Array.from(aiScoreMap.value.values()).filter((s) => s.riskLevel === 'CRITICAL' || s.riskLevel === 'HIGH').length
+})
 function incidentLevelClass(incident) {
   const level = incident?.level ?? ''
   if (/橙|红/.test(level)) return 'orange'
@@ -17,12 +20,32 @@ function incidentLevelClass(incident) {
   if (/蓝/.test(level)) return 'blue'
   return 'teal'
 }
+function aiLevelLabel(level) {
+  return { CRITICAL: '极高', HIGH: '高', MEDIUM: '中', LOW: '低' }[level] || '—'
+}
+function aiOf(hazardCode) {
+  if (!hazardCode) return null
+  return aiScoreMap.value.get(hazardCode) ?? null
+}
 
 async function loadData() {
   loading.value = true
-  const data = await dashboardApi.getEmergency()
-  incidents.value = data.incidents
-  loading.value = false
+  try {
+    const data = await dashboardApi.getEmergency()
+    incidents.value = data.incidents
+    // 拉 AI 综合分（每个事件可能关联不同 hazard）
+    const codes = Array.from(new Set(incidents.value.map((i) => i.hazardCode).filter(Boolean)))
+    if (codes.length) {
+      try {
+        const all = await dashboardApi.getAiComprehensiveAll()
+        const map = new Map()
+        all.forEach((s) => map.set(s.hazardCode, s))
+        aiScoreMap.value = map
+      } catch (_) { /* AI 不可用 */ }
+    }
+  } finally {
+    loading.value = false
+  }
 }
 
 async function closeIncident(incident) {
@@ -44,9 +67,36 @@ onMounted(loadData)
     <template v-else>
       <div class="stats-grid">
         <div class="stat-card"><div class="stat-icon orange"><ShieldCheck :size="19" /></div><div class="stat-copy"><span>处置中的事件</span><strong>{{ activeCount }} <small>起</small></strong><em class="positive">联动响应 <i>已启动</i></em></div></div>
+        <div class="stat-card"><div class="stat-icon teal"><BrainCircuit :size="19" /></div><div class="stat-copy"><span>AI 标高/极高</span><strong>{{ aiCriticalCount }} <small>起</small></strong><em :class="aiCriticalCount ? 'negative' : 'positive'">{{ aiCriticalCount ? '需立即处置' : '运行良好' }} <i>综合风险</i></em></div></div>
         <div class="stat-card"><div class="stat-icon blue"><UsersRound :size="19" /></div><div class="stat-copy"><span>应急力量</span><strong>11 <small>人</small></strong><em class="positive">在线值守 <i>随时出动</i></em></div></div>
-        <div class="stat-card"><div class="stat-icon teal"><MapPin :size="19" /></div><div class="stat-copy"><span>避险安置点</span><strong>3 <small>处</small></strong><em class="positive">覆盖周边 <i>联动安置</i></em></div></div>
         <div class="stat-card"><div class="stat-icon purple"><FileText :size="19" /></div><div class="stat-copy"><span>复盘报告</span><strong>12 <small>份</small></strong><em class="positive">持续沉淀 <i>经验库</i></em></div></div>
+      </div>
+
+      <!-- AI 应急研判：每个事件挂上 AI 评分 -->
+      <div v-if="incidents.length" class="ai-hazard-card" style="margin: 0 0 16px;">
+        <div class="ai-card-head">
+          <div>
+            <small><BrainCircuit :size="13" />AI 应急研判</small>
+            <strong>已对所有处置事件关联 AI 综合评分 · 5 分钟自动刷新</strong>
+          </div>
+        </div>
+        <ul class="ai-hazard-reasons" style="border-top: none; padding-top: 4px;">
+          <li v-for="(inc, i) in incidents" :key="`ai-${inc.id ?? i}`">
+            <strong>{{ inc.title }}</strong>
+            <template v-if="inc.hazardCode && aiOf(inc.hazardCode)">
+              · 关联 {{ inc.hazardCode }}
+              <span :class="`ai-tag ai-tag-${(aiOf(inc.hazardCode).riskLevel || '').toLowerCase()}`" style="margin-left:4px">
+                AI {{ aiLevelLabel(aiOf(inc.hazardCode).riskLevel) }} {{ Number(aiOf(inc.hazardCode).riskScore || 0).toFixed(0) }}
+              </span>
+            </template>
+            <template v-else-if="inc.hazardCode">
+              · 关联 {{ inc.hazardCode }} · AI 暂未评分
+            </template>
+            <template v-else>
+              · 无关联灾害点
+            </template>
+          </li>
+        </ul>
       </div>
 
       <div class="content-grid">

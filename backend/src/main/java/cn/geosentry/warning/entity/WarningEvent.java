@@ -55,6 +55,14 @@ public class WarningEvent {
   @Column(name = "closed_by")
   private String closedBy;
 
+  /** P0-2：解除范围（ALL / PART）。 */
+  @Column(name = "resolve_scope")
+  private String resolveScope;
+
+  /** P0-2：部分解除时的具体区域。 */
+  @Column(name = "resolve_area")
+  private String resolveArea;
+
   @Column(name = "rule_snapshot")
   private String ruleSnapshot;
 
@@ -90,6 +98,10 @@ public class WarningEvent {
   public void setCloseReason(String closeReason) { this.closeReason = closeReason; }
   public String getClosedBy() { return closedBy; }
   public void setClosedBy(String closedBy) { this.closedBy = closedBy; }
+  public String getResolveScope() { return resolveScope; }
+  public void setResolveScope(String resolveScope) { this.resolveScope = resolveScope; }
+  public String getResolveArea() { return resolveArea; }
+  public void setResolveArea(String resolveArea) { this.resolveArea = resolveArea; }
   public String getRuleSnapshot() { return ruleSnapshot; }
   public void setRuleSnapshot(String ruleSnapshot) { this.ruleSnapshot = ruleSnapshot; }
   public String getSource() { return source; }

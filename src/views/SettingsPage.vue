@@ -4,14 +4,17 @@ import {
   Bell,
   Building2,
   Database,
+  Globe,
   KeyRound,
   Laptop,
+  Moon,
   RefreshCcw,
   Save,
   Server,
   ShieldCheck,
   Smartphone,
   Trash2,
+  UserCircle,
 } from 'lucide-vue-next'
 import { getAuthUser, getRoleLabel } from '../stores/auth'
 
@@ -19,6 +22,7 @@ const emit = defineEmits(['notify'])
 
 const tabs = [
   { id: 'general', label: '基本设置', icon: Building2 },
+  { id: 'preferences', label: '个人偏好', icon: UserCircle },
   { id: 'warning', label: '预警与通知', icon: Bell },
   { id: 'security', label: '账号与安全', icon: ShieldCheck },
   { id: 'integration', label: '数据与接口', icon: Server },
@@ -41,6 +45,20 @@ const defaults = {
   autoSignOut: true,
   dataRetention: 180,
   backupEnabled: true,
+  // ===X= 个人偏好 P2-2 ===X=
+  theme: 'auto',           // 'light' | 'dark' | 'auto'
+  language: 'zh-CN',       // 'zh-CN' | 'en-US'
+  landingPage: '/dashboard',
+  compactMode: false,
+  quietHoursEnabled: false,
+  quietStart: '22:00',
+  quietEnd: '08:00',
+  notificationLevels: {
+    red:    { sms: true,  email: true,  station: true,  phone: true  },
+    orange: { sms: true,  email: true,  station: true,  phone: false },
+    yellow: { sms: false, email: true,  station: true,  phone: false },
+    blue:   { sms: false, email: false, station: true,  phone: false },
+  },
 }
 
 const settings = reactive({ ...defaults })
@@ -65,8 +83,49 @@ watch(settings, () => { isDirty.value = true }, { deep: true })
 
 function persist() {
   saveSettings()
+  applyPreferences()
   isDirty.value = false
   emit('notify', '设置已保存')
+}
+
+/**
+ * P2-2：应用个人偏好到运行时。
+ * - 主题：写入 <html data-theme> 让全局 CSS 切换
+ * - 语言：写入 localStorage，由后续 i18n 模块读取（当前仅占位）
+ * - 默认首页：写入 localStorage；登录跳转时由 auth.js 读取
+ * - 紧凑模式：写入 <html data-density>，全局字号 / 间距 -1
+ * - 免打扰时段：写入 localStorage，由通知服务读取做静默判断
+ */
+function applyPreferences() {
+  const html = document.documentElement
+  // 主题
+  if (settings.theme === 'dark') html.dataset.theme = 'dark'
+  else if (settings.theme === 'light') html.dataset.theme = 'light'
+  else html.removeAttribute('data-theme')
+  // 紧凑模式
+  if (settings.compactMode) html.dataset.density = 'compact'
+  else html.removeAttribute('data-density')
+  // 语言
+  window.localStorage.setItem('geosentry_language', settings.language)
+  // 默认首页
+  window.localStorage.setItem('geosentry_landing_page', settings.landingPage)
+  // 免打扰
+  window.localStorage.setItem(
+    'geosentry_quiet_hours',
+    JSON.stringify({
+      enabled: settings.quietHoursEnabled,
+      start: settings.quietStart,
+      end: settings.quietEnd,
+    }),
+  )
+}
+
+/**
+ * 启动时回放一次偏好，使刷新后保留上次选择。
+ * 但不要触发 isDirty（与 watch(settings) 解耦）。
+ */
+function bootstrapPreferences() {
+  applyPreferences()
 }
 
 function resetToDefaults() {
@@ -99,6 +158,63 @@ const channelOptions = [
   { id: 'station', label: '站内通知', desc: '平台内弹窗与消息中心' },
   { id: 'phone', label: '电话外呼', desc: '红色预警自动电话提醒' },
 ]
+
+/* ===X= 个人偏好 选项 P2-2 ===X= */
+const themeOptions = [
+  { value: 'light', label: '浅色主题', desc: '适合白天办公，文字与图标对比度高' },
+  { value: 'dark', label: '深色主题', desc: '适合夜间值守与指挥大屏场景' },
+  { value: 'auto', label: '跟随系统', desc: '根据操作系统暗色模式自动切换' },
+]
+const languageOptions = [
+  { value: 'zh-CN', label: '简体中文', desc: '默认中文界面' },
+  { value: 'en-US', label: 'English', desc: '英文界面（实验性，部分文案未翻译）' },
+]
+const landingOptions = [
+  { value: '/dashboard', label: '综合态势大屏', desc: '总览所有灾害态势与关键指标' },
+  { value: '/dashboard/todo', label: '待办中心', desc: '进入平台直接处理个人待办' },
+  { value: '/dashboard/warnings', label: '预警中心', desc: '快速进入预警处置工作流' },
+  { value: '/dashboard/confirmation-workbench', label: '人工确认工作台', desc: 'AI 巡检待确认事件集中处理' },
+]
+const LEVEL_TITLES = {
+  red: '红色预警',
+  orange: '橙色预警',
+  yellow: '黄色预警',
+  blue: '蓝色提醒',
+}
+const LEVEL_DESCS = {
+  red: '最高级别，自动外呼 + 短信 + 站内',
+  orange: '高级别，短信 + 邮件 + 站内',
+  yellow: '中等级别，邮件 + 站内',
+  blue: '关注级，仅站内通知',
+}
+function inQuietHours() {
+  if (!settings.quietHoursEnabled) return false
+  const now = new Date()
+  const cur = now.getHours() * 60 + now.getMinutes()
+  const [sh, sm] = String(settings.quietStart || '00:00').split(':').map(Number)
+  const [eh, em] = String(settings.quietEnd || '00:00').split(':').map(Number)
+  const startMin = sh * 60 + sm
+  const endMin = eh * 60 + em
+  if (startMin === endMin) return false
+  if (startMin < endMin) return cur >= startMin && cur < endMin
+  // 跨夜：22:00 → 08:00
+  return cur >= startMin || cur < endMin
+}
+const quietHint = computed(() => {
+  if (!settings.quietHoursEnabled) return '免打扰未开启'
+  const now = new Date()
+  const cur = now.getHours() * 60 + now.getMinutes()
+  const [sh, sm] = String(settings.quietStart || '00:00').split(':').map(Number)
+  const [eh, em] = String(settings.quietEnd || '00:00').split(':').map(Number)
+  const startMin = sh * 60 + sm
+  const endMin = eh * 60 + em
+  const inQuiet = (startMin < endMin)
+    ? cur >= startMin && cur < endMin
+    : cur >= startMin || cur < endMin
+  return inQuiet
+    ? `当前处于免打扰时段（${settings.quietStart} - ${settings.quietEnd}），非紧急预警也会静音`
+    : `免打扰 ${settings.quietStart} - ${settings.quietEnd}，当前不在该时段`
+})
 
 const passwordForm = reactive({ current: '', next: '', confirm: '' })
 const passwordHint = ref('')
@@ -179,6 +295,7 @@ const passwordStrength = computed(() => {
 })
 
 loadSettings()
+bootstrapPreferences()
 </script>
 
 <template>
@@ -236,6 +353,105 @@ loadSettings()
             <option value="satellite">卫星影像</option>
           </select>
         </label>
+      </div>
+
+      <div class="settings-foot">
+        <button class="secondary-btn" @click="resetToDefaults"><RefreshCcw :size="14" />恢复默认</button>
+        <button class="primary-btn" :disabled="!isDirty" @click="persist"><Save :size="14" />保存设置</button>
+      </div>
+    </section>
+
+    <!-- 个人偏好 -->
+    <section v-else-if="activeTab === 'preferences'" class="panel settings-panel">
+      <div class="panel-header">
+        <div>
+          <h2>个人偏好</h2>
+          <p>主题、语言、默认首页与免打扰</p>
+        </div>
+        <span class="health-label"><i></i>{{ themeOptions.find((t) => t.value === settings.theme)?.label ?? '自动' }}</span>
+      </div>
+
+      <div class="settings-body">
+        <div class="settings-subhead"><strong>外观</strong><small>主题与界面密度</small></div>
+
+        <div class="theme-grid">
+          <button
+            v-for="item in themeOptions"
+            :key="item.value"
+            type="button"
+            class="theme-card"
+            :class="{ active: settings.theme === item.value }"
+            @click="settings.theme = item.value; applyPreferences()"
+          >
+            <component
+              :is="item.value === 'dark' ? Moon : (item.value === 'auto' ? Laptop : Globe)"
+              :size="22"
+            />
+            <strong>{{ item.label }}</strong>
+            <small>{{ item.desc }}</small>
+          </button>
+        </div>
+
+        <label class="settings-row switch-row">
+          <span class="settings-label"><strong>紧凑模式</strong><small>字号与间距缩小 10%，适合小屏与多窗口场景</small></span>
+          <span class="settings-toggle" :class="{ on: settings.compactMode }">
+            <input v-model="settings.compactMode" type="checkbox" @change="applyPreferences()" />
+            <i></i>
+          </span>
+        </label>
+
+        <div class="settings-subhead"><strong>语言与首页</strong><small>登录后默认进入的页面</small></div>
+
+        <label class="settings-row">
+          <span class="settings-label"><strong>界面语言</strong><small>切换后立即生效</small></span>
+          <select v-model="settings.language" class="settings-input" @change="applyPreferences()">
+            <option v-for="item in languageOptions" :key="item.value" :value="item.value">{{ item.label }} · {{ item.desc }}</option>
+          </select>
+        </label>
+
+        <label class="settings-row">
+          <span class="settings-label"><strong>默认登录首页</strong><small>登录后跳转的第一个页面</small></span>
+          <select v-model="settings.landingPage" class="settings-input" @change="applyPreferences()">
+            <option v-for="item in landingOptions" :key="item.value" :value="item.value">{{ item.label }} · {{ item.desc }}</option>
+          </select>
+        </label>
+
+        <div class="settings-subhead"><strong>免打扰</strong><small>在指定时段内不推送非紧急预警</small></div>
+
+        <label class="settings-row switch-row">
+          <span class="settings-label"><strong>开启免打扰</strong><small>{{ quietHint }}</small></span>
+          <span class="settings-toggle" :class="{ on: settings.quietHoursEnabled }">
+            <input v-model="settings.quietHoursEnabled" type="checkbox" @change="applyPreferences()" />
+            <i></i>
+          </span>
+        </label>
+
+        <div class="quiet-range">
+          <label class="settings-row">
+            <span class="settings-label"><strong>起始时间</strong><small>免打扰开始</small></span>
+            <input v-model="settings.quietStart" type="time" class="settings-input narrow" :disabled="!settings.quietHoursEnabled" @change="applyPreferences()" />
+          </label>
+          <span class="quiet-arrow">→</span>
+          <label class="settings-row">
+            <span class="settings-label"><strong>结束时间</strong><small>免打扰结束（可跨夜）</small></span>
+            <input v-model="settings.quietEnd" type="time" class="settings-input narrow" :disabled="!settings.quietHoursEnabled" @change="applyPreferences()" />
+          </label>
+        </div>
+
+        <div class="settings-subhead"><strong>分级通知</strong><small>不同预警等级走不同渠道组合</small></div>
+
+        <div v-for="(channels, level) in settings.notificationLevels" :key="level" class="level-row" :class="`level-${level}`">
+          <div class="level-meta">
+            <strong>{{ LEVEL_TITLES[level] }}</strong>
+            <small>{{ LEVEL_DESCS[level] }}</small>
+          </div>
+          <div class="level-channels">
+            <label v-for="ch in channelOptions" :key="ch.id" class="channel-chip" :class="{ on: channels[ch.id] }">
+              <input v-model="channels[ch.id]" type="checkbox" />
+              <span>{{ ch.label.replace('通知', '').replace('外呼', '') }}</span>
+            </label>
+          </div>
+        </div>
       </div>
 
       <div class="settings-foot">

@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import {
   ArrowLeft,
@@ -33,6 +33,68 @@ const cesiumMessage = ref("");
 let cesiumCleanup = null;
 const aiForecast = ref(null);
 const aiForecastLoading = ref(false);
+const aiComprehensive = ref(null);
+const aiComprehensiveLoading = ref(false);
+const aiLevelLabel = (level) => ({ CRITICAL: '极高', HIGH: '高', MEDIUM: '中', LOW: '低' }[level] || '—');
+const aiLevelClass = (level) => ({ CRITICAL: 'orange', HIGH: 'yellow', MEDIUM: 'blue', LOW: 'teal' }[level] || 'blue');
+
+async function loadAiComprehensive() {
+  if (!point.value) return;
+  aiComprehensiveLoading.value = true;
+  try {
+    const code = point.value.hazardCode ?? point.value.code;
+    if (!code) {
+      // 无 hazardCode：退化为读 point.aiLevel/aiScore（DTO 已被 AiRiskEnricher 注入）
+      aiComprehensive.value = point.value.aiScore != null
+        ? {
+            hazardCode: code,
+            riskLevel: point.value.aiLevel,
+            riskScore: point.value.aiScore,
+            confidence: null,
+            model: null,
+            analyzedAt: point.value.aiAnalyzedAt,
+            dimensions: null,
+            reasoning: [],
+            suggestedActions: [],
+          }
+        : null;
+      return;
+    }
+    const cached = await dashboardApi.getAiComprehensiveCached(code);
+    aiComprehensive.value = cached;
+  } catch (_) {
+    // 端点 404（未落库）或网络失败：退化为 DTO 自带 aiLevel/aiScore
+    if (point.value.aiScore != null) {
+      aiComprehensive.value = {
+        hazardCode: point.value.hazardCode ?? point.value.code,
+        riskLevel: point.value.aiLevel,
+        riskScore: point.value.aiScore,
+        confidence: null,
+        model: null,
+        analyzedAt: point.value.aiAnalyzedAt,
+        dimensions: null,
+        reasoning: [],
+        suggestedActions: [],
+      };
+    } else {
+      aiComprehensive.value = null;
+    }
+  } finally {
+    aiComprehensiveLoading.value = false;
+  }
+}
+
+async function refreshAiComprehensive() {
+  if (!point.value) return;
+  const code = point.value.hazardCode ?? point.value.code;
+  if (!code) return;
+  try {
+    // 强制实时推理 + 写回落库（让下次点进直接走缓存）
+    aiComprehensive.value = await aiApi.comprehensiveAnalysis(code);
+  } catch (_) {
+    // 实时推理失败：保留当前值
+  }
+}
 
 async function loadData() {
   loading.value = true;
@@ -49,22 +111,20 @@ async function loadData() {
   };
   loading.value = false;
   loadAiForecast();
+  loadAiComprehensive();
 }
 
 async function loadAiForecast() {
   if (!point.value) return;
   aiForecastLoading.value = true;
   try {
-    // 合成历史数据（真实场景应从设备指标拉取）
-    const base = 10.0 + Math.random() * 5;
-    const history = Array.from({ length: 30 }, (_, i) =>
-      round1(base + 0.1 * i + Math.random() * 0.3),
-    );
-    aiForecast.value = await aiApi.forecast(
+    // 从后端直接拉取该设备的真实历史指标，交由 AI 完成预测；
+    // 不合成/伪造历史数据，AI 不可用时按 null 处理，界面显示不可用提示。
+    aiForecast.value = await aiApi.forecastAuto(
       point.value.deviceCode || "DEV-001",
       "displacement",
       7,
-      history,
+      30,
     );
   } catch (e) {
     aiForecast.value = null;
@@ -73,14 +133,26 @@ async function loadAiForecast() {
   }
 }
 
-function round1(v) {
-  return Math.round(v * 10) / 10;
-}
+const latestForecast = computed(() => {
+  const predictions = aiForecast.value?.predictions;
+  if (!Array.isArray(predictions) || !predictions.length) return null;
+  return predictions[predictions.length - 1];
+});
+const forecastMax = computed(() => {
+  const predictions = aiForecast.value?.predictions;
+  if (!Array.isArray(predictions) || !predictions.length) return 1;
+  return Math.max(...predictions) || 1;
+});
+const forecastPercent = computed(() => {
+  if (latestForecast.value == null) return 0;
+  return Math.max(3, (latestForecast.value / forecastMax.value) * 100);
+});
 
 async function saveDetail() {
   if (!point.value) return;
   const result = await dashboardApi.updateHazard(point.value.id, form.value);
-  point.value = { ...point.value, ...result.item };
+  // 后端 PUT /hazards/{id} 返回 HazardDto（无 item 包装），直接合并
+  point.value = { ...point.value, ...result };
   editMode.value = false;
 }
 
@@ -182,15 +254,10 @@ onMounted(loadData);
           </div>
           <div class="task-summary">
             <div class="progress-ring">
-              <span
-                >{{
-                  point.level === "高风险"
-                    ? "86"
-                    : point.level === "关注"
-                      ? "63"
-                      : "41"
-                }}<small>%</small></span
+              <span v-if="latestForecast != null"
+                >{{ latestForecast.toFixed(1) }}<small>mm</small></span
               >
+              <span v-else style="color: #a4b3b0">--</span>
             </div>
             <div class="task-overview">
               <strong v-if="!editMode">{{ point.level }}</strong>
@@ -200,9 +267,89 @@ onMounted(loadData);
                 <option value="正常">正常</option>
               </select>
               <span>空间位置：{{ point.lon }}, {{ point.lat }}</span>
-              <div class="task-bars"><i style="width: 72%"></i></div>
-              <p>最近巡检时间：今天 09:30</p>
+              <div class="task-bars">
+                <i
+                  v-if="latestForecast != null"
+                  :style="{
+                    width: forecastPercent + '%',
+                    background:
+                      latestForecast > 15
+                        ? '#e06060'
+                        : latestForecast > 12
+                          ? '#e0a050'
+                          : '#6dbfa5',
+                  }"
+                ></i>
+                <i v-else style="width: 0%"></i>
+              </div>
+              <p v-if="latestForecast != null" style="color: #57817d">
+                AI 预测未来 {{ aiForecast.horizon }} 天位移
+                {{ latestForecast.toFixed(1) }} mm
+              </p>
+              <p v-else style="color: #d88a6a">
+                AI 识别服务不可用，不提供虚拟监测数据
+              </p>
             </div>
+          </div>
+
+          <!-- AI 综合研判（多维度） -->
+          <div v-if="aiComprehensive" class="ai-hazard-card">
+            <div class="ai-card-head">
+              <div>
+                <small><BrainCircuit :size="13" />AI 综合风险研判</small>
+                <strong :class="`ai-tag ai-tag-${(aiComprehensive.riskLevel || '').toLowerCase()}`">
+                  {{ aiLevelLabel(aiComprehensive.riskLevel) }} · {{ Number(aiComprehensive.riskScore || 0).toFixed(1) }} / 100
+                </strong>
+              </div>
+              <span v-if="aiComprehensive.analyzedAt" class="ai-card-time">{{ new Date(aiComprehensive.analyzedAt).toLocaleString('zh-CN', { hour12: false }) }}</span>
+            </div>
+            <div v-if="aiComprehensive.dimensions" class="ai-hazard-dims">
+              <div class="ai-dim-cell">
+                <small>图像现况</small>
+                <strong :style="{ color: aiLevelClass(aiComprehensive.dimensions.image?.level) === 'orange' ? '#d57252' : aiLevelClass(aiComprehensive.dimensions.image?.level) === 'yellow' ? '#c69132' : '#34575a' }">
+                  {{ aiLevelLabel(aiComprehensive.dimensions.image?.level) }} {{ Number(aiComprehensive.dimensions.image?.score ?? 0).toFixed(0) }}
+                </strong>
+              </div>
+              <div class="ai-dim-cell">
+                <small>当地降水量</small>
+                <strong :style="{ color: aiLevelClass(aiComprehensive.dimensions.precipitation?.level) === 'orange' ? '#d57252' : aiLevelClass(aiComprehensive.dimensions.precipitation?.level) === 'yellow' ? '#c69132' : '#34575a' }">
+                  {{ aiLevelLabel(aiComprehensive.dimensions.precipitation?.level) }} {{ Number(aiComprehensive.dimensions.precipitation?.score ?? 0).toFixed(0) }}
+                </strong>
+              </div>
+              <div class="ai-dim-cell">
+                <small>当地地理情况</small>
+                <strong :style="{ color: aiLevelClass(aiComprehensive.dimensions.geographic?.level) === 'orange' ? '#d57252' : aiLevelClass(aiComprehensive.dimensions.geographic?.level) === 'yellow' ? '#c69132' : '#34575a' }">
+                  {{ aiLevelLabel(aiComprehensive.dimensions.geographic?.level) }} {{ Number(aiComprehensive.dimensions.geographic?.score ?? 0).toFixed(0) }}
+                </strong>
+              </div>
+              <div class="ai-dim-cell">
+                <small>设备指标</small>
+                <strong :style="{ color: aiLevelClass(aiComprehensive.dimensions.device?.level) === 'orange' ? '#d57252' : aiLevelClass(aiComprehensive.dimensions.device?.level) === 'yellow' ? '#c69132' : '#34575a' }">
+                  {{ aiLevelLabel(aiComprehensive.dimensions.device?.level) }} {{ Number(aiComprehensive.dimensions.device?.score ?? 0).toFixed(0) }}
+                </strong>
+              </div>
+            </div>
+            <div v-if="aiComprehensive.reasoning?.length" class="ai-hazard-reasons">
+              <small>关键归因：</small>
+              <ul>
+                <li v-for="(r, i) in aiComprehensive.reasoning.slice(0, 4)" :key="i">{{ r }}</li>
+              </ul>
+            </div>
+            <div v-if="aiComprehensive.suggestedActions?.length" class="ai-hazard-actions">
+              <small>建议动作：</small>
+              <span v-for="(a, i) in aiComprehensive.suggestedActions.slice(0, 4)" :key="i" class="ai-action-pill">{{ a }}</span>
+            </div>
+            <div class="heading-actions" style="padding: 6px 0 0; justify-content: flex-end; gap: 6px;">
+              <span v-if="aiComprehensive.model" style="font-size: 10px; color: #99a7a1;">模型：{{ aiComprehensive.model }} · 置信度 {{ ((aiComprehensive.confidence ?? 0) * 100).toFixed(0) }}%</span>
+              <PermissionButton permission="ai:insight:refresh" :icon="BrainCircuit" @click="async ({ allowed, reason }) => {
+                if (!allowed) return
+                await refreshAiComprehensive()
+              }">立即重算</PermissionButton>
+            </div>
+          </div>
+          <div v-else-if="aiComprehensiveLoading" class="ai-hazard-card" style="text-align: center; color: #7a8d89; font-size: 12px;">AI 综合研判加载中...</div>
+          <div v-else class="ai-hazard-card" style="text-align: center; color: #99a7a1; font-size: 11px;">
+            等待 AI 综合研判（5 分钟内自动更新，<a href="javascript:void(0)" @click="refreshAiComprehensive" style="color: #4c8b87; text-decoration: underline;">立即重算</a>）
           </div>
 
           <!-- AI 预测趋势 -->

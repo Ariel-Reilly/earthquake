@@ -1,5 +1,6 @@
 package cn.geosentry.warning.engine;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Map;
 import java.util.Optional;
 
@@ -13,6 +14,8 @@ import java.util.Optional;
  * </ul>
  */
 public class RuleEvaluator {
+
+  private static final ObjectMapper MAPPER = new ObjectMapper();
 
   private RuleEvaluator() {
   }
@@ -52,8 +55,7 @@ public class RuleEvaluator {
   private static Optional<Double> evaluateJson(String expr, Map<String, Double> metrics) {
     // 结构化表达式骨架：解析 { metric, comparator, value }，按 AND 组合。
     try {
-      com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-      com.fasterxml.jackson.databind.JsonNode node = mapper.readTree(expr);
+      com.fasterxml.jackson.databind.JsonNode node = MAPPER.readTree(expr);
       com.fasterxml.jackson.databind.JsonNode conditions = node.path("conditions");
       boolean and = !"OR".equalsIgnoreCase(node.path("operator").asText());
       Double matchedValue = null;
