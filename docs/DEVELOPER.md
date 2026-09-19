@@ -1,8 +1,10 @@
 # 地脉智巡 · 开发者文档
 
-> 地质灾害点智能巡检与预警管理平台（Geohazard Inspection Dashboard）
+> 地质灾害点智能巡检与预警管理平台（Disasterguard Inspection Dashboard）
 > 本文档面向参与本项目的开发者，覆盖架构、代码组织、核心模块、接口、数据库、部署与二次开发指南。
-> 最近更新：2026-09-13（Step 9：二次清理 + 文档同步）
+> 最近更新：2026-09-16
+>   - Step 10：文档精简 — 删除过期自动生成报告与历史重构草案，新增 docs/README.md 索引
+>   - Step 11：启动方式细节更新 — 移除 `run-backend.ps1` / `run-frontend.ps1`（已删除），全部统一改用 `start-dev.ps1` / `start-dev.sh`；Dockerfile 路径从根目录迁到 `backend/` 与 `frontend/`；AI 服务端口由 8000 改为 8001；`scripts/` 按职责归档到 4 个子目录。
 
 ---
 
@@ -96,8 +98,8 @@
 | 对象存储  | MinIO（Minio SDK 8.5.12，已配置）                                            |
 | 文档      | SpringDoc OpenAPI（Spring Boot 3 / WebMvc UI）                               |
 | 校验      | Spring Boot Validation                                                       |
-| AI 客户端 | Spring RestClient（`cn.geosentry.ai.AiServiceClient`，调用独立 Python 服务） |
-| 外部数据客户端 | Java HttpClient（`cn.geosentry.ai.service.ExternalDataService`，7 个真实公开 API：Open-Meteo / NASA Giovanni GPM / SMAP / USGS FDSN / Open-Elevation / GDACS / OSM Overpass / Copernicus STAC） |
+| AI 客户端 | Spring RestClient（`cn.disasterguard.ai.AiServiceClient`，调用独立 Python 服务） |
+| 外部数据客户端 | Java HttpClient（`cn.disasterguard.ai.service.ExternalDataService`，7 个真实公开 API：Open-Meteo / NASA Giovanni GPM / SMAP / USGS FDSN / Open-Elevation / GDACS / OSM Overpass / Copernicus STAC） |
 
 ### AI 推理服务（`ai-service/`，FastAPI）
 
@@ -131,14 +133,14 @@
 | OSM Overpass            | 暴露度    | `https://overpass-api.de/api/interpreter`                      | 土地利用 + 路网密度 + 建筑物数量                              |
 | Copernicus Data Space STAC | 卫星    | `https://stac.dataspace.copernicus.eu/v1/search`               | Sentinel-2 元数据（公开查询，无需 OAuth）                    |
 
-> 全部由 `cn.geosentry.ai.service.ExternalDataService` 统一接入，含 `ConcurrentHashMap` 缓存（默认 300s TTL）、10s 超时、失败降级（返回 null）。配置 `geosentry.external-data.enabled-sources` 可按需关闭任一数据源。
+> 全部由 `cn.disasterguard.ai.service.ExternalDataService` 统一接入，含 `ConcurrentHashMap` 缓存（默认 300s TTL）、10s 超时、失败降级（返回 null）。配置 `disasterguard.external-data.enabled-sources` 可按需关闭任一数据源。
 
 ### 基础设施（Docker Compose）
 
 - **PostGIS** `postgis/postgis:15-3.4-alpine` — PostgreSQL 15 + PostGIS 扩展
 - **Redis 7** `redis:7-alpine` — 密码 `redis123`，开启 AOF 持久化
-- **MinIO** `minio/minio:latest` — 对象存储，默认 bucket `geosentry`
-- **EMQX 5.9** `emqx/emqx:5.9.0` — MQTT Broker，内置 BCrypt 认证（首次启动自动执行 `infra/emqx/emqx-entrypoint.sh` 创建 `geosentry_backend` 用户）
+- **MinIO** `minio/minio:latest` — 对象存储，默认 bucket `disasterguard`
+- **EMQX 5.9** `emqx/emqx:5.9.0` — MQTT Broker，内置 BCrypt 认证（首次启动自动执行 `infra/emqx/emqx-entrypoint.sh` 创建 `disasterguard_backend` 用户）
 - **TDengine** `tdengine/tdengine:latest` — 时序数据库，支持 TCP（6030）和 HTTP REST（6041）
 - **ai-service**（FastAPI AI 推理服务，可选增强，已编排）
 
@@ -193,21 +195,27 @@
 ### 3.2 目录结构
 
 ```
-earthquake/
+disasterguard/
 ├── index.html                 # 前端 HTML 入口
 ├── package.json               # 前端依赖与脚本
 ├── vite.config.js             # Vite 配置（含 Cesium 插件）
 ├── .env.example               # 环境变量示例
-├── docker-compose.yml         # 全栈容器编排
+├── docker-compose.yml         # 全栈容器编排（dev 模式）
+├── docker-compose.prod.yml    # 生产模式覆盖文件
 ├── README.md                  # 基础说明
-├── run-backend.ps1            # Windows 本地一键启动后端（端口检查/环境变量/mvn run）
-├── run-frontend.ps1           # Windows 本地一键启动前端（npm run dev）
+├── start-dev.ps1              # Windows 一键启动（统一入口，后端 / 前端 / AI / Infra / Status / Doctor / Stop / Restart）
+├── start-dev.sh               # Linux/macOS/WSL 一键启动（同上，POSIX 兼容）
 ├── eslint.config.js           # ESLint 扁平分配置（ESLint 10）
-├── docs/
-│   └── DEVELOPER.md           # 本文档
+├── docs/                      # 开发者文档（详见 docs/README.md）
+│   ├── README.md
+│   ├── ARCHITECTURE.md
+│   ├── DEVELOPER.md           # 本文档
+│   ├── FRONTEND_API.md
+│   ├── UNIFIED_EVENT_STATEMACHINE.md
+│   └── CDSE_SETUP.md
 ├── src/                       # 前端源码
 │   ├── main.js                # 应用入口
-│   ├── App.vue                # 根组件（含右下角"运行模式"角标）
+│   ├── App.vue                # 根组件（含左下角"运行模式"角标 + 右下角智能助手）
 │   ├── styles.css             # 全局样式
 │   ├── router/index.js        # 路由 + 守卫 + 权限
 │   ├── stores/auth.js         # 角色/权限/登录态（含 JWT 过期本地校验）
@@ -227,8 +235,8 @@ earthquake/
 ├── backend/                   # 后端源码（Spring Boot）
 │   ├── pom.xml
 │   └── src/main/
-│       ├── java/cn/geosentry/
-│       │   ├── GeosentryApplication.java
+│       ├── java/cn/disasterguard/
+│       │   ├── DisasterguardApplication.java
 │       │   ├── ai/            # AI 客户端 + 结果持久化（RestClient + JPA）+ 调度器 + ExternalDataService + GeoContextResolver + 综合分析/设备健康/灾害评估/反馈
 │       │   ├── auth/          # 登录 + JWT + 改密
 │       │   ├── config/        # 安全/CORS/OpenAPI/属性配置 + AsyncConfig + RedisConfig + ExternalDataProperties + WeatherProperties + MinioCredentialValidator + ProductionConfigValidator + DatabaseForeignKeyInitializer + AppProperties
@@ -267,12 +275,13 @@ earthquake/
 │       ├── xgboost_fusion.json        # 主模型（v1.5.0）
 │       ├── xgboost_fusion.meta.json   # 训练元数据
 │       └── history/                   # 历史归档（每次训练自动备份）
-├── Dockerfile.backend         # 后端多阶段构建（根目录，内部 COPY backend/pom.xml + src）
-├── Dockerfile.frontend       # 前端多阶段构建（基于 nginx:alpine）
+├── backend/Dockerfile         # 后端多阶段构建（maven 构建 + JRE 运行）
+├── frontend/Dockerfile        # 前端多阶段构建（node:22-alpine 构建 + nginx:1.27-alpine 运行）
 ├── docker-compose.yml        # dev 模式编排（postgres/redis/minio/emqx/tdengine/backend/frontend/ai-service）
 ├── docker-compose.prod.yml   # 生产模式覆盖文件（backend + frontend 生产配置）
 ├── infra/postgres/init/       # PostGIS 扩展初始化（docker-entrypoint 首次建卷执行）
 ├── infra/emqx/                # EMQX 认证初始化（emqx-entrypoint.sh + init.sh）
+├── infra/nginx/               # 生产 Nginx 反代配置
 ├── infra/tdengine/init.sql    # TDengine 建库 + device_metric 超级表（容器首启执行）
 └── dist/                      # 前端构建产物
 ```
@@ -314,8 +323,8 @@ docker compose up -d postgres redis minio emqx tdengine
 ```
 
 首次启动会自动：
-- PostgreSQL：创建 `geosentry` 数据库 + PostGIS 扩展（`infra/postgres/init/` 脚本）
-- EMQX：创建 `geosentry_backend` MQTT 认证用户（`infra/emqx/emqx-entrypoint.sh`）
+- PostgreSQL：创建 `disasterguard` 数据库 + PostGIS 扩展（`infra/postgres/init/` 脚本）
+- EMQX：创建 `disasterguard_backend` MQTT 认证用户（`infra/emqx/emqx-entrypoint.sh`）
 - 其余服务直接就绪
 
 验证容器状态：
@@ -327,16 +336,22 @@ docker compose ps
 
 #### 步骤 2：启动后端（宿主机直跑）
 
-**Windows PowerShell — 使用一键脚本（推荐）**：
+> 推荐使用统一入口 [`start-dev.ps1`](../../start-dev.ps1)（详见 §28.4），它会自动处理端口占用、`.env` 加载、JVM 调优与基础设施健康检查。
+
+**Windows PowerShell — 一键脚本（推荐）**：
 
 ```powershell
 # 在项目根目录执行
-.\run-backend.ps1
+.\start-dev.ps1 -Backend                # 前台启动后端（8080）
+# 或
+.\start-dev.ps1 -All -Wait              # 后台并行启动后端 + 前端 + AI，等全部就绪后报告
 ```
 
-`run-backend.ps1` 自动完成：检测 8080 端口占用并自动停止 Docker 后端容器（`docker compose stop backend`）、用 `Get-NetTCPConnection` 检查基础设施端口（Postgres/Redis/MinIO）、设置环境变量、启动 `mvn -DskipTests spring-boot:run`。
+`start-dev.ps1 -Backend` 自动完成：检测 8080 端口占用并按需释放、用 `Get-NetTCPConnection` 检查基础设施端口（Postgres / Redis / MinIO / EMQX / TDengine）连通性、加载 `.env`、设置 JWT / DB / MQ 等环境变量、激活 `DEV_USERS_ENABLED=true`、启动 `mvn -DskipTests spring-boot:run`。
 
-**手动设置环境变量（不使用脚本时）**：
+> 旧版 `.\run-backend.ps1` 已删除，所有"启动后端"操作统一通过 `start-dev.ps1`。
+
+**手动启动（不使用脚本时）**：
 
 ```powershell
 # PowerShell（Windows）
@@ -346,12 +361,12 @@ $env:REDIS_PORT      = "16379"
 $env:REDIS_HOST      = "127.0.0.1" # Windows 上用 127.0.0.1 避免 IPv6 问题
 $env:REDIS_PASSWORD  = "redis123"
 $env:MINIO_ENDPOINT  = "http://127.0.0.1:19000"
-$env:JWT_SECRET      = "geosentry-dev-secret-key-at-least-32-chars-long-xyz"
-$env:DEV_USERS_ENABLED  = "true"  # 启用内存 fallback 用户（无 DB 时也能登录）
-$env:DEVICE_AUTH_STRICT = "false" # 迁移期兼容未登记 api_key 的设备
-$env:TDENGINE_ENABLED  = "false"  # 未启用 TDengine 时关闭，避免连接超时日志
-$env:EMQX_ENABLED      = "false"  # 未启用 MQTT 时关闭
-$env:AI_ENABLED        = "false"  # 未启动 ai-service 时关闭
+$env:JWT_SECRET      = "disasterguard-dev-secret-key-at-least-32-chars-long-xyz"
+$env:DEV_USERS_ENABLED  = "true"   # 启用内存 fallback 用户（无 DB 时也能登录）
+$env:DEVICE_AUTH_STRICT = "false"  # 迁移期兼容未登记 api_key 的设备
+$env:TDENGINE_ENABLED  = "false"   # 未启用 TDengine 时关闭，避免连接超时日志
+$env:EMQX_ENABLED      = "false"   # 未启用 MQTT 时关闭
+$env:AI_ENABLED        = "false"   # 未启动 ai-service 时关闭
 
 cd backend
 mvn -DskipTests spring-boot:run
@@ -362,7 +377,7 @@ mvn -DskipTests spring-boot:run
 export SPRING_PROFILES_ACTIVE=default
 export POSTGRES_PORT=15432 REDIS_PORT=16379 REDIS_HOST=127.0.0.1 REDIS_PASSWORD=redis123
 export MINIO_ENDPOINT='http://127.0.0.1:19000'
-export JWT_SECRET='geosentry-dev-secret-key-at-least-32-chars-long-xyz'
+export JWT_SECRET='disasterguard-dev-secret-key-at-least-32-chars-long-xyz'
 export DEV_USERS_ENABLED=true DEVICE_AUTH_STRICT=false
 export TDENGINE_ENABLED=false EMQX_ENABLED=false AI_ENABLED=false
 cd backend && mvn -DskipTests spring-boot:run
@@ -371,21 +386,26 @@ cd backend && mvn -DskipTests spring-boot:run
 启动成功标志：
 
 ```
-INFO  --- [geosentry-backend] [main] c.g.GeosentryApplication : Started GeosentryApplication in X.Xs
+INFO  --- [disasterguard-backend] [main] c.g.DisasterguardApplication : Started DisasterguardApplication in X.Xs
 ```
 
 访问 `http://localhost:8080/swagger-ui.html` 确认 Swagger UI 可用。日志文件输出到 `backend/logs/backend.log`（同时输出到控制台）。
 
 #### 步骤 3：启动前端（宿主机直跑）
 
-> ⚠️ **必须先停掉 Docker 前端容器**（`docker compose stop frontend`）。Docker 前端容器内的 Nginx 反代指向 Docker 网络内的 `backend:8080`，而本地后端不在 Docker 网络中，会导致 **502 Bad Gateway**。详见 §15 Q10。
+> ⚠️ **必须先停掉 Docker 前端容器**（`docker compose stop frontend` 或 `.\start-dev.ps1 -Infra -Down`）。Docker 前端容器内的 Nginx 反代指向 Docker 网络内的 `backend:8080`，而本地后端不在 Docker 网络中，会导致 **502 Bad Gateway**。详见 §15 Q10。
 
-**Windows PowerShell — 使用一键脚本（推荐）**：
+**Windows PowerShell — 一键脚本（推荐）**：
 
 ```powershell
-# 在项目根目录执行
-# 脚本会自动停掉 Docker 前端容器、检测后端 8080 端口、设置 Vite 环境变量
-.\run-frontend.ps1
+# 在项目根目录执行，脚本会自动停 Docker frontend、检测 5173 端口占用、设置 Vite 环境变量
+.\start-dev.ps1 -Frontend
+```
+
+**Linux / macOS / WSL**：
+
+```bash
+./start-dev.sh frontend
 ```
 
 **手动启动**：
@@ -394,11 +414,16 @@ INFO  --- [geosentry-backend] [main] c.g.GeosentryApplication : Started Geosentr
 # 先停掉 Docker 前端容器（释放 5173 端口 + 避免 Nginx 502）
 docker compose stop frontend
 
-# 再启动本地 Vite dev server
+# 再启动本地 Vite dev server（需要在 frontend/ 目录，前端代码在 v1.7+ 已迁移至此）
+cd frontend
 npm install        # 首次或依赖变更时
 npm run dev        # 默认 5173 端口
-npm run lint       # ESLint 检查（eslint.config.js 扁平配置，可选 lint:fix 自动修复）
+npm run lint       # ESLint 检查（可选 lint:fix 自动修复）
 ```
+
+> 旧版 `.\run-frontend.ps1` 已删除，统一入口见 §28.4。
+
+
 
 前端会自动探测后端健康状态（`GET /api/system/health`），探测成功则进入真实后端模式，右下角显示"后端连接中"角标。如需指定后端地址，在项目根目录创建 `.env` 文件：
 
@@ -433,7 +458,7 @@ docker compose up -d postgres redis minio emqx tdengine backend frontend
 
 全 Docker 模式下：
 - 后端容器内执行 `mvn -q -DskipTests spring-boot:run`，使用 `SPRING_PROFILES_ACTIVE=docker`
-- 前端容器为多阶段构建（`Dockerfile.frontend`），Node 构建 + Nginx 运行
+- 前端容器为多阶段构建（`frontend/Dockerfile`），Node 构建 + Nginx 运行
 - 前端通过 Nginx 反向代理 `/api` 和 `/ws` 到 `backend:8080`，同域部署无 CORS 问题
 
 ### 4.5 端口速查
@@ -465,9 +490,9 @@ docker compose up -d postgres redis minio emqx tdengine backend frontend
 | 服务       | 初始化内容                          | 机制                                                              |
 | ---------- | ----------------------------------- | ----------------------------------------------------------------- |
 | PostgreSQL | 建表 + 索引 + 种子数据              | `spring.sql.init.mode: always`，每次启动幂等执行 `schema.sql` + `data.sql`（`CREATE TABLE IF NOT EXISTS` / `ON CONFLICT DO NOTHING`） |
-| EMQX       | `geosentry_backend` MQTT 认证用户   | `infra/emqx/emqx-entrypoint.sh`，首次启动自动执行（BCrypt 密码）  |
-| MinIO      | `geosentry` bucket                  | `AttachmentService` 首次附件上传时自动检查并创建                  |
-| TDengine   | `geosentry` 数据库 + `device_metric` 超级表 | `TdengineMetricService.writeMetric()` 首次写入时 `CREATE DATABASE IF NOT EXISTS` + `CREATE STABLE IF NOT EXISTS` |
+| EMQX       | `disasterguard_backend` MQTT 认证用户   | `infra/emqx/emqx-entrypoint.sh`，首次启动自动执行（BCrypt 密码）  |
+| MinIO      | `disasterguard` bucket                  | `AttachmentService` 首次附件上传时自动检查并创建                  |
+| TDengine   | `disasterguard` 数据库 + `device_metric` 超级表 | `TdengineMetricService.writeMetric()` 首次写入时 `CREATE DATABASE IF NOT EXISTS` + `CREATE STABLE IF NOT EXISTS` |
 
 重建数据库（清空所有数据）：
 
@@ -522,7 +547,7 @@ docker compose up -d postgres redis minio emqx tdengine   # 重新初始化
 | `/dashboard/settings`         | SettingsPage      | 系统设置（本地存储：基本 / 预警阈值 / 账号 / 数据保留）         |
 | `/:pathMatch(.*)*`            | 404 兜底          | 路由不存在时显示 404 页面（公开）                               |
 
-> 所有视图文件位于 `src/views/`，对应关系见路由表；旧版视图（`HazardsPage` / `TaskListPage`）已清理，不存在 `/tasks/xxxx` 之外的历史路径。`/dashboard/settings` 是新增页面（admin / attendant / maintenance 均可访问，见 §9.1），**当前 SettingsPage 是本地浏览器存储**（localStorage key `geosentry_settings`），**不与后端 API 同步**——生产环境如需全局生效需扩展 `PUT /api/system/settings` 后端接口。
+> 所有视图文件位于 `src/views/`，对应关系见路由表；旧版视图（`HazardsPage` / `TaskListPage`）已清理，不存在 `/tasks/xxxx` 之外的历史路径。`/dashboard/settings` 是新增页面（admin / attendant / maintenance 均可访问，见 §9.1），**当前 SettingsPage 是本地浏览器存储**（localStorage key `disasterguard_settings`），**不与后端 API 同步**——生产环境如需全局生效需扩展 `PUT /api/system/settings` 后端接口。
 
 ### 5.3 路由守卫逻辑（`router.beforeEach`）
 
@@ -620,8 +645,8 @@ dto/         → 请求/响应记录（record）
 
 ### 6.2 统一返回结构与错误处理
 
-- 返回包装：`cn.geosentry.common.api.ApiResponse<T>`：`{ code, message, data, timestamp }`，`code=0` 成功。
-- 分页包装：`cn.geosentry.common.api.PageResponse<T>`：`{ records, total, page, size, pages }`（**统一结构**，所有 Controller 分页接口均返回此形状。历史上曾存在不含 `pages` 的 `PagedResponse`，现已废弃删除）。
+- 返回包装：`cn.disasterguard.common.api.ApiResponse<T>`：`{ code, message, data, timestamp }`，`code=0` 成功。
+- 分页包装：`cn.disasterguard.common.api.PageResponse<T>`：`{ records, total, page, size, pages }`（**统一结构**，所有 Controller 分页接口均返回此形状。历史上曾存在不含 `pages` 的 `PagedResponse`，现已废弃删除）。
 - 业务异常：`AppException(code, message)`。
 - 全局异常处理：`GlobalExceptionHandler`（`@RestControllerAdvice`），统一处理：
   - `AppException(code, message)` → 业务 code 映射为 HTTP 状态码（401/403/404/409/413/422 等，非 4xx/5xx 范围回退 400）+ 业务 code/message
@@ -645,7 +670,7 @@ dto/         → 请求/响应记录（record）
   - `/api/devices/{deviceCode}/data`：仅允许 `ROLE_DEVICE`（由 `DeviceAuthFilter` 注入）。
   - 其他请求需认证。
   - ⚠️ **路径模式必须符合 Spring Security 6 `PathPatternParser` 规则**：`**` 只能出现在末尾，不能后面再跟路径段（如 `/**/data` 非法，需写 `/{code}/data`）。详见 §15 Q8。
-  - `UserDetailsService`：`auth/security/DbUserDetailsService`（**DB 优先 + 内存 fallback**）。从 `sys_user` 表加载用户并校验 BCrypt 密码；`DEV_USERS_ENABLED=true` 时 DB 未命中回退到 admin/attendant/maintenance 三个硬编码账号（**fallback 账号也使用 BCrypt hash**，AuthController 统一校验明文 `123456`，不存在"任意密码可登录"的后门）。**默认关闭**（`application.yml` 默认 `false`），仅 `run-backend.ps1` 等在本地开发显式置 `true`。生产环境务必保持 `false`。
+  - `UserDetailsService`：`auth/security/DbUserDetailsService`（**DB 优先 + 内存 fallback**）。从 `sys_user` 表加载用户并校验 BCrypt 密码；`DEV_USERS_ENABLED=true` 时 DB 未命中回退到 admin/attendant/maintenance 三个硬编码账号（**fallback 账号也使用 BCrypt hash**，AuthController 统一校验明文 `123456`，不存在"任意密码可登录"的后门）。**默认关闭**（`application.yml` 默认 `false`），仅 `start-dev.ps1` 等本地开发入口显式置 `true`。生产环境务必保持 `false`。
 - 过滤器：`common/security/JwtAuthenticationFilter`
   - 从 `Authorization: Bearer <token>` 读取并解析 JWT，写入 `SecurityContext`。
   - 把 `role` claim 映射为 `ROLE_<ROLE>` + `PermissionRegistry` 注册的所有权限码 authority。
@@ -664,7 +689,7 @@ dto/         → 请求/响应记录（record）
 - EMQX 鉴权：
   - `realtime/EmqxSecurityPreflight` 启动时检查：`EMQX_ENABLED=true` 但未配置 `EMQX_USERNAME`/`EMQX_PASSWORD` 时输出清晰 WARN，提醒 MQTT broker 侧无认证，任何客户端可伪造设备数据。
   - 实际用户名密码在 `application.yml` 的 `emqx.username`/`emqx.password` 配置，需与 EMQX broker 的认证用户一致。
-- CORS：`config/CorsConfig`，允许 `geosentry.frontend-origin`（默认 `http://localhost:5173`，**支持逗号分隔多域**），允许携带凭证，预检缓存 1h（`maxAge`）。
+- CORS：`config/CorsConfig`，允许 `disasterguard.frontend-origin`（默认 `http://localhost:5173`，**支持逗号分隔多域**），允许携带凭证，预检缓存 1h（`maxAge`）。
 
 > ⚠️ 当前 CORS 与安全配置已在持续收敛中；如你在本地开发时遇到跨域或鉴权失败，请优先检查 `FRONTEND_ORIGIN`、`VITE_API_BASE_URL` 与登录态是否一致。生产环境不应保留过宽的跨域白名单。
 
@@ -675,16 +700,16 @@ dto/         → 请求/响应记录（record）
 - **hazard**：灾害点 CRUD、视口查询（PostGIS `ST_MakeEnvelope` + GiST，见 `HazardPointRepository.findInViewport`）、GeoJSON。新增/修改经 `GeometryFactory` 生成 `geom`。导出走 EasyExcel 生成真实 xlsx（`/export`）。v1.6.0 起 `hazard_point.source` 区分数据来源（`AI_MONITOR` / `MANUAL` / `DEMO`），`discovered_at` 是 AI 首次识别时间，`detection_confidence` 是 AI 给出的 0-1 置信度；v1.7.0 增加承灾体字段 `exposure_buildings / exposure_population / land_use_type / historical_max_score / historical_count / last_inspection_device_type`，由 `ExternalDataService` OSM Overpass 自动填入。
 - **task**：任务分页/CRUD/状态更新（`PATCH /{id}/status`，已完成置 progress=100）/导出（EasyExcel）。
 - **inspection**：GPS 围栏校验（`/inspection/gps-check`，Haversine 距离）、提交巡检记录（`/inspection/submit`，写入时生成 `geom`，围栏内提交会推进任务进度 +15）、按任务/灾害点查询记录。v1.6.0 起 `inspection_record.hazard_code` 允许为 NULL（hazard 可能还没被 AI 监测到）。
-- **device**：设备分页（JPA Specification）/视口/CRUD/诊断（`POST /{id}/diagnose`）/导出。**数据上报链路**：`POST /api/devices/{code}/data` 经 `DeviceAuthFilter` 校验 `X-Device-Key` header（匹配 `monitoring_device.api_key` 列），通过后写入 `device_metric` 表并异步触发 AI 异常检测（见 `DeviceDataService`）。写入时**优先解析设备侧时间戳**（`ts` / `recorded_at` / `timestamp`，支持 epoch 秒/毫秒、ISO-8601、`yyyy-MM-dd HH:mm:ss`），作为去重键与上报时间的唯一来源，避免同一批次多指标共享服务端 `now()` 导致误判重复。TDengine 写入改为**异步执行**（`@Async`，独立于 PG 事务，3 次指数退避重试 200/400ms），`TdengineMetricService` 内置 30s 熔断器防止 TDengine 故障拖慢主链路。EMQX MQTT 桥接（`MqttDataSubscriber`）订阅 `geohazard/{deviceCode}/data`，鉴权由 broker 侧 username/password 处理；**解析与入库在独立消费线程池**（有界队列 1000，2 个 worker，队列满丢弃最旧消息并告警），不阻塞 EMQX 回调线程，clientId 带随机后缀支持多实例。**demo 阶段数据源**：`DeviceMetricSimulator`（`@Scheduled(fixedDelayString="${geosentry.device.metric-feed-interval-seconds:300000}")`）按 `device_type` 给每台设备生成对应 `metric_code` 的合成样本（GNSS → disp_rate/disp_total；裂缝计 → crack_width；倾角 → tilt；雨量计 → rain_1h/rain_24h），噪声按 `hazard.risk_level` 放大（高风险×1.8/关注×1.3/正常×0.7）。**指标清理**：`DeviceMetricCleanupScheduler` 默认每日凌晨 3:30 删除超过 `metric-retention-days`（默认 30）的旧样本，避免 `device_metric` 无限膨胀。**设备离线心跳**：`DeviceOnlineChecker` 每 60s 扫描 `monitoring_device.last_report_at` 超过 `offline-threshold-minutes`（默认 5min）的在线设备，置离线并通过 WebSocket 广播。
-- **warning**：预警分页（Specification）/视口/详情/**预览（`GET /preview`）**/更新（`PUT /{id}`，admin）/确认/派发/关闭/忽略/解除。状态流转已补全为六态：`待确认 → 已确认 → 处理中 → 已关闭 / 已忽略 / 已解除`（`confirm`/`dispatch`/`close`/`dismiss`/`resolve`）。`close(id, reason, operator)` 按 reason 语义分流，关闭/忽略/解除均落 `closed_at` + `close_reason` + `closed_by`（`warning_event` 表新增两列 + `source` 列）。**预警规则引擎**：`RuleEngineScheduler` 定时评估 `warning_rule`，命中且未闭环时经 `WarningCreateService` 自动生成预警（两阶段：事务外 AI 融合评分 + 事务内写 warning_event/risk_score_log，详见 §10.5），并可联动 AI 融合评分。预警等级文案映射：含「橙」→ orange、含「黄」→ yellow、其余 → blue。**AI 综合分→预警**：`AiWarningScheduler`（`@Scheduled(cron="${geosentry.ai.comprehensive-to-warning-cron:0 */10 * * * *}")`，默认 10 分钟）扫描 `ai_comprehensive_score` 中 `risk_level ∈ {MEDIUM, HIGH, CRITICAL}` 的记录，自动创建 `warning_event`（`source='AI_AUTO'` + `rule_code='AI_COMPREHENSIVE'`），同一 hazard_code 只要存在未关闭 AI_COMPREHENSIVE 预警就不再重复生成（`findOpenWarnings` 批量预取 + Set 判重）。
+- **device**：设备分页（JPA Specification）/视口/CRUD/诊断（`POST /{id}/diagnose`）/导出。**数据上报链路**：`POST /api/devices/{code}/data` 经 `DeviceAuthFilter` 校验 `X-Device-Key` header（匹配 `monitoring_device.api_key` 列），通过后写入 `device_metric` 表并异步触发 AI 异常检测（见 `DeviceDataService`）。写入时**优先解析设备侧时间戳**（`ts` / `recorded_at` / `timestamp`，支持 epoch 秒/毫秒、ISO-8601、`yyyy-MM-dd HH:mm:ss`），作为去重键与上报时间的唯一来源，避免同一批次多指标共享服务端 `now()` 导致误判重复。TDengine 写入改为**异步执行**（`@Async`，独立于 PG 事务，3 次指数退避重试 200/400ms），`TdengineMetricService` 内置 30s 熔断器防止 TDengine 故障拖慢主链路。EMQX MQTT 桥接（`MqttDataSubscriber`）订阅 `disasterguard/{deviceCode}/data`，鉴权由 broker 侧 username/password 处理；**解析与入库在独立消费线程池**（有界队列 1000，2 个 worker，队列满丢弃最旧消息并告警），不阻塞 EMQX 回调线程，clientId 带随机后缀支持多实例。**demo 阶段数据源**：`DeviceMetricSimulator`（`@Scheduled(fixedDelayString="${disasterguard.device.metric-feed-interval-seconds:300000}")`）按 `device_type` 给每台设备生成对应 `metric_code` 的合成样本（GNSS → disp_rate/disp_total；裂缝计 → crack_width；倾角 → tilt；雨量计 → rain_1h/rain_24h），噪声按 `hazard.risk_level` 放大（高风险×1.8/关注×1.3/正常×0.7）。**指标清理**：`DeviceMetricCleanupScheduler` 默认每日凌晨 3:30 删除超过 `metric-retention-days`（默认 30）的旧样本，避免 `device_metric` 无限膨胀。**设备离线心跳**：`DeviceOnlineChecker` 每 60s 扫描 `monitoring_device.last_report_at` 超过 `offline-threshold-minutes`（默认 5min）的在线设备，置离线并通过 WebSocket 广播。
+- **warning**：预警分页（Specification）/视口/详情/**预览（`GET /preview`）**/更新（`PUT /{id}`，admin）/确认/派发/关闭/忽略/解除。状态流转已补全为六态：`待确认 → 已确认 → 处理中 → 已关闭 / 已忽略 / 已解除`（`confirm`/`dispatch`/`close`/`dismiss`/`resolve`）。`close(id, reason, operator)` 按 reason 语义分流，关闭/忽略/解除均落 `closed_at` + `close_reason` + `closed_by`（`warning_event` 表新增两列 + `source` 列）。**预警规则引擎**：`RuleEngineScheduler` 定时评估 `warning_rule`，命中且未闭环时经 `WarningCreateService` 自动生成预警（两阶段：事务外 AI 融合评分 + 事务内写 warning_event/risk_score_log，详见 §10.5），并可联动 AI 融合评分。预警等级文案映射：含「橙」→ orange、含「黄」→ yellow、其余 → blue。**AI 综合分→预警**：`AiWarningScheduler`（`@Scheduled(cron="${disasterguard.ai.comprehensive-to-warning-cron:0 */10 * * * *}")`，默认 10 分钟）扫描 `ai_comprehensive_score` 中 `risk_level ∈ {MEDIUM, HIGH, CRITICAL}` 的记录，自动创建 `warning_event`（`source='AI_AUTO'` + `rule_code='AI_COMPREHENSIVE'`），同一 hazard_code 只要存在未关闭 AI_COMPREHENSIVE 预警就不再重复生成（`findOpenWarnings` 批量预取 + Set 判重）。
 - **emergency**：应急处置完整 CRUD（分页列表查询 `emergency_event` 表、`GET /{id}` 详情、`POST /{id}/close` 闭环并记录处置小结、`DELETE /{id}` 物理删除、`POST /export` 导出）。`EmergencyController` + `EmergencyService` 已落地，不再依赖 `pageOfSamples` 演示数据。**预警派发联动自动生成应急事件**已实现：`WarningService.dispatch` 检测到橙色/红色预警时自动调用 `EmergencyService.createFromWarning` 创建应急事件，同一预警未闭环前不重复创建（幂等三层防御：exists 检查 + PG 部分唯一索引 + DataIntegrityViolationException 兜底）。
 - **dashboard**：overview / charts / analytics 均对真实表聚合（灾害点/设备/预警/任务），见 `DashboardService`——卡片计数与图表聚合全部走 DB 侧 `COUNT` / `GROUP BY`（`countByStatus` / `countDoneByMonth` / `countByLevel` / `countByMonth`），避免 `findAll + stream` 加载大表。`analytics` 端点的 heatmap 按 `hazard_point.region_code` 真实聚合生成 `RegionRisk`（intensity/risk），riskZones 按区域风险分布生成。另有 `POST /overview/export`（总览指标导出）与 `GET /summary`（模块计数 + 特性开关元数据）。死代码 `pageOfSamples` / `notImplemented` 已清理。
 - **personnel**：`GET /api/personnel/positions`（`PersonnelController`，**需 `overview:view` 权限**）返回值守人员实时位置，**三层叠加**：① Redis 有实时上报（`POST /positions/report`）时优先读 Redis（**SCAN 非阻塞遍历** `personnel:pos:*`，而非 `KEYS *`）并与 DB 值守花名册合并；② Redis 无数据时走 DB fallback（`inspection_record` 最近签到坐标 + `inspection_task` 关联 `hazard_point` 坐标，预加载 hazard 坐标避免 N+1）；③ 前端演示模式走 `PERSONNEL_ROSTER` mock 轨迹推演。`POST /positions/report`（需 JWT）**限制只能上报自己的位置**（`JWT.username == payload.userId`，管理员可代报），Redis 不可用时优雅降级返回 `cached=false` 不阻塞移动端。
 - **attachment**：附件上传已接入 MinIO 真实对象写入（`MinioClient.putObject`），返回 presigned URL；删除时同步删除对象（见 `AttachmentService`）。安全加固：50MB 大小上限、文件扩展名白名单（PDF/Office/图片/zip/常见工程格式）、文件名路径穿越清洗、objectKey 用 UUID 不含原始文件名、启动时预热 bucket。
 - **weather**（v1.6.0 新增）：国家气象数据接入（NSMC + NMC），含 6 项产品（卫星云图/全圆盘云图/雷达回波/24h 降水/24h 积雪/干旱监测），详见 §17。
-- **audit**（v1.6.0 新增）：`OperationLogArchiver`（`@Scheduled(cron="${geosentry.audit.archive-cron:0 0 3 * * *}")`，默认每日凌晨 3:00）调用 PostgreSQL 函数 `archive_operation_logs(retention_days)`（默认 90 天），将过期审计日志迁移到 `operation_log_archive` 归档表并从主表删除。归档函数与归档表 DDL 见 `infra/postgres/init/003_archive_operation_log.sql`，详见 §27。
+- **audit**（v1.6.0 新增）：`OperationLogArchiver`（`@Scheduled(cron="${disasterguard.audit.archive-cron:0 0 3 * * *}")`，默认每日凌晨 3:00）调用 PostgreSQL 函数 `archive_operation_logs(retention_days)`（默认 90 天），将过期审计日志迁移到 `operation_log_archive` 归档表并从主表删除。归档函数与归档表 DDL 见 `infra/postgres/init/003_archive_operation_log.sql`，详见 §27。
 - **health**：`GET /api/system/health` → 健康探针（默认检测 PostgreSQL 连通性，`?detailed=true` 补充 JVM 堆/线程数/TDengine 开关）。
-- **ai**：`cn.geosentry.ai` 包，包含：
+- **ai**：`cn.disasterguard.ai` 包，包含：
   - `AiServiceClient`（RestClient 调用独立 FastAPI 服务，七大能力：detect / forecast / anomaly / fusion-risk / comprehensive / device-health / disaster-assessment）
   - `AiController`（透传推理 + **自动取数端点** `forecast/auto` / `fusion-risk/auto`，从 DB 拉取历史指标/聚合因子构造请求）
   - `AiAnalysisController`（分析记录查询/删除 + 手动触发批量预测 `POST /analysis/forecast/run`）
@@ -699,7 +724,7 @@ dto/         → 请求/响应记录（record）
   - `AiStartupWarmup`（`ApplicationReadyEvent` 启动后 3s 异步执行 insight + deviceHealth 全量预热，避免首次访问空白）
   - `GeoContextResolver`（按 `region_code` 查表 + 按 `hazard_type` 微调海拔/坡度/土壤/植被/距水/地质）
   - `ExternalDataService`（**多源外部数据接入**，7 个真实公开 API + 缓存 + 超时 + 失败降级，详见 §26）
-  - `ExternalDataProperties`（`@ConfigurationProperties(prefix="geosentry.external-data")`）
+  - `ExternalDataProperties`（`@ConfigurationProperties(prefix="disasterguard.external-data")`）
 
 ai-service 返回 snake_case 字段，DTO 通过 `@JsonAlias` 解反序列化、输出统一 camelCase，并带 `model`（模型名）与 `degraded`（是否降级/mock）字段。AI 服务不可用或 `ai.enabled=false` 时抛出 `AiUnavailableException`，上层应降级为纯规则模式。
 
@@ -707,13 +732,15 @@ ai-service 返回 snake_case 字段，DTO 通过 `@JsonAlias` 解反序列化、
 
 - UI：`/swagger-ui.html`
 - JSON：`/v3/api-docs`
-- 标题：Geosentry API（`config/OpenApiConfig`）
+- 标题：Disasterguard API（`config/OpenApiConfig`）
 
 ---
 
 ## 7. API 参考
 
 > 前缀：`/api`。请求需带 `Authorization: Bearer <token>`（除标注公开的接口）。
+>
+> 本节列出核心业务接口。完整的功能 ↔ 接口对照（含每条前端路由的调用方法、参数与说明），请参见 [FRONTEND_API.md](./FRONTEND_API.md)。Swagger UI 实时文档：`http://localhost:8080/swagger-ui.html`。
 
 ### 7.1 认证
 
@@ -837,11 +864,11 @@ ai-service 返回 snake_case 字段，DTO 通过 `@JsonAlias` 解反序列化、
 
 ### 7.10.2 多源外部数据（v1.7.0+）
 
-> 由 `cn.geosentry.ai.service.ExternalDataService` 统一接入 7 个公开 API，详见 §26。前端无需直接调用——`AiComprehensiveAnalysisSupport` 在综合分析时按需调用并自动缓存。
+> 由 `cn.disasterguard.ai.service.ExternalDataService` 统一接入 7 个公开 API，详见 §26。前端无需直接调用——`AiComprehensiveAnalysisSupport` 在综合分析时按需调用并自动缓存。
 
 | 数据源                       | 内部方法                          | 配置开关                                            |
 | ---------------------------- | --------------------------------- | --------------------------------------------------- |
-| Open-Meteo（气象 + 土壤湿度）| `getMeteorology(lat, lon)`         | `geosentry.external-data.enabled-sources` 含 `openmeteo` |
+| Open-Meteo（气象 + 土壤湿度）| `getMeteorology(lat, lon)`         | `disasterguard.external-data.enabled-sources` 含 `openmeteo` |
 | NASA Giovanni GPM IMERG        | `getGpmRainfall(lat, lon)`         | 含 `gpm`                                            |
 | NASA Giovanni SMAP             | `getSmapSoilMoisture(lat, lon)`    | 含 `smap`                                           |
 | USGS FDSN 实时地震           | `getEarthquake(lat, lon, km, mag)` | 含 `usgs`                                           |
@@ -901,7 +928,7 @@ ai-service 返回 snake_case 字段，DTO 通过 `@JsonAlias` 解反序列化、
 > 三维度因子来源（Java 端 `AiController.comprehensiveAnalysis` 自动聚合）：
 >   - **图像现况** `image_anomaly_score`：当前没有设备摄像头/巡检照片表，按 `hazard_point.last_inspection_at` 距今时长算"过期巡检惩罚"（≤7d→0、7-30d→15、>30d→35、无记录→20）。
 >   - **当地降水量** `rainfall_24h / rainfall_7d`：来自 `metric_repository.sumByHazardRecentHours(hazardCode, "rain_1h", N)`。
->   - **当地地理情况** `elevation_m / slope_deg / soil_grade / vegetation_cover / distance_to_water_m / geology_grade`：由 `cn.geosentry.ai.service.GeoContextResolver` 按 `region_code`（510322 龙川县 / 510322106 龙安镇 / 510000 四川盆地 / 513300 川西高原）查表 + 按 `hazardType` 微调（滑坡→坡度↑、泥石流→距水↓、塌陷→地质↑）。后续接真实 DEM 后只需替换 `resolve()` 实现。
+>   - **当地地理情况** `elevation_m / slope_deg / soil_grade / vegetation_cover / distance_to_water_m / geology_grade`：由 `cn.disasterguard.ai.service.GeoContextResolver` 按 `region_code`（510322 龙川县 / 510322106 龙安镇 / 510000 四川盆地 / 513300 川西高原）查表 + 按 `hazardType` 微调（滑坡→坡度↑、泥石流→距水↓、塌陷→地质↑）。后续接真实 DEM 后只需替换 `resolve()` 实现。
 
 > 响应均为 camelCase JSON：forecast → `{deviceCode, metric, horizon, predictions[], confidence, model, degraded}`；anomaly → `{deviceCode, isAnomaly, anomalyIndices[], score, model, degraded}`；fusion-risk → `{hazardCode, riskLevel(LOW/MEDIUM/HIGH/CRITICAL), riskScore(0-100), confidence, model, degraded}`；detect → `{detections[{className, confidence, bbox[]}], processedImageUrl, model, degraded, detectionCount}`。`degraded=true` 表示 ai-service 返回的是 mock/降级结果。
 
@@ -983,7 +1010,7 @@ ai-service 返回 snake_case 字段，DTO 通过 `@JsonAlias` 解反序列化、
 | 方法 | 路径                                | 说明                                                                                                                                                                                                                                                                                                                                                                 |
 | ---- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | POST | `/api/devices/{code}/data`          | HTTP 上报指标（主通道之一）。鉴权：`DeviceAuthFilter` 校验 `X-Device-Key` header 与 `monitoring_device.api_key` 匹配。未登记 api_key 的设备允许上报但 WARN 提示（便于迁移）。**时间戳解析**：优先取 payload 中 `ts` / `recorded_at` / `timestamp`（epoch 秒/毫秒、ISO-8601、`yyyy-MM-dd HH:mm:ss`），作为去重键；解析失败回退服务端 now()。解析 JSON 写入 `device_metric` 表，**异步**触发 Isolation Forest 异常检测（命中则保存 AI 分析记录）、**异步**写入 TDengine（3 次指数退避重试）。 |
-| —    | `MQTT: geohazard/{deviceCode}/data` | EMQX 桥接（`MqttDataSubscriber`），Spring Boot 启动时自动订阅（`emqx.enabled=true`）。鉴权由 broker 侧 username/password 处理（代码已预留 `emqx.username`/`emqx.password` 参数）。**解析与入库在独立消费线程池**（有界队列 1000、2 个 worker，队列满丢弃最旧消息并告警），避免阻塞 EMQX 回调线程；clientId 带随机后缀支持多实例。EMQX 不可达时仅 WARN + 指数退避重连（上限 10min），不阻塞应用启动。 |
+| —    | `MQTT: disasterguard/{deviceCode}/data` | EMQX 桥接（`MqttDataSubscriber`），Spring Boot 启动时自动订阅（`emqx.enabled=true`）。鉴权由 broker 侧 username/password 处理（代码已预留 `emqx.username`/`emqx.password` 参数）。**解析与入库在独立消费线程池**（有界队列 1000、2 个 worker，队列满丢弃最旧消息并告警），避免阻塞 EMQX 回调线程；clientId 带随机后缀支持多实例。EMQX 不可达时仅 WARN + 指数退避重连（上限 10min），不阻塞应用启动。 |
 
 **TDengine 时序存储**（已接入主链路）：`DeviceDataService.ingest` 在写入 PostgreSQL 的 `device_metric` 表后，**自动异步调用** `TdengineMetricService.writeMetric()` 写入 TDengine。启用方式：
 
@@ -1127,7 +1154,7 @@ idx_ai_device_health_analyzed_at  ai_device_health(analyzed_at DESC)
 
 - 路由守卫：按角色可访问路径 + 路由权限码（`routePermissionMap`）。
 - 按钮：`PermissionButton`。
-- 本地存储 Key：`geosentry_token`、`geosentry_user`。
+- 本地存储 Key：`disasterguard_token`、`disasterguard_user`。
 
 ### 9.3 后端权限
 
@@ -1190,7 +1217,7 @@ stopRealtimeSync({ keepListeners: false })
 
 1. 拉取 `warning_rule` 中 `enabled=true` 的规则。
 2. 用轻量投影 `findDeviceCodeHazardCodePairs()` 取设备/灾害点映射，再批量拉取各设备**最新**指标（`findLatestByDeviceCodes`，`DISTINCT ON (device_code, metric_code)`）。
-3. 按 `hazard_code` 归并指标快照，`RuleEvaluator` 解析表达式求值：
+3. 按 `hazard_code` 归并指标快照，`WarningRuleEvaluator` 解析表达式求值：
    - 简单形式：`"disp_rate > 5"`
    - JSON 结构化（规划）：`{"operator":"AND","conditions":[{"metric":"..","comparator":">","value":..}]}`
 
@@ -1205,7 +1232,7 @@ stopRealtimeSync({ keepListeners: false })
    - **阶段 2（事务内）**：`warning_event` + `risk_score_log`（AI 未执行也写 RULE_ONLY 记录）原子写入，初始状态**待确认**。
 6. **AI/规则输出均不自动派发，强制人工复核**。
 
-表达式求值与结构见 `RuleEvaluator`、`RuleEngineScheduler`、`WarningCreateService`。开关：`geosentry.warning.rule-engine-enabled`（默认 true）。单条预警创建失败或 AI 故障均不中断整个调度周期。
+表达式求值与结构见 `WarningRuleEvaluator`（预警引擎的字符串表达式求值器，注意与 `ruleengine.RuleEvaluator` 区分——后者是规则引擎的 AST 求值器，`@Component` Bean）、`RuleEngineScheduler`、`WarningCreateService`。开关：`disasterguard.warning.rule-engine-enabled`（默认 true）。单条预警创建失败或 AI 故障均不中断整个调度周期。
 
 ---
 
@@ -1240,31 +1267,31 @@ stopRealtimeSync({ keepListeners: false })
 | `FRONTEND_ORIGIN`                       | http://localhost:5173                   | CORS + WebSocket Origin 白名单，支持逗号分隔多域                                                          |
 | `JWT_SECRET`                            | 必须 ≥ 32 字符强随机                    | JWT 签名密钥。长度不足或匹配弱密码时应用启动失败。生成：`openssl rand -base64 48`；docker-compose dev 不再显式注入，回落到 application.yml 开发默认值 |
 | `JWT_EXPIRE`                            | PT2H                                    | 过期时长（ISO-8601 Duration）                                                                                  |
-| `JWT_ISSUER`                            | geosentry                               | JWT 签发者                                                                                                     |
-| `DEV_USERS_ENABLED`                     | false（默认）/ 本地脚本 true            | 是否启用硬编码账号 fallback。**默认关闭**（application.yml），`run-backend.ps1` 本地开发显式 true；prod ProductionConfigValidator 强制 false |
+| `JWT_ISSUER`                            | disasterguard                               | JWT 签发者                                                                                                     |
+| `DEV_USERS_ENABLED`                     | false（默认）/ 本地脚本 true            | 是否启用硬编码账号 fallback。**默认关闭**（application.yml），`start-dev.ps1 -Backend` 本地开发显式 true；prod ProductionConfigValidator 强制 false |
 | `DEVICE_AUTH_STRICT`                    | false（dev）/ true（prod 强制）         | 设备上报严格模式（未登记 api_key 的请求被拒）。prod 强制 true                                                  |
 | `EMQX_USERNAME` / `EMQX_PASSWORD`       | 空（prod 需显式设置）                   | EMQX broker 侧认证凭据（需与 infra/emqx/init.sh 创建的用户一致）。prod 空值会被 ProductionConfigValidator 拦截 |
 | `DEVICE_OFFLINE_THRESHOLD_MIN`          | 5                                       | 设备离线判定阈值（分钟），`DeviceOnlineChecker` 每 60s 扫描 `last_report_at` 是否超过此阈值                    |
-| `POSTGRES_*`                            | localhost/5432/geosentry                | 数据库连接                                                                                                     |
+| `POSTGRES_*`                            | localhost/5432/disasterguard                | 数据库连接                                                                                                     |
 | `REDIS_*`                               | localhost/6379/redis123                 | Redis                                                                                                          |
 | `FILE_BASE_URL`                         | http://localhost:9000                   | 附件基础 URL                                                                                                   |
 | `MINIO_ENDPOINT`                        | http://localhost:19000                  | MinIO 服务地址（Docker 内 http://minio:9000）                                                                  |
 | `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY` | minioadmin/minioadmin123（dev）         | MinIO 凭据。prod 需显式设置为非弱密码值（长度 ≥ 16）                                                           |
-| `MINIO_BUCKET`                          | geosentry                               | 附件对象存储桶                                                                                                 |
+| `MINIO_BUCKET`                          | disasterguard                               | 附件对象存储桶                                                                                                 |
 | `EMQX_*`                                | 见编排                                  | MQTT                                                                                                           |
-| `TDENGINE_URL`                          | jdbc:TAOS-RS://localhost:6041/geohazard | TDengine JDBC URL                                                                                              |
+| `TDENGINE_URL`                          | jdbc:TAOS-RS://localhost:6041/disasterguard | TDengine JDBC URL                                                                                              |
 | `TDENGINE_USERNAME`                     | root                                    | TDengine 用户名                                                                                                |
 | `TDENGINE_PASSWORD`                     | taosdata                                | TDengine 密码                                                                                                  |
 | `TDENGINE_ENABLED`                      | false                                   | 是否启用 TDengine 时序写入。JDBC 驱动已 compile scope 打包进 fat jar，直接设为 true 即可                       |
 | `WS_REQUIRE_TICKET`                     | false（dev）/ true（prod）              | 强制 WebSocket 连接只能使用一次性 ticket（禁止 raw JWT query）。prod 推荐开启                                  |
 | `WEBSOCKET_ENABLED`                     | true                                    | WebSocket 实时推送总开关。设为 false 时后端不启动 WebSocket 端点，前端会自动降级到纯轮询模式                   |
-| `AI_SERVICE_BASE_URL`                   | http://localhost:8000/api/ai            | AI 推理服务地址（Docker 内 http://ai-service:8000/api/ai）                                                     |
+| `AI_SERVICE_BASE_URL`                   | http://localhost:8001/api/ai            | AI 推理服务地址（Docker 内 http://ai-service:8001/api/ai）                                                     |
 | `AI_ENABLED`                            | true                                    | AI 功能总开关；关闭后降级为纯规则模式                                                                          |
 | `AI_TIMEOUT_MS`                         | 30000                                   | AI 调用超时（毫秒）                                                                                            |
 | `AI_SCHEDULER_ENABLED`                  | false                                   | 定时批量预测开关（默认关闭）                                                                                   |
 | `AI_FORECAST_HORIZON`                   | 7                                       | 预测未来 N 天                                                                                                  |
-| `AI_HISTORY_WINDOW`                     | 30（`geosentry.ai.history-window`，代码内 @Value 默认值）  | 定时批量预测每次拉取的历史序列长度；少于 5 条则跳过该设备（AiForecastScheduler）                             |
-| `AI_FORECAST_PARALLELISM`               | 8（`geosentry.ai.forecast-parallelism`，代码内 @Value 默认值） | 批量预测并发线程数（类级固定线程池，daemon 线程），最小 2                                                     |
+| `AI_HISTORY_WINDOW`                     | 30（`disasterguard.ai.history-window`，代码内 @Value 默认值）  | 定时批量预测每次拉取的历史序列长度；少于 5 条则跳过该设备（AiForecastScheduler）                             |
+| `AI_FORECAST_PARALLELISM`               | 8（`disasterguard.ai.forecast-parallelism`，代码内 @Value 默认值） | 批量预测并发线程数（类级固定线程池，daemon 线程），最小 2                                                     |
 | `AI_FORECAST_CRON`                      | `0 0 2 * * *`                           | 定时预测 cron 表达式                                                                                           |
 | `AI_CORS_ORIGINS`                       | http://localhost:5173                   | **ai-service（Python 侧）** CORS 允许来源，逗号分隔；docker-compose dev 默认 `http://localhost:5173,http://localhost:8080` |
 | `AI_COMPREHENSIVE_CRON`                 | `0 */5 * * * *`                         | AI 综合分析全量刷新 cron（v1.6.0+，`AiInsightService.refreshAll`）                                          |
@@ -1307,7 +1334,7 @@ stopRealtimeSync({ keepListeners: false })
 > - **`application-docker.yml`**：docker-compose dev 模式（`SPRING_PROFILES_ACTIVE=docker`），**未覆盖** `spring.sql.init.mode`，继承默认值 `always`。首次启动容器时自动建表 + 种子；已存在数据卷时 `ON CONFLICT DO NOTHING` 跳过种子重复插入。重建数据库：`docker compose down -v && docker compose up -d`。
 > - **`application-prod.yml`**：`spring.sql.init.mode=never`，生产首次部署**必须手动执行** schema.sql / data.sql（详见 §14 第 43 条）。
 >
-> 其他 profile 差异：dev 显示 SQL、`cn.geosentry` 调试日志；prod 关闭 SQL、WARN 日志、禁用 SQL init。docker 覆盖容器网络地址（postgres/redis/minio/emqx/tdengine）。所有 profile 均输出日志到 `logs/backend.log`（相对 `working_dir`，Docker 容器内 `/app/backend/logs/`，宿主机 `backend/logs/`）。
+> 其他 profile 差异：dev 显示 SQL、`cn.disasterguard` 调试日志；prod 关闭 SQL、WARN 日志、禁用 SQL init。docker 覆盖容器网络地址（postgres/redis/minio/emqx/tdengine）。所有 profile 均输出日志到 `logs/backend.log`（相对 `working_dir`，Docker 容器内 `/app/backend/logs/`，宿主机 `backend/logs/`）。
 
 ---
 
@@ -1324,7 +1351,7 @@ docker compose down             # 停止
 
 Volumes：`postgres_data`、`redis_data`、`minio_data`、`emqx_data/log`、`tdengine_data/log`、`m2_cache`、`node_modules`。
 
-网络：`geosentry-net`。
+网络：`disasterguard-net`。
 
 PostGIS 初始化：`infra/postgres/init/001_create_extensions.sql`（首次建卷时由 docker-entrypoint-initdb.d 启用 `postgis`、`uuid-ossp`；新卷还必须至少启动一次后端，由 `spring.sql.init` 完成建表与种子数据初始化）。TDengine：`infra/tdengine/init.sql` 挂载到容器 `docker-entrypoint-initdb.d`，**首次启动创建库与 `device_metric` 超级表**，并配置 healthcheck（`tdengine -s show servers`）。若希望重建数据库：
 
@@ -1335,7 +1362,7 @@ docker compose up -d              # 重新初始化（dev 模式：SQL init 自�
 
 > **dev/docker 模式的数据库初始化**：默认 `application.yml` 中 `spring.sql.init.mode=always`，docker-compose dev 使用 `SPRING_PROFILES_ACTIVE=docker` 未覆盖此项，**首次启动自动建表 + 种子数据**。已存在数据卷时 `CREATE TABLE IF NOT EXISTS` / `ON CONFLICT DO NOTHING` 保证幂等。生产模式 `mode=never`，必须手动执行（见 §14 第 43 条）。
 
-> **JWT_SECRET**：dev 编排**不显式注入**（注释掉），回落到 `application.yml` 的开发默认值（`geosentry-dev-secret-do-not-use-in-prod-...`），避免本地重复配置；生产编排必须通过 `.env` / 环境变量覆盖为强随机密钥，否则 `ProductionConfigValidator` 会拒绝启动。
+> **JWT_SECRET**：dev 编排**不显式注入**（注释掉），回落到 `application.yml` 的开发默认值（`disasterguard-dev-secret-do-not-use-in-prod-...`），避免本地重复配置；生产编排必须通过 `.env` / 环境变量覆盖为强随机密钥，否则 `ProductionConfigValidator` 会拒绝启动。
 
 ### 生产模式 docker-compose 覆盖文件
 
@@ -1343,7 +1370,7 @@ docker compose up -d              # 重新初始化（dev 模式：SQL init 自�
 
 | 项目                   | docker-compose.yml（dev）                         | docker-compose.prod.yml（覆盖）                                          |
 | ---------------------- | ------------------------------------------------- | ------------------------------------------------------------------------ |
-| backend 镜像           | maven:3.9.9-eclipse-temurin-17（源码挂载运行）    | Dockerfile.backend 多阶段构建 jar 镜像                                   |
+| backend 镜像           | maven:3.9.9-eclipse-temurin-17（源码挂载运行）    | `backend/Dockerfile` 多阶段构建 jar 镜像                                |
 | 后端宿主机端口         | 8080                                              | **8081**                                                                 |
 | 前端宿主机端口         | 5173                                              | **80**                                                                   |
 | SPRING_PROFILES_ACTIVE | docker                                            | **prod**（触发 ProductionConfigValidator）                               |
@@ -1371,8 +1398,8 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 services:
   backend:
     build:
-      context: . # Dockerfile.backend 在根目录，内部 COPY backend/pom.xml 和 backend/src
-      dockerfile: Dockerfile.backend
+      context: . # Dockerfile 已迁移到 backend/，内部 COPY backend/pom.xml 和 backend/src
+      dockerfile: backend/Dockerfile
     environment:
       SPRING_PROFILES_ACTIVE: prod
       DEV_USERS_ENABLED: "false"
@@ -1388,7 +1415,7 @@ services:
       emqx:
         condition: service_healthy # emqx ping（在 docker-compose.yml 中定义）
     healthcheck:
-      # Dockerfile.backend 已 apk add curl，确保镜像内可用
+      # backend/Dockerfile 已 apk add curl，确保镜像内可用
       test: ["CMD", "curl", "-sf", "http://localhost:8080/api/system/health"]
       interval: 30s
       timeout: 5s
@@ -1404,9 +1431,9 @@ services:
   frontend:
     build:
       context: .
-      dockerfile: Dockerfile.frontend
+      dockerfile: frontend/Dockerfile
     healthcheck:
-      # Dockerfile.frontend 基于 nginx:alpine，含 wget
+      # frontend/Dockerfile 基于 nginx:1.27-alpine，含 wget
       test: ["CMD", "wget", "-qO-", "http://localhost/"]
       interval: 30s
       timeout: 5s
@@ -1462,11 +1489,11 @@ services:
 
 ### 13.4 导出功能
 
-已落地：后端用 **EasyExcel**（`cn.geosentry.common.export.ExcelExportService` + `*ExportRow` DTO，现有 `HazardExportRow` / `TaskExportRow` / `DeviceExportRow` / `WarningExportRow` / `EmergencyExportRow` / `DashboardExportRow`）将业务数据生成 xlsx 二进制流返回，并设置 `Content-Disposition` 下载响应头。**六个导出接口**（灾害点 / 巡检任务 / 监测设备 / 预警事件 / 应急事件 / 总览指标）均走此链路，见 `ExcelExportService.export`。文件命名使用 URL 编码（`filename*=UTF-8''`）以支持中文文件名。扩容新导出：新增 `*ExportRow`（`@ExcelProperty`）+ 对应 Service 的 `exportRows()`，对应导出接口标注 `@PreAuthorize` 权限码（`overview:export` / `hazards:export` 等，见 §9.1）。
+已落地：后端用 **EasyExcel**（`cn.disasterguard.common.export.ExcelExportService` + `*ExportRow` DTO，现有 `HazardExportRow` / `TaskExportRow` / `DeviceExportRow` / `WarningExportRow` / `EmergencyExportRow` / `DashboardExportRow`）将业务数据生成 xlsx 二进制流返回，并设置 `Content-Disposition` 下载响应头。**六个导出接口**（灾害点 / 巡检任务 / 监测设备 / 预警事件 / 应急事件 / 总览指标）均走此链路，见 `ExcelExportService.export`。文件命名使用 URL 编码（`filename*=UTF-8''`）以支持中文文件名。扩容新导出：新增 `*ExportRow`（`@ExcelProperty`）+ 对应 Service 的 `exportRows()`，对应导出接口标注 `@PreAuthorize` 权限码（`overview:export` / `hazards:export` 等，见 §9.1）。
 
 ### 13.5 附件（MinIO 对象存储（已落地））
 
-已实现：`AttachmentService.upload` 通过 `MinioClient.putObject()` 把 multipart 文件流真实写入 MinIO（bucket 见 `MINIO_BUCKET`，默认 `geosentry`），成功后可返回 presigned URL；`delete` 同步删除 `removeObject`，避免存储泄漏。`storage_path` / `file_url` 字段保存实际对象路径与访问地址。配置见 `minio.endpoint / .access-key / .secret-key / .bucket`。
+已实现：`AttachmentService.upload` 通过 `MinioClient.putObject()` 把 multipart 文件流真实写入 MinIO（bucket 见 `MINIO_BUCKET`，默认 `disasterguard`），成功后可返回 presigned URL；`delete` 同步删除 `removeObject`，避免存储泄漏。`storage_path` / `file_url` 字段保存实际对象路径与访问地址。配置见 `minio.endpoint / .access-key / .secret-key / .bucket`。
 
 安全加固要点（二次开发时保持）：
 - **大小上限**：单文件最大 50MB（超限返回 413）。
@@ -1483,7 +1510,7 @@ services:
 1. **前端后端模式**：确认 `VITE_USE_BACKEND` 与后端健康状态，避免接口误判。
 2. **JWT 密钥（强制校验）**：`JWT_SECRET` 必须不少于 32 字符且不在弱密钥黑名单（change-me / secret / default-secret 等）。**不满足则应用启动失败**（`IllegalStateException`）。生成方式：`openssl rand -base64 48`。
 3. **CORS**：生产环境不要保留过宽白名单，跨域与鉴权失败时优先检查 `FRONTEND_ORIGIN`、`VITE_API_BASE_URL` 与登录态。
-4. **用户认证模式**：`DEV_USERS_ENABLED` **默认关闭**（`application.yml` 默认 `false`）。`run-backend.ps1` 等本地开发脚本显式置 `true`：此时 DB 未命中会 fallback 到内存账号（admin/attendant/maintenance，密码 `123456`，**BCrypt hash 统一校验**，不存在"任意密码可登录"后门）。生产环境务必保持 `false`，强制走 `sys_user` 表的 BCrypt 密码哈希。
+4. **用户认证模式**：`DEV_USERS_ENABLED` **默认关闭**（`application.yml` 默认 `false`）。`start-dev.ps1 -Backend` 等本地开发入口显式置 `true`：此时 DB 未命中会 fallback 到内存账号（admin / attendant / maintenance，密码 `123456`，**BCrypt hash 统一校验**，不存在"任意密码可登录"后门）。生产环境务必保持 `false`，强制走 `sys_user` 表的 BCrypt 密码哈希。
 5. **设备上报严格模式**：`DEVICE_AUTH_STRICT=false`（默认）允许未登记 `api_key` 的设备上报（WARN 提示）。生产环境设为 `true`，未登记密钥的设备直接 403。
 6. **EMQX 鉴权检查**：`EMQX_ENABLED=true` 但未配置 `EMQX_USERNAME`/`EMQX_PASSWORD` 时，启动阶段会输出大段 WARN，提醒 broker 侧无认证，任何客户端可伪造设备数据。生产必须同时配置两端。
 7. **应用配置文件**：docker-compose 使用 `SPRING_PROFILES_ACTIVE=docker` 时应提供并启用 `application-docker.yml`，避免回退到本地地址。
@@ -1503,11 +1530,11 @@ services:
 21. **种子数据明文密码**：`data.sql` 预置三个演示用户（admin/attendant/maintenance），BCrypt 哈希对应明文密码均为 `123456`。生产环境**两种做法**：(a) 执行 data.sql 后、启动 backend 前用 SQL UPDATE 改密码（见 §14 #43 步骤 5）；(b) 跳过 data.sql 注入，启动后用 SQL INSERT 创建管理员（此时 sys_user 为空，ProductionConfigValidator 旁路放行）。
 22. **geom 字段维护**：`hazard_point.geom` / `monitoring_device.geom` 等空间列**仅由应用层通过 GeometryFactory 自动生成**——写入时同时更新经度/纬度/geom 三列。**禁止直接用 SQL 修改经纬度而不更新 geom**（空间索引查询会返回错误结果）。如果必须绕过应用层运维，请执行 `UPDATE ... SET geom = ST_SetSRID(ST_MakePoint(longitude, latitude), 4326) WHERE ...`。
 23. **MinIO presigned URL 过期**：附件上传返回的 presigned URL 有效期 7 天（MinIO 默认），过期后前端需重新请求。后端 `GET /api/attachments/{id}` 每次访问都会**自动生成新 URL 并更新 DB**，前端也可显式调 `POST /api/attachments/{id}/refresh-url` 强制刷新（检测到图片 403/410 时调用，`dashboardApi.refreshAttachmentUrl` 已封装）。生产部署建议设置 CDN 反向代理 + 自定义域名，避免直接暴露 MinIO 端口。
-24. **EMQX broker 侧认证配置**：`docker-compose.yml` 编排了 EMQX 5.x 并挂载 `infra/emqx/` 目录作为配置。首次启动时执行 `infra/emqx/init.sh` 会创建 Built-in Database 认证器 + `geosentry_backend` MQTT 用户（BCrypt 密码来自 `EMQX_PASSWORD`）。**如果跳过此初始化步骤**（如手动 docker-compose up 未挂载目录），broker 侧无认证，任何客户端可连接。验证方式：访问 `http://localhost:28083`（Dashboard）→ 认证 → Users，应能看到 `geosentry_backend` 用户。
-25. **PostgreSQL 初始化顺序**：`docker-compose.yml` 已配置 postgres 健康检查（`pg_isready`）+ backend `depends_on: condition: service_healthy`，避免首次启动后端连不上数据库。但如果 postgres 容器重建后丢失数据卷，`docker-entrypoint-initdb.d` 只在**空数据卷**时执行，已存在数据不会重跑。此时需手动删除数据卷 `docker volume rm geosentry_postgres_data` 再重建。
-26. **Docker 前端部署**：前端已改为多阶段构建（`Dockerfile.frontend` + `infra/nginx/frontend.conf`），不再使用 `npm run dev`。构建时环境变量作为 build args 注入：`VITE_API_BASE_URL=/api`、`VITE_WS_URL=/ws`（同域部署，由 nginx 反向代理到 backend）。如果需要开发调试，可单独启动前端 `npm run dev`（5173 端口），docker-compose 的 frontend 服务不会冲突（只映射 backend）。
+24. **EMQX broker 侧认证配置**：`docker-compose.yml` 编排了 EMQX 5.x 并挂载 `infra/emqx/` 目录作为配置。首次启动时执行 `infra/emqx/init.sh` 会创建 Built-in Database 认证器 + `disasterguard_backend` MQTT 用户（BCrypt 密码来自 `EMQX_PASSWORD`）。**如果跳过此初始化步骤**（如手动 docker-compose up 未挂载目录），broker 侧无认证，任何客户端可连接。验证方式：访问 `http://localhost:28083`（Dashboard）→ 认证 → Users，应能看到 `disasterguard_backend` 用户。
+25. **PostgreSQL 初始化顺序**：`docker-compose.yml` 已配置 postgres 健康检查（`pg_isready`）+ backend `depends_on: condition: service_healthy`，避免首次启动后端连不上数据库。但如果 postgres 容器重建后丢失数据卷，`docker-entrypoint-initdb.d` 只在**空数据卷**时执行，已存在数据不会重跑。此时需手动删除数据卷 `docker volume rm disasterguard_postgres_data` 再重建。
+26. **Docker 前端部署**：前端已改为多阶段构建（`frontend/Dockerfile` + `infra/nginx/frontend.conf`），不再使用 `npm run dev`。构建时环境变量作为 build args 注入：`VITE_API_BASE_URL=/api`、`VITE_WS_URL=/ws`（同域部署，由 nginx 反向代理到 backend）。如果需要开发调试，可单独启动前端 `npm run dev`（5173 端口），docker-compose 的 frontend 服务不会冲突（只映射 backend）。
 27. **DeviceAuthFilter 绕过 JWT 的原理**：`/api/devices/{deviceCode}/data` 路径不在 SecurityConfig 的 permitAll 列表里，但 DeviceAuthFilter 先于 JwtAuthenticationFilter 执行（`addFilterBefore(deviceAuthFilter, JwtAuthenticationFilter.class)`），校验通过后注入 `ROLE_DEVICE` 权限的 Authentication 到 SecurityContext。后续 JwtAuthenticationFilter 读取 SecurityContext 已存在 Authentication 就跳过。**注意**：如果 JwtAuthenticationFilter 的 `shouldNotFilter` 不对 device data 路径放行，可能覆盖 DeviceAuthFilter 的认证——当前配置已正确处理。
-28. **EMQX broker 认证自动初始化**：docker-compose 已通过自定义 entrypoint（`infra/emqx/emqx-entrypoint.sh`）在 EMQX 启动后自动执行 `init.sh`，创建 Built-in Database 认证器 + `geosentry_backend` MQTT 用户（BCrypt 密码来自 `EMQX_PASSWORD`）。无需手动执行。验证：`http://localhost:28083` → Users。
+28. **EMQX broker 认证自动初始化**：docker-compose 已通过自定义 entrypoint（`infra/emqx/emqx-entrypoint.sh`）在 EMQX 启动后自动执行 `init.sh`，创建 Built-in Database 认证器 + `disasterguard_backend` MQTT 用户（BCrypt 密码来自 `EMQX_PASSWORD`）。无需手动执行。验证：`http://localhost:28083` → Users。
 29. **设备数据双通道去重**：HTTP 与 MQTT 上报均走 `DeviceDataService.ingest`，PostgreSQL 有唯一索引 `idx_device_metric_unique(device_code, metric_code, recorded_at)` 防止重复样本。重复时 catch `DataIntegrityViolationException` 并跳过（DEBUG 日志），不影响主流程。
 30. **附件 presigned URL 自动刷新**：MinIO presigned URL 有效期 7 天。后端 `GET /api/attachments/{id}` 每次访问自动生成新 URL 并更新 DB；前端也可调用 `POST /api/attachments/{id}/refresh-url` 强制刷新。建议前端检测到图片 403 时自动调用刷新。
 31. **操作审计日志**：`OperationLogAspect`（AOP）自动拦截所有类名后缀 `*Controller` 的 Controller 写方法（POST/PUT/DELETE）——**不依赖 `@PreAuthorize` 注解**，即使未显式标注权限的写接口也会被审计。记录 operator（从 JWT 解析，失败回落 anonymous）/ module / action / HTTP 方法 / URL / 耗时 / IP 到 `operation_log` 表。密码等敏感字段自动截断，审计失败不影响主流程（`saveAsync` 捕获异常）。
@@ -1521,7 +1548,7 @@ services:
 
 35. **EMQX init.sh 失败处理**：broker 认证初始化脚本内置 3 次重试（每次间隔 5s）。全部失败后 entrypoint 返回非零退出码，`docker restart unless-stopped` 自动重启容器重试。避免 broker 在无认证状态下持续运行。
 
-36. **Docker 镜像构建**：后端使用 `Dockerfile.backend` 多阶段构建（Stage 1: maven:3.9.9-eclipse-temurin-17，Stage 2: eclipse-temurin:17-jre-alpine）。TDengine JDBC 已改为 **compile scope**，会自动打包进 Spring Boot fat jar，无需额外处理。Dockerfile.backend 中仍保留 optional-lib 下载逻辑作为双保险（若未来改为 provided scope 或 Maven Central 不可达时不影响构建）。前端 `Dockerfile.frontend` 基于 `node:22-alpine` 构建 + `nginx:1.27-alpine` 运行，强制校验 `VITE_USE_BACKEND=true`，否则构建失败。
+36. **Docker 镜像构建**：后端使用 `backend/Dockerfile` 多阶段构建（Stage 1: maven:3.9.9-eclipse-temurin-17，Stage 2: eclipse-temurin:17-jre-alpine）。TDengine JDBC 已改为 **compile scope**，会自动打包进 Spring Boot fat jar，无需额外处理。`backend/Dockerfile` 中仍保留 optional-lib 下载逻辑作为双保险（若未来改为 provided scope 或 Maven Central 不可达时不影响构建）。前端 `frontend/Dockerfile` 基于 `node:22-alpine` 构建 + `nginx:1.27-alpine` 运行，强制校验 `VITE_USE_BACKEND=true`，否则构建失败。
 
 37. **operation_log 归档策略**：归档脚本 `infra/postgres/init/003_archive_operation_log.sql` 已存在，包含 `operation_log_archive` 归档表 DDL 与 `archive_operation_logs(retention_days)` 归档函数。生产环境建议每日凌晨 3:00 执行（通过 pg_cron 或外部调度器），默认保留 90 天在线数据。归档表在首次执行时由 `CREATE TABLE IF NOT EXISTS` 自动创建，结构与 `operation_log` 完全一致（无索引减少归档写入开销）。
 
@@ -1541,7 +1568,7 @@ services:
 
     **v2 规划**：引入 `recorded_at TIMESTAMPTZ(3)`（毫秒精度）或增加服务端接收时间戳 `received_at` 作为辅助去重字段，支持亚秒级精度。
 
-42. **TDengine 驱动加载**：TDengine JDBC（`taos-jdbcdriver:3.3.0`）已改为 **compile scope**，Maven 构建时自动打包进 Spring Boot fat jar，**Docker 和宿主机均无需额外处理**。启用 TDengine 只需设置 `TDENGINE_ENABLED=true` 即可。数据库（`geohazard`）与超级表（`device_metric`）由 `infra/tdengine/init.sql` 在 TDengine 容器**首次启动时**创建（`docker-entrypoint-initdb.d` 机制）；`TdengineMetricService` 负责在首次写入某设备时自动创建其子表 `device_metric_{deviceCode}`（`CREATE TABLE IF NOT EXISTS ... USING device_metric TAGS(...)`，子表名缓存避免重复 DDL），并内置 30s 熔断器。Dockerfile.backend 中仍保留 optional-lib 下载逻辑作为双保险（JarLauncher classpath 中 optional-lib/\* 自动加载），但非必需。
+42. **TDengine 驱动加载**：TDengine JDBC（`taos-jdbcdriver:3.3.0`）已改为 **compile scope**，Maven 构建时自动打包进 Spring Boot fat jar，**Docker 和宿主机均无需额外处理**。启用 TDengine 只需设置 `TDENGINE_ENABLED=true` 即可。数据库（`disasterguard`）与超级表（`device_metric`）由 `infra/tdengine/init.sql` 在 TDengine 容器**首次启动时**创建（`docker-entrypoint-initdb.d` 机制）；`TdengineMetricService` 负责在首次写入某设备时自动创建其子表 `device_metric_{deviceCode}`（`CREATE TABLE IF NOT EXISTS ... USING device_metric TAGS(...)`，子表名缓存避免重复 DDL），并内置 30s 熔断器。`backend/Dockerfile` 中仍保留 optional-lib 下载逻辑作为双保险（JarLauncher classpath 中 optional-lib/\* 自动加载），但非必需。
 
 43. **生产环境数据库初始化**：prod profile 禁用 `spring.sql.init.mode=never`，首次部署时不会自动建表。提供两种方案，按安全等级选择：
 
@@ -1556,15 +1583,15 @@ services:
 docker compose -f docker-compose.yml up -d postgres
 
 # ====== 步骤 A2：启用 PostGIS 扩展 ======
-docker compose exec -T postgres psql -U geosentry -d geosentry \
+docker compose exec -T postgres psql -U disasterguard -d disasterguard \
   < infra/postgres/init/001_create_extensions.sql
 
 # ====== 步骤 A3：建表（幂等，可重跑） ======
-docker compose exec -T postgres psql -U geosentry -d geosentry \
+docker compose exec -T postgres psql -U disasterguard -d disasterguard \
   < backend/src/main/resources/schema.sql
 
 # ====== 步骤 A4：注入种子数据（admin/attendant/maintenance，密码均为 123456） ======
-docker compose exec -T postgres psql -U geosentry -d geosentry \
+docker compose exec -T postgres psql -U disasterguard -d disasterguard \
   < backend/src/main/resources/data.sql
 
 # ====== 步骤 A5：强制修改种子密码（否则 ProductionConfigValidator 会阻断 prod 启动）======
@@ -1585,7 +1612,7 @@ python3 -c "import bcrypt; print(bcrypt.hashpw(b'<your_strong_password>', bcrypt
 #   ⚠️ BCrypt hash 以 $2b$ / $2a$ / $2y$ 开头，包含多个 $ 符号
 #   绝对不能用双引号包裹 SQL（Shell 会对 $ 做变量扩展，导致 hash 损坏）
 #   必须用 here-doc + 单引号 <<'SQL' 语法，彻底避免 Shell 展开
-docker compose exec -T postgres psql -U geosentry -d geosentry <<'SQL'
+docker compose exec -T postgres psql -U disasterguard -d disasterguard <<'SQL'
 UPDATE sys_user SET password_hash='<BCRYPT_HASH>'
 WHERE username IN ('admin','attendant','maintenance');
 SQL
@@ -1611,14 +1638,14 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 docker compose -f docker-compose.yml up -d postgres
 
 # ====== 步骤 B2：启用扩展 + 建表（同方案 A）======
-docker compose exec -T postgres psql -U geosentry -d geosentry \
+docker compose exec -T postgres psql -U disasterguard -d disasterguard \
   < infra/postgres/init/001_create_extensions.sql
-docker compose exec -T postgres psql -U geosentry -d geosentry \
+docker compose exec -T postgres psql -U disasterguard -d disasterguard \
   < backend/src/main/resources/schema.sql
 
 # ====== 步骤 B3：注入角色 + 菜单 + 区域（可选：如果需要权限体系）======
 # 只执行 data.sql 的部分语句，不插入 sys_user
-docker compose exec -T postgres psql -U geosentry -d geosentry \
+docker compose exec -T postgres psql -U disasterguard -d disasterguard \
   -c "INSERT INTO sys_role (role_code, role_name, description, menu_permissions, button_permissions)
       VALUES ('admin','管理员','拥有全部模块访问权限','*','*') ON CONFLICT (role_code) DO NOTHING;"
 
@@ -1638,7 +1665,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 
 # 先准备 BCrypt hash（用 htpasswd 或 python3，见方案 A 步骤 A5a）
 #   ⚠️ 同样使用 here-doc 避免 Shell 对 $ 做变量扩展
-docker compose exec -T postgres psql -U geosentry -d geosentry <<'SQL'
+docker compose exec -T postgres psql -U disasterguard -d disasterguard <<'SQL'
 INSERT INTO sys_user (username, password_hash, real_name, phone, role_code, region_code, status)
 VALUES ('admin', '<BCRYPT_HASH>', '系统管理员', '', 'admin', '100000', '启用');
 SQL
@@ -1659,15 +1686,15 @@ SQL
 > # 提取 data.sql 中除 sys_user 外的所有 INSERT，并执行
 > grep -v "INSERT INTO sys_user" backend/src/main/resources/data.sql \
 >   | grep -v "ON CONFLICT (username)" \
->   | docker compose exec -T postgres psql -U geosentry -d geosentry
+>   | docker compose exec -T postgres psql -U disasterguard -d disasterguard
 > ```
 >
 > **步骤 B4 之后建议验证**：登录后若发现规则引擎不触发预警，请先执行以下检查：
 >
 > ```bash
-> docker compose exec -T postgres psql -U geosentry -d geosentry -c "SELECT COUNT(*) FROM warning_rule;"
-> docker compose exec -T postgres psql -U geosentry -d geosentry -c "SELECT COUNT(*) FROM region;"
-> docker compose exec -T postgres psql -U geosentry -d geosentry -c "SELECT COUNT(*) FROM sys_role;"
+> docker compose exec -T postgres psql -U disasterguard -d disasterguard -c "SELECT COUNT(*) FROM warning_rule;"
+> docker compose exec -T postgres psql -U disasterguard -d disasterguard -c "SELECT COUNT(*) FROM region;"
+> docker compose exec -T postgres psql -U disasterguard -d disasterguard -c "SELECT COUNT(*) FROM sys_role;"
 > ```
 
 > **为什么没有注册接口？** 出于安全考虑，未实现 `POST /api/auth/register` 公开注册端点。如果确实需要开放注册（如多租户场景），必须设计邀请码/审批机制。
@@ -1680,9 +1707,9 @@ SQL
 
 | 服务         | 初始化项                                            | 自动/手动                                                                                                                     | 检查/修复命令                                                                                                                                                            |
 | ------------ | --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **EMQX**     | Built-in Database 认证器 + `geosentry_backend` 用户 | 自动（`infra/emqx/init.sh` entrypoint 执行）                                                                                  | `docker compose exec emqx emqx ctl users list` 查看用户列表（EMQX 5.x 使用 `emqx ctl`，旧版 4.x 用 `emqx_ctl`）；若缺失：`docker compose exec emqx sh /opt/emqx/init.sh` |
-| **MinIO**    | `geosentry` bucket                                  | **自动**（`AttachmentService` 首次附件上传时自动检查并创建）                                                                  | 检查 bucket 是否存在：`docker compose exec minio mc alias set myminio http://localhost:9000 $MINIO_ACCESS_KEY $MINIO_SECRET_KEY && mc ls myminio/`；可选预创建同上       |
-| **TDengine** | `geosentry` 数据库 + `device_metric` 超级表         | 自动（首次写入时 `TdengineMetricService.writeMetric()` 执行 `CREATE DATABASE IF NOT EXISTS` + `CREATE STABLE IF NOT EXISTS`） | `docker compose exec tdengine taos -s "SHOW DATABASES;"` 确认数据库存在                                                                                                  |
+| **EMQX**     | Built-in Database 认证器 + `disasterguard_backend` 用户 | 自动（`infra/emqx/init.sh` entrypoint 执行）                                                                                  | `docker compose exec emqx emqx ctl users list` 查看用户列表（EMQX 5.x 使用 `emqx ctl`，旧版 4.x 用 `emqx_ctl`）；若缺失：`docker compose exec emqx sh /opt/emqx/init.sh` |
+| **MinIO**    | `disasterguard` bucket                                  | **自动**（`AttachmentService` 首次附件上传时自动检查并创建）                                                                  | 检查 bucket 是否存在：`docker compose exec minio mc alias set myminio http://localhost:9000 $MINIO_ACCESS_KEY $MINIO_SECRET_KEY && mc ls myminio/`；可选预创建同上       |
+| **TDengine** | `disasterguard` 数据库 + `device_metric` 超级表         | 自动（首次写入时 `TdengineMetricService.writeMetric()` 执行 `CREATE DATABASE IF NOT EXISTS` + `CREATE STABLE IF NOT EXISTS`） | `docker compose exec tdengine taos -s "SHOW DATABASES;"` 确认数据库存在                                                                                                  |
 | **Redis**    | 无需初始化                                          | —                                                                                                                             | `docker compose exec redis redis-cli ping` 返回 PONG 即可                                                                                                                |
 
 > **生产首次部署顺序**：按 #43 步骤 1–5 初始化 PostgreSQL → 执行步骤 6 启动全栈。`docker-compose.prod.yml` 已配置 backend 的 `depends_on: service_healthy`（postgres/redis/minio/emqx）+ healthcheck，会自动等待依赖就绪。frontend 无依赖顺序，可在 backend 之后或同时启动。
@@ -1794,13 +1821,13 @@ mvn spring-boot:run
 
 **原因**：Spring Boot 3.4 的 Lettuce 自动配置在某些 Windows + Docker Desktop 环境下不生效（原因待进一步定位）。
 
-**已修复**：新增 [`backend/src/main/java/cn/geosentry/config/RedisConfig.java`](backend/src/main/java/cn/geosentry/config/RedisConfig.java) 显式创建 `LettuceConnectionFactory` + `RedisTemplate<String, Object>`，带 `@ConditionalOnMissingBean` 注解，不影响正常自动配置环境。
+**已修复**：新增 [`backend/src/main/java/cn/disasterguard/config/RedisConfig.java`](backend/src/main/java/cn/disasterguard/config/RedisConfig.java) 显式创建 `LettuceConnectionFactory` + `RedisTemplate<String, Object>`，带 `@ConditionalOnMissingBean` 注解，不影响正常自动配置环境。
 
 ### Q6：后端启动报 `No qualifying bean of type 'JwtAuthenticationFilter'`
 
 **症状**：`SecurityConfig.securityFilterChain` 参数 `JwtAuthenticationFilter` 无法注入。
 
-**原因**：[`JwtAuthenticationFilter.java`](backend/src/main/java/cn/geosentry/common/security/JwtAuthenticationFilter.java) 是普通类，缺少 `@Component` 注解，Spring 不会自动注册为 bean。
+**原因**：[`JwtAuthenticationFilter.java`](backend/src/main/java/cn/disasterguard/common/security/JwtAuthenticationFilter.java) 是普通类，缺少 `@Component` 注解，Spring 不会自动注册为 bean。
 
 **已修复**：已添加 `@Component` 注解。
 
@@ -1881,14 +1908,14 @@ org.springframework.web.util.pattern.PatternParseException:
 | `maintenance`| maintenance   | 维护人员     |
 
 - **Docker 部署**：`docker-compose.yml` 中 `DEV_USERS_ENABLED` 默认 `false`，但 `data.sql` 种子用户始终注入（`spring.sql.init.mode: always`），密码哈希为 `BCrypt("123456")`。
-- **本地直跑**：`run-backend.ps1` 设置 `DEV_USERS_ENABLED=true`，即使 DB 无种子数据也能通过内存 fallback 登录。**fallback 账号同样使用 BCrypt hash（构造时用 `PasswordEncoder` 生成 `123456` 的哈希），AuthController 统一校验明文**——不是 `{noop}` 任意密码放行，不存在"任意密码可登录"的后门。**注意 `DEV_USERS_ENABLED` 默认已改为 `false`**，需要时显式开启。
+- **本地直跑**：`start-dev.ps1 -Backend` 自动设置 `DEV_USERS_ENABLED=true`，即使 DB 无种子数据也能通过内存 fallback 登录。**fallback 账号同样使用 BCrypt hash（构造时用 `PasswordEncoder` 生成 `123456` 的哈希），AuthController 统一校验明文**——不是 `{noop}` 任意密码放行，不存在"任意密码可登录"的后门。**注意 `DEV_USERS_ENABLED` 默认已改为 `false`**，需要时显式开启。
 - **生产环境**：`DEV_USERS_ENABLED=false` + `application-prod.yml` 禁用 SQL init，需手动创建管理员（见 §14 第 43 条）。
 
 ### Q10：混合模式下前端 502 Bad Gateway
 
-**症状**：`run-backend.ps1` 成功启动本地后端（8080 端口 java 进程），但前端登录请求返回 `502 Bad Gateway`，URL 为 `http://localhost:5173/api/auth/login`。
+**症状**：使用 `start-dev.ps1 -Backend` 启动本地后端（8080 端口 java 进程），但前端登录请求返回 `502 Bad Gateway`，URL 为 `http://localhost:5173/api/auth/login`。
 
-**根因**：Docker 前端容器（`geosentry-frontend`）仍在运行，其 Nginx 配置将 `/api` 反代到 Docker 网络内的 `backend:8080`。`run-backend.ps1` 停掉了 Docker 后端容器，本地后端在宿主机上运行，但不在 Docker 网络中，Nginx 无法连接 → 502。
+**根因**：Docker 前端容器（`disasterguard-frontend`）仍在运行，其 Nginx 配置将 `/api` 反代到 Docker 网络内的 `backend:8080`。`start-dev.ps1` 的 `-Backend` 模式只启动后端（不会自动停 Docker 前端），本地后端在宿主机上运行但不在 Docker 网络中，Nginx 无法连接 → 502。
 
 **判断方法**：
 
@@ -1902,16 +1929,23 @@ $proc.ProcessName  # com.docker.backend = Docker 前端容器（502 原因）
 
 **修复**：
 
-```bash
-# 方案 1（推荐）：用 run-frontend.ps1 自动停 Docker 前端 + 启动本地 Vite
-.\run-frontend.ps1
-
-# 方案 2：手动操作
-docker compose stop frontend   # 停掉 Docker 前端容器
-npm run dev                     # 启动本地 Vite dev server
+```powershell
+# 方案 1（推荐）：用 start-dev.ps1 -Frontend 自动停 Docker 前端 + 启动本地 Vite
+.\start-dev.ps1 -Frontend
 ```
 
-> **混合模式要点**：后端和前端都必须在宿主机直跑，不能一个在 Docker、一个在本地。Docker 前端 Nginx → Docker 网络内 `backend:8080`，本地后端 → `localhost:8080`，两者网络隔离。详见 §4.3 步骤 2-3。
+```bash
+# 方案 1（推荐，Linux/macOS/WSL）：
+./start-dev.sh frontend
+```
+
+```bash
+# 方案 2：手动操作
+docker compose stop frontend   # 停掉 Docker 前端容器
+cd frontend && npm run dev     # 启动本地 Vite dev server
+```
+
+> **混合模式要点**：后端和前端都必须在宿主机直跑，不能一个在 Docker、一个在本地。Docker 前端 Nginx → Docker 网络内 `backend:8080`，本地后端 → `localhost:8080`，两者网络隔离。`start-dev.ps1 -Frontend` 与 `-Backend` 会自动处理端口冲突。详见 §4.3 步骤 2–3。
 
 ---
 
@@ -2168,13 +2202,13 @@ def test_job_lifecycle():
 
 ```
 backend/
-├── src/main/java/cn/geosentry/weather/
+├── src/main/java/cn/disasterguard/weather/
 │   ├── WeatherProductKind.java          # 6 个产品枚举 + extent + 官方刷新间隔
 │   ├── controller/WeatherController.java # REST API（/api/weather/**）
 │   ├── service/WeatherService.java      # 探测 + 缓存 + 图片代理转发
 │   └── dto/                              # WeatherProductDto + WeatherLegendDto
-└── src/main/java/cn/geosentry/config/
-    ├── WeatherProperties.java           # @ConfigurationProperties(prefix="geosentry.weather")
+└── src/main/java/cn/disasterguard/config/
+    ├── WeatherProperties.java           # @ConfigurationProperties(prefix="disasterguard.weather")
     └── SecurityConfig.java              # /api/weather/** 白名单（无需 JWT）
 
 src/
@@ -2227,10 +2261,10 @@ src/
 }
 ```
 
-### 17.4 配置项（`application.yml` → `geosentry.weather.*`）
+### 17.4 配置项（`application.yml` → `disasterguard.weather.*`）
 
 ```yaml
-geosentry:
+disasterguard:
   weather:
     cache-enabled: ${WEATHER_CACHE_ENABLED:true}    # 是否对最新帧探测结果做内存缓存
     cache-ttl-seconds: ${WEATHER_CACHE_TTL_SECONDS:300}  # 缓存存活秒数
@@ -2292,9 +2326,9 @@ geosentry:
 **判断方法**：
 ```bash
 # 在后端容器内 curl 测试连通性
-docker exec geosentry-backend curl -I -m 5 https://image.nmc.cn/product/$(date -u +%Y/%m/%d)/RDP/medium/SEVP_NSMC_RDP_ACHN_LNO_PY_$(date -u +%Y%m%d%H%M)0000000.JPG
+docker exec disasterguard-backend curl -I -m 5 https://image.nmc.cn/product/$(date -u +%Y/%m/%d)/RDP/medium/SEVP_NSMC_RDP_ACHN_LNO_PY_$(date -u +%Y%m%d%H%M)0000000.JPG
 
-docker exec geosentry-backend curl -m 5 http://img.nsmc.org.cn/PORTAL/NSMC/XML/FY4A/FY4A_AGRI_IMG_REGI_MTCC_GLL.xml
+docker exec disasterguard-backend curl -m 5 http://img.nsmc.org.cn/PORTAL/NSMC/XML/FY4A/FY4A_AGRI_IMG_REGI_MTCC_GLL.xml
 ```
 
 **修复**：
@@ -2387,7 +2421,7 @@ confidence / model / degraded / analyzed_at
 ### 18.5 配置项（`application.yml`）
 
 ```yaml
-geosentry:
+disasterguard:
   ai:
     comprehensive-scheduler-cron: "0 */5 * * * *"          # 全量分析 + 落库
     comprehensive-to-warning-cron: "0 */10 * * * *"        # AI 分 → 预警联动
@@ -2478,7 +2512,7 @@ suggested_actions_json TEXT
 ### 19.5 配置项
 
 ```yaml
-geosentry:
+disasterguard:
   ai:
     device-health-scheduler-enabled: ${AI_DEVICE_HEALTH_ENABLED:true}
     device-health-scheduler-cron:    ${AI_DEVICE_HEALTH_CRON:0 */5 * * * *}
@@ -2927,12 +2961,12 @@ Java 透传端点（`AiController.java`）：
 
 **生成新种子**：
 ```bash
-python scripts/gen_data_sql.py > backend/src/main/resources/data.sql
+python scripts/db/gen_data_sql.py > backend/src/main/resources/data.sql
 ```
 
 ### 23.3 device_metric 持续喂入（demo 阶段）
 
-文件：`backend/src/main/java/cn/geosentry/device/scheduler/DeviceMetricSimulator.java`
+文件：`backend/src/main/java/cn/disasterguard/device/scheduler/DeviceMetricSimulator.java`
 
 **触发**：`@Scheduled(fixedDelayString = "300000")`（5 分钟一跑，initialDelay=15s）
 
@@ -2952,7 +2986,7 @@ python scripts/gen_data_sql.py > backend/src/main/resources/data.sql
 
 ### 23.4 AI 启动 warmup
 
-文件：`backend/src/main/java/cn/geosentry/ai/scheduler/AiStartupWarmup.java`
+文件：`backend/src/main/java/cn/disasterguard/ai/scheduler/AiStartupWarmup.java`
 
 **触发**：`ApplicationReadyEvent`（Spring 启动就绪后 3s，异步执行）
 
@@ -3177,7 +3211,7 @@ CREATE INDEX idx_region_monitorable ON region(region_level, geo_type)
 ### 25.5 配置项
 
 ```yaml
-geosentry:
+disasterguard:
   ai:
     hazard-monitor-enabled: ${AI_HAZARD_MONITOR_ENABLED:true}
     hazard-monitor-interval-ms: ${AI_HAZARD_MONITOR_INTERVAL_MS:90000}     # 90s
@@ -3290,9 +3324,9 @@ AI 灾害监测 tick 完成: 监控 47 个区域 / 423 网格点 / 发现 12 高
 ### 26.2 核心类
 
 ```
-cn.geosentry.ai.service.ExternalDataService        # 7 个 API 的统一封装
-cn.geosentry.config.ExternalDataProperties         # @ConfigurationProperties(prefix="geosentry.external-data")
-cn.geosentry.ai.service.AiComprehensiveAnalysisSupport  # 综合分析时按需调用（fillFactorFromExternal）
+cn.disasterguard.ai.service.ExternalDataService        # 7 个 API 的统一封装
+cn.disasterguard.config.ExternalDataProperties         # @ConfigurationProperties(prefix="disasterguard.external-data")
+cn.disasterguard.ai.service.AiComprehensiveAnalysisSupport  # 综合分析时按需调用（fillFactorFromExternal）
 ```
 
 ### 26.3 调用模式
@@ -3330,7 +3364,7 @@ CopernicusImageInfo cop = svc.getCopernicusImage(30.61, 107.21);
 
 ### 26.4 缓存与降级
 
-- **缓存**：`ConcurrentHashMap<String, CacheEntry>`，默认 TTL **300s**（可通过 `geosentry.external-data.cache-ttl-seconds` 调整）
+- **缓存**：`ConcurrentHashMap<String, CacheEntry>`，默认 TTL **300s**（可通过 `disasterguard.external-data.cache-ttl-seconds` 调整）
 - **超时**：默认 10s（Giovanni 20s，OSM 25s）
 - **失败**：返回 `null` + 日志 WARN，**不抛异常**（调用方决定兜底策略）
 - **降级链路**：`ExternalDataService` → null → `GeoContextResolver` 查表 → 启发式合成
@@ -3338,7 +3372,7 @@ CopernicusImageInfo cop = svc.getCopernicusImage(30.61, 107.21);
 ### 26.5 配置项
 
 ```yaml
-geosentry:
+disasterguard:
   external-data:
     enabled: ${EXTERNAL_DATA_ENABLED:true}                                    # 总开关
     timeout-seconds: ${EXTERNAL_DATA_TIMEOUT:10}                              # HTTP 超时
@@ -3440,12 +3474,12 @@ EXTERNAL_DATA_ENABLED=false mvn spring-boot:run
 
 | 层 | 文件 | 职责 |
 |---|---|---|
-| Java | `cn.geosentry.audit.scheduler.OperationLogArchiver.java` | `@Scheduled(cron="0 0 3 * * *")` 每日凌晨 3:00 调用 PG 函数 |
-| Java | `cn.geosentry.audit.entity.OperationLog.java` | JPA 实体（主表） |
-| Java | `cn.geosentry.audit.repository.OperationLogRepository.java` | JPA 仓储 |
-| Java | `cn.geosentry.aop.OperationLogAspect.java` | AOP 切面，写入 `operation_log`（详见 §14 第 31 条） |
+| Java | `cn.disasterguard.audit.scheduler.OperationLogArchiver.java` | `@Scheduled(cron="0 0 3 * * *")` 每日凌晨 3:00 调用 PG 函数 |
+| Java | `cn.disasterguard.audit.entity.OperationLog.java` | JPA 实体（主表） |
+| Java | `cn.disasterguard.audit.repository.OperationLogRepository.java` | JPA 仓储 |
+| Java | `cn.disasterguard.aop.OperationLogAspect.java` | AOP 切面，写入 `operation_log`（详见 §14 第 31 条） |
 | SQL | `infra/postgres/init/003_archive_operation_log.sql` | 创建 `operation_log_archive` 表 + `archive_operation_logs(retention_days)` 函数 |
-| 配置 | `geosentry.audit.archive-cron` + `geosentry.audit.log-retention-days` | 调度时间 + 保留天数 |
+| 配置 | `disasterguard.audit.archive-cron` + `disasterguard.audit.log-retention-days` | 调度时间 + 保留天数 |
 
 ### 27.3 SQL 函数定义（`infra/postgres/init/003_archive_operation_log.sql`）
 
@@ -3490,9 +3524,9 @@ $$ LANGUAGE plpgsql;
 ```java
 @Component
 public class OperationLogArchiver {
-  @Value("${geosentry.audit.log-retention-days:90}") int retentionDays;
+  @Value("${disasterguard.audit.log-retention-days:90}") int retentionDays;
 
-  @Scheduled(cron = "${geosentry.audit.archive-cron:0 0 3 * * *}")
+  @Scheduled(cron = "${disasterguard.audit.archive-cron:0 0 3 * * *}")
   void archive() {
     var rows = jdbc.queryForRowSet("SELECT * FROM archive_operation_logs(?)", retentionDays);
     if (rows.next()) {
@@ -3511,7 +3545,7 @@ public class OperationLogArchiver {
 ### 27.5 配置项
 
 ```yaml
-geosentry:
+disasterguard:
   audit:
     archive-cron: 0 0 3 * * *           # 默认每日凌晨 3:00
     log-retention-days: 90              # 主表保留 90 天
@@ -3528,24 +3562,24 @@ AUDIT_LOG_RETENTION_DAYS=180            # 保留半年
 
 ```bash
 # 1. 验证归档函数存在
-docker compose exec postgres psql -U geosentry -d geosentry \
+docker compose exec postgres psql -U disasterguard -d disasterguard \
   -c "SELECT proname FROM pg_proc WHERE proname='archive_operation_logs';"
 # 期望：proname = archive_operation_logs
 
 # 2. 验证归档表存在
-docker compose exec postgres psql -U geosentry -d geosentry \
+docker compose exec postgres psql -U disasterguard -d disasterguard \
   -c "\d operation_log_archive"
 
 # 3. 手动触发归档（90 天）
-docker compose exec postgres psql -U geosentry -d geosentry \
+docker compose exec postgres psql -U disasterguard -d disasterguard \
   -c "SELECT * FROM archive_operation_logs(90);"
 
 # 4. 查看主表当前数据量
-docker compose exec postgres psql -U geosentry -d geosentry \
+docker compose exec postgres psql -U disasterguard -d disasterguard \
   -c "SELECT COUNT(*), MIN(created_at), MAX(created_at) FROM operation_log;"
 
 # 5. 查看归档表数据量
-docker compose exec postgres psql -U geosentry -d geosentry \
+docker compose exec postgres psql -U disasterguard -d disasterguard \
   -c "SELECT COUNT(*), MIN(created_at), MAX(created_at) FROM operation_log_archive;"
 ```
 
@@ -3616,7 +3650,7 @@ src/
 ### 28.2 后端目录分层（v1.7.0 目标结构）
 
 ```
-backend/src/main/java/cn/geosentry/
+backend/src/main/java/cn/disasterguard/
 ├── auth/                # 鉴权 + JWT + 当前用户 Profile
 ├── hazard/              # 灾害点 + 状态机
 ├── warning/             # 预警事件 + 流转
@@ -3644,42 +3678,95 @@ backend/src/main/java/cn/geosentry/
 - ❌ Service 禁止直接返回 `Map<String, Object>` —— 必须用 DTO
 - ❌ 跨域枚举常量统一放在对应 module 下的 `constants/` 包（不允许散落）
 
-### 28.3 `scripts/` 维护脚本清单（v1.7.0 收敛到 8 个）
+### 28.3 `scripts/` 维护脚本清单（v1.7.0+ 按职责归档为 4 个子目录）
 
-| 文件 | 用途 | 调用时机 |
+> 完整脚本清单、用途与调用时机见 [`scripts/README.md`](../../scripts/README.md)。下表仅列出 CI / 日常开发最常调用的入口。
+
+| 子目录 | 用途 | 关键脚本 |
 |---|---|---|
-| `audit_db.py` | 数据库 schema 审计（字段 / 索引 / 关系 / JSONB 字面量校验） | 修改 `schema.sql` / `data.sql` 后必跑 |
-| `backfill_unified_event_hazards.py` | 统一事件中心历史数据回填 | 升级到 v1.7.0 一次性 |
-| `smoke_test_schema.py` | 启动前 schema 健康检查（不依赖 docker） | CI / 本地预检 |
-| `gen_data_sql.py` | 重新生成 `data.sql` 种子数据 | 修改 entity 后 |
-| `diagnose-schema-drift.ps1` | DB 列与 `schema.sql` 对齐检查 | 启动报 `column does not exist` 时 |
-| `fix-db-volume.ps1` | 重建 Postgres 数据卷（最后手段） | 漂移无法修复时 |
-| `check_jsonb_sql.py` | `data.sql` 内 JSONB 字面量预校验 | CI 流水线 |
-| `oneclick-fix.mjs` | `==` / `!=` → `===` / `!==` 全量升级 | 由 `npm run fix` 调用 |
+| `scripts/db/` | Postgres schema / 数据回填 / 种子生成 | `audit_db.py` `backfill_unified_event_hazards.py` `gen_data_sql.py` `smoke_test_schema.py` `check_jsonb_sql.py` |
+| `scripts/audit/` | 代码与接口的一致性审计 | `orphan_endpoint_scan.py` `empty_feats.py` `audit-imports.ps1` `diagnose-schema-drift.ps1` |
+| `scripts/fix/` | 已知的破坏性修复（一次性，但保留以备复用） | `oneclick-fix.mjs` `fix-db-volume.ps1` `reinit-postgres.ps1` |
+| `scripts/env/` | 端口、进程、环境变量探针 | `check-ports.ps1` `check-procs.ps1` `check-env.ps1` `vite-check.ps1` `wait-docker.ps1` `health-check.ps1` |
+
+**典型调用示例**：
+
+```bash
+# 修改 schema.sql / data.sql 后
+python scripts/db/audit_db.py
+python scripts/db/smoke_test_schema.py
+
+# 重生成 seed
+python scripts/db/gen_data_sql.py > backend/src/main/resources/data.sql
+
+# 前端 .vue 页面 / 后端 Controller 接口一致性
+python scripts/audit/orphan_endpoint_scan.py | tee scripts/audit/orphan-now.txt
+
+# 状态码 + 等号自动修复
+node scripts/fix/oneclick-fix.mjs         # or: npm run fix
+
+# 端口/进程/环境速查（Windows）
+pwsh scripts/env/check-ports.ps1
+```
 
 **红线**：
 
 - ❌ 新增一次性迁移脚本请在 PR 描述里标注 "一次性，合并后删除"，否则将永久驻留
 - ❌ 不要把脚本输出（`*.txt` / `*.log`）提交进仓库（已在 `.gitignore`）
 - ❌ 不要把 docker compose / psql 调试命令留在脚本里 —— 改用文档
+- ❌ 新脚本请按职责归类到 `db/` / `audit/` / `fix/` / `env/` 之一，不要再放平层在 `scripts/`
 
-### 28.4 启动脚本（v1.7.0 统一入口）
+### 28.4 启动脚本（统一入口）
 
+> 推荐使用 [`start-dev.ps1`](../../start-dev.ps1) / [`start-dev.sh`](../../start-dev.sh) 作为唯一入口。它们统一处理端口占用检测 / 自动释放、`.env` 加载、JVM 调优、健康检查、日志落盘、跨平台兼容。
+
+**Windows PowerShell (`start-dev.ps1`)**：
+
+```powershell
+# 全栈模式（后台并行启动）
+.\start-dev.ps1 -All              # 立即返回，3 个服务在后台运行
+.\start-dev.ps1 -All -Wait        # 等全部就绪后报告
+
+# 单服务模式（前台启动，便于看日志 / 加断点）
+.\start-dev.ps1 -Backend          # 后端 (8080)
+.\start-dev.ps1 -Frontend         # 前端 (5173)
+.\start-dev.ps1 -Ai               # AI 服务 (8001)
+
+# 基础设施
+.\start-dev.ps1 -Infra -Up        # 启动 Postgres / Redis / MinIO / EMQX / TDengine
+.\start-dev.ps1 -Infra -Down      # 停止基础设施
+.\start-dev.ps1 -Infra -Reset     # ⚠ 销毁并重建基础设施（数据卷）
+
+# 日常运维
+.\start-dev.ps1 -Status           # 健康度速览（端口 / Docker / Git / 进程）
+.\start-dev.ps1 -Doctor           # 诊断依赖问题（Java / Node / Python / Docker / .env）
+.\start-dev.ps1 -Stop             # 停止所有本地开发服务
+.\start-dev.ps1 -Restart          # 重启所有本地开发服务
 ```
-.\start-dev.ps1 -Infra -Up      # 启动基础设施（Postgres / Redis / MinIO / EMQX / TDengine）
-.\start-dev.ps1 -Infra -Down    # 停止基础设施
-.\start-dev.ps1 -Infra -Reset   # ⚠ 销毁并重建基础设施（数据卷）
-.\start-dev.ps1 -Backend        # 仅启动后端
-.\start-dev.ps1 -Frontend       # 仅启动前端（默认）
-.\start-dev.ps1 -Ai             # 仅启动 AI 微服务
-.\start-dev.ps1 -Status         # 健康度速览（v1.7.0 新增，跨平台）
-.\start-dev.ps1 -All            # 提示全栈模式所需 3 个终端命令
 
+**Linux / macOS / WSL (`start-dev.sh`)**：
+
+```bash
+# 全栈模式
+./start-dev.sh all               # 立即返回
+./start-dev.sh all --wait        # 等全部就绪后报告
+
+# 单服务模式
+./start-dev.sh backend
+./start-dev.sh frontend
+./start-dev.sh ai                # 额外 --no-reload: 生产模式不加文件监听
+
+# 基础设施
 ./start-dev.sh infra up|down|reset
-./start-dev.sh {backend|frontend|ai|status|all}
+
+# 日常运维
+./start-dev.sh status
+./start-dev.sh doctor
+./start-dev.sh stop
+./start-dev.sh restart
 ```
 
-> 旧的 `run-backend.ps1` / `run-frontend.ps1` 保留为内部子命令入口；当 `start-dev.ps1` 抛错需要手工排查时仍可单独使用。
+> 旧的 `run-backend.ps1` / `run-frontend.ps1` 已删除，所有"启动本地服务"操作统一通过 `start-dev.ps1` / `start-dev.sh`。Docker 全栈部署仍走 `docker compose up -d`（详见 §4.4）。
 
 ### 28.5 已清理文件清单（v1.7.0 Step 6 + Step 9）
 
@@ -3722,7 +3809,7 @@ backend/src/main/java/cn/geosentry/
 ### 文档版本与维护
 
 - **当前文档版本**：v1.7.0（与代码库同步）
-- **代码仓库版本**：`package.json` 中 `geohazard-inspection-dashboard@1.0.0`
+- **代码仓库版本**：`package.json` 中 `disasterguard-frontend@1.0.0`
 - **维护说明**：本文档与代码仓库同源迭代。当新增功能模块、修改配置项、调整 API 或修改数据库表结构时，**必须同步更新对应章节**，否则新人 onboarding 与生产排障会偏离实际实现。
 - **变更节奏**：
   - **§1–§15**（核心开发文档）：版本稳定，每个 PR 都可能微调
@@ -3733,13 +3820,12 @@ backend/src/main/java/cn/geosentry/
 
 ### 反馈与协作
 
-- **仓库地址**：`D:\earthquake`（当前开发仓库根目录）
-- **配套脚本**：
-  - `run-backend.ps1` — Windows 一键启动后端（自动停 Docker backend + 端口检查 + 设置环境变量）
-  - `run-frontend.ps1` — Windows 一键启动前端（自动停 Docker frontend + 端口检查）
-  - `scripts/gen_data_sql.py` — 重新生成 `data.sql` 种子数据
+- **仓库地址**：`D:\DisasterGuard`（当前开发仓库根目录）
+- **配套脚本 / 一键启动**：
+  - `start-dev.ps1` / `start-dev.sh` — 跨平台一键启动（后端 / 前端 / AI / Infra / Status / Doctor，详见 §28.4）
+  - `scripts/db/gen_data_sql.py` — 重新生成 `data.sql` 种子数据
 - **Swagger UI**：`http://localhost:8080/swagger-ui.html`（SpringDoc OpenAPI 2.8.0）
-- **ai-service 文档**：`http://localhost:8000/api/ai/docs`（FastAPI 自动文档）
+- **ai-service 文档**：`http://localhost:8001/docs`（FastAPI 自动文档，注意端口已统一为 **8001**）
 
 ---
 

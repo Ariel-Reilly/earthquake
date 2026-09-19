@@ -3,11 +3,11 @@ server:
 
 spring:
   application:
-    name: geosentry-backend
+    name: disasterguard-backend
   datasource:
-    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:geosentry}
-    username: ${POSTGRES_USER:geosentry}
-    password: ${POSTGRES_PASSWORD:geosentry123}
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:disasterguard}
+    username: ${POSTGRES_USER:disasterguard}
+    password: ${POSTGRES_PASSWORD:disasterguard123}
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
@@ -45,7 +45,7 @@ springdoc:
   kotlin:
     enabled: false
 
-geosentry:
+disasterguard:
   frontend-origin: ${FRONTEND_ORIGIN:http://localhost:5173}
   security:
     dev-users-enabled: ${DEV_USERS_ENABLED:false}
@@ -55,9 +55,9 @@ geosentry:
     # 应用启动时会校验密钥强度，若检测到弱密钥将拒绝启动。
     secret: ${JWT_SECRET:}
     expire: ${JWT_EXPIRE:PT2H}
-    issuer: ${JWT_ISSUER:geosentry}
+    issuer: ${JWT_ISSUER:disasterguard}
   file-base-url: ${FILE_BASE_URL:http://localhost:9000}
-  # 气象数据接入（NSMC / NMC 公开资源）。详见 cn.geosentry.weather.WeatherService。
+  # 气象数据接入（NSMC / NMC 公开资源）。详见 cn.disasterguard.weather.WeatherService。
   weather:
     cache-enabled: ${WEATHER_CACHE_ENABLED:true}
     cache-ttl-seconds: ${WEATHER_CACHE_TTL_SECONDS:300}
@@ -75,7 +75,7 @@ geosentry:
   warning:
     rule-engine-enabled: ${RULE_ENGINE_ENABLED:true}
     rule-engine-cron: ${RULE_ENGINE_CRON:*/30 * * * * *}
-  # AI 综合分析（全项目后台引擎）：落库调度 + AI 分联动预警。详见 cn.geosentry.ai.service.AiInsightService
+  # AI 综合分析（全项目后台引擎）：落库调度 + AI 分联动预警。详见 cn.disasterguard.ai.service.AiInsightService
   ai:
     comprehensive-scheduler-cron: ${AI_COMPREHENSIVE_CRON:0 */5 * * * *}
     comprehensive-to-warning-cron: ${AI_TO_WARNING_CRON:0 */10 * * * *}
@@ -106,7 +106,7 @@ geosentry:
     ticket-ttl-seconds: ${WS_TICKET_TTL_SEC:60}
 
 ai:
-  service-base-url: ${AI_SERVICE_BASE_URL:http://localhost:8000/api/ai}
+  service-base-url: ${AI_SERVICE_BASE_URL:http://localhost:8001/api/ai}
   enabled: ${AI_ENABLED:true}
   timeout-ms: ${AI_TIMEOUT_MS:30000}
   scheduler-enabled: ${AI_SCHEDULER_ENABLED:false}
@@ -115,24 +115,24 @@ ai:
 
 minio:
   endpoint: ${MINIO_ENDPOINT:http://localhost:19000}
-  access-key: ${MINIO_ACCESS_KEY:geosentry}
+  access-key: ${MINIO_ACCESS_KEY:disasterguard}
   # ⚠️ 生产环境必须修改为强随机密钥（建议 24+ 字符）。
   # MINIO_SECRET_KEY 必须为强密码：长度 ≥ 16，不含常见弱密码模式。
   # 生成方式：openssl rand -base64 32
   secret-key: ${MINIO_SECRET_KEY:CHANGE_ME_24chars_minio_secret_key_2024}
-  bucket: ${MINIO_BUCKET:geosentry}
+  bucket: ${MINIO_BUCKET:disasterguard}
 
 emqx:
   mqtt-url: ${EMQX_MQTT_URL:tcp://localhost:11883}
-  client-id: ${EMQX_CLIENT_ID:geosentry-backend}
-  topic: ${EMQX_DATA_TOPIC:geohazard/+/data}
+  client-id: ${EMQX_CLIENT_ID:disasterguard-backend}
+  topic: ${EMQX_DATA_TOPIC:disasterguard/+/data}
   qos: ${EMQX_DATA_QOS:1}
   enabled: ${EMQX_ENABLED:true}
   username: ${EMQX_USERNAME:}
   password: ${EMQX_PASSWORD:}
 
 tdengine:
-  url: ${TDENGINE_URL:jdbc:TAOS-RS://localhost:6041/geohazard}
+  url: ${TDENGINE_URL:jdbc:TAOS-RS://localhost:6041/disasterguard}
   username: ${TDENGINE_USERNAME:root}
   password: ${TDENGINE_PASSWORD:taosdata}
   enabled: ${TDENGINE_ENABLED:false}

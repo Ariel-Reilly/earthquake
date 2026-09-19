@@ -6,7 +6,7 @@ spring:
       mode: never
 
 # prod profile：覆盖所有安全敏感配置为严格模式（防止用户忘记在环境变量中设置）
-geosentry:
+disasterguard:
   security:
     dev-users-enabled: false
   device:

@@ -1,5 +1,5 @@
 -- =====================================================================
--- GeoSentry v2.0.0 数据初始化脚本（幂等：ON CONFLICT DO NOTHING）
+-- DisasterGuard v2.0.0 数据初始化脚本（幂等：ON CONFLICT DO NOTHING）
 -- 初始化顺序：字典 → 权限 → 角色 → 用户 → 菜单 → 区域
 --           → 系统配置 → AI模型 → 数据源 → 同步任务
 --           → 规则引擎 → 设备 → 灾害 → AI分析 → 预警 → 应急
@@ -499,13 +499,13 @@ ON CONFLICT (role_id, perm_code) DO NOTHING;
 -- 密码：admin123 → BCrypt($2b$10$): $2b$10$e7J.wokpqTMslzHzJq/ateJNEhEnLh/pgz0gXB1HEv1mp6qDaI5pq
 -- =====================================================================
 INSERT INTO sys_user (username, password_hash, real_name, phone, email, role_code, region_code, status) VALUES
-('admin',        '$2b$10$e7J.wokpqTMslzHzJq/ateJNEhEnLh/pgz0gXB1HEv1mp6qDaI5pq', '李晨曦',  '13800000001', 'admin@geosentry.com',       'admin',               '500000', '启用'),
-('sysadmin',     '$2b$10$e7J.wokpqTMslzHzJq/ateJNEhEnLh/pgz0gXB1HEv1mp6qDaI5pq', '王建国',  '13800000002', 'sysadmin@geosentry.com',     'system_admin',        '500000', '启用'),
-('commander',    '$2b$10$e7J.wokpqTMslzHzJq/ateJNEhEnLh/pgz0gXB1HEv1mp6qDaI5pq', '赵明远',  '13800000003', 'cmd@geosentry.com',          'emergency_commander', '500000', '启用'),
-('duty',         '$2b$10$e7J.wokpqTMslzHzJq/ateJNEhEnLh/pgz0gXB1HEv1mp6qDaI5pq', '周小雨',  '13800000004', 'duty@geosentry.com',         'attendant',           '500103', '启用'),
-('expert',       '$2b$10$e7J.wokpqTMslzHzJq/ateJNEhEnLh/pgz0gXB1HEv1mp6qDaI5pq', '张海燕',  '13800000005', 'expert@geosentry.com',       'expert',              '500106', '启用'),
-('aiengineer',   '$2b$10$e7J.wokpqTMslzHzJq/ateJNEhEnLh/pgz0gXB1HEv1mp6qDaI5pq', '陈志远',  '13800000006', 'ai@geosentry.com',           'ai_engineer',         '500109', '启用'),
-('fieldops',     '$2b$10$e7J.wokpqTMslzHzJq/ateJNEhEnLh/pgz0gXB1HEv1mp6qDaI5pq', '刘强',    '13800000007', 'ops@geosentry.com',          'maintenance',         '500103', '启用')
+('admin',        '$2b$10$e7J.wokpqTMslzHzJq/ateJNEhEnLh/pgz0gXB1HEv1mp6qDaI5pq', '李晨曦',  '13800000001', 'admin@disasterguard.com',       'admin',               '500000', '启用'),
+('sysadmin',     '$2b$10$e7J.wokpqTMslzHzJq/ateJNEhEnLh/pgz0gXB1HEv1mp6qDaI5pq', '王建国',  '13800000002', 'sysadmin@disasterguard.com',     'system_admin',        '500000', '启用'),
+('commander',    '$2b$10$e7J.wokpqTMslzHzJq/ateJNEhEnLh/pgz0gXB1HEv1mp6qDaI5pq', '赵明远',  '13800000003', 'cmd@disasterguard.com',          'emergency_commander', '500000', '启用'),
+('duty',         '$2b$10$e7J.wokpqTMslzHzJq/ateJNEhEnLh/pgz0gXB1HEv1mp6qDaI5pq', '周小雨',  '13800000004', 'duty@disasterguard.com',         'attendant',           '500103', '启用'),
+('expert',       '$2b$10$e7J.wokpqTMslzHzJq/ateJNEhEnLh/pgz0gXB1HEv1mp6qDaI5pq', '张海燕',  '13800000005', 'expert@disasterguard.com',       'expert',              '500106', '启用'),
+('aiengineer',   '$2b$10$e7J.wokpqTMslzHzJq/ateJNEhEnLh/pgz0gXB1HEv1mp6qDaI5pq', '陈志远',  '13800000006', 'ai@disasterguard.com',           'ai_engineer',         '500109', '启用'),
+('fieldops',     '$2b$10$e7J.wokpqTMslzHzJq/ateJNEhEnLh/pgz0gXB1HEv1mp6qDaI5pq', '刘强',    '13800000007', 'ops@disasterguard.com',          'maintenance',         '500103', '启用')
 ON CONFLICT (username) DO NOTHING;
 
 -- =====================================================================
@@ -641,6 +641,30 @@ INSERT INTO warning_rule (rule_code, rule_name, metric_code, expression, warning
 ON CONFLICT (rule_code) DO NOTHING;
 
 -- =====================================================================
+-- 12. 灾害事件源 unified_event（v2.1.0 Task#1 P1：hazard_point 是该表视图源）
+--   * 必须在 monitoring_device / ai_comprehensive_score / inspection_task /
+--     warning_event / emergency_event / confirmation_task 等 hazard_code
+--     外键 INSERT 之前执行，否则 hazard_point 视图还没有 HZ-xxx 数据，
+--     子表 INSERT 会违反 fk_*_hazard 外键。
+--   * v2.1.0 起 hazard_point 是 unified_event WHERE kind='HAZARD' 的视图，
+--     下面直接 INSERT INTO unified_event 让 ON CONFLICT 与部分唯一索引
+--     (uq_unified_hazard_code) 显式匹配，避免视图重写时 ON CONFLICT 推断失败。
+--   * 旧脚本兼容：本 INSERT 通过 hazard_point 视图也能跑（自动可写视图），
+--     但 seed 阶段建议直接走统一事件源表。
+-- =====================================================================
+INSERT INTO unified_event (
+  kind, event_code, state, source,
+  hazard_code, name, hazard_type, risk_level, region_code, owner, hazard_status,
+  longitude, latitude, geom, threat_object, hazard_source, discovered_at, detection_confidence
+) VALUES
+('HAZARD','EVT-HZ-001','DETECTED','AI_AUTO','HZ-001','青龙坡滑坡隐患点','landslide','高风险','500109','北碚区自然资源局','位移+12mm',106.4500,29.5600,ST_SetSRID(ST_MakePoint(106.4500,29.5600),4326),'青龙坡居民区（30户）','AI_MONITOR',NOW() - INTERVAL '3 hour',0.86),
+('HAZARD','EVT-HZ-002','DETECTED','AI_AUTO','HZ-002','歌乐山崩塌隐患','collapse','中风险','500106','沙坪坝区应急局','裂缝18mm',106.4300,29.5700,ST_SetSRID(ST_MakePoint(106.4300,29.5700),4326),'歌乐山小学（500师生）','AI_MONITOR',NOW() - INTERVAL '5 hour',0.78),
+('HAZARD','EVT-HZ-003','DETECTED','AI_AUTO','HZ-003','嘉陵江洪涝风险','flood','高风险','500103','渝中区水务局','警戒水位',106.5780,29.5600,ST_SetSRID(ST_MakePoint(106.4500,29.5600),4326),'千厮门历史街区','DEVICE',NOW() - INTERVAL '6 hour',0.93),
+('HAZARD','EVT-HZ-004','DETECTED','AI_AUTO','HZ-004','歇马泥石流沟','debris_flow','中风险','500109101','北碚区应急局','沟道淤积',106.4350,29.8350,ST_SetSRID(ST_MakePoint(106.4350,29.8350),4326),'歇马镇主街道','MANUAL',NOW() - INTERVAL '2 day',0.71),
+('HAZARD','EVT-HZ-005','DETECTED','AI_AUTO','HZ-005','石门沟地裂缝','ground_fissure','低风险','500109102','蔡家岗镇政府','缝宽2.1mm',106.4700,29.7800,ST_SetSRID(ST_MakePoint(106.4700,29.7800),4326),'农田与村道','DEVICE',NOW() - INTERVAL '7 day',0.65)
+ON CONFLICT (hazard_key) DO NOTHING;
+
+-- =====================================================================
 -- 11. 监测设备 monitoring_device（替换旧4台，新增演示设备）
 -- =====================================================================
 INSERT INTO monitoring_device (device_code, device_name, device_type, hazard_code, region_code, online_status, battery_level, signal_level, last_report_at, install_location, longitude, latitude, geom) VALUES
@@ -661,23 +685,9 @@ ON CONFLICT (device_code) DO NOTHING;
 
 -- =====================================================================
 -- 12. 灾害点 hazard_point（v2.1.0 Task#1 P1：写入 unified_event 视图源）
---   * v2.1.0 起 hazard_point 是 unified_event WHERE kind='HAZARD' 的视图，
---     下面直接 INSERT INTO unified_event 让 ON CONFLICT 与部分唯一索引
---     (uq_unified_hazard_code) 显式匹配，避免视图重写时 ON CONFLICT 推断失败。
---   * 旧脚本兼容：本 INSERT 通过 hazard_point 视图也能跑（自动可写视图），
---     但 seed 阶段建议直接走统一事件源表。
+--   * 本段已上移到 11 之前执行（统一事件源必须先于所有 hazard_code 外键 INSERT）。
+--   * v2.1.0 起 hazard_point 是 unified_event WHERE kind='HAZARD' 的视图。
 -- =====================================================================
-INSERT INTO unified_event (
-  kind, event_code, state, source,
-  hazard_code, name, hazard_type, risk_level, region_code, owner, hazard_status,
-  longitude, latitude, geom, threat_object, hazard_source, discovered_at, detection_confidence
-) VALUES
-('HAZARD','EVT-HZ-001','DETECTED','AI_AUTO','HZ-001','青龙坡滑坡隐患点','landslide','高风险','500109','北碚区自然资源局','位移+12mm',106.4500,29.5600,ST_SetSRID(ST_MakePoint(106.4500,29.5600),4326),'青龙坡居民区（30户）','AI_MONITOR',NOW() - INTERVAL '3 hour',0.86),
-('HAZARD','EVT-HZ-002','DETECTED','AI_AUTO','HZ-002','歌乐山崩塌隐患','collapse','中风险','500106','沙坪坝区应急局','裂缝18mm',106.4300,29.5700,ST_SetSRID(ST_MakePoint(106.4300,29.5700),4326),'歌乐山小学（500师生）','AI_MONITOR',NOW() - INTERVAL '5 hour',0.78),
-('HAZARD','EVT-HZ-003','DETECTED','AI_AUTO','HZ-003','嘉陵江洪涝风险','flood','高风险','500103','渝中区水务局','警戒水位',106.5780,29.5600,ST_SetSRID(ST_MakePoint(106.5780,29.5600),4326),'千厮门历史街区','DEVICE',NOW() - INTERVAL '6 hour',0.93),
-('HAZARD','EVT-HZ-004','DETECTED','AI_AUTO','HZ-004','歇马泥石流沟','debris_flow','中风险','500109101','北碚区应急局','沟道淤积',106.4350,29.8350,ST_SetSRID(ST_MakePoint(106.4350,29.8350),4326),'歇马镇主街道','MANUAL',NOW() - INTERVAL '2 day',0.71),
-('HAZARD','EVT-HZ-005','DETECTED','AI_AUTO','HZ-005','石门沟地裂缝','ground_fissure','低风险','500109102','蔡家岗镇政府','缝宽2.1mm',106.4700,29.7800,ST_SetSRID(ST_MakePoint(106.4700,29.7800),4326),'农田与村道','DEVICE',NOW() - INTERVAL '7 day',0.65)
-ON CONFLICT (hazard_key) DO NOTHING;
 
 -- =====================================================================
 -- 13. AI 综合评分 ai_comprehensive_score（每个灾害点一条最新）
@@ -883,15 +893,15 @@ ON CONFLICT DO NOTHING;
 INSERT INTO file_attachment (business_type, business_code, file_name, file_size, file_type, storage_path, file_url, uploader)
 SELECT * FROM (VALUES
   ('"hazard"'::jsonb,'HZ-001','青龙坡现场照片.jpg',    1240000,'image/jpeg',
-   'hazard/HZ-001/现场照片.jpg','/geosentry/hazard/HZ-001/现场照片.jpg','duty'),
+   'hazard/HZ-001/现场照片.jpg','/disasterguard/hazard/HZ-001/现场照片.jpg','duty'),
   ('"hazard"'::jsonb,'HZ-002','歌乐山裂缝照片.jpg',    980000, 'image/jpeg',
-   'hazard/HZ-002/裂缝照片.jpg','/geosentry/hazard/HZ-002/裂缝照片.jpg','expert'),
+   'hazard/HZ-002/裂缝照片.jpg','/disasterguard/hazard/HZ-002/裂缝照片.jpg','expert'),
   ('"task"'::jsonb,  'TK-001','雨后巡检轨迹.kml',     86000, 'application/vnd.google-earth.kml+xml',
-   'task/TK-001/巡检轨迹.kml','/geosentry/task/TK-001/巡检轨迹.kml','duty'),
+   'task/TK-001/巡检轨迹.kml','/disasterguard/task/TK-001/巡检轨迹.kml','duty'),
   ('"warning"'::jsonb,'WG-001','嘉陵江水位监测.jpg',   1450000,'image/jpeg',
-   'warning/WG-001/水位监测.jpg','/geosentry/warning/WG-001/水位监测.jpg','commander'),
+   'warning/WG-001/水位监测.jpg','/disasterguard/warning/WG-001/水位监测.jpg','commander'),
   ('"hazard"'::jsonb,'HZ-003','堤防检查报告.pdf',     2340000,'application/pdf',
-   'hazard/HZ-003/检查报告.pdf','/geosentry/hazard/HZ-003/检查报告.pdf','fieldops')
+   'hazard/HZ-003/检查报告.pdf','/disasterguard/hazard/HZ-003/检查报告.pdf','fieldops')
 ) AS v(business_type, business_code, file_name, file_size, file_type, storage_path, file_url, uploader)
 WHERE NOT EXISTS (SELECT 1 FROM file_attachment LIMIT 1);
 
@@ -900,13 +910,13 @@ WHERE NOT EXISTS (SELECT 1 FROM file_attachment LIMIT 1);
 -- =====================================================================
 INSERT INTO user_profile (username, display_name, phone, email, department)
 SELECT * FROM (VALUES
-  ('admin',       '李晨曦（管理员）','13800000001','admin@geosentry.com',      '系统管理部'),
-  ('sysadmin',    '王建国',         '13800000002','sysadmin@geosentry.com',   '信息技术部'),
-  ('commander',   '赵明远',         '13800000003','cmd@geosentry.com',         '应急指挥中心'),
-  ('duty',        '周小雨',         '13800000004','duty@geosentry.com',        '值班室'),
-  ('expert',      '张海燕',         '13800000005','expert@geosentry.com',      '地质专家库'),
-  ('aiengineer',  '陈志远',         '13800000006','ai@geosentry.com',          'AI研发部'),
-  ('fieldops',    '刘强',           '13800000007','ops@geosentry.com',         '设备运维部')
+  ('admin',       '李晨曦（管理员）','13800000001','admin@disasterguard.com',      '系统管理部'),
+  ('sysadmin',    '王建国',         '13800000002','sysadmin@disasterguard.com',   '信息技术部'),
+  ('commander',   '赵明远',         '13800000003','cmd@disasterguard.com',         '应急指挥中心'),
+  ('duty',        '周小雨',         '13800000004','duty@disasterguard.com',        '值班室'),
+  ('expert',      '张海燕',         '13800000005','expert@disasterguard.com',      '地质专家库'),
+  ('aiengineer',  '陈志远',         '13800000006','ai@disasterguard.com',          'AI研发部'),
+  ('fieldops',    '刘强',           '13800000007','ops@disasterguard.com',         '设备运维部')
 ) AS v(username, display_name, phone, email, department)
 WHERE NOT EXISTS (SELECT 1 FROM user_profile LIMIT 1);
 

@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS operation_log_archive (
 
 -- 2) 一次性归档命令（可直接执行或由 pg_cron 调度）
 --    参数：RETENTION_DAYS（默认 90 天）
---    典型用法：SET LOCAL geosentry.retention_days = 90; 然后调用 archive_operation_logs()
+--    典型用法：SET LOCAL disasterguard.retention_days = 90; 然后调用 archive_operation_logs()
 CREATE OR REPLACE FUNCTION archive_operation_logs(retention_days INT DEFAULT 90)
 RETURNS TABLE(migrated INT, deleted INT) AS $$
 DECLARE

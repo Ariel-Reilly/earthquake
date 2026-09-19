@@ -132,7 +132,7 @@ npm run lint
   - 类/接口：`PascalCase`
   - 方法/字段：`camelCase`
   - 常量：`UPPER_SNAKE_CASE`
-- **包结构**：`cn.geosentry.<domain>.<layer>`，如 `cn.geosentry.hazard.controller`
+- **包结构**：`cn.disasterguard.<domain>.<layer>`，如 `cn.disasterguard.hazard.controller`
 - **Controller**：薄层（参数解析 + 调 service + 返回 DTO）
 - **Service**：业务逻辑 + 事务边界
 - **Repository**：纯 JPA 接口
@@ -249,7 +249,7 @@ npm run lint
 ## 9. 问题反馈
 
 - **Bug** → GitHub Issues
-- **安全问题** → 邮件 `security@geosentry.cn`（**不要**开 Issue）
+- **安全问题** → 邮件 `security@disasterguard.cn`（**不要**开 Issue）
 - **功能建议** → GitHub Discussions
 
 ---

@@ -1,0 +1,57 @@
+# =============================================================================
+# DisasterGuard 后端多阶段 Dockerfile
+# Stage 1: Maven 构建（含可选的 TDengine JDBC 驱动预下载）
+# Stage 2: Eclipse Temurin 17 JRE 运行（仅 runtime 依赖）
+# =============================================================================
+
+# Stage 1: Build
+FROM maven:3.9.9-eclipse-temurin-17 AS builder
+
+# TDengine JDBC 可选驱动（pom.xml scope=provided，需要手动放入 classpath）
+# 默认版本可通过 build-arg 覆盖
+ARG TDENGINE_JDBC_VERSION=3.3.0
+ENV TDENGINE_JDBC_VERSION=${TDENGINE_JDBC_VERSION}
+
+WORKDIR /app
+
+# 利用 Docker 层缓存：先复制 pom.xml 让 Maven 下载所有依赖
+COPY backend/pom.xml ./
+RUN mvn -q dependency:go-offline -B
+
+# 下载 TDengine JDBC 驱动到本地仓库（如驱动缺失仍继续构建，仅在运行时 TDENGINE_ENABLED=true 才需要）
+RUN if command -v mvn >/dev/null 2>&1; then \
+      mvn -q dependency:get \
+        -Dartifact=com.taosdata.jdbc:taos-jdbcdriver:${TDENGINE_JDBC_VERSION} \
+        -Dtransitive=false -B || echo "[docker] TDengine JDBC 不可从 Maven Central 获取，跳过下载"; \
+    fi
+
+# 复制源码并打包
+COPY backend/src ./src
+RUN mvn -q clean package -DskipTests -B
+
+# 把 TDengine JDBC 从本地仓库拷到 /app/optional-lib/（运行时通过 -cp 加载）
+RUN mkdir -p /app/optional-lib && \
+    TDENGINE_JAR=$(find /root/.m2/repository/com/taosdata -name "taos-jdbcdriver-*.jar" 2>/dev/null | head -n1) && \
+    if [ -n "$TDENGINE_JAR" ]; then cp "$TDENGINE_JAR" /app/optional-lib/ && echo "[docker] TDengine JDBC 已放置"; \
+    else echo "[docker] TDengine JDBC 未下载（非关键，仅 TDENGINE_ENABLED=true 时需要）"; fi
+
+# Stage 2: Runtime
+FROM eclipse-temurin:17-jre-alpine
+
+WORKDIR /app
+
+# 从 builder 复制可执行 jar（Spring Boot fat jar 命名为 disasterguard-backend.jar）
+COPY --from=builder /app/target/*.jar /app/app.jar
+# 复制可选 TDengine JDBC
+COPY --from=builder /app/optional-lib /app/optional-lib
+
+# 时区 + 健康检查依赖（curl 用于 docker-compose healthcheck）
+ENV TZ=Asia/Shanghai
+RUN apk add --no-cache tzdata curl && \
+    ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
+EXPOSE 8080
+
+# 启动命令：始终把 optional-lib/* 放入 classpath（Spring Boot JarLauncher 机制）
+# 如果目录为空，通配符匹配空集不影响 fat jar 正常运行
+ENTRYPOINT ["sh", "-c", "java -cp /app/app.jar:/app/optional-lib/* org.springframework.boot.loader.launch.JarLauncher"]

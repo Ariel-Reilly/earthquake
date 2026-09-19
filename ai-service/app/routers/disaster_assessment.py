@@ -455,7 +455,7 @@ async def disaster_assessment_status():
         "base_weights": BASE_WEIGHTS,
         "device_present_weights": {"geographic": 0.50, "precipitation": 0.40, "device": 0.10},
         "device_absent_weights": {"geographic": 0.55, "precipitation": 0.45, "device": 0.0},
-        "type_hint_count": {k: len(v) for k, v in m.TYPE_HINTS.items()},
+        "type_hint_count": {k: len(v) for k, v in m.TYPE_FEATURES.items()},
     }
 
 

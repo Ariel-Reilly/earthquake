@@ -1,8 +1,8 @@
-# 地脉智巡 · 地质灾害智能巡检与预警管理平台
+# 御灾智巡 · 基于多源数据融合与AI智能研判的自然灾害监测预警与应急指挥平台
 
-> Geohazard Inspection Dashboard (GeoSentry) · v1.7.0
+> DisasterGuard · v1.7.0
 
-基于 **Spring Boot 3 + Vue 3 + FastAPI** 的一体化地质灾害监测、巡检、预警与应急响应平台。
+基于 **Spring Boot 3 + Vue 3 + FastAPI** 的一体化自然灾害监测、巡检、预警与应急响应平台。
 
 ---
 
@@ -25,32 +25,46 @@
 #### Windows PowerShell
 
 ```powershell
-# 1. 启动基础设施
-.\start-dev.ps1 -Infra -Up
+# 方式 A：一键全栈（后台并行启动，推荐）
+.\start-dev.ps1 -All              # 立即返回，所有服务在后台运行
+.\start-dev.ps1 -All -Wait        # 等全部就绪后报告（约 30–60 秒）
 
-# 2. 另开三个终端分别启动（推荐在 PowerShell 7+ 中同时运行）
-.\start-dev.ps1 -Backend
-.\start-dev.ps1 -Ai
-.\start-dev.ps1 -Frontend
+# 方式 B：分终端启动（各占一个终端窗口）
+.\start-dev.ps1 -Infra -Up       # 首次需启动 Docker 基础设施
+.\start-dev.ps1 -Backend          # 终端 1
+.\start-dev.ps1 -Ai               # 终端 2
+.\start-dev.ps1 -Frontend         # 终端 3
 
-# 3. 健康度速览（端口 / Docker / Git）
-.\start-dev.ps1 -Status
-
-# 4. 常见问题诊断
-.\start-dev.ps1 -Doctor
+# 日常运维
+.\start-dev.ps1 -Status           # 健康度速览（端口 / Docker / Git）
+.\start-dev.ps1 -Doctor          # 诊断依赖问题
+.\start-dev.ps1 -Stop            # 停止所有本地服务
+.\start-dev.ps1 -Restart         # 重启所有服务
 ```
 
 #### Linux / macOS / WSL
 
 ```bash
 chmod +x start-dev.sh
-./start-dev.sh infra up
-./start-dev.sh backend    # 终端 1
-./start-dev.sh ai         # 终端 2
-./start-dev.sh frontend   # 终端 3
-./start-dev.sh status     # 健康度速览
-./start-dev.sh doctor     # 诊断常见问题
+
+# 方式 A：一键全栈（后台并行启动）
+./start-dev.sh all               # 立即返回
+./start-dev.sh all --wait       # 等全部就绪后报告
+
+# 方式 B：分终端启动
+./start-dev.sh infra up         # 首次需启动 Docker 基础设施
+./start-dev.sh backend          # 终端 1
+./start-dev.sh ai               # 终端 2
+./start-dev.sh frontend         # 终端 3
+
+# 日常运维
+./start-dev.sh status           # 健康度速览
+./start-dev.sh doctor           # 诊断依赖问题
+./start-dev.sh stop             # 停止所有服务
+./start-dev.sh restart          # 重启所有服务
 ```
+
+> **注意：** `run-frontend.ps1` 和 `run-backend.ps1` 已删除，功能已合并到 `start-dev.ps1` / `start-dev.sh`（统一入口）。
 
 ### 方法 2：Docker Compose（一体化）
 
@@ -117,9 +131,12 @@ docker compose up -d
 
 | 文档 | 路径 | 内容 |
 |---|---|---|
-| **架构总览** | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 系统分层、数据流、模块依赖 |
-| **开发者文档** | [docs/DEVELOPER.md](docs/DEVELOPER.md) | API、数据库、权限、部署、二次开发 |
-| **状态机详解** | [docs/UNIFIED_EVENT_STATEMACHINE.md](docs/UNIFIED_EVENT_STATEMACHINE.md) | 统一事件中心 7 状态×12 转移 |
+| **文档索引** | [docs/README.md](docs/README.md) | 按"了解 → 开发 → 运维 → 接口"的阅读路径组织 |
+| **架构总览** | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 系统分层、数据流、模块依赖、关键时序图 |
+| **开发者文档** | [docs/DEVELOPER.md](docs/DEVELOPER.md) | 开发环境、技术栈、API、数据库、权限、部署、二次开发 |
+| **前端接口对照** | [docs/FRONTEND_API.md](docs/FRONTEND_API.md) | 前端功能 ↔ 后端 REST 接口完整映射 |
+| **统一事件状态机** | [docs/UNIFIED_EVENT_STATEMACHINE.md](docs/UNIFIED_EVENT_STATEMACHINE.md) | 统一事件中心 7 状态 × 12 转移 |
+| **Copernicus 接入** | [docs/CDSE_SETUP.md](docs/CDSE_SETUP.md) | CDSE OAuth + Sentinel-1/2 STAC fallback 链路 |
 | **变更日志** | [CHANGELOG.md](CHANGELOG.md) | 版本演进记录 |
 | **贡献指南** | [CONTRIBUTING.md](CONTRIBUTING.md) | 提交规范、代码风格、PR 流程 |
 
@@ -170,7 +187,7 @@ earthquake/
 │   ├── stores/                   # Pinia store（auth / realtime / userPreference）
 │   └── utils/                    # 工具函数（坐标转换 / 格式化）
 ├── backend/                      # Spring Boot 后端
-│   └── src/main/java/cn/geosentry/
+│   └── src/main/java/cn/disasterguard/
 │       ├── auth/                 # 认证 + 权限
 │       ├── hazard/               # 灾害事件
 │       ├── warning/              # 预警
@@ -189,21 +206,31 @@ earthquake/
 │       ├── models/               # 模型推理
 │       ├── schemas/              # Pydantic schema
 │       └── training/             # 训练流水线
-├── scripts/                      # 维护脚本（8 个）
-│   ├── audit_db.py               # 数据库 schema 审计（字段 / 索引 / 关系 / JSONB）
-│   ├── backfill_unified_event_hazards.py  # 统一事件中心历史数据回填
-│   ├── smoke_test_schema.py      # 启动前 schema 健康检查
-│   ├── gen_data_sql.py           # 生成 seed 数据 SQL
-│   ├── diagnose-schema-drift.ps1 # 诊断 DB schema 与 schema.sql 漂移
-│   ├── fix-db-volume.ps1         # 重建 Postgres 数据卷（漂移严重时）
-│   ├── check_jsonb_sql.py        # data.sql JSONB 字面量校验
-│   └── oneclick-fix.mjs          # 一键修复脚本（==/!= → ===/!==，由 `npm run fix` 调用）
+├── scripts/                      # 维护脚本（按职责归档到 4 个子目录，详见 scripts/README.md）
+│   ├── db/                       # 数据库：schema 审计 / 数据回填 / 种子生成
+│   │   ├── audit_db.py
+│   │   ├── backfill_unified_event_hazards.py
+│   │   ├── gen_data_sql.py
+│   │   ├── smoke_test_schema.py
+│   │   └── check_jsonb_sql.py
+│   ├── audit/                    # 代码 / 数据一致性审计
+│   │   ├── orphan_endpoint_scan.py
+│   │   ├── empty_feats.py
+│   │   └── diagnose-schema-drift.ps1
+│   ├── fix/                      # 一次性修复（保留以备复用）
+│   │   ├── oneclick-fix.mjs      # 由 `npm run fix` 调用
+│   │   └── fix-db-volume.ps1
+│   └── env/                      # 端口 / 进程 / 环境变量探针
+│       ├── check-ports.ps1
+│       ├── check-procs.ps1
+│       └── wait-docker.ps1
 ├── docs/                         # 开发者文档
-│   ├── ARCHITECTURE.md
-│   ├── DEVELOPER.md
-│   ├── UNIFIED_EVENT_STATEMACHINE.md
-│   └── archive/
-│       └── STRUCTURE_OPTIMIZATION_PLAN.md   # 历史重构方案（已落地，仅留档）
+│   ├── README.md                 # 文档索引（阅读路径建议）
+│   ├── ARCHITECTURE.md           # 架构总览
+│   ├── DEVELOPER.md              # 开发者文档（核心参考）
+│   ├── FRONTEND_API.md           # 前端功能 ↔ 接口对照
+│   ├── UNIFIED_EVENT_STATEMACHINE.md  # 统一事件状态机
+│   └── CDSE_SETUP.md             # Copernicus Data Space 接入指南
 ├── infra/                        # 基础设施初始化
 │   ├── emqx/                     # EMQX 认证
 │   ├── nginx/                    # 生产 Nginx
@@ -212,10 +239,10 @@ earthquake/
 ├── tests/                        # 测试
 ├── docker-compose.yml            # 开发模式
 ├── docker-compose.prod.yml       # 生产模式
-├── Dockerfile.backend
-├── Dockerfile.frontend
-├── start-dev.ps1                 # Windows 一键启动
-├── start-dev.sh                  # Linux/Mac 一键启动
+├── backend/Dockerfile            # 后端多阶段构建
+├── frontend/Dockerfile           # 前端多阶段构建（node 构建 + nginx 运行）
+├── start-dev.ps1                 # Windows 一键启动（统一入口）
+├── start-dev.sh                  # Linux/Mac/WSL 一键启动（统一入口）
 ├── .env.example
 ├── CHANGELOG.md
 ├── CONTRIBUTING.md
@@ -239,4 +266,4 @@ earthquake/
 
 ## 📜 许可证
 
-学生创业项目 · Copyright © 2025-2026 GeoSentry Team
+学生创业项目 · Copyright © 2025-2026 DisasterGuard Team

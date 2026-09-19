@@ -1,13 +1,13 @@
 # ===== Node.js / Frontend =====
-node_modules/
-dist/
+frontend/node_modules/
+frontend/dist/
 .DS_Store
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
-.vite/
+frontend/.vite/
 
 # ===== Java / Maven / Spring Boot =====
 backend/target/
@@ -98,3 +98,28 @@ coverage/
 
 # ===== Data Volume Roots (Docker 挂载，根目录级) =====
 /data/
+
+# ===== 一次性诊断输出 / 调试中间文件 =====
+# 各脚本（probe-*.ps1 / check-*.ps1 / audit-*.ps1）的输出落到 <name>-out.txt，约定为临时文件，不入库
+*-out.txt
+*.out.txt
+# 早期调试遗留的 GBK/UTF-8 输出 & 报告
+*-report.txt
+*-log.txt
+# 临时 SQL 片段（probe-stmt*.ps1 抽取 schema.sql 片段调试，产物不入库）
+statement*.sql
+# ai-service 偶发写入根目录的日志文件（Windows 启动脚本调试残留）
+ai-service/$aiLog
+ai-service/$*.Log
+# AI 服务运行期产物（合成图、差异图、SAR / 真彩 PNG / JPG）
+# 体积较大且可由接口按需重建，禁用入版本库
+ai-service/outputs/
+
+# ===== 编辑器 / 操作系统临时文件 =====
+Thumbs.db
+.DS_Store
+Desktop.ini
+*.swp
+*.swo
+*~
+.bundle/

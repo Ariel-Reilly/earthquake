@@ -1,7 +1,7 @@
 # 架构总览 · ARCHITECTURE
 
-> 地脉智巡（GeoSentry）系统架构与模块依赖关系
-> 最后更新：2026-09-13
+> 地脉智巡（DisasterGuard）系统架构与模块依赖关系
+> 最后更新：2026-09-16
 
 ---
 
@@ -200,7 +200,7 @@ src/views/
     └── ServerErrorPage
 ```
 
-### 3.2 后端模块（cn.geosentry.*）
+### 3.2 后端模块（cn.disasterguard.*）
 
 | 包 | 主要职责 | 关键 Controller |
 |---|---|---|

@@ -5,4 +5,4 @@ spring:
 logging:
   level:
     root: info
-    cn.geosentry: debug
+    cn.disasterguard: debug

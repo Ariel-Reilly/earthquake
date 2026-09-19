@@ -843,7 +843,8 @@ class DisasterAssessmentModel:
             social_media["score"]  * weights.get("social_media",   0.0),
             supporting["score"]    * weights.get("supporting",     0.0),
         ])
-        covered = sum(1 for k in weights if k == "sensor" if sensor_available or k != "sensor")
+        # 设备缺失时 sensor 权重被清零，仍按剩余 6 个维度统计有效维度数
+        covered = sum(1 for k in weights if (sensor_available or k != "sensor") and weights.get(k, 0.0) > 0)
         confidence = round(min(0.90, 0.35 + 0.05 * covered), 4)
         return round(weighted, 2), confidence, "heuristic-seven-dimension-v2", not sensor_available
 

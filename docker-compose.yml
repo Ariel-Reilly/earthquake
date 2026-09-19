@@ -1,12 +1,12 @@
 services:
   postgres:
     image: postgis/postgis:15-3.4-alpine
-    container_name: geosentry-postgres
+    container_name: disasterguard-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-geosentry}
-      POSTGRES_USER: ${POSTGRES_USER:-geosentry}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-geosentry123}
+      POSTGRES_DB: ${POSTGRES_DB:-disasterguard}
+      POSTGRES_USER: ${POSTGRES_USER:-disasterguard}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-disasterguard123}
       TZ: ${TZ:-Asia/Shanghai}
     ports:
       - "${POSTGRES_HOST_PORT:-15432}:5432"
@@ -17,7 +17,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          "pg_isready -U ${POSTGRES_USER:-geosentry} -d ${POSTGRES_DB:-geosentry}",
+          "pg_isready -U ${POSTGRES_USER:-disasterguard} -d ${POSTGRES_DB:-disasterguard}",
         ]
       interval: 10s
       timeout: 5s
@@ -25,7 +25,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: geosentry-redis
+    container_name: disasterguard-redis
     restart: unless-stopped
     command:
       [
@@ -48,11 +48,11 @@ services:
 
   minio:
     image: minio/minio:latest
-    container_name: geosentry-minio
+    container_name: disasterguard-minio
     restart: unless-stopped
     command: server /data --console-address ':9001'
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-geosentry}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-disasterguard}
       # ⚠️ 生产环境必须修改为强随机密钥（长度 ≥ 24）。生成方式：openssl rand -base64 32
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-CHANGE_ME_24chars_minio_secret_key_2024}
       TZ: ${TZ:-Asia/Shanghai}
@@ -73,19 +73,19 @@ services:
 
   emqx:
     image: emqx/emqx:5.9.0
-    container_name: geosentry-emqx
+    container_name: disasterguard-emqx
     restart: unless-stopped
     environment:
       EMQX_NODE_NAME: emqx@127.0.0.1
-      EMQX_NODE_COOKIE: ${EMQX_NODE_COOKIE:-geosentry-cookie}
+      EMQX_NODE_COOKIE: ${EMQX_NODE_COOKIE:-disasterguard-cookie}
       EMQX_DASHBOARD__DEFAULT_USERNAME: ${EMQX_DASHBOARD_USER:-admin}
       # ⚠️ 生产环境必须修改为强随机密码（长度 ≥ 16）。生成方式：openssl rand -base64 24
       EMQX_DASHBOARD__DEFAULT_PASSWORD: ${EMQX_DASHBOARD_PASSWORD:-CHANGE_ME_emqx_secure_password_2024}
-      # 启用内置数据库鉴权，并预置 geosentry_backend 用户
+      # 启用内置数据库鉴权，并预置 disasterguard_backend 用户
       # EMQX 5.x 使用 Built-in Database 认证插件（auth.mnesia）
       EMQX_AUTH__MNESIA__PASSWORD_HASH: bcrypt
       TZ: ${TZ:-Asia/Shanghai}
-    entrypoint: ["bash", "/opt/emqx/data/config/emqx-entrypoint.sh"]
+    command: ["bash", "/opt/emqx/data/config/init.sh"]
     ports:
       - "${EMQX_MQTT_HOST_PORT:-11883}:1883"
       - "${EMQX_MQTTS_HOST_PORT:-18883}:8883"
@@ -104,7 +104,7 @@ services:
 
   tdengine:
     image: tdengine/tdengine:latest
-    container_name: geosentry-tdengine
+    container_name: disasterguard-tdengine
     restart: unless-stopped
     environment:
       TZ: ${TZ:-Asia/Shanghai}
@@ -123,7 +123,7 @@ services:
 
   backend:
     image: maven:3.9.9-eclipse-temurin-17
-    container_name: geosentry-backend
+    container_name: disasterguard-backend
     restart: unless-stopped
     working_dir: /app/backend
     command: mvn -q -DskipTests spring-boot:run
@@ -141,9 +141,9 @@ services:
       DEVICE_AUTH_STRICT: ${DEVICE_AUTH_STRICT:-false}
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
-      POSTGRES_DB: ${POSTGRES_DB:-geosentry}
-      POSTGRES_USER: ${POSTGRES_USER:-geosentry}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-geosentry123}
+      POSTGRES_DB: ${POSTGRES_DB:-disasterguard}
+      POSTGRES_USER: ${POSTGRES_USER:-disasterguard}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-disasterguard123}
       REDIS_HOST: redis
       REDIS_PORT: 6379
       # ⚠️ 生产环境必须修改为强随机密码（长度 ≥ 16）。生成方式：openssl rand -base64 24
@@ -151,13 +151,13 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
       # EMQX MQTT 鉴权（broker 侧用户名密码，需与 EMQX_DASHBOARD 配置的认证用户一致）
-      EMQX_USERNAME: ${EMQX_USERNAME:-geosentry_backend}
+      EMQX_USERNAME: ${EMQX_USERNAME:-disasterguard_backend}
       # ⚠️ 生产环境必须修改为强随机密码（长度 ≥ 16）。生成方式：openssl rand -base64 24
       EMQX_PASSWORD: ${EMQX_PASSWORD:-CHANGE_ME_emqx_secure_password_2024}
       EMQX_ENABLED: ${EMQX_ENABLED:-true}
       EMQX_WS_PORT: ${EMQX_WS_PORT:-8083}
       EMQX_HTTP_PORT: ${EMQX_HTTP_PORT:-18083}
-      TDENGINE_URL: ${TDENGINE_URL:-jdbc:TAOS-RS://tdengine:6041/geohazard}
+      TDENGINE_URL: ${TDENGINE_URL:-jdbc:TAOS-RS://tdengine:6041/disasterguard}
       TDENGINE_USERNAME: ${TDENGINE_USERNAME:-root}
       TDENGINE_PASSWORD: ${TDENGINE_PASSWORD:-taosdata}
       TDENGINE_ENABLED: ${TDENGINE_ENABLED:-false}
@@ -187,7 +187,7 @@ services:
 
   ai-service:
     build: ./ai-service
-    container_name: geosentry-ai
+    container_name: disasterguard-ai
     restart: unless-stopped
     environment:
       TZ: ${TZ:-Asia/Shanghai}
@@ -203,7 +203,7 @@ services:
   frontend:
     build:
       context: .
-      dockerfile: Dockerfile.frontend
+      dockerfile: frontend/Dockerfile
       args:
         VITE_USE_BACKEND: "true"
         # 生产部署时前端同域，API 通过 nginx 反向代理到 backend:8080
@@ -213,8 +213,8 @@ services:
         VITE_PERSONNEL_POLL_INTERVAL: "30000"
         VITE_TDT_TOKEN: ${VITE_TDT_TOKEN:-}
         VITE_TDT_ATTRIBUTION: ${VITE_TDT_ATTRIBUTION:-地图数据}
-    image: geosentry-frontend:latest
-    container_name: geosentry-frontend
+    image: disasterguard-frontend:latest
+    container_name: disasterguard-frontend
     restart: unless-stopped
     ports:
       - "${FRONTEND_HOST_PORT:-5173}:80"
@@ -240,4 +240,4 @@ volumes:
 
 networks:
   default:
-    name: geosentry-net
+    name: disasterguard-net

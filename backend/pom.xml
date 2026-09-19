@@ -9,11 +9,11 @@
     <relativePath />
   </parent>
 
-  <groupId>cn.geosentry</groupId>
-  <artifactId>geosentry-backend</artifactId>
+  <groupId>cn.disasterguard</groupId>
+  <artifactId>disasterguard-backend</artifactId>
   <version>0.0.1-SNAPSHOT</version>
-  <name>geosentry-backend</name>
-  <description>Geohazard inspection and warning backend</description>
+  <name>disasterguard-backend</name>
+  <description>Disasterguard inspection and warning backend</description>
 
   <properties>
     <java.version>17</java.version>

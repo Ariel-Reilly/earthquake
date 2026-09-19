@@ -22,7 +22,7 @@ from app.models.xgboost_model import (
 from app.training.train_xgboost import train_xgboost
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/ai/model", tags=["ai-model"])
+router = APIRouter(prefix="/api/ai/model", tags=["ai-model"])
 
 META_PATH = MODELS_DIR / "xgboost_fusion.meta.json"
 

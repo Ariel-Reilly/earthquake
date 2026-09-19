@@ -1,5 +1,7 @@
 # 统一事件状态机（v1.7.0+ P3-4）
 
+> 最后更新：2026-09-16
+
 ## 背景
 
 当前系统的"事件"概念分散在三张表里：
@@ -74,13 +76,13 @@ ISSUE_WARNING / TRIGGER_EMERGENCY / CLOSE / REOPEN`
 
 | 文件 | 职责 |
 |---|---|
-| `cn/geosentry/event/EventState.java` | 7 个状态枚举 |
-| `cn/geosentry/event/EventTrigger.java` | 10 个事件枚举 |
-| `cn/geosentry/event/entity/UnifiedEventEntity.java` | unified_event 表 JPA 实体 |
-| `cn/geosentry/event/repository/UnifiedEventRepository.java` | JPA 仓储 |
-| `cn/geosentry/event/EventStateMachineConfig.java` | `@EnableStateMachineFactory` 配置 |
-| `cn/geosentry/event/service/EventStateService.java` | 状态流转 / 桥接三方表 |
-| `cn/geosentry/event/controller/EventStateController.java` | `/api/event/*` REST API |
+| `cn/disasterguard/event/EventState.java` | 7 个状态枚举 |
+| `cn/disasterguard/event/EventTrigger.java` | 10 个事件枚举 |
+| `cn/disasterguard/event/entity/UnifiedEventEntity.java` | unified_event 表 JPA 实体 |
+| `cn/disasterguard/event/repository/UnifiedEventRepository.java` | JPA 仓储 |
+| `cn/disasterguard/event/EventStateMachineConfig.java` | `@EnableStateMachineFactory` 配置 |
+| `cn/disasterguard/event/service/EventStateService.java` | 状态流转 / 桥接三方表 |
+| `cn/disasterguard/event/controller/EventStateController.java` | `/api/event/*` REST API |
 
 ## 集成步骤（迁移路径）
 

@@ -1,5 +1,5 @@
 # =============================================================================
-# GeoSentry 生产模式 docker-compose 覆盖文件
+# DisasterGuard 生产模式 docker-compose 覆盖文件
 # 使用方式：docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 # 主要变化：
 #   1. backend 使用 Dockerfile.backend 多阶段构建（jar 镜像），不再 mount 源码
@@ -12,18 +12,18 @@ services:
   backend:
     build:
       context: .
-      dockerfile: Dockerfile.backend
+      dockerfile: backend/Dockerfile
       args:
         TDENGINE_JDBC_VERSION: ${TDENGINE_JDBC_VERSION:-3.3.0}
-    image: geosentry-backend:latest
-    container_name: geosentry-backend
+    image: disasterguard-backend:latest
+    container_name: disasterguard-backend
     restart: unless-stopped
     working_dir: /app
     # 生产 profile：自动触发 ProductionConfigValidator + MinioCredentialValidator + JwtService 校验
     environment:
       SPRING_PROFILES_ACTIVE: prod
       SERVER_PORT: ${SERVER_PORT:-8080}
-      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-https://geosentry.example.com}
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-https://disasterguard.example.com}
       # JWT_SECRET 必须通过环境变量注入；默认值仅用于本地快速启动校验
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRE_MINUTES: ${JWT_EXPIRE_MINUTES:-120}
@@ -35,8 +35,8 @@ services:
       # PostGIS
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
-      POSTGRES_DB: ${POSTGRES_DB:-geosentry}
-      POSTGRES_USER: ${POSTGRES_USER:-geosentry}
+      POSTGRES_DB: ${POSTGRES_DB:-disasterguard}
+      POSTGRES_USER: ${POSTGRES_USER:-disasterguard}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       # Redis
       REDIS_HOST: redis
@@ -52,7 +52,7 @@ services:
       EMQX_MQTT_URL: tcp://emqx:1883
       # TDengine（可选）
       TDENGINE_ENABLED: ${TDENGINE_ENABLED:-false}
-      TDENGINE_URL: jdbc:TAOS-RS://tdengine:6041/geohazard
+      TDENGINE_URL: jdbc:TAOS-RS://tdengine:6041/disasterguard
       TDENGINE_USERNAME: ${TDENGINE_USERNAME:-root}
       TDENGINE_PASSWORD: ${TDENGINE_PASSWORD:-taosdata}
       # AI 服务
@@ -92,7 +92,7 @@ services:
   frontend:
     build:
       context: .
-      dockerfile: Dockerfile.frontend
+      dockerfile: frontend/Dockerfile
       args:
         VITE_USE_BACKEND: "true"
         VITE_API_BASE_URL: /api
@@ -101,8 +101,8 @@ services:
         VITE_PERSONNEL_POLL_INTERVAL: "30000"
         VITE_TDT_TOKEN: ${VITE_TDT_TOKEN:-}
         VITE_TDT_ATTRIBUTION: ${VITE_TDT_ATTRIBUTION:-地图数据}
-    image: geosentry-frontend:latest
-    container_name: geosentry-frontend
+    image: disasterguard-frontend:latest
+    container_name: disasterguard-frontend
     restart: unless-stopped
     ports:
       - "${FRONTEND_HOST_PORT:-80}:80"

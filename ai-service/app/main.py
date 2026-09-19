@@ -1,6 +1,26 @@
 import os
+from contextlib import asynccontextmanager
+from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+
+# ────────────────────────────────────────────────────────────────────────
+# .env 加载（必须在读取任何业务环境变量之前完成）
+# 顺序：ai-service/.env（优先,服务专用） → 项目根 .env（共享配置,后到,不覆盖已设置）
+# 依赖 python-dotenv,见 requirements.txt
+# ────────────────────────────────────────────────────────────────────────
+try:
+    from dotenv import load_dotenv
+    _ROOT = Path(__file__).resolve().parent.parent  # ai-service/
+    _REPO = _ROOT.parent                             # repo root
+
+    for _env_path in [_ROOT / ".env", _REPO / ".env"]:
+        if _env_path.exists():
+            load_dotenv(_env_path, override=False)
+except ImportError:
+    # dotenv 未安装时静默降级（适合裸 uvicorn 部署）
+    pass
 
 from app.routers import (
     anomaly,
@@ -16,8 +36,33 @@ from app.routers import (
     social_media,
 )
 
+
+# ────────────────────────────────────────────────────────────────────────
+# 应用 lifespan：启动/关闭 HTTP client（共享 aiohttp session）
+# ────────────────────────────────────────────────────────────────────────
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """FastAPI lifespan:启动时 lazy init HttpClientHolder,关闭时优雅释放连接池。
+
+    为什么必须显式 close:
+      aiohttp 的连接器(TCPConnector)在 GC 时不会立即关闭 keep-alive 连接,会打印
+      "Unclosed client session / connector" 警告,生产环境更可能泄漏 socket 句柄。
+    """
+    # ───── startup ─────
+    from app.utils.http_client import HttpClientHolder
+    holder = HttpClientHolder.instance()
+    # 主动触发 session 创建,让连接池在启动期就绪(避免首请求冷启动)
+    await holder.session()
+
+    try:
+        yield
+    finally:
+        # ───── shutdown ─────
+        await holder.close()
+
+
 app = FastAPI(
-    title="GeoSentry AI Service v3.0",
+    title="DisasterGuard AI Service v3.0",
     description=(
         "地质灾害智能巡检预警 AI 推理服务 v3.0 —— 多源数据融合体系：\n\n"
         "一、核心遥感影像数据（用于识别地表灾害特征）\n"
@@ -36,7 +81,7 @@ app = FastAPI(
         "  - Copernicus DEM：更高精度地形分析（30m/10m）\n"
         "  - 地质图/断层数据：地震、滑坡易发性因子\n"
         "  - 土壤类型：渗透性、滑坡敏感性\n\n"
-        "四、历史灾害与承灾体数据（用于模型训练和风险评估）\n"
+        "四、历史灾害与承灾体数据（用于模型训练和风险区划）\n"
         "  - EM-DAT：全球灾害事件库（模型训练标签、风险区划）\n"
         "  - GDACS：全球灾害警报和影响评估（实时触发）\n"
         "  - Copernicus EMS：重大灾害快速测绘产品\n"
@@ -55,6 +100,7 @@ app = FastAPI(
         "真实 XGBoost 模型"
     ),
     version="3.0.0",
+    lifespan=lifespan,
 )
 
 # CORS：从环境变量读取允许的来源（逗号分隔），开发默认 localhost，生产应显式配置
@@ -71,6 +117,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Sentinel 合成图静态目录：必须先把环境变量设好再 include_router(sentinel)，
+# 否则 sentinel.py 模块导入时会用 /tmp 默认值锁死路径。
+# 真实生产应改 CDN（OSS/S3），开发模式本地服务足矣。
+_SENTINEL_DIR = Path(os.environ.get(
+    "SENTINEL_STORAGE_DIR",
+    str(Path(__file__).resolve().parent.parent / "outputs" / "sentinel"),
+))
+_SENTINEL_DIR.mkdir(parents=True, exist_ok=True)
+os.environ["SENTINEL_STORAGE_DIR"] = str(_SENTINEL_DIR)
+os.environ.setdefault("SENTINEL_CDN_BASE", "http://localhost:8001/sentinel_files")
+
 app.include_router(detection.router)
 app.include_router(forecast.router)
 app.include_router(anomaly.router)
@@ -82,6 +139,9 @@ app.include_router(feedback.router)  # v1.4.0: 反馈学习闭环
 app.include_router(model_info.router)  # v1.5.0: 真实模型信息/重训/重载
 app.include_router(social_media.router)  # v2.0: 社交媒体文本分析
 app.include_router(sentinel.router)  # v1.8.0: Sentinel-1+2 合成卫星图层
+
+# 静态文件挂载（必须在 include_router 之后，所有路由尝试匹配后才会落到 static files）
+app.mount("/sentinel_files", StaticFiles(directory=str(_SENTINEL_DIR)), name="sentinel_files")
 
 
 @app.get("/api/ai/health", tags=["system"])

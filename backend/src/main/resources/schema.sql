@@ -1,5 +1,5 @@
 -- =====================================================================
--- GeoSentry PostgreSQL + PostGIS 建表脚本（幂等：每次启动可安全重跑）
+-- DisasterGuard PostgreSQL + PostGIS 建表脚本（幂等：每次启动可安全重跑）
 -- 说明：
 --   * spring.sql.init 使用 ScriptUtils 按分号切分，无法解析 PL/pgSQL
 --     "$$...$$" 块，因此本文件只包含纯 DDL（表/索引/外键）。
@@ -85,43 +85,36 @@ CREATE TABLE IF NOT EXISTS sys_menu (
 -- ---------------------------------------------------------------------
 -- 灾害点（geom 空间点，由应用层从 longitude/latitude 生成）
 -- v2.1.0 起改为"投影"模式（Task #1 P1）：
---   * hazard_point 现在是从 unified_event WHERE kind='HAZARD' 投影出的视图，
+--   * hazard_point 是从 unified_event WHERE kind='HAZARD' 投影出的视图，
 --     由底部 v2.1.0 迁移块创建/替换。
---   * 首次安装时本块先建一个临时物理表，让下方引用 hazard_point 的 CREATE TABLE
---     /ALTER 块顺利通过；该物理表在底部 v2.1.0 迁移块被 DROP CASCADE 并替换为视图。
---   * 升级场景下，若 hazard_point 已经存在（不论是表还是视图），跳过本块。
+--   * 本块先建一个临时物理表，让下方引用 hazard_point 的 CREATE TABLE /ALTER
+--     块顺利通过；该物理表在底部 v2.1.0 迁移块被 DROP CASCADE 并替换为视图。
+--   * 升级场景下，若 hazard_point 已是视图（v2.1.0 已生效），先 DROP VIEW 再
+--     CREATE TABLE IF NOT EXISTS 即可让本块保持幂等。
+--   * 注意：ScriptUtils 按 ; 切分时无法解析 PL/pgSQL 的 $$ ... $$ 嵌套，
+--     故本块不使用 DO $E$ ... $F$ ... $E$ 包装，改用纯 DDL。
 -- ---------------------------------------------------------------------
-DO $E$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_class c
-    JOIN pg_namespace n ON n.oid = c.relnamespace
-    WHERE n.nspname = current_schema() AND c.relname = 'hazard_point'
-  ) THEN
-    EXECUTE $F$
-      CREATE TABLE hazard_point (
-        id BIGSERIAL PRIMARY KEY,
-        hazard_code VARCHAR(64) NOT NULL UNIQUE,
-        name VARCHAR(128) NOT NULL,
-        hazard_type VARCHAR(64) NOT NULL,
-        risk_level VARCHAR(32) NOT NULL,
-        region_code VARCHAR(64),
-        owner VARCHAR(128),
-        status VARCHAR(32) NOT NULL,
-        longitude NUMERIC(10,6) NOT NULL,
-        latitude NUMERIC(10,6) NOT NULL,
-        geom geometry(Point, 4326) NOT NULL,
-        threat_object TEXT,
-        last_inspection_at TIMESTAMPTZ,
-        source VARCHAR(32) NOT NULL DEFAULT 'AI_MONITOR',
-        discovered_at TIMESTAMPTZ,
-        detection_confidence DOUBLE PRECISION,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      )
-    $F$;
-  END IF;
-END$E$;
+DROP VIEW IF EXISTS hazard_point;
+CREATE TABLE IF NOT EXISTS hazard_point (
+  id BIGSERIAL PRIMARY KEY,
+  hazard_code VARCHAR(64) NOT NULL UNIQUE,
+  name VARCHAR(128) NOT NULL,
+  hazard_type VARCHAR(64) NOT NULL,
+  risk_level VARCHAR(32) NOT NULL,
+  region_code VARCHAR(64),
+  owner VARCHAR(128),
+  status VARCHAR(32) NOT NULL,
+  longitude NUMERIC(10,6) NOT NULL,
+  latitude NUMERIC(10,6) NOT NULL,
+  geom geometry(Point, 4326) NOT NULL,
+  threat_object TEXT,
+  last_inspection_at TIMESTAMPTZ,
+  source VARCHAR(32) NOT NULL DEFAULT 'AI_MONITOR',
+  discovered_at TIMESTAMPTZ,
+  detection_confidence DOUBLE PRECISION,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 
 CREATE TABLE IF NOT EXISTS inspection_task (
   id BIGSERIAL PRIMARY KEY,
@@ -388,6 +381,10 @@ ALTER TABLE warning_event ADD COLUMN IF NOT EXISTS closed_by VARCHAR(64);
 ALTER TABLE warning_event ADD COLUMN IF NOT EXISTS source VARCHAR(32);
 ALTER TABLE warning_event ADD COLUMN IF NOT EXISTS resolve_scope VARCHAR(32);
 ALTER TABLE warning_event ADD COLUMN IF NOT EXISTS resolve_area VARCHAR(64);
+-- 幂等：result_json 在上一次运行可能已被迁移到 JSONB 并创建 GIN 索引，
+-- 直接 ALTER TYPE TEXT 会被 GIN 拒绝。先 drop GIN，下方 B 段会把列变 JSONB
+-- 并在末尾的 CREATE INDEX IF NOT EXISTS 重建 GIN。
+DROP INDEX IF EXISTS idx_ai_result_biz_gin;
 ALTER TABLE ai_analysis_result ALTER COLUMN result_json TYPE TEXT;
 -- risk_score_log 补齐 source 列（AI 降级标记 / 融合来源）
 ALTER TABLE risk_score_log ADD COLUMN IF NOT EXISTS source VARCHAR(32);
@@ -1149,131 +1146,114 @@ CREATE INDEX IF NOT EXISTS idx_risk_score_factors_gin ON risk_score_log USING GI
 
 -- ---------------------------------------------------------------------
 -- C. 状态字段 CHECK 约束（确保只接受合法枚举值）
--- 注意：用 DO NOTHING 风格：ADD CONSTRAINT 不支持 IF NOT EXISTS，
---       所以用 pg_constraint 系统表检查后再加。
+-- 注意：ADD CONSTRAINT 不支持 IF NOT EXISTS，改用 DROP+ADD 实现幂等，
+--       避免使用 ScriptUtils 无法解析的 PL/pgSQL DO 块。
 -- ---------------------------------------------------------------------
-DO $$
-BEGIN
-  -- ai_model.status
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_ai_model_status') THEN
-    ALTER TABLE ai_model ADD CONSTRAINT ck_ai_model_status
-      CHECK (status IN ('ONLINE','OFFLINE','TRAINING','DEPLOYING','ROLLBACK'));
-  END IF;
-  -- data_source.status
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_ds_status') THEN
-    ALTER TABLE data_source ADD CONSTRAINT ck_ds_status
-      CHECK (status IN ('CONNECTED','DISCONNECTED','ERROR','SYNCING'));
-  END IF;
-  -- data_sync_task.status
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_sync_task_status') THEN
-    ALTER TABLE data_sync_task ADD CONSTRAINT ck_sync_task_status
-      CHECK (status IN ('RUNNING','IDLE','PAUSED','FAILED','DISABLED'));
-  END IF;
-  -- resource.status
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_resource_status') THEN
-    ALTER TABLE resource ADD CONSTRAINT ck_resource_status
-      CHECK (status IN ('AVAILABLE','DEPLOYED','UNAVAILABLE','MAINTENANCE','OPEN','FULL','CLOSED'));
-  END IF;
-  -- plan.status
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_plan_status') THEN
-    ALTER TABLE plan ADD CONSTRAINT ck_plan_status
-      CHECK (status IN ('DRAFT','ACTIVE','SUSPENDED','ARCHIVED'));
-  END IF;
-  -- confirmation_task.status
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_confirm_status') THEN
-    ALTER TABLE confirmation_task ADD CONSTRAINT ck_confirm_status
-      CHECK (status IN ('PENDING_CLAIM','PENDING_FIRST','PENDING_SECOND','CONFIRMED','REJECTED','TRANSFERRED'));
-  END IF;
-  -- confirmation_task.priority
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_confirm_priority') THEN
-    ALTER TABLE confirmation_task ADD CONSTRAINT ck_confirm_priority
-      CHECK (priority IN ('HIGH','MEDIUM','LOW'));
-  END IF;
-  -- approval.status
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_approval_status') THEN
-    ALTER TABLE approval ADD CONSTRAINT ck_approval_status
-      CHECK (status IN ('PENDING','APPROVED','REJECTED','CANCELLED'));
-  END IF;
-  -- user_todo.status
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_todo_status') THEN
-    ALTER TABLE user_todo ADD CONSTRAINT ck_todo_status
-      CHECK (status IN ('PENDING','COMPLETED','CANCELLED','OVERDUE'));
-  END IF;
-  -- user_todo.priority
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_todo_priority') THEN
-    ALTER TABLE user_todo ADD CONSTRAINT ck_todo_priority
-      CHECK (priority IN ('HIGH','MEDIUM','LOW'));
-  END IF;
-END$$;
+ALTER TABLE ai_model DROP CONSTRAINT IF EXISTS ck_ai_model_status;
+ALTER TABLE ai_model ADD CONSTRAINT ck_ai_model_status
+  CHECK (status IN ('ONLINE','OFFLINE','TRAINING','DEPLOYING','ROLLBACK'));
+
+ALTER TABLE data_source DROP CONSTRAINT IF EXISTS ck_ds_status;
+ALTER TABLE data_source ADD CONSTRAINT ck_ds_status
+  CHECK (status IN ('CONNECTED','DISCONNECTED','ERROR','SYNCING'));
+
+ALTER TABLE data_sync_task DROP CONSTRAINT IF EXISTS ck_sync_task_status;
+ALTER TABLE data_sync_task ADD CONSTRAINT ck_sync_task_status
+  CHECK (status IN ('RUNNING','IDLE','PAUSED','FAILED','DISABLED'));
+
+ALTER TABLE resource DROP CONSTRAINT IF EXISTS ck_resource_status;
+ALTER TABLE resource ADD CONSTRAINT ck_resource_status
+  CHECK (status IN ('AVAILABLE','DEPLOYED','UNAVAILABLE','MAINTENANCE','OPEN','FULL','CLOSED'));
+
+ALTER TABLE plan DROP CONSTRAINT IF EXISTS ck_plan_status;
+ALTER TABLE plan ADD CONSTRAINT ck_plan_status
+  CHECK (status IN ('DRAFT','ACTIVE','SUSPENDED','ARCHIVED'));
+
+ALTER TABLE confirmation_task DROP CONSTRAINT IF EXISTS ck_confirm_status;
+ALTER TABLE confirmation_task ADD CONSTRAINT ck_confirm_status
+  CHECK (status IN ('PENDING_CLAIM','PENDING_FIRST','PENDING_SECOND','CONFIRMED','REJECTED','TRANSFERRED'));
+
+ALTER TABLE confirmation_task DROP CONSTRAINT IF EXISTS ck_confirm_priority;
+ALTER TABLE confirmation_task ADD CONSTRAINT ck_confirm_priority
+  CHECK (priority IN ('HIGH','MEDIUM','LOW'));
+
+ALTER TABLE approval DROP CONSTRAINT IF EXISTS ck_approval_status;
+ALTER TABLE approval ADD CONSTRAINT ck_approval_status
+  CHECK (status IN ('PENDING','APPROVED','REJECTED','CANCELLED'));
+
+ALTER TABLE user_todo DROP CONSTRAINT IF EXISTS ck_todo_status;
+ALTER TABLE user_todo ADD CONSTRAINT ck_todo_status
+  CHECK (status IN ('PENDING','COMPLETED','CANCELLED','OVERDUE'));
+
+ALTER TABLE user_todo DROP CONSTRAINT IF EXISTS ck_todo_priority;
+ALTER TABLE user_todo ADD CONSTRAINT ck_todo_priority
+  CHECK (priority IN ('HIGH','MEDIUM','LOW'));
 -- ---------------------------------------------------------------------
 -- D. 关键 logical FK 转形式化 FK（应用层一致性的最后兜底）
 -- 注意：sys_user.role_code 在既有卷可能引用旧 3 角色，新 7 角色已包含旧的子集，
---       所以加 FK 不会破坏既有数据。
+--       所以加 FK 不会破坏既有数据。ScriptUtils 无法解析 PL/pgSQL DO 块，
+--       故改用纯 DDL：DROP IF EXISTS + ADD 即可幂等。
 -- ---------------------------------------------------------------------
-DO $$
-BEGIN
-  -- sys_user.role_code -> sys_role.role_code
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_sys_user_role') THEN
-    -- 兜底：清理掉可能引用旧角色代码的行
-    UPDATE sys_user SET role_code = 'admin'
-      WHERE role_code NOT IN (SELECT role_code FROM sys_role);
-    ALTER TABLE sys_user ADD CONSTRAINT fk_sys_user_role
-      FOREIGN KEY (role_code) REFERENCES sys_role(role_code) ON UPDATE CASCADE ON DELETE RESTRICT;
-  END IF;
-  -- monitoring_device.region_code -> region.region_code
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_device_region') THEN
-    UPDATE monitoring_device SET region_code = NULL
-      WHERE region_code IS NOT NULL AND region_code NOT IN (SELECT region_code FROM region);
-    ALTER TABLE monitoring_device ADD CONSTRAINT fk_device_region
-      FOREIGN KEY (region_code) REFERENCES region(region_code) ON UPDATE CASCADE ON DELETE SET NULL;
-  END IF;
-  -- monitoring_device.hazard_code 已有 REFERENCES，不重复
-  -- (v2.1.0: hazard_point 现在是从 unified_event 投影的视图，不再需要
-  --  fk_hazard_region 单独的外键约束；unified_event.region_code 上的约束由
-  --  底部 v2.1.0 迁移块的 partial index 维护)
-  -- inspection_task.region_code -> region.region_code
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_task_region') THEN
-    UPDATE inspection_task SET region_code = NULL
-      WHERE region_code IS NOT NULL AND region_code NOT IN (SELECT region_code FROM region);
-    ALTER TABLE inspection_task ADD CONSTRAINT fk_task_region
-      FOREIGN KEY (region_code) REFERENCES region(region_code) ON UPDATE CASCADE ON DELETE SET NULL;
-  END IF;
-  -- resource.region_code -> region.region_code
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_resource_region') THEN
-    UPDATE resource SET region_code = NULL
-      WHERE region_code IS NOT NULL AND region_code NOT IN (SELECT region_code FROM region);
-    ALTER TABLE resource ADD CONSTRAINT fk_resource_region
-      FOREIGN KEY (region_code) REFERENCES region(region_code) ON UPDATE CASCADE ON DELETE SET NULL;
-  END IF;
-  -- ai_analysis_result.model_name -> ai_model.model_code
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_ai_result_model') THEN
-    UPDATE ai_analysis_result SET model_name = NULL
-      WHERE model_name IS NOT NULL AND model_name NOT IN (SELECT model_code FROM ai_model);
-    ALTER TABLE ai_analysis_result ADD CONSTRAINT fk_ai_result_model
-      FOREIGN KEY (model_name) REFERENCES ai_model(model_code) ON UPDATE CASCADE ON DELETE SET NULL;
-  END IF;
-  -- rule.created_by -> sys_user.username (username is unique but not PK)
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_rule_created_by') THEN
-    UPDATE rule SET created_by = NULL
-      WHERE created_by IS NOT NULL AND created_by NOT IN (SELECT username FROM sys_user);
-    ALTER TABLE rule ADD CONSTRAINT fk_rule_created_by
-      FOREIGN KEY (created_by) REFERENCES sys_user(username) ON UPDATE CASCADE ON DELETE SET NULL;
-  END IF;
-  -- plan.created_by -> sys_user.username
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_plan_created_by') THEN
-    UPDATE plan SET created_by = NULL
-      WHERE created_by IS NOT NULL AND created_by NOT IN (SELECT username FROM sys_user);
-    ALTER TABLE plan ADD CONSTRAINT fk_plan_created_by
-      FOREIGN KEY (created_by) REFERENCES sys_user(username) ON UPDATE CASCADE ON DELETE SET NULL;
-  END IF;
-  -- notice_template.created_by -> sys_user.username
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_notice_created_by') THEN
-    UPDATE notice_template SET created_by = NULL
-      WHERE created_by IS NOT NULL AND created_by NOT IN (SELECT username FROM sys_user);
-    ALTER TABLE notice_template ADD CONSTRAINT fk_notice_created_by
-      FOREIGN KEY (created_by) REFERENCES sys_user(username) ON UPDATE CASCADE ON DELETE SET NULL;
-  END IF;
-END$$;
+-- sys_user.role_code -> sys_role.role_code
+UPDATE sys_user SET role_code = 'admin'
+  WHERE role_code NOT IN (SELECT role_code FROM sys_role);
+ALTER TABLE sys_user DROP CONSTRAINT IF EXISTS fk_sys_user_role;
+ALTER TABLE sys_user ADD CONSTRAINT fk_sys_user_role
+  FOREIGN KEY (role_code) REFERENCES sys_role(role_code) ON UPDATE CASCADE ON DELETE RESTRICT;
+
+-- monitoring_device.region_code -> region.region_code
+UPDATE monitoring_device SET region_code = NULL
+  WHERE region_code IS NOT NULL AND region_code NOT IN (SELECT region_code FROM region);
+ALTER TABLE monitoring_device DROP CONSTRAINT IF EXISTS fk_device_region;
+ALTER TABLE monitoring_device ADD CONSTRAINT fk_device_region
+  FOREIGN KEY (region_code) REFERENCES region(region_code) ON UPDATE CASCADE ON DELETE SET NULL;
+
+-- monitoring_device.hazard_code 已有 REFERENCES，不重复
+-- (v2.1.0: hazard_point 现在是从 unified_event 投影的视图，不再需要
+--  fk_hazard_region 单独的外键约束；unified_event.region_code 上的约束由
+--  底部 v2.1.0 迁移块的 partial index 维护)
+
+-- inspection_task.region_code -> region.region_code
+UPDATE inspection_task SET region_code = NULL
+  WHERE region_code IS NOT NULL AND region_code NOT IN (SELECT region_code FROM region);
+ALTER TABLE inspection_task DROP CONSTRAINT IF EXISTS fk_task_region;
+ALTER TABLE inspection_task ADD CONSTRAINT fk_task_region
+  FOREIGN KEY (region_code) REFERENCES region(region_code) ON UPDATE CASCADE ON DELETE SET NULL;
+
+-- resource.region_code -> region.region_code
+UPDATE resource SET region_code = NULL
+  WHERE region_code IS NOT NULL AND region_code NOT IN (SELECT region_code FROM region);
+ALTER TABLE resource DROP CONSTRAINT IF EXISTS fk_resource_region;
+ALTER TABLE resource ADD CONSTRAINT fk_resource_region
+  FOREIGN KEY (region_code) REFERENCES region(region_code) ON UPDATE CASCADE ON DELETE SET NULL;
+
+-- ai_analysis_result.model_name -> ai_model.model_code
+UPDATE ai_analysis_result SET model_name = NULL
+  WHERE model_name IS NOT NULL AND model_name NOT IN (SELECT model_code FROM ai_model);
+ALTER TABLE ai_analysis_result DROP CONSTRAINT IF EXISTS fk_ai_result_model;
+ALTER TABLE ai_analysis_result ADD CONSTRAINT fk_ai_result_model
+  FOREIGN KEY (model_name) REFERENCES ai_model(model_code) ON UPDATE CASCADE ON DELETE SET NULL;
+
+-- rule.created_by -> sys_user.username (username is unique but not PK)
+UPDATE rule SET created_by = NULL
+  WHERE created_by IS NOT NULL AND created_by NOT IN (SELECT username FROM sys_user);
+ALTER TABLE rule DROP CONSTRAINT IF EXISTS fk_rule_created_by;
+ALTER TABLE rule ADD CONSTRAINT fk_rule_created_by
+  FOREIGN KEY (created_by) REFERENCES sys_user(username) ON UPDATE CASCADE ON DELETE SET NULL;
+
+-- plan.created_by -> sys_user.username
+UPDATE plan SET created_by = NULL
+  WHERE created_by IS NOT NULL AND created_by NOT IN (SELECT username FROM sys_user);
+ALTER TABLE plan DROP CONSTRAINT IF EXISTS fk_plan_created_by;
+ALTER TABLE plan ADD CONSTRAINT fk_plan_created_by
+  FOREIGN KEY (created_by) REFERENCES sys_user(username) ON UPDATE CASCADE ON DELETE SET NULL;
+
+-- notice_template.created_by -> sys_user.username
+UPDATE notice_template SET created_by = NULL
+  WHERE created_by IS NOT NULL AND created_by NOT IN (SELECT username FROM sys_user);
+ALTER TABLE notice_template DROP CONSTRAINT IF EXISTS fk_notice_created_by;
+ALTER TABLE notice_template ADD CONSTRAINT fk_notice_created_by
+  FOREIGN KEY (created_by) REFERENCES sys_user(username) ON UPDATE CASCADE ON DELETE SET NULL;
 
 -- =====================================================================
 -- v2.1.0 数据层统一 (Task #1 P1)：events 升格为 source of truth，
@@ -1306,17 +1286,14 @@ ALTER TABLE unified_event ALTER COLUMN kind SET NOT NULL;
 ALTER TABLE unified_event ALTER COLUMN kind SET DEFAULT 'HAZARD';
 -- state 列允许视图写入时不显式提供（避免 data.sql / 视图重写时 NOT NULL 失败）
 ALTER TABLE unified_event ALTER COLUMN state SET DEFAULT 'DETECTED';
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_unified_kind') THEN
-    ALTER TABLE unified_event ADD CONSTRAINT ck_unified_kind
-      CHECK (kind IN ('HAZARD','WARNING','EMERGENCY'));
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_unified_state') THEN
-    ALTER TABLE unified_event ADD CONSTRAINT ck_unified_state
-      CHECK (state IN ('DETECTED','CONFIRMING','CONFIRMED','WARNING_ISSUED','EMERGENCY_ACTIVE','CLOSED','REJECTED'));
-  END IF;
-END$$;
+-- unified_event 的 CHECK 约束：ScriptUtils 无法解析 PL/pgSQL DO 块，改用 DROP+ADD 幂等
+ALTER TABLE unified_event DROP CONSTRAINT IF EXISTS ck_unified_kind;
+ALTER TABLE unified_event ADD CONSTRAINT ck_unified_kind
+  CHECK (kind IN ('HAZARD','WARNING','EMERGENCY'));
+
+ALTER TABLE unified_event DROP CONSTRAINT IF EXISTS ck_unified_state;
+ALTER TABLE unified_event ADD CONSTRAINT ck_unified_state
+  CHECK (state IN ('DETECTED','CONFIRMING','CONFIRMED','WARNING_ISSUED','EMERGENCY_ACTIVE','CLOSED','REJECTED'));
 
 -- ---- 2. hazard 领域列（NULL 允许；非 HAZARD 行不需这些列）----
 ALTER TABLE unified_event ADD COLUMN IF NOT EXISTS name VARCHAR(128);
@@ -1389,46 +1366,40 @@ FROM unified_event
 WHERE kind = 'HAZARD';
 
 COMMENT ON VIEW hazard_point IS
-  'v2.1.0 Task#1 P1: 自动可写视图，投影自 unified_event WHERE kind=''HAZARD''。'
-  '所有 INSERT/UPDATE/DELETE 会被 PostgreSQL 重写到 unified_event 表。'
-  '视图外的 unified_event 列（state、event_code、source 等）可通过 '
-  'unified_event 实体直接读写，不暴露给历史 hazard_point 消费者。';
+  'v2.1.0 Task#1 P1: 自动可写视图，投影自 unified_event WHERE kind=HAZARD。所有 INSERT/UPDATE/DELETE 会被 PostgreSQL 重写到 unified_event 表。视图外的 unified_event 列（state、event_code、source 等）可通过 unified_event 实体直接读写，不暴露给历史 hazard_point 消费者。';
 
 -- ---- 5. 重新指向 unified_event(hazard_code) 的外键 ----
 -- 原 6 张子表（inspection_task / inspection_record / monitoring_device /
 -- warning_event / risk_score_log / ai_comprehensive_score）的 hazard_code
 -- 外键在 DROP TABLE CASCADE 时已被卸下；这里统一挂回 unified_event。
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_inspection_task_hazard') THEN
-    ALTER TABLE inspection_task ADD CONSTRAINT fk_inspection_task_hazard
-      FOREIGN KEY (hazard_code) REFERENCES unified_event(hazard_key) ON DELETE SET NULL
-      DEFERRABLE INITIALLY DEFERRED;
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_inspection_record_hazard') THEN
-    ALTER TABLE inspection_record ADD CONSTRAINT fk_inspection_record_hazard
-      FOREIGN KEY (hazard_code) REFERENCES unified_event(hazard_key) ON DELETE SET NULL
-      DEFERRABLE INITIALLY DEFERRED;
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_monitoring_device_hazard') THEN
-    ALTER TABLE monitoring_device ADD CONSTRAINT fk_monitoring_device_hazard
-      FOREIGN KEY (hazard_code) REFERENCES unified_event(hazard_key) ON DELETE SET NULL
-      DEFERRABLE INITIALLY DEFERRED;
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_warning_event_hazard') THEN
-    ALTER TABLE warning_event ADD CONSTRAINT fk_warning_event_hazard
-      FOREIGN KEY (hazard_code) REFERENCES unified_event(hazard_key) ON DELETE SET NULL
-      DEFERRABLE INITIALLY DEFERRED;
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_risk_score_log_hazard') THEN
-    ALTER TABLE risk_score_log ADD CONSTRAINT fk_risk_score_log_hazard
-      FOREIGN KEY (hazard_code) REFERENCES unified_event(hazard_key) ON DELETE CASCADE
-      DEFERRABLE INITIALLY DEFERRED;
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_ai_comprehensive_score_hazard') THEN
-    ALTER TABLE ai_comprehensive_score ADD CONSTRAINT fk_ai_comprehensive_score_hazard
-      FOREIGN KEY (hazard_code) REFERENCES unified_event(hazard_key) ON DELETE CASCADE
-      DEFERRABLE INITIALLY DEFERRED;
-  END IF;
-END$$;
+-- ScriptUtils 无法解析 PL/pgSQL DO $$ ... $$ 块，改用 DROP+ADD 实现幂等。
+ALTER TABLE inspection_task DROP CONSTRAINT IF EXISTS fk_inspection_task_hazard;
+ALTER TABLE inspection_task ADD CONSTRAINT fk_inspection_task_hazard
+  FOREIGN KEY (hazard_code) REFERENCES unified_event(hazard_key) ON DELETE SET NULL
+  DEFERRABLE INITIALLY DEFERRED;
+
+ALTER TABLE inspection_record DROP CONSTRAINT IF EXISTS fk_inspection_record_hazard;
+ALTER TABLE inspection_record ADD CONSTRAINT fk_inspection_record_hazard
+  FOREIGN KEY (hazard_code) REFERENCES unified_event(hazard_key) ON DELETE SET NULL
+  DEFERRABLE INITIALLY DEFERRED;
+
+ALTER TABLE monitoring_device DROP CONSTRAINT IF EXISTS fk_monitoring_device_hazard;
+ALTER TABLE monitoring_device ADD CONSTRAINT fk_monitoring_device_hazard
+  FOREIGN KEY (hazard_code) REFERENCES unified_event(hazard_key) ON DELETE SET NULL
+  DEFERRABLE INITIALLY DEFERRED;
+
+ALTER TABLE warning_event DROP CONSTRAINT IF EXISTS fk_warning_event_hazard;
+ALTER TABLE warning_event ADD CONSTRAINT fk_warning_event_hazard
+  FOREIGN KEY (hazard_code) REFERENCES unified_event(hazard_key) ON DELETE SET NULL
+  DEFERRABLE INITIALLY DEFERRED;
+
+ALTER TABLE risk_score_log DROP CONSTRAINT IF EXISTS fk_risk_score_log_hazard;
+ALTER TABLE risk_score_log ADD CONSTRAINT fk_risk_score_log_hazard
+  FOREIGN KEY (hazard_code) REFERENCES unified_event(hazard_key) ON DELETE CASCADE
+  DEFERRABLE INITIALLY DEFERRED;
+
+ALTER TABLE ai_comprehensive_score DROP CONSTRAINT IF EXISTS fk_ai_comprehensive_score_hazard;
+ALTER TABLE ai_comprehensive_score ADD CONSTRAINT fk_ai_comprehensive_score_hazard
+  FOREIGN KEY (hazard_code) REFERENCES unified_event(hazard_key) ON DELETE CASCADE
+  DEFERRABLE INITIALLY DEFERRED;
 

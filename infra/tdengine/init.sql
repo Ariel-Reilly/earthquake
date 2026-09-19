@@ -9,8 +9,8 @@
 -- =====================================================================
 
 -- 创建数据库（已存在会报错，忽略即可）
-CREATE DATABASE IF NOT EXISTS geohazard KEEP 365 DURATION 10 BUFFER 256;
-USE geohazard;
+CREATE DATABASE IF NOT EXISTS disasterguard KEEP 365 DURATION 10 BUFFER 256;
+USE disasterguard;
 
 -- 创建超级表：设备指标
 -- ts: 时间戳（主键）
