@@ -30,10 +30,18 @@ public interface WarningEventRepository extends JpaRepository<WarningEvent, Long
       + "ORDER BY w.triggeredAt DESC")
   List<WarningEvent> findOpenWarningsOrderByTriggeredAtDesc(@Param("excludedStatuses") List<String> excludedStatuses);
 
-  /** 按等级分组计数：返回 [warning_level, count]。 */
+  /** 按等级分组计数：返回 [warning_level, count]，值为「红色预警」这类中文等级。 */
   @Query(value = "SELECT COALESCE(NULLIF(warning_level, ''), '未分级') AS level, COUNT(*) AS cnt "
       + "FROM warning_event GROUP BY 1", nativeQuery = true)
   List<Object[]> countByLevel();
+
+  /**
+   * 按状态分组计数：返回 [status, count]，值为「待确认 / 处理中 / 已关闭」这类中文状态。
+   * 注意与 {@link #countByLevel()} 区分——此前 stats() 误用等级分组去取状态计数，导致恒为 0。
+   */
+  @Query(value = "SELECT COALESCE(NULLIF(status, ''), '未知') AS st, COUNT(*) AS cnt "
+      + "FROM warning_event GROUP BY 1", nativeQuery = true)
+  List<Object[]> countByStatus();
 
   /** 按月统计预警触发数：返回 [yyyy-mm, count]，时间范围由调用方决定。 */
   @Query(value = "SELECT TO_CHAR(triggered_at, 'YYYY-MM') AS ym, COUNT(*) AS cnt "

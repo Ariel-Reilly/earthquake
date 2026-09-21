@@ -158,7 +158,9 @@ const recommendedChannels = computed(() =>
 
 const stepTitle = computed(() => ["基本信息", "发布范围", "渠道与内容", "确认发布"][step.value - 1])
 const canNext = computed(() => {
-  if (step.value === 1) return form.title.trim() && form.hazardType
+  // 后端要求预警必须关联真实隐患点（hazard_code 为 NOT NULL 且外键引用 hazard_point），
+  // 这里以 hazardCode 为准，避免 hazardType 的默认值让用户跳过关联步骤、提交后才报 400。
+  if (step.value === 1) return form.title.trim() && form.hazardCode
   if (step.value === 2) return form.region.trim() && form.lon != null && form.lat != null
   if (step.value === 3) return Object.values(form.channels).some(Boolean) && form.content.trim()
   return true

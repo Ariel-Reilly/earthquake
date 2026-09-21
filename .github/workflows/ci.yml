@@ -134,8 +134,14 @@ jobs:
       - name: 后端 Controller 漏 import 注解扫描
         run: node scripts/audit/check-missing-imports.mjs
 
-      - name: 后端 / 前端 接口孤儿对账
+      - name: 后端 / 前端 接口孤儿对账（后端有、前端没调）
         run: node scripts/audit/check-endpoint-parity.mjs
+
+      # 反向：前端调了、后端没有。2026-09-21 复审的 P0（POST /api/warnings
+      # 后端缺失而向导页已上线）正是这类缺口，故补上这条门禁。
+      # 存量缺口已登记在脚本顶部 KNOWN_GAPS，不会阻断；新增缺口才会失败。
+      - name: 反向接口对账（前端调用、后端缺失）
+        run: node scripts/audit/check-frontend-endpoints.mjs
 
       - name: 前端相对路径 import 断链扫描
         run: cd frontend && node ../scripts/fix/check-broken-imports.mjs

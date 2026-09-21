@@ -4,6 +4,7 @@ import cn.disasterguard.common.api.ApiResponse;
 import cn.disasterguard.common.api.PageResponse;
 import cn.disasterguard.common.export.ExcelExportService;
 import cn.disasterguard.common.export.WarningExportRow;
+import cn.disasterguard.warning.dto.WarningCreateRequest;
 import cn.disasterguard.warning.dto.WarningDto;
 import cn.disasterguard.warning.dto.WarningUpdateRequest;
 import cn.disasterguard.warning.repository.WarningEventRepository;
@@ -42,6 +43,16 @@ public class WarningController {
     this.excelExportService = excelExportService;
   }
 
+  /**
+   * 人工发布预警（对应前端「预警发布向导」）。
+   * 等级码与灾害类型由 WarningService#createManual 统一归一化后落库。
+   */
+  @PostMapping
+  @PreAuthorize("hasAuthority('warnings:create')")
+  public ApiResponse<WarningDto> create(@Valid @RequestBody WarningCreateRequest request) {
+    return ApiResponse.success(warningService.createManual(request));
+  }
+
   @GetMapping
   @PreAuthorize("hasAuthority('warnings:view')")
   public ApiResponse<PageResponse<WarningDto>> list(
@@ -63,21 +74,28 @@ public class WarningController {
   public ApiResponse<Map<String, Object>> stats() {
     // 状态集合参考 WarningService.create() 默认 "待确认"，
     // 以及 dispatch/close/dismiss/resolve 后流转出的 "处理中" / "已发布" / "已解除" / "已忽略" / "已关闭" / "已确认"。
-    List<Object[]> byStatus = warningRepository.countByLevel();
+    // 等级分布与状态计数是两套口径：countByLevel 按 warning_level（红色预警 / ...），
+    // countByStatus 按 status（待确认 / 处理中 / ...）。此前误用等级 Map 去取状态名，
+    // 导致 dispatched / closed 恒为 0。
     Map<String, Long> byLevel = new java.util.LinkedHashMap<>();
-    for (Object[] row : byStatus) {
+    for (Object[] row : warningRepository.countByLevel()) {
       byLevel.put(String.valueOf(row[0]), ((Number) row[1]).longValue());
+    }
+    Map<String, Long> byStatus = new java.util.LinkedHashMap<>();
+    for (Object[] row : warningRepository.countByStatus()) {
+      byStatus.put(String.valueOf(row[0]), ((Number) row[1]).longValue());
     }
     long pending = warningRepository.countActiveWarnings(
         List.of("已关闭", "已忽略", "已解除"));
     Map<String, Object> result = new java.util.LinkedHashMap<>();
     result.put("pending", pending);           // 待我处理（活动态，去掉终态）
-    result.put("dispatched", byLevel.getOrDefault("处理中", 0L));
-    result.put("closed", byLevel.getOrDefault("已关闭", 0L)
-        + byLevel.getOrDefault("已解除", 0L)
-        + byLevel.getOrDefault("已忽略", 0L));
+    result.put("dispatched", byStatus.getOrDefault("处理中", 0L));
+    result.put("closed", byStatus.getOrDefault("已关闭", 0L)
+        + byStatus.getOrDefault("已解除", 0L)
+        + byStatus.getOrDefault("已忽略", 0L));
     result.put("total", warningRepository.count());
     result.put("byLevel", byLevel);
+    result.put("byStatus", byStatus);
     return ApiResponse.success(result);
   }
 

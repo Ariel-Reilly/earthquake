@@ -7,6 +7,7 @@ import cn.disasterguard.emergency.service.EmergencyService;
 import cn.disasterguard.hazard.entity.HazardPoint;
 import cn.disasterguard.hazard.repository.HazardPointRepository;
 import cn.disasterguard.realtime.RealtimeBroadcastService;
+import cn.disasterguard.warning.dto.WarningCreateRequest;
 import cn.disasterguard.warning.dto.WarningDto;
 import cn.disasterguard.warning.dto.WarningUpdateRequest;
 import cn.disasterguard.warning.entity.WarningEvent;
@@ -36,13 +37,16 @@ public class WarningService {
   private final HazardPointRepository hazardRepository;
   private final EmergencyService emergencyService;
   private final RealtimeBroadcastService broadcastService;
+  private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
   public WarningService(WarningEventRepository warningRepository, HazardPointRepository hazardRepository,
-                        EmergencyService emergencyService, RealtimeBroadcastService broadcastService) {
+                        EmergencyService emergencyService, RealtimeBroadcastService broadcastService,
+                        com.fasterxml.jackson.databind.ObjectMapper objectMapper) {
     this.warningRepository = warningRepository;
     this.hazardRepository = hazardRepository;
     this.emergencyService = emergencyService;
     this.broadcastService = broadcastService;
+    this.objectMapper = objectMapper;
   }
 
   public PageResponse<WarningDto> page(int page, int size, String keyword, String status) {
@@ -263,6 +267,114 @@ public class WarningService {
     WarningDto dto = toDto(warningRepository.save(warning));
     broadcastWarning(dto);
     return dto;
+  }
+
+  /** 灾害类型中文标签 → 英文码（与 unified_event.hazard_type / 前端 NoticeTemplatePage 保持同一套）。 */
+  private static final Map<String, String> HAZARD_TYPE_CODES = Map.of(
+      "滑坡", "landslide",
+      "崩塌", "collapse",
+      "泥石流", "debris_flow",
+      "地面沉降", "subsidence",
+      "地震", "earthquake"
+  );
+
+  /** 预警等级英文码 → 库内存值（warning_level 存中文，见 AiWarningScheduler#translateLevel）。 */
+  private static final Map<String, String> LEVEL_LABELS = Map.of(
+      "red", "红色预警",
+      "orange", "橙色预警",
+      "yellow", "黄色预警",
+      "blue", "蓝色预警"
+  );
+
+  /**
+   * 人工上报预警（POST /api/warnings）。
+   *
+   * <p>前端向导页提交英文等级码 + 中文灾害类型，这里统一归一化后再落库，
+   * 保证与规则引擎 / AI 自动产生的预警在同一套编码体系内。
+   *
+   * <p>注意：hazard_code 是 NOT NULL 且外键引用 hazard_point，
+   * 因此必须先校验隐患点存在，否则会退化成 500（外键冲突）。
+   */
+  @Transactional
+  public WarningDto createManual(WarningCreateRequest request) {
+    if (request == null || request.title() == null || request.title().isBlank()) {
+      throw new AppException(400, "预警标题不能为空");
+    }
+    String hazardCode = request.hazardCode() == null ? "" : request.hazardCode().trim();
+    if (hazardCode.isEmpty()) {
+      throw new AppException(400, "创建预警必须关联隐患点（hazardCode 不能为空）");
+    }
+    if (!hazardRepository.existsByHazardCode(hazardCode)) {
+      throw new AppException(400, "隐患点不存在: " + hazardCode);
+    }
+    WarningEvent warning = new WarningEvent();
+    warning.setWarningCode("WG-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
+    warning.setHazardCode(hazardCode);
+    warning.setTitle(request.title().trim());
+    warning.setWarningLevel(normalizeLevel(request.level()));
+    warning.setHazardType(normalizeHazardType(request.hazardType()));
+    warning.setTriggerValue(request.content() == null ? "" : request.content());
+    warning.setStatus("待确认");
+    warning.setSource("MANUAL");
+    warning.setTriggeredAt(OffsetDateTime.now());
+    warning.setManualPayload(toManualPayload(request));
+    WarningDto dto = toDto(warningRepository.save(warning));
+    broadcastWarning(dto);
+    return dto;
+  }
+
+  /** 英文等级码 → 中文存值；已为中文存值则保留；无法识别按黄色兜底（与 AI 预警默认值一致）。 */
+  private String normalizeLevel(String level) {
+    if (level == null || level.isBlank()) {
+      return "黄色预警";
+    }
+    String trimmed = level.trim();
+    String mapped = LEVEL_LABELS.get(trimmed.toLowerCase());
+    if (mapped != null) {
+      return mapped;
+    }
+    if (trimmed.endsWith("预警")) {
+      return trimmed;
+    }
+    log.warn("未知预警等级码: {}，回落为黄色预警", trimmed);
+    return "黄色预警";
+  }
+
+  /** 中文灾害类型 → 英文码；不在映射表内且已是英文码则保留，其余原样入库并告警。 */
+  private String normalizeHazardType(String hazardType) {
+    if (hazardType == null || hazardType.isBlank()) {
+      return null;
+    }
+    String trimmed = hazardType.trim();
+    String mapped = HAZARD_TYPE_CODES.get(trimmed);
+    if (mapped != null) {
+      return mapped;
+    }
+    if (trimmed.matches("[a-z_]+")) {
+      return trimmed;
+    }
+    log.warn("未知灾害类型标签: {}，原样入库", trimmed);
+    return trimmed;
+  }
+
+  /** 向导页扩展字段序列化为 JSON，避免为低频字段撑宽主表。 */
+  private String toManualPayload(WarningCreateRequest request) {
+    try {
+      Map<String, Object> payload = new java.util.LinkedHashMap<>();
+      payload.put("region", request.region());
+      payload.put("lon", request.lon());
+      payload.put("lat", request.lat());
+      payload.put("bufferKm", request.bufferKm());
+      payload.put("channels", request.channels());
+      payload.put("content", request.content());
+      payload.put("validUntil", request.validUntil());
+      payload.put("operator", request.operator());
+      payload.put("hazardName", request.hazardName());
+      return objectMapper.writeValueAsString(payload);
+    } catch (Exception e) {
+      log.warn("人工预警扩展字段序列化失败，已忽略: {}", e.getMessage());
+      return null;
+    }
   }
 
   @Transactional

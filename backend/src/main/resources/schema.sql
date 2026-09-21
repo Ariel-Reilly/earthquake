@@ -381,6 +381,11 @@ ALTER TABLE warning_event ADD COLUMN IF NOT EXISTS closed_by VARCHAR(64);
 ALTER TABLE warning_event ADD COLUMN IF NOT EXISTS source VARCHAR(32);
 ALTER TABLE warning_event ADD COLUMN IF NOT EXISTS resolve_scope VARCHAR(32);
 ALTER TABLE warning_event ADD COLUMN IF NOT EXISTS resolve_area VARCHAR(64);
+-- 人工上报预警（source='MANUAL'）补充字段：
+-- hazard_type 与 hazard_point.hazard_type 对齐（英文码 landslide / collapse / ...），
+-- manual_payload 承接向导页的扩展字段（区域/经纬度/影响半径/渠道/正文/有效期/上报人）。
+ALTER TABLE warning_event ADD COLUMN IF NOT EXISTS hazard_type VARCHAR(64);
+ALTER TABLE warning_event ADD COLUMN IF NOT EXISTS manual_payload TEXT;
 -- 幂等：result_json 在上一次运行可能已被迁移到 JSONB 并创建 GIN 索引，
 -- 直接 ALTER TYPE TEXT 会被 GIN 拒绝。先 drop GIN，下方 B 段会把列变 JSONB
 -- 并在末尾的 CREATE INDEX IF NOT EXISTS 重建 GIN。

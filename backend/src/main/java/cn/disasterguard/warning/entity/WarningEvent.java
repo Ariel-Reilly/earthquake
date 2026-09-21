@@ -70,6 +70,18 @@ public class WarningEvent {
   @Column(length = 32)
   private String source;
 
+  /**
+   * 灾害类型，与 {@code hazard_point.hazard_type} / {@code unified_event.hazard_type}
+   * 保持同一套英文码（landslide / collapse / debris_flow / subsidence / earthquake）。
+   * 人工上报页传的是中文标签，入库前由 {@code WarningService} 归一化。
+   */
+  @Column(name = "hazard_type", length = 64)
+  private String hazardType;
+
+  /** 人工上报向导的扩展字段（区域 / 经纬度 / 影响半径 / 发布渠道 / 正文 / 有效期 / 上报人），JSON 文本。 */
+  @Column(name = "manual_payload")
+  private String manualPayload;
+
   public Long getId() { return id; }
   public void setId(Long id) { this.id = id; }
   public String getWarningCode() { return warningCode; }
@@ -106,4 +118,8 @@ public class WarningEvent {
   public void setRuleSnapshot(String ruleSnapshot) { this.ruleSnapshot = ruleSnapshot; }
   public String getSource() { return source; }
   public void setSource(String source) { this.source = source; }
+  public String getHazardType() { return hazardType; }
+  public void setHazardType(String hazardType) { this.hazardType = hazardType; }
+  public String getManualPayload() { return manualPayload; }
+  public void setManualPayload(String manualPayload) { this.manualPayload = manualPayload; }
 }

@@ -7,6 +7,28 @@
 
 ## [Unreleased]
 
+### 🐛 修复（2026-09-21 第二次复审 — 预警创建链路与统计口径）
+
+- **P0 预警创建接口缺失**：`WarningController` 新增 `@PostMapping`（`warnings:create`
+  权限）承接前端「预警发布向导」的 13 字段 payload，转调新增的
+  `WarningService#createManual`。此前 `POST /api/warnings` 无任何后端映射，
+  `WarningService#create()` 零调用者，而向导页已在路由注册——发布预警必然失败。
+- **P1 预警统计恒为 0**：`stats()` 原先拿状态名去取 `countByLevel()`（按
+  `warning_level` 分组）的结果，导致 `dispatched` / `closed` 永远为 0。
+  新增 `countByStatus()` 按 status 分组，并保留 `byLevel` 等级分布、
+  新增 `byStatus` 一并返回。
+- **跨端编码归一化**：人工预警入库前把前端英文等级码（red / orange / yellow / blue）
+  映射为库内中文存值（红色预警 / ...），把中文灾害类型（滑坡 / 崩塌 / ...）映射为
+  英文码（landslide / collapse / debris_flow / subsidence / earthquake）；
+  未在映射表内的值原样保留并告警，不臆造编码。
+- **schema 与实体扩展**：`warning_event` 增加 `hazard_type VARCHAR(64)` 与
+  `manual_payload TEXT`（`ddl-auto: none`，须在 `schema.sql` 显式 ALTER），
+  向导页扩展字段（区域 / 经纬度 / 影响半径 / 渠道 / 正文 / 有效期 / 上报人）存 JSON。
+- **前端**：`WarningCreatePage` 第一步校验由 `hazardType`（有默认值"滑坡"，可被绕过）
+  改为 `hazardCode`，避免未关联隐患点却走完向导、提交后才报 400。
+- **测试**：新增 `WarningManualCreateTest`（10 例），覆盖等级 / 类型归一化、
+  未知值回落、扩展字段序列化，以及隐患点不存在 / 未关联 / 标题为空的拒绝路径。
+
 ### ✨ 重构（2026-09-21 遗留项清理 — M6 落库与 lint 清零）
 
 - **M6 内存 mock 落库**：Backup / Sync / Plan / OTA / WarningDelivery / Report /
