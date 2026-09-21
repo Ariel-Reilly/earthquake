@@ -250,6 +250,7 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   if (pollTimer) clearInterval(pollTimer);
+  if (filterTimer) clearTimeout(filterTimer);
 });
 
 // 监听过滤变化，自动重新加载（避免大量数据本地筛选）

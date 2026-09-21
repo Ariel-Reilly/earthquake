@@ -14,7 +14,7 @@
  *   Java 端 AiController.disasterAssessment()（聚合 hazard + 因子）→
  *   Python ai-service /api/ai/disaster-assessment/score → 返回三件套 + 三维度明细
  */
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import {
   AlertTriangle,
   Brain,
@@ -355,6 +355,10 @@ onMounted(async () => {
   }
   loadModelInfo()
   startFusionAutoRefresh()
+})
+
+onBeforeUnmount(() => {
+  stopFusionAutoRefresh()
 })
 </script>
 

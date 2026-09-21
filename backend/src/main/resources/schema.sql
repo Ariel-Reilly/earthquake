@@ -1484,6 +1484,13 @@ CREATE TABLE IF NOT EXISTS emergency_plan (
   payload JSONB NOT NULL DEFAULT '{}'::jsonb,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- 报告订阅（前端 ReportCenterPage 调 updateReportSubscription 创建/更新订阅）
+CREATE TABLE IF NOT EXISTS report_subscription (
+  id BIGINT PRIMARY KEY,
+  payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 -- =====================================================================
 -- M6 技术债改造：Controller 内存 Map 落库（JSONB）
 -- 涉及：AccountSecurityController、WarningDeliveryController
@@ -1592,6 +1599,13 @@ CREATE TABLE IF NOT EXISTS report_history (
 );
 
 CREATE TABLE IF NOT EXISTS emergency_plan (
+  id BIGINT PRIMARY KEY,
+  payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- 报告订阅（前端 ReportCenterPage 调 updateReportSubscription 创建/更新订阅）
+CREATE TABLE IF NOT EXISTS report_subscription (
   id BIGINT PRIMARY KEY,
   payload JSONB NOT NULL DEFAULT '{}'::jsonb,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()

@@ -54,7 +54,9 @@ ai-service/models/history/
 # ===== AI 工具残留（modernize hook 等）=====
 # GitHub Copilot App Modernization / 类似工具会在仓库内写入 modernize 目录，
 # 这些是工具运行时产物，不应纳入版本控制。
-.github/
+# 注：保留 .github/workflows/ 用于 CI 配置（必须可被 GitHub Actions 识别）。
+/.github/modernize/
+/.github/copilot/
 backend/.github/
 
 # ===== OS =====

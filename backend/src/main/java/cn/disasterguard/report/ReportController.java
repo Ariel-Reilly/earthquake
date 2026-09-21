@@ -2,8 +2,10 @@ package cn.disasterguard.report;
 
 import cn.disasterguard.common.api.ApiResponse;
 import cn.disasterguard.report.entity.ReportHistory;
+import cn.disasterguard.report.entity.ReportSubscription;
 import cn.disasterguard.report.entity.ReportTemplate;
 import cn.disasterguard.report.repository.ReportHistoryRepository;
+import cn.disasterguard.report.repository.ReportSubscriptionRepository;
 import cn.disasterguard.report.repository.ReportTemplateRepository;
 import jakarta.annotation.PostConstruct;
 import java.time.OffsetDateTime;
@@ -47,27 +49,58 @@ public class ReportController {
 
   private final ReportTemplateRepository templateRepo;
   private final ReportHistoryRepository historyRepo;
+  private final ReportSubscriptionRepository subscriptionRepo;
 
   /** id 计数器：启动时以库内最大 id 初始化，新增记录用 incrementAndGet。 */
   private final AtomicLong templateIdGen = new AtomicLong();
   private final AtomicLong reportIdGen = new AtomicLong();
+  private final AtomicLong subscriptionIdGen = new AtomicLong();
 
   public ReportController(ReportTemplateRepository templateRepo,
-                          ReportHistoryRepository historyRepo) {
+                          ReportHistoryRepository historyRepo,
+                          ReportSubscriptionRepository subscriptionRepo) {
     this.templateRepo = templateRepo;
     this.historyRepo = historyRepo;
+    this.subscriptionRepo = subscriptionRepo;
   }
 
   @PostConstruct
   void init() {
     templateIdGen.set(templateRepo.findMaxId());
     reportIdGen.set(historyRepo.findMaxId());
+    subscriptionIdGen.set(subscriptionRepo.findMaxId());
     if (templateRepo.count() == 0) {
       seedTemplates();
     }
     if (historyRepo.count() == 0) {
       seedHistory();
     }
+    if (subscriptionRepo.count() == 0) {
+      seedSubscriptions();
+    }
+  }
+
+  private void seedSubscriptions() {
+    // 启动期空表幂等写入 1 条示例订阅，保证首次打开订阅抽屉不空白。
+    long id = subscriptionIdGen.incrementAndGet();
+    Map<String, Object> seed = new LinkedHashMap<>();
+    seed.put("templateId", templateIdGen.get());
+    seed.put("cron", "0 0 8 * * ?");
+    seed.put("time", "08:00");
+    seed.put("recipients", List.of("ops@disasterguard.local"));
+    seed.put("enabled", true);
+    seed.put("createdAt", OffsetDateTime.now().toString());
+    ReportSubscription entity = new ReportSubscription();
+    entity.setId(id);
+    entity.setPayload(seed);
+    subscriptionRepo.save(entity);
+  }
+
+  private ReportSubscription saveSubscription(Long id, Map<String, Object> payload) {
+    ReportSubscription entity = new ReportSubscription();
+    entity.setId(id);
+    entity.setPayload(payload);
+    return subscriptionRepo.save(entity);
   }
 
   private void seedTemplates() {
@@ -276,5 +309,68 @@ public class ReportController {
     entity.setPayload(report);
     historyRepo.save(entity);
     return ApiResponse.success(Map.of("id", id, "status", "CANCELLED"));
+  }
+
+  // ── 订阅（subscriptions）──────────────────────────────────────────────────
+
+  @GetMapping("/subscriptions")
+  @PreAuthorize("hasAuthority('reports:view')")
+  public ApiResponse<List<Map<String, Object>>> listSubscriptions() {
+    List<Map<String, Object>> all = subscriptionRepo.findAll().stream()
+        .sorted(Comparator.comparing(ReportSubscription::getId))
+        .map(ReportSubscription::getPayload)
+        .toList();
+    return ApiResponse.success(all);
+  }
+
+  /**
+   * 创建或更新订阅。前端 ReportCenterPage 在"新建订阅"抽屉提交时调用，
+   * body 含 {templateId, cron, time, recipients, enabled}。
+   *
+   * <p>语义：按 {@code templateId} 维度幂等 —— 同一模板已有订阅则覆盖更新，
+   * 否则新建一条。id 仍由应用层计数器分配，确保与历史最大 id 连续。
+   */
+  @PostMapping("/subscriptions")
+  @PreAuthorize("hasAuthority('reports:create')")
+  public ApiResponse<Map<String, Object>> upsertSubscription(
+      @RequestBody Map<String, Object> payload) {
+    if (payload == null || payload.isEmpty()) {
+      return ApiResponse.fail(400, "订阅配置不能为空");
+    }
+    Object templateIdRaw = payload.get("templateId");
+    if (templateIdRaw == null) {
+      return ApiResponse.fail(400, "缺少 templateId");
+    }
+    long templateId = Long.parseLong(templateIdRaw.toString());
+
+    // 查找同 templateId 的现有订阅（幂等更新）；找不到再新建。
+    ReportSubscription existing = subscriptionRepo.findAll().stream()
+        .filter(s -> {
+          Object t = s.getPayload() == null ? null : s.getPayload().get("templateId");
+          return t != null && Long.parseLong(t.toString()) == templateId;
+        })
+        .findFirst()
+        .orElse(null);
+
+    long id = existing != null ? existing.getId() : subscriptionIdGen.incrementAndGet();
+    Map<String, Object> body = new LinkedHashMap<>(payload);
+    body.put("updatedAt", OffsetDateTime.now().toString());
+    saveSubscription(id, body);
+
+    Map<String, Object> resp = new LinkedHashMap<>();
+    resp.put("id", id);
+    resp.put("templateId", templateId);
+    resp.put("status", existing != null ? "UPDATED" : "CREATED");
+    return ApiResponse.success(resp);
+  }
+
+  @DeleteMapping("/subscriptions/{id}")
+  @PreAuthorize("hasAuthority('reports:create')")
+  public ApiResponse<Map<String, Object>> deleteSubscription(@PathVariable Long id) {
+    if (!subscriptionRepo.existsById(id)) {
+      return ApiResponse.fail(404, "订阅不存在: " + id);
+    }
+    subscriptionRepo.deleteById(id);
+    return ApiResponse.success(Map.of("id", id, "status", "DELETED"));
   }
 }

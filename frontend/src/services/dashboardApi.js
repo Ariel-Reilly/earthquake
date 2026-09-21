@@ -710,14 +710,6 @@ export const dashboardApi = {
     });
   },
 
-  ignoreAnomaly: async (id, reason) => {
-    requireBackend("忽略异常");
-    return request(`/sync/anomalies/${encodeURIComponent(id)}/ignore`, {
-      method: "POST",
-      body: JSON.stringify({ reason }),
-    });
-  },
-
   testDataSource: async (code) => {
     requireBackend("测试数据源连接");
     return request(`/datasources/${encodeURIComponent(code)}/test`, {
