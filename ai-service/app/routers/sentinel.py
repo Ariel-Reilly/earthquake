@@ -55,10 +55,8 @@ from app.utils.stac_clients import (
 
 router = APIRouter(prefix="/api/ai/sentinel", tags=["sentinel"])
 
-# ============================================================================
 # 环境变量（注意：必须用函数读取，不能在模块顶层捕获，否则 main.py 在子进程
 # 中 import 时已经过了最佳时机。函数式读取保证任何上下文都拿到最新值。）
-# ============================================================================
 def _copernicus_client_id() -> str:
     return os.environ.get("COPERNICUS_CLIENT_ID", "")
 
@@ -84,9 +82,7 @@ def _sentinel_storage_dir() -> str:
     return d
 
 
-# ============================================================================
 # 任务状态枚举
-# ============================================================================
 class JobStatus(str, Enum):
     QUEUED = "queued"
     RUNNING = "running"
@@ -95,9 +91,7 @@ class JobStatus(str, Enum):
     CANCELLED = "cancelled"
 
 
-# ============================================================================
 # 任务状态存储（内存，生产环境应换 Redis）
-# ============================================================================
 _jobs: Dict[str, Dict] = {}
 _diff_jobs: Dict[str, Dict] = {}
 
@@ -163,9 +157,7 @@ def _update_diff_job(job_id: str, **kwargs) -> Dict:
     return _diff_jobs[job_id]
 
 
-# ============================================================================
 # 请求/响应模型
-# ============================================================================
 class SentinelComposeRequest(BaseModel):
     bbox: List[float] = Field(
         ...,
@@ -206,9 +198,7 @@ class SentinelJobResponse(BaseModel):
     result: Optional[Dict] = None
 
 
-# ============================================================================
 # 核心合成逻辑
-# ============================================================================
 
 async def _run_compose(job_id: str, req: SentinelComposeRequest):
     """后台任务：执行 Sentinel-1+2 合成管线。"""
@@ -283,9 +273,7 @@ async def _run_compose(job_id: str, req: SentinelComposeRequest):
         raise
 
 
-# --------------------------------------------------------------------------
 # S2 L2A 搜索（Copernicus Data Space STAC + fallback 链）
-# --------------------------------------------------------------------------
 async def _search_s2_scene(req: SentinelComposeRequest, job_id: str, *, skip_cdse: bool = False) -> Optional[Dict]:
     """
     通过 STAC fallback 链搜索 Sentinel-2 L2A 场景。
@@ -314,9 +302,7 @@ async def _search_s2_scene(req: SentinelComposeRequest, job_id: str, *, skip_cds
         return _mock_s2_scene(req)
 
 
-# --------------------------------------------------------------------------
 # S1 GRD 搜索（同样走 fallback 链）
-# --------------------------------------------------------------------------
 async def _search_s1_scene(req: SentinelComposeRequest, job_id: str, *, skip_cdse: bool = False) -> Optional[Dict]:
     """通过 STAC fallback 链搜索 Sentinel-1 GRD 场景。失败返回 None。"""
     skip = skip_cdse or not is_cdse_configured()
@@ -362,9 +348,7 @@ def _normalize_stac_datetime_range(start: str, end: str) -> str:
     return f"{s}/{e}"
 
 
-# --------------------------------------------------------------------------
 # Mock 场景生成（仅当全部 STAC 链路失败时降级用，不依赖任何网络）
-# --------------------------------------------------------------------------
 def _mock_s2_scene(req: SentinelComposeRequest) -> Dict:
     """演示模式：返回虚假 S2 场景元数据。"""
     return {
@@ -387,12 +371,8 @@ def _mock_s1_scene(req: SentinelComposeRequest) -> Dict:
     }
 
 
-# --------------------------------------------------------------------------
 # S2 真彩合成
-# --------------------------------------------------------------------------
-# ============================================================================
-# Asset 下载 helpers（v1.9.2：替换之前的 NotImplementedError）
-# ============================================================================
+# Asset 下载 helpers
 def _s3_to_https(href: str) -> str:
     """`s3://bucket/key` → `https://bucket.s3.amazonaws.com/key`。
 
@@ -527,9 +507,7 @@ async def _try_download_real_asset(
     return None
 
 
-# --------------------------------------------------------------------------
 # S2 真彩合成
-# --------------------------------------------------------------------------
 async def _compose_s2_truecolor(s2_scene: Dict, bbox: List[float], job_id: str) -> str:
     """
     真彩合成实现(v1.9.2 重写):
@@ -609,9 +587,7 @@ async def _generate_mock_s2_image(bbox: List[float], job_id: str) -> str:
         return f"mock://sentinel/s2_truecolor_{job_id}.png"
 
 
-# --------------------------------------------------------------------------
 # S1 SAR 伪彩色合成
-# --------------------------------------------------------------------------
 async def _compose_s1_falsecolor(s1_scene: Dict, bbox: List[float], job_id: str) -> Optional[str]:
     """
     SAR 伪彩色实现(v1.9.2 重写):
@@ -673,9 +649,7 @@ async def _generate_mock_sar_image(bbox: List[float], job_id: str) -> Optional[s
         return f"mock://sentinel/s1_sar_{job_id}.png"
 
 
-# --------------------------------------------------------------------------
 # 结果 URL 构建
-# --------------------------------------------------------------------------
 def _build_result_urls(s2_url: Optional[str], sar_url: Optional[str], req: SentinelComposeRequest, job_id: str) -> Dict:
     return {
         "s2Url": s2_url,
@@ -693,9 +667,7 @@ def _build_result_urls(s2_url: Optional[str], sar_url: Optional[str], req: Senti
     }
 
 
-# ============================================================================
 # 差异任务数据模型与状态存储
-# ============================================================================
 
 class SentinelDiffRequest(BaseModel):
     """时相对比差异计算请求。
@@ -767,9 +739,7 @@ def _get_diff_job(job_id: str) -> Dict:
     return _diff_jobs[job_id]
 
 
-# --------------------------------------------------------------------------
 # 差异计算核心
-# --------------------------------------------------------------------------
 
 async def _resolve_input_url(job_or_url: Optional[str], job_kind: str = "compose") -> Optional[str]:
     """从 jobId 或直接 URL 解析出可访问的图像 URL。
@@ -1092,9 +1062,7 @@ def _cluster_hotspots(diff_magnitude: Any, threshold: int, top_k: int = 3) -> Li
     return candidates[:top_k]
 
 
-# ============================================================================
 # 路由端点
-# ============================================================================
 
 @router.post("/compose", response_model=SentinelJobResponse, summary="提交 Sentinel 合成任务")
 async def compose(req: SentinelComposeRequest, background_tasks: BackgroundTasks):
@@ -1166,9 +1134,7 @@ async def cancel_job(job_id: str):
     )
 
 
-# ============================================================================
 # 时相对比差异计算路由
-# ============================================================================
 
 @router.post("/diff", response_model=SentinelDiffJobResponse, summary="提交差异计算任务")
 async def submit_diff(req: SentinelDiffRequest, background_tasks: BackgroundTasks):

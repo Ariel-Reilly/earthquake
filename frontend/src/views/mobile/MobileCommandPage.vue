@@ -131,7 +131,7 @@ async function loadData() {
   loading.value = true;
   try {
     // 真实场景：const data = await dashboardApi.getMobileKpi()
-    await new Promise((r) => setTimeout(r, 600)); // mock 延迟
+    await new Promise((r) => setTimeout(r, 600));
     lastUpdated.value = new Date();
   } catch {
     // ignore
@@ -214,7 +214,6 @@ function goVideo() {
     </div>
 
     <main v-else class="mobile-main">
-      <!-- 时间戳 -->
       <div class="update-time" v-if="lastUpdated">
         <Clock :size="11" />
         更新于 {{ lastUpdated.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" }) }}

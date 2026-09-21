@@ -1,5 +1,5 @@
-$srcRoot = 'D:\earthquake\backend\src\main\java'
-$srcTestRoot = 'D:\earthquake\backend\src\test\java'
+$srcRoot = 'D:\DisasterGuard\backend\src\main\java'
+$srcTestRoot = 'D:\DisasterGuard\backend\src\test\java'
 $imports = New-Object System.Collections.Generic.List[Object]
 
 foreach ($root in @($srcRoot, $srcTestRoot)) {

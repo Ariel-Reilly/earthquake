@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any, Dict
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.models.xgboost_model import (
     DEFAULT_WEIGHTS,
@@ -83,9 +83,9 @@ async def model_reload() -> Dict[str, Any]:
 
 
 class RetrainRequest(BaseModel):
-    samples: int = 1500
-    val_ratio: float = 0.2
-    force: bool = False
+    samples: int = Field(1500, ge=100, le=100000, description="训练样本数，上限防止 DoS；超出系统内存时自动截断")
+    val_ratio: float = Field(0.2, ge=0.05, le=0.4, description="验证集比例 5%-40%")
+    force: bool = Field(False, description="true 时跳过最低样本检查（慎用）")
 
 
 @router.post("/retrain")
@@ -96,7 +96,7 @@ async def model_retrain(req: RetrainRequest | None = None) -> Dict[str, Any]:
     """
     req = req or RetrainRequest()
     result = train_xgboost(
-        target_samples=req.samples if req.force else max(req.samples, 100),
+        target_samples=req.samples,
         val_ratio=req.val_ratio,
     )
     # 训练成功 → reload

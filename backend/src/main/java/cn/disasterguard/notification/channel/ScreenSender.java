@@ -43,7 +43,6 @@ public class ScreenSender implements NotificationSender {
       String messageId = UUID.randomUUID().toString();
       log.info("[SCREEN Mock] 推送到大屏: {} - {}", title, content);
 
-      // 构建大屏消息格式
       Map<String, Object> screenMessage = Map.of(
           "type", "NOTIFICATION",
           "id", messageId,

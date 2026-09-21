@@ -6,6 +6,8 @@
 - 计算 KS 检验统计量
 - 检测数据分布漂移
 - 支持基线数据存储
+
+模型/基线目录可通过环境变量 MODELS_DIR / BASELINE_DIR 覆盖。
 """
 
 from __future__ import annotations
@@ -19,8 +21,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 from scipy import stats
 
-MODELS_DIR = Path(__file__).resolve().parent.parent.parent / "models"
-BASELINE_DIR = MODELS_DIR / "baseline"
+from app.config import MODELS_DIR, BASELINE_DIR
 
 
 @dataclass

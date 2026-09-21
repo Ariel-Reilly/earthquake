@@ -2,7 +2,7 @@
 import re
 import json
 
-with open(r'D:\earthquake\backend\src\main\resources\data.sql', encoding='utf-8') as f:
+with open(r'D:\DisasterGuard\backend\src\main\resources\data.sql', encoding='utf-8') as f:
     data = f.read()
 
 # Find all string literals that look like JSON (start with { or [)

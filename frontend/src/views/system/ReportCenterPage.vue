@@ -61,7 +61,6 @@ const TAB_KEYS = [
   { value: 'history', label: '生成历史' },
 ]
 
-// ------- 状态 -------
 const activeTab = ref('templates')
 const loading = ref(false)
 const historyLoading = ref(false)
@@ -99,7 +98,6 @@ const createForm = reactive({
 })
 const createError = ref('')
 
-// ------- 计算属性 -------
 const filteredTemplates = computed(() => {
   const kw = filters.keyword.trim().toLowerCase()
   return templates.value.filter((tpl) => {
@@ -124,7 +122,6 @@ const KPI_LIST = computed(() => [
   { key: 'failed', label: '失败次数', value: kpi.failed, suffix: '次', color: '#e06060', desc: '近 30 天累计失败', icon: AlertCircle },
 ])
 
-// ------- 工具 -------
 function categoryLabel(value) { return CATEGORY_LABEL[value] ?? value ?? '—' }
 function categoryColor(value) { return CATEGORY_COLOR[value] ?? '#7a8d89' }
 function triggerLabel(value) { return TRIGGER_LABEL[value] ?? value ?? '—' }
@@ -154,7 +151,6 @@ function formatDateTime(value) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
 }
 
-// ------- 加载 -------
 async function loadTemplates(showToast = false) {
   loading.value = true
   try {
@@ -230,7 +226,7 @@ async function refresh() {
   await Promise.all([loadTemplates(), loadHistory()])
 }
 
-// ------- 模板行操作 -------
+// 模板行操作
 function openRunModal(item) {
   runTarget.value = item
   runForm.range = '7d'
@@ -303,7 +299,7 @@ async function deleteTemplate(item) {
   }
 }
 
-// ------- 历史行操作 -------
+// 历史行操作
 async function rerunHistory(item) {
   try {
     await dashboardApi.rerunReportHistory(item.id)
@@ -329,7 +325,7 @@ function downloadHistory(item) {
   emit('notify', `已开始下载「${item.name}」（演示）`)
 }
 
-// ------- 新建模板 -------
+// 新建模板
 function openCreateModal() {
   createForm.name = ''
   createForm.category = 'operation'
@@ -363,7 +359,7 @@ async function submitCreate() {
   } catch (err) { emit('notify', err?.message ?? '保存失败') }
 }
 
-// ------- 监听过滤变化 -------
+// 监听过滤变化
 watch(() => ({ category: filters.category, keyword: filters.keyword }), () => loadTemplates(), { deep: true })
 watch(() => ({ ...historyFilters }), () => loadHistory(), { deep: true })
 

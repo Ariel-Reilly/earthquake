@@ -53,7 +53,6 @@ const CAT_BADGE = {
   元数据: { c: "#7a8d89", bg: "rgba(122,141,137,.12)" },
 }
 
-// 状态
 const refreshing = ref(false)
 const kpiLoading = ref(true)
 const kpi = ref({ total: 0, tables: 0, fields: 0, lastUpdated: "—" })
@@ -91,7 +90,6 @@ const editTagsNew = ref("")
 
 const subscribeLoading = ref(false)
 
-// 计算属性
 const filteredAssets = computed(() => {
   const kw = (filters.value.keyword || "").trim().toLowerCase()
   return (assets.value || []).filter((a) => {
@@ -131,7 +129,6 @@ watch(() => props.searchTerm, (v) => {
   if (typeof v === "string") filters.value.keyword = v
 })
 
-// 加载
 async function loadSummary() {
   kpiLoading.value = true
   try {
@@ -183,7 +180,6 @@ async function refreshAll() {
   } finally { refreshing.value = false }
 }
 
-// 详情
 async function openDetail(asset) {
   detailDrawerOpen.value = true
   detailLoading.value = true
@@ -271,7 +267,6 @@ async function submitEditTags() {
   } finally { editTagsLoading.value = false }
 }
 
-// 趋势
 async function openTrend(item) {
   trendDrawerOpen.value = true
   trendLoading.value = true
@@ -342,7 +337,6 @@ async function submitNew() {
   } finally { newSubmitting.value = false }
 }
 
-// 辅助
 function resetFilters() { filters.value = { keyword: "", type: "", category: "", source: "" } }
 function fmtNumber(n) {
   if (n === null || n === undefined || n === "") return "—"
@@ -405,7 +399,6 @@ onMounted(async () => {
       </div>
     </section>
 
-    <!-- 筛选 -->
     <section class="panel filter-panel">
       <div class="filter-bar">
         <Filter :size="14" class="muted" />
@@ -546,7 +539,6 @@ onMounted(async () => {
           </header>
           <div v-if="detailLoading" class="loading-row">加载中…</div>
           <div v-else-if="detailData" class="drawer-body">
-            <!-- 标签 -->
             <section class="block">
               <h4><Tag :size="14" />标签</h4>
               <div class="chip-row">
@@ -554,7 +546,6 @@ onMounted(async () => {
                 <span v-if="!(detailData.tags ?? []).length" class="muted small">暂无标签</span>
               </div>
             </section>
-            <!-- 字段 -->
             <section class="block">
               <h4>字段列表（{{ (detailData.fields ?? []).length }}）</h4>
               <div v-if="!(detailData.fields ?? []).length" class="muted small">暂无字段定义</div>
@@ -571,7 +562,6 @@ onMounted(async () => {
                 </tbody>
               </table>
             </section>
-            <!-- 血缘 -->
             <section class="block">
               <h4><ArrowRight :size="14" />血缘上下游</h4>
               <div class="lineage">
@@ -603,7 +593,6 @@ onMounted(async () => {
                 <div v-if="!(detailData.lineageUp || []).length && !(detailData.lineageDown || []).length" class="muted small">暂无血缘信息</div>
               </div>
             </section>
-            <!-- 元数据 -->
             <section class="block">
               <h4>元数据</h4>
               <div class="meta-grid">

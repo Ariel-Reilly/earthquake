@@ -50,7 +50,7 @@ const BACKEND_BASE = (() => {
 
 // CORS 代理（按优先级数组，逐一尝试直到成功）
 const CORS_PROXIES = [
-  '', // 不走代理
+  '',
   'https://api.allorigins.win/raw?url=',
   'https://api.codetabs.com/v1/proxy?quest=',
   'https://corsproxy.io/?',
@@ -138,7 +138,7 @@ async function fetchNmcProductLatest(kind) {
   if (cached) {return cached}
   const now = new Date()
   for (let i = 0; i < 96; i++) {
-    const t = new Date(now.getTime() - i * 6 * 60 * 1000) // 每 6 分钟一档
+    const t = new Date(now.getTime() - i * 6 * 60 * 1000)
     const yy = String(t.getFullYear())
     const mo = String(t.getMonth() + 1).padStart(2, '0')
     const dd = String(t.getDate()).padStart(2, '0')
@@ -208,9 +208,6 @@ function buildNmcProductUrl(kind, yy, mm, dd, hh, mn) {
   }
 }
 
-/* ===X===X===X===X===X===X===X===X===X===X===X===X===X===X===X
- *  对外 API
- * ===X===X===X===X===X===X===X===X===X===X===X===X===X===X===X */
 
 /**
  * 卫星云图：风云四号 A 星 中国区域 多通道合成图。
@@ -286,12 +283,12 @@ function wrapResult(settled) {
   return { ok: false, error: settled.reason?.message || String(settled.reason) }
 }
 
-/* ===X===X===X===X===X===X===X===X===X===X===X===X===X===X===X
+/*
  *  后端代理接入（cn.disasterguard.weather.WeatherController）
  *  - VITE_USE_BACKEND=true 时优先走 /api/weather/products
  *  - 后端返回结构与前端"自拉"模式兼容：每个 product 含 url/timestamp / 等字段
  *  - 图片源仍由官方域提供；前端 <img> 直连，与 NSMC/NMC 一致
- * ===X===X===X===X===X===X===X===X===X===X===X===X===X===X===X */
+  */
 
 function normalizeBackendProduct(p) {
   if (!p) {return p}
@@ -398,7 +395,7 @@ export function isWeatherBackendEnabled() {
   return USE_BACKEND
 }
 
-/* ===X===X===X===X===X===X===X===X===X===X===X===X===X===X===X
+/*
  *  地理范围（每张图在中国区域等经纬度坐标系下的外接矩形）
  *
  *  - FY-4A 中国区域云图：约 0–60°N, 70–140°E，等经纬度投影
@@ -406,16 +403,16 @@ export function isWeatherBackendEnabled() {
  *  - NMC 雷达/降水/降雪/干旱：中国大陆及周边，标准等经纬度
  *
  *  这些范围用于 OpenLayers ImageLayer 的 imageExtent 配置。
- * ===X===X===X===X===X===X===X===X===X===X===X===X===X===X===X */
+  */
 
-export const EXTENT_CHINA_FY4A = [70, 0, 140, 60] // 风云四号中国区域（略微外扩）
-export const EXTENT_FY4A_DISK = [60, -60, 220, 60] // 全圆盘（包含到 220°E 即约 140°W）
-export const EXTENT_CHINA_NMC = [73, 16, 135, 54] // NMC 全国产品，覆盖行政区划
+export const EXTENT_CHINA_FY4A = [70, 0, 140, 60]
+export const EXTENT_FY4A_DISK = [60, -60, 220, 60]
+export const EXTENT_CHINA_NMC = [73, 16, 135, 54]
 
-/* ===X===X===X===X===X===X===X===X===X===X===X===X===X===X===X
+/*
  *  图例配置
  *  各 overlay 的色档说明，给 UI 上的图例渲染用。
- * ===X===X===X===X===X===X===X===X===X===X===X===X===X===X===X */
+  */
 export const WEATHER_LEGENDS = {
   radar: {
     title: '雷达回波',

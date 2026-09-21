@@ -10,7 +10,7 @@ defineProps({ searchTerm: { type: String, default: '' }, userRole: { type: Strin
 const operator = getAuthUser() ?? { name: '李晨曦', role: 'admin' }
 const loading = ref(false)
 const logs = ref({ items: [], total: 0 })
-const filter = ref({ keyword: '', action: '', dateRange: '7' }) // 7d / 24h / all
+const filter = ref({ keyword: '', action: '', dateRange: '7' })
 
 const actionGroups = [
   { value: '', label: '全部操作', count: 0 },

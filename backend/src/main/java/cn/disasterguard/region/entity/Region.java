@@ -79,7 +79,6 @@ public class Region {
   @Column(name = "geo_type", nullable = false)
   private String geoType = "HILL";
 
-  // ----- getters / setters -----
   public Long getId() { return id; }
   public void setId(Long id) { this.id = id; }
   public Long getParentId() { return parentId; }

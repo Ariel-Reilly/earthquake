@@ -102,7 +102,6 @@ public class RuleEvaluator {
       return "==".equals(op) && threshold == null;
     }
 
-    // 转换为数值比较
     double actualNum = toDouble(actual);
     double thresholdNum = toDouble(threshold);
 

@@ -321,7 +321,7 @@ function updateKpiFromLists() {
   if (!overview.value) return
   overview.value = {
     ...overview.value,
-    _dirtyAt: Date.now(), // 触发 computed 重新计算
+    _dirtyAt: Date.now(),
   }
 }
 
@@ -348,7 +348,7 @@ function initMap() {
   if (!mapEl.value) return;
   try {
     mapController = createOpenLayersController(mapEl.value, {
-      center: [104.06, 30.67], // 成都经纬度(系统默认中心)
+      center: [104.06, 30.67],
       zoom: 8,
       showControls: false,
     });

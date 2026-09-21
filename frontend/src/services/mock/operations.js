@@ -6,9 +6,7 @@
  */
 import { emptyPaged } from "./empty";
 
-// =====================================================================
 // 资源库：3 类示例（队伍/物资/场所）
-// =====================================================================
 
 export function getResourcesMock() {
   return {
@@ -54,9 +52,7 @@ export function getResourcesMock() {
   };
 }
 
-// =====================================================================
 // 数据源配置：6 个示例（气象/卫星/地震/地图）
-// =====================================================================
 
 export function getDataSourcesMock() {
   return [
@@ -105,10 +101,8 @@ export function getDataSourcesMock() {
   ];
 }
 
-// =====================================================================
 // OTA / 通知模板 / 预案 / 固件 —— 全部走标准空分页
 // 这些接口尚未接入后端，离线模式直接给空壳避免静默 null
-// =====================================================================
 
 export const otaFirmwareListMock = () => emptyPaged;
 export const otaTaskListMock = () => emptyPaged;
@@ -121,9 +115,7 @@ export const planListMock = () => emptyPaged;
 export const planDetailMock = () => null;
 export const planLaunchesMock = () => emptyPaged;
 
-// =====================================================================
 // 备份 / 报表 / OTA 任务等纯离线骨架
-// =====================================================================
 
 export const backupListMock = () => emptyPaged;
 export const backupStrategiesMock = () => emptyPaged;

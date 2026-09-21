@@ -87,7 +87,7 @@ docker compose up -d
 | 指挥大屏 | http://localhost:5173/screen | 全屏展示（无需登录） |
 | 后端 API | http://localhost:8080/swagger-ui.html | Swagger UI |
 | AI 服务 | http://localhost:8001/docs | FastAPI 自动文档 |
-| MinIO 控制台 | http://localhost:19001 | admin / minio123 |
+| MinIO 控制台 | http://localhost:19001 | `disasterguard` / `<POSTGRES_PASSWORD from .env>` |
 
 ---
 

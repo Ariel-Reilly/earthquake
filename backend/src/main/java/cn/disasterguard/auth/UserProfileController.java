@@ -28,12 +28,14 @@ public class UserProfileController {
 
     /** 当前用户资料。 */
     @GetMapping
+    @PreAuthorize("hasAuthority('settings:view')")
     public ApiResponse<UserProfileDto> get(Authentication auth) {
         return ApiResponse.success(userProfileService.getProfile(auth.getName()));
     }
 
     /** 更新资料。 */
     @PutMapping
+    @PreAuthorize("hasAuthority('settings:edit')")
     public ApiResponse<UserProfileDto> update(Authentication auth,
                                               @RequestBody Map<String, Object> payload) {
         return ApiResponse.success(userProfileService.updateProfile(auth.getName(), payload));
@@ -41,6 +43,7 @@ public class UserProfileController {
 
     /** 修改密码。 */
     @PutMapping("/password")
+    @PreAuthorize("hasAuthority('settings:edit')")
     public ApiResponse<Map<String, Object>> changePassword(Authentication auth,
                                                           @RequestBody Map<String, String> payload) {
         userProfileService.changePassword(auth.getName(), payload.get("current"), payload.get("next"));
@@ -50,12 +53,14 @@ public class UserProfileController {
 
     /** 获取通知偏好。 */
     @GetMapping("/notification-preference")
+    @PreAuthorize("hasAuthority('settings:view')")
     public ApiResponse<NotificationPreferenceDto> getPref(Authentication auth) {
         return ApiResponse.success(userProfileService.getPreference(auth.getName()));
     }
 
     /** 更新通知偏好。 */
     @PutMapping("/notification-preference")
+    @PreAuthorize("hasAuthority('settings:edit')")
     public ApiResponse<NotificationPreferenceDto> updatePref(Authentication auth,
                                                              @RequestBody NotificationPreferenceDto dto) {
         return ApiResponse.success(userProfileService.updatePreference(auth.getName(), dto));
@@ -63,6 +68,7 @@ public class UserProfileController {
 
     /** 更新主题与语言（同步更新本地偏好）。 */
     @PutMapping("/theme-language")
+    @PreAuthorize("hasAuthority('settings:edit')")
     public ApiResponse<NotificationPreferenceDto> updateTheme(Authentication auth,
                                                              @RequestBody Map<String, Object> payload) {
         NotificationPreferenceDto cur = userProfileService.getPreference(auth.getName());

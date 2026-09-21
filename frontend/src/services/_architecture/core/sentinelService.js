@@ -32,7 +32,7 @@ const DEFAULT_AI_SERVICE_BASE = (() => {
     import.meta.env.VITE_AI_SERVICE_BASE ||
     import.meta.env.VITE_AI_SERVICE_BASE_URL ||
     'http://localhost:8001/api/ai'
-  let base = String(raw).replace(/\/$/, '')
+  const base = String(raw).replace(/\/$/, '')
   if (/\/api\/ai$/.test(base)) {return base}
   if (/\/api$/.test(base)) {return base + '/ai'}
   return base + '/api/ai'

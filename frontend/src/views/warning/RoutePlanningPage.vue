@@ -244,7 +244,6 @@ onMounted(async () => {
               >⚠ {{ o.name }}</text>
             </g>
 
-            <!-- 资源点 -->
             <g>
               <g v-for="r in resources" :key="r.id">
                 <circle :cx="project(r.lng, r.lat)[0]" :cy="project(r.lng, r.lat)[1]" r="6" fill="#94a3b8" stroke="#fff" stroke-width="1.5" />
@@ -252,7 +251,6 @@ onMounted(async () => {
               </g>
             </g>
 
-            <!-- 路径 -->
             <g v-if="!loading && routes.length">
               <path
                 v-for="r in projectedRoutes"
@@ -295,7 +293,6 @@ onMounted(async () => {
               <text :x="endPoint.x + 12" :y="endPoint.y + 5" fill="#fff" font-size="13" font-weight="600">灾区</text>
             </g>
 
-            <!-- 图例 -->
             <g transform="translate(20, 480)">
               <rect x="-8" y="-22" width="290" height="46" rx="6" fill="rgba(15,23,42,0.65)" stroke="rgba(148,163,184,0.3)" />
               <g v-for="(mode, key) in styleByMode" :key="key" :transform="`translate(${[0, 90, 180][Object.keys(styleByMode).indexOf(key)]}, 0)`">

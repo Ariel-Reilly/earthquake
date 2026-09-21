@@ -151,7 +151,7 @@ DISASTER_TYPE_GROUND_CRACK = "地裂缝"
 DISASTER_TYPE_SUBSIDENCE = "地面沉降"
 DISASTER_TYPE_SINKHOLE = "塌陷"
 DISASTER_TYPE_UNKNOWN = "其他"
-DISASTER_TYPE_UNDETERMINED = "待定"  # v1.4.0 新增：分类置信度不足时返回
+DISASTER_TYPE_UNDETERMINED = "待定"
 
 SUPPORTED_DISASTER_TYPES: List[str] = [
     DISASTER_TYPE_LANDSLIDE,
@@ -177,7 +177,6 @@ SOCIAL_ALERT_NORM_MAX = 4.0
 NIGHTLIGHT_NORM_MAX = 63.0
 FAULT_DISTANCE_NORM_MAX = 10000.0
 
-# v2.0 七维度基础权重（与 comprehensive_model_v2 保持一致）
 # 设备缺失时自动把 device 的权重重新归一化到其余六类
 BASE_WEIGHTS_V2: Dict[str, float] = {
     "remote_sensing": 0.20,   # 遥感影像
@@ -237,7 +236,7 @@ def has_device_factors(factors: Dict[str, float]) -> bool:
 class DisasterAssessmentModel:
     """地质灾害 AI 评估：地理 + 天气 + 可选设备 → 等级 + 关注度 + 灾害类型 + 解释。"""
 
-    # ---------- 灾害类型多因子加权评分配置（v1.4.0 升级） ---------- #
+    # 灾害类型多因子加权评分配置
     # 每个类型 = Σ(归一化特征值 × 类型专属权重)；
     # 权重越大说明该特征对此类型越重要。
     TYPE_FEATURES: Dict[str, Dict[str, float]] = {
@@ -296,9 +295,7 @@ class DisasterAssessmentModel:
         # 自适应归一化器（单例）
         self._normalizer = get_adaptive_normalizer()
 
-    # ------------------------------------------------------------------ #
     # 自适应归一化 helper
-    # ------------------------------------------------------------------ #
     def _dynamic_norm(self, factor_key: str, region_code: str, fallback: float) -> float:
         """从 adaptive_normalizer 取动态上限；样本不足时回退 fallback。"""
         try:
@@ -306,9 +303,7 @@ class DisasterAssessmentModel:
         except Exception:
             return fallback
 
-    # ------------------------------------------------------------------ #
-    # 单维度评分（v1.4.0：接入自适应归一化）
-    # ------------------------------------------------------------------ #
+    # 单维度评分
     def score_geographic(
         self, factors: Dict[str, float], region_code: str = "_default"
     ) -> Dict[str, Any]:
@@ -392,8 +387,6 @@ class DisasterAssessmentModel:
         # fusion._run_weighted 使用它自己的 DEFAULT_WEIGHTS 来归一化，对缺失的因子视为 0 即可
         result = self._fusion._run_weighted(sub)  # noqa: SLF001
         return float(result["risk_score"]), float(result["confidence"])
-
-    # =========================== v2.0 新增维度 =========================== #
 
     def score_remote_sensing(self, factors: Dict[str, float]) -> Dict[str, Any]:
         """[1] 遥感影像维度：光学/雷达/热红外/无人机图像异常评分。"""
@@ -591,9 +584,7 @@ class DisasterAssessmentModel:
             "details": detail,
         }
 
-    # ------------------------------------------------------------------ #
-    # SHAP-like 特征贡献度（v1.4.0 新增）
-    # ------------------------------------------------------------------ #
+    # SHAP-like 特征贡献度
     def compute_feature_contributions(
         self,
         factors: Dict[str, Any],
@@ -646,7 +637,7 @@ class DisasterAssessmentModel:
             ("rainfall_7d", rain_7, norm_r7 * 100.0 * 0.4 * 0.40, 0.16),
         ])
 
-        # 衍生特征（v1.4.0 新增）：按各自语义贡献
+        # 衍生特征：按各自语义贡献
         sat = float(factors.get("_derived_rain_saturation_index", 0.0))
         intensity = float(factors.get("_derived_rain_intensity_ratio", 0.0))
         duration = float(factors.get("_derived_rain_duration_days", 0.0))
@@ -677,9 +668,7 @@ class DisasterAssessmentModel:
         result.sort(key=lambda x: x["contribution"], reverse=True)
         return result
 
-    # ------------------------------------------------------------------ #
-    # 灾害类型分类（v1.4.0 多因子加权评分升级版）
-    # ------------------------------------------------------------------ #
+    # 灾害类型分类
     def classify_disaster_type(
         self,
         declared_type: Optional[str],
@@ -712,7 +701,6 @@ class DisasterAssessmentModel:
             score = 0.0
             contributors: List[Dict[str, Any]] = []
             for feat, weight in feature_weights.items():
-                # v1.4.0 fix：缺因子（factors.get 返回 None）→ norm=0，避免"distance=0 = 在水里"误判
                 if feat not in factors or factors.get(feat) is None:
                     continue
                 raw = float(factors.get(feat, 0.0) or 0.0)
@@ -810,9 +798,6 @@ class DisasterAssessmentModel:
             "type_top_contributors": top_contributors,
         }
 
-    # ------------------------------------------------------------------ #
-    # v2.0 总分（七维度加权）
-    # ------------------------------------------------------------------ #
     def _overall_score_v2(
         self,
         remote_sensing: Dict[str, Any],
@@ -848,9 +833,7 @@ class DisasterAssessmentModel:
         confidence = round(min(0.90, 0.35 + 0.05 * covered), 4)
         return round(weighted, 2), confidence, "heuristic-seven-dimension-v2", not sensor_available
 
-    # ------------------------------------------------------------------ #
-    # 总分（v1.4.0：自适应归一化权重；v2.0 升级见 _overall_score_v2）
-    # ------------------------------------------------------------------ #
+    # 总分
     def _overall_score(
         self,
         geographic: Dict[str, Any],
@@ -871,7 +854,6 @@ class DisasterAssessmentModel:
         )
         weighted = round(max(0.0, min(100.0, weighted)), 2)
         # 设备缺失时显式标 degraded，方便前端/排班员识别
-        # v1.5.0：融合模型若已加载（真实 XGBoost），device 维度走真推理；模型名透传
         fusion = self._fusion
         if fusion.is_loaded():
             model_name = "heuristic-geo-weather+xgboost-fusion"
@@ -879,9 +861,7 @@ class DisasterAssessmentModel:
             model_name = "heuristic-geo-weather+derived"
         return weighted, model_name, not device_available
 
-    # ------------------------------------------------------------------ #
-    # reasoning + suggested_actions（v1.4.0：贡献度排序 + 衍生特征归因）
-    # ------------------------------------------------------------------ #
+    # reasoning + suggested_actions
     def build_reasoning(
         self,
         overall_level: str,
@@ -924,7 +904,6 @@ class DisasterAssessmentModel:
         else:
             items.append("当前未接入监测设备，本次研判完全依据当地地理与天气情况")
 
-        # v1.4.0：衍生特征归因
         if feature_contributions:
             top3 = [c for c in feature_contributions[:3] if c["contribution"] > 0.5]
             for c in top3:
@@ -997,8 +976,6 @@ class DisasterAssessmentModel:
         if not actions:
             actions.append("保持常规观测频次，关注 24h 降雨趋势")
         return actions
-
-    # =========================== v2.0 Reasoning & Actions =========================== #
 
     def _build_reasoning_v2(
         self,
@@ -1132,11 +1109,9 @@ class DisasterAssessmentModel:
             actions.append("保持常规监测频次，关注24h降雨趋势和各维度指标变化")
         return actions
 
-    # ------------------------------------------------------------------ #
-    # 对外主接口 v2.0：完整七维度综合评估
+    # 对外主接口：完整七维度综合评估
     #   - v1.x 兼容：三维度（geographic / precipitation / device）保留在 dimensions；
-    #   - v2.0 新增：七维度（remote_sensing / meteorology / terrain / sensor / historical / social_media / supporting）
-    # ------------------------------------------------------------------ #
+    #   - 七维度：remote_sensing / meteorology / terrain / sensor / historical / social_media / supporting
     def score(self, hazard: Dict[str, Any], factors: Dict[str, float]) -> Dict[str, Any]:
         """
         Args:
@@ -1149,7 +1124,7 @@ class DisasterAssessmentModel:
         declared_type = hazard.get("hazard_type")
         region_code = hazard.get("region_code") or hazard_code or "_default"
 
-        # ==== 特征工程（v1.4.0：6 个衍生特征） ==== #
+        # 特征工程
         factors_with_derived = compute_derived_features(factors)
         for key in (
             "_derived_rain_saturation_index", "_derived_rain_intensity_ratio",
@@ -1164,13 +1139,13 @@ class DisasterAssessmentModel:
             if v is not None:
                 self._normalizer.fit_one(k, v, region_code)
 
-        # ==== v1.0 三维度（向后兼容） ==== #
+        # v1.x 三维度（向后兼容）
         geographic = self.score_geographic(factors_with_derived, region_code)
         precipitation = self.score_precipitation(factors_with_derived, region_code)
         device_available = has_device_factors(factors)
         device_score, device_conf = self.score_device(factors) if device_available else (0.0, 0.0)
 
-        # ==== v2.0 七维度 ==== #
+        # 七维度
         remote_sensing  = self.score_remote_sensing(factors)
         meteorology     = self.score_meteorology_extended(factors, region_code)
         terrain         = self.score_terrain_extended(factors, region_code)
@@ -1180,13 +1155,13 @@ class DisasterAssessmentModel:
         social_media   = self.score_social_media(factors)
         supporting      = self.score_supporting(factors)
 
-        # ==== v1.0 总分（向后兼容 API） ==== #
+        # v1.x 总分（向后兼容 API）
         overall_score_v1, model_name_v1, mock_v1 = self._overall_score(
             geographic, precipitation, device_score, device_available
         )
         overall_level_v1 = score_to_level(overall_score_v1)
 
-        # ==== v2.0 总分 ==== #
+        # 总分
         overall_score_v2, confidence_v2, model_name_v2, mock_v2 = self._overall_score_v2(
             remote_sensing, meteorology, terrain, sensor_score, sensor_available,
             historical, social_media, supporting,
@@ -1194,14 +1169,14 @@ class DisasterAssessmentModel:
         overall_level_v2 = score_to_level(overall_score_v2)
         concern_v2 = concern_label(overall_level_v2)
 
-        # ==== 采用 v2.0 作为主输出 ==== #
+        # 采用七维度作为主输出
         overall_score  = overall_score_v2
         overall_level  = overall_level_v2
         concern        = concern_v2
         model_name    = model_name_v2
         mock          = mock_v2
 
-        # ==== 灾害类型分类（v1.4.0 多因子加权） ==== #
+        # 灾害类型分类
         dt = self.classify_disaster_type(declared_type, factors_with_derived, overall_level)
 
         # ==== SHAP-like 特征贡献度 ==== #
@@ -1221,7 +1196,7 @@ class DisasterAssessmentModel:
         )
         confidence = round(min(0.92, 0.40 + 0.045 * covered), 4)
 
-        # ==== reasoning + actions（使用 v2.0 维度） ==== #
+        # reasoning + actions
         reasoning = self._build_reasoning_v2(
             overall_level, concern, remote_sensing, meteorology, terrain,
             sensor_score, sensor_available, historical, social_media, supporting,
@@ -1233,7 +1208,7 @@ class DisasterAssessmentModel:
             dt["disaster_type"],
         )
 
-        # ==== 维度字典（含 v1 兼容 + v2 七维度） ==== #
+        # 维度字典（含 v1 兼容 + 七维度）
         dimensions: Dict[str, Any] = {
             # v1.x 兼容（保持原有字段名）
             "geographic": geographic,
@@ -1243,7 +1218,6 @@ class DisasterAssessmentModel:
                 "confidence": round(device_conf, 4),
                 "available": device_available,
             },
-            # v2.0 七维度（新增）
             "remote_sensing": remote_sensing,
             "meteorology": meteorology,
             "terrain": terrain,

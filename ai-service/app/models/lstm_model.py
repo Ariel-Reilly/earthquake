@@ -4,6 +4,8 @@ LSTM 时序预测模型：位移/雨量趋势预测。
 自动检测 models/lstm_displacement.pt 是否存在：
 - 存在：用 PyTorch 加载并做真实推理
 - 不存在：返回基于移动平均的启发式预测
+
+模型目录可通过环境变量 MODELS_DIR 覆盖。
 """
 from __future__ import annotations
 
@@ -14,7 +16,7 @@ from typing import List, Dict, Any, Optional
 
 import numpy as np
 
-MODELS_DIR = Path(__file__).resolve().parent.parent.parent / "models"
+from app.config import MODELS_DIR
 
 
 class LstmForecaster:

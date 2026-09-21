@@ -42,7 +42,6 @@ import {
 import { dashboardApi } from '../../services/dashboardApi'
 import { safeMin, safeMax } from '../../utils/safeMinMax'
 
-// ============ 状态 ============
 const loading = ref(false)
 const errorMsg = ref('')
 const personnelList = ref([])
@@ -51,7 +50,7 @@ let refreshTimer = null
 
 const selectedPerson = ref(null)
 
-// ============ 位置上报表单 ============
+// 位置上报表单
 const reportForm = reactive({
   userId: '',
   name: '',
@@ -102,7 +101,7 @@ function fillFromSelected() {
   reportForm.hazardCode = p.hazardCode ?? ''
 }
 
-// ============ 列表加载 ============
+// 列表加载
 async function loadPersonnel(silent = false) {
   if (!silent) loading.value = true
   errorMsg.value = ''
@@ -130,7 +129,6 @@ async function loadPersonnel(silent = false) {
   }
 }
 
-// ============ 计算属性 ============
 const STATS = computed(() => {
   const total = personnelList.value.length
   const online = personnelList.value.filter((p) => !p.offline).length
@@ -141,7 +139,7 @@ const STATS = computed(() => {
   return { total, online, offline, inspecting, waiting, violation }
 })
 
-// ============ SVG 地图 ============
+// SVG 地图
 // 计算所有人位置，自动找中心 + 自适应缩放
 const MAP_SVG = computed(() => {
   const points = personnelList.value.filter((p) => typeof p.lon === 'number' && typeof p.lat === 'number')
@@ -173,7 +171,6 @@ const MAP_SVG = computed(() => {
   const toX = (lon) => PAD.left + cw / 2 + (lon - meanLon) * projScale
   const toY = (lat) => PAD.top + ch / 2 - (lat - meanLat) * projScale
 
-  // 网格
   const gridLines = []
   for (let i = 0; i <= 4; i++) {
     const x = PAD.left + (cw / 4) * i
@@ -190,10 +187,10 @@ const MAP_SVG = computed(() => {
   }
 })
 
-// ============ 自动刷新 ============
+// 自动刷新
 function startAutoRefresh() {
   if (refreshTimer) clearInterval(refreshTimer)
-  refreshTimer = setInterval(() => loadPersonnel(true), 30000) // 30s 拉一次
+  refreshTimer = setInterval(() => loadPersonnel(true), 30000)
 }
 function stopAutoRefresh() {
   if (refreshTimer) clearInterval(refreshTimer)
@@ -274,7 +271,6 @@ onBeforeUnmount(() => stopAutoRefresh())
           <p class="pmp-empty-sub">通过下方"位置上报"按钮模拟上报</p>
         </div>
         <svg v-else :viewBox="`0 0 ${MAP_SVG.W} ${MAP_SVG.H}`" class="pmp-map-svg">
-          <!-- 网格 -->
           <line
             v-for="(g, i) in MAP_SVG.gridLines"
             :key="'g'+i"
@@ -298,7 +294,6 @@ onBeforeUnmount(() => stopAutoRefresh())
           <text :x="6" :y="MAP_SVG.PAD.top + 12" font-size="10" fill="#9baead">北 (N)</text>
           <text :x="6" :y="MAP_SVG.H - MAP_SVG.PAD.bottom - 4" font-size="10" fill="#9baead">南 (S)</text>
 
-          <!-- 人员点 -->
           <g v-for="p in MAP_SVG.points" :key="p.id" @click="selectedPerson = p.id" class="pmp-marker-g">
             <!-- 选中光晕 -->
             <circle
@@ -318,7 +313,6 @@ onBeforeUnmount(() => stopAutoRefresh())
               :cx="p.x" :cy="p.y" r="14"
               fill="none" stroke="#e06060" stroke-width="1.5" stroke-dasharray="3,3"
             />
-            <!-- 主体 -->
             <circle
               :cx="p.x" :cy="p.y" r="10"
               :fill="p.offline ? '#9baead' : (p.status === '巡检中' ? '#2b6cb0' : '#4f8f99')"
@@ -333,7 +327,6 @@ onBeforeUnmount(() => stopAutoRefresh())
             </text>
           </g>
         </svg>
-        <!-- 图例 -->
         <div class="pmp-legend">
           <span><span class="pmp-legend-dot" style="background:#2b6cb0"></span>巡检中</span>
           <span><span class="pmp-legend-dot" style="background:#4f8f99"></span>在线</span>

@@ -25,7 +25,7 @@ import { dashboardApi } from '../../services/dashboardApi'
 const emit = defineEmits(['notify'])
 const props = defineProps({ userRole: { type: String, default: 'admin' } })
 
-// ==================== 顶部 KPI ====================
+// 顶部 KPI
 const kpiLoading = ref(true)
 const kpiData = ref({
   total: 0,
@@ -34,10 +34,9 @@ const kpiData = ref({
   strategyCount: 0,
 })
 
-// ==================== Tab 状态 ====================
+// Tab 状态
 const activeTab = ref('records')
 
-// ==================== Tab1: 备份记录 ====================
 const TYPE_OPTIONS = ['全部', '全量', '增量', '差异']
 const SOURCE_OPTIONS = ['全部', '数据库', '附件', '配置']
 const STATUS_OPTIONS = ['全部', 'success', 'running', 'failed']
@@ -95,7 +94,7 @@ async function loadRecords() {
   }
 }
 
-// ---- 立即备份 ----
+// 立即备份
 const showCreateDialog = ref(false)
 const createLoading = ref(false)
 const createForm = ref({ scope: ['数据库'], remark: '' })
@@ -128,7 +127,7 @@ async function submitCreate() {
   }
 }
 
-// ---- 恢复流程 ----
+// 恢复流程
 const restoreDialog = ref({ open: false, record: null, env: 'test', remark: '', loading: false })
 const ENV_OPTIONS = [
   { value: 'dev', label: '开发' },
@@ -170,7 +169,6 @@ async function submitRestore() {
   }
 }
 
-// ---- 校验 ----
 async function runVerify(record) {
   if (verifyingId.value) return
   verifyingId.value = record.id
@@ -204,7 +202,6 @@ async function runVerify(record) {
   }
 }
 
-// ---- 删除 ----
 async function removeRecord(record) {
   const ok = window.confirm(`确认删除备份「${record.name}」？此操作不可撤销。`)
   if (!ok) return
@@ -218,12 +215,11 @@ async function removeRecord(record) {
   }
 }
 
-// ---- 下载（占位） ----
+// 下载（占位）
 function downloadBackup(record) {
   emit('notify', `已开始下载：${record.name}（后端未连接时无效）`)
 }
 
-// ==================== Tab2: 备份策略 ====================
 const strategiesLoading = ref(false)
 const strategies = ref([])
 
@@ -338,7 +334,6 @@ async function runStrategyNow(item) {
   }
 }
 
-// ==================== Tab3: 恢复历史 ====================
 const restoreLoading = ref(false)
 const restoreHistory = ref([])
 
@@ -367,7 +362,7 @@ function closeRestoreLogDialog() {
   restoreLogDialog.value = { open: false, record: null }
 }
 
-// ==================== KPI 加载 ====================
+// KPI 加载
 async function loadKpi() {
   kpiLoading.value = true
   try {
@@ -396,7 +391,7 @@ async function loadKpi() {
   }
 }
 
-// ==================== 工具函数 ====================
+// 工具函数
 function formatBytes(n) {
   const num = Number(n) || 0
   if (num <= 0) return '0 B'
@@ -538,9 +533,8 @@ onMounted(async () => {
       </button>
     </div>
 
-    <!-- ===== Tab1: 备份记录 ===== -->
+    <!-- Tab1: 备份记录 -->
     <div v-if="activeTab === 'records'" class="tab-content">
-      <!-- 过滤条 -->
       <div class="filter-bar">
         <div class="filter-group">
           <Filter :size="13" class="filter-icon" />
@@ -567,7 +561,6 @@ onMounted(async () => {
         </button>
       </div>
 
-      <!-- 表格 -->
       <div class="panel system-panel">
         <div class="panel-header compact">
           <div>

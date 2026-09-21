@@ -87,14 +87,12 @@ export function gradeAccuracy(accuracy) {
 }
 
 function buildTdtUrl(layer) {
-  // v1.8.0：卫星源已切到 Sentinel 合成，矢量底图继续使用天地图 vec_w / cva_w
   // （仅当用户配置了 VITE_TDT_TOKEN 时使用，否则降到高德矢量 / OSM 兜底）。
   const tdtToken = import.meta.env.VITE_TDT_TOKEN || import.meta.env.VITE_TDT_TK || ''
   if (!tdtToken) {return ''}
   return `https://t0.tianditu.gov.cn/${layer}_w/wmts?service=wmts&request=GetTile&version=1.0.0&layer=${layer}&style=default&tileMatrixSet=w&format=tiles&tileMatrix={z}&tileRow={y}&tileCol={x}&tk=${tdtToken}`
 }
 
-// v1.8.0：高德 style=7 仅作为矢量底图（GCJ-02，256px，带注记）。
 // 卫星底图不再使用高德 style=6 —— 由 Sentinel-1+2 合成图层替换。
 function buildAmapUrl(style) {
   if (style !== '7') {return ''}
@@ -143,7 +141,7 @@ function createSentinelLayers() {
   const makeLayer = (kind, opacity, zIndex) => {
     const source = new ImageStaticSource({
       url: placeholder,
-      imageExtent: [107.0, 30.4, 107.4, 30.8], // 默认占位 AOI：成都附近，真实 AOI 由 setSentinelOverlay 覆盖
+      imageExtent: [107.0, 30.4, 107.4, 30.8],
       projection: 'EPSG:4326',
       crossOrigin: undefined,
     })
@@ -156,9 +154,7 @@ function createSentinelLayers() {
     })
   }
   return {
-    // v1.8.0：S2 真彩作为卫星底图主色（地表纹理）
     s2TrueColor: makeLayer('s2-truecolor', 0.95, 90),
-    // v1.8.0：S1 SAR 伪彩色（VV→红，VH→绿，VV/VH 比值→蓝）叠加在 S2 之上，凸显形变 / 含水量
     sarFalseColor: makeLayer('s1-sar-falsecolor', 0.55, 91),
   }
 }
@@ -183,7 +179,6 @@ function createBaseLayers(mode) {
   )
   const vectorAnnoUrl = buildTdtUrl('cva')
   const vectorAnno = !amapVectorUrl && vectorAnnoUrl ? tileLayerFromUrl(vectorAnnoUrl, mode === 'vector') : null
-  // v1.8.0：卫星底图 = Sentinel-1+2 合成（S2 真彩 + S1 SAR 伪彩色）
   const sentinelLayers = createSentinelLayers()
   const satellite = sentinelLayers.s2TrueColor
   const satelliteAnno = sentinelLayers.sarFalseColor
@@ -192,7 +187,6 @@ function createBaseLayers(mode) {
     satellite.setVisible(false)
     satelliteAnno.setVisible(false)
   }
-  // v1.8.0：坐标系判定改回 WGS-84——Sentinel 合成图层使用 WGS-84（Copernicus / GEE 输出）
   // 与数据库点位一致，不需要再做 GCJ-02 偏移；矢量底图若切到高德 style=7 才走 GCJ-02
   const vectorDatum = amapVectorUrl ? 'gcj02' : 'wgs84'
   const satelliteDatum = 'wgs84'
@@ -267,7 +261,6 @@ const WEATHER_EXTENTS = {
 }
 
 export function createOpenLayersController(container, { center = [107.21, 30.61], zoom = 10, baseMap = 'vector' } = {}) {
-  // v1.8.0：移除 satelliteSourceKey 参数——卫星底图改为 Sentinel 合成，由 AI Service 返回
   const baseLayers = createBaseLayers(baseMap)
   // 当前可见底图坐标系：用户切到矢量看 AMap style=7 时是 GCJ-02，切到卫星看 AMap style=6 时是 GCJ-02，
   // 其余（天地图/OSM/ESRI）保持 WGS-84。pointDatum 必须跟随"当前可见底图"实时切换，
@@ -345,7 +338,7 @@ export function createOpenLayersController(container, { center = [107.21, 30.61]
   // 这里 bar:true + metric units 让 OL 自适应选择最贴近的 km/m 刻度，避免人为填值。
   map.addControl(new ScaleLine({ units: 'metric', bar: true, steps: 4, minWidth: 120 }))
 
-  // ===X=== WGS-84 原点缓存 ===X===
+  // WGS-84 原点缓存
   // 每个业务图层单独存一份"WGS-84 原始数据"，切底图时按新 pointDatum 重新投影。
   // 不存缓存就只能一直持有"上一次画的 datum"版本，再切回原底图点位仍然偏移。
   const itemRegistry = {
@@ -363,10 +356,9 @@ export function createOpenLayersController(container, { center = [107.21, 30.61]
     const useVector = nextMode !== 'satellite'
     baseLayers.vector.setVisible(useVector)
     if (baseLayers.vectorAnno) {baseLayers.vectorAnno.setVisible(useVector)}
-    // v1.8.0：切底图时不切换 Sentinel 合成层的可见性——
     // S2 真彩 + SAR 叠加层由 setSentinelOverlay() 显式控制（合成完成后才 show），
     // 避免用户在合成完成前看到一张透明 placeholder 图。
-    baseLayers.satellite.setVisible(false)  // 默认隐藏，setSentinelOverlay 时激活
+    baseLayers.satellite.setVisible(false)
     baseLayers.satelliteAnno.setVisible(false)
     // 坐标系判定：Sentinel 合成图层均使用 WGS-84，与点位坐标系一致，不需要 GCJ-02 偏移
     // 切底图后必须更新 pointDatum，并对所有已绘制点位重新投影。
@@ -955,7 +947,6 @@ export function createOpenLayersController(container, { center = [107.21, 30.61]
     setCenter,
     zoomToPoint,
     setSelectedHazard,
-    // v1.8.0：旧 setSatelliteSource/getSatelliteSources/... 已被 sentinel.setOverlay 取代
     setHazards,
     setHazardsGeoJson,
     setDevices,
@@ -980,7 +971,6 @@ export function createOpenLayersController(container, { center = [107.21, 30.61]
     baseLayers,
     layers: { hazardLayer, deviceLayer, warningLayer, personnelLayer, personnelTrailLayer },
     userLocation: { source: userLocationSource, layer: userLocationLayer },
-    // v1.8.0：Sentinel-1+2 合成接口，替换 v1.7.1 的通用卫星源切换
     sentinel: {
       setOverlay: setSentinelOverlay,
       clearOverlay: clearSentinelOverlay,
@@ -1001,7 +991,6 @@ export async function createCesiumViewer(container, { center = [107.21, 30.61], 
   overlay.style.visibility = 'visible'
   overlay.style.opacity = '1'
 
-  // v1.8.0：3D 视图底图改为 Sentinel 合成（S2 真彩优先），未指定时回退到矢量占位色
   // 旧 v1.7.1 的 ESRI / Mapbox / Google 等通用卫星已被 Sentinel 合成图层替代
   let imageryProvider
   if (sentinelTiles && sentinelTiles.s2Url) {

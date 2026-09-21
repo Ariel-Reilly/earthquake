@@ -45,7 +45,7 @@ const isConfirmationMode = computed(() => route.name === 'confirmation-detail')
 
 // 人工确认操作状态
 const confirmationState = ref({
-  status: '待确认', // 待确认 / 已认领 / 已确认 / 已驳回 / 已转派
+  status: '待确认',
   assignee: null,
   loadingClaim: false,
   loadingConfirm: false,
@@ -334,7 +334,6 @@ onBeforeUnmount(() => {
       @notify="(msg) => $emit('notify', msg)"
     />
 
-    <!-- v1.7.0 人工确认模式操作栏：仅从 /dashboard/confirmation-workbench/:id 入口时显示 -->
     <div v-if="isConfirmationMode" class="confirmation-ops">
       <div class="confirmation-ops-left">
         <ClipboardCheck :size="16" />
@@ -348,7 +347,6 @@ onBeforeUnmount(() => {
         <span class="ops-hint">← 请先认领再处理，避免多人同时操作</span>
       </div>
       <div class="confirmation-ops-right">
-        <!-- 认领 -->
         <button
           v-if="confirmationState.status === '待确认' && !confirmationState.assignee"
           class="ops-btn primary"
@@ -357,7 +355,6 @@ onBeforeUnmount(() => {
         >
           <Check :size="14" />{{ confirmationState.loadingClaim ? '认领中…' : '认领' }}
         </button>
-        <!-- 确认 -->
         <button
           v-if="confirmationState.status === '已认领' && confirmationState.assignee === '当前用户'"
           class="ops-btn success"
@@ -374,7 +371,6 @@ onBeforeUnmount(() => {
         >
           <Bot :size="14" />创建预警
         </button>
-        <!-- 驳回 -->
         <button
           v-if="['待确认','已认领'].includes(confirmationState.status)"
           class="ops-btn danger"
@@ -382,7 +378,6 @@ onBeforeUnmount(() => {
         >
           <ThumbsDown :size="14" />驳回
         </button>
-        <!-- 转派 -->
         <button
           v-if="confirmationState.status === '待确认' || confirmationState.status === '已认领'"
           class="ops-btn"
@@ -429,7 +424,6 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
-    <!-- v1.7.0+ P3-4：统一事件号快速跳转条（与 EventCenterPage 互链） -->
     <div v-if="point?.eventCode" class="event-overview-banner">
       <div class="event-overview-left">
         <GitBranch :size="16" />

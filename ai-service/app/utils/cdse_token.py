@@ -68,9 +68,7 @@ class CdseTokenCache:
             cls._instance = cls()
         return cls._instance
 
-    # ------------------------------------------------------------------
     # 对外 API
-    # ------------------------------------------------------------------
     async def get_token(self, *, force_refresh: bool = False) -> str:
         """返回当前可用 Bearer token；必要时刷新。
 
@@ -103,9 +101,7 @@ class CdseTokenCache:
             self._expires_at_monotonic = 0.0
             LOG.info("CDSE token cache invalidated")
 
-    # ------------------------------------------------------------------
     # 内部
-    # ------------------------------------------------------------------
     @staticmethod
     def _credentials() -> tuple[str, str]:
         return (

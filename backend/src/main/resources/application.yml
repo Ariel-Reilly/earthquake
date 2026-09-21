@@ -7,7 +7,8 @@ spring:
   datasource:
     url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:disasterguard}
     username: ${POSTGRES_USER:disasterguard}
-    password: ${POSTGRES_PASSWORD:disasterguard123}
+    # ⚠️ 生产环境必须通过环境变量 POSTGRES_PASSWORD 覆盖，默认无密码
+    password: ${POSTGRES_PASSWORD:}
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
@@ -17,7 +18,7 @@ spring:
       hibernate:
         format_sql: true
         jdbc:
-          time_zone: Asia/Shanghai
+          time_zone: UTC
   sql:
     init:
       mode: always
@@ -27,9 +28,10 @@ spring:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
-      password: ${REDIS_PASSWORD:redis123}
+      # ⚠️ 生产环境必须通过环境变量 REDIS_PASSWORD 覆盖，默认无密码
+      password: ${REDIS_PASSWORD:}
   jackson:
-    time-zone: Asia/Shanghai
+    time-zone: UTC
     serialization:
       write-dates-as-timestamps: false
   mvc:
@@ -115,11 +117,12 @@ ai:
 
 minio:
   endpoint: ${MINIO_ENDPOINT:http://localhost:19000}
-  access-key: ${MINIO_ACCESS_KEY:disasterguard}
+  # MinIO 凭证：使用 MINIO_ROOT_USER / MINIO_ROOT_PASSWORD（Spring Boot relaxed binding，
+  # 支持 MINIO_ROOT_* 和 MINIO_ACCESS_KEY / MINIO_SECRET_KEY 两种命名）
   # ⚠️ 生产环境必须修改为强随机密钥（建议 24+ 字符）。
-  # MINIO_SECRET_KEY 必须为强密码：长度 ≥ 16，不含常见弱密码模式。
   # 生成方式：openssl rand -base64 32
-  secret-key: ${MINIO_SECRET_KEY:CHANGE_ME_24chars_minio_secret_key_2024}
+  access-key: ${MINIO_ACCESS_KEY:${MINIO_ROOT_USER:disasterguard}}
+  secret-key: ${MINIO_SECRET_KEY:${MINIO_ROOT_PASSWORD:CHANGE_ME__dev_minio_password_24chars_minimum_2026}}
   bucket: ${MINIO_BUCKET:disasterguard}
 
 emqx:

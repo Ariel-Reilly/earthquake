@@ -155,7 +155,6 @@ const chartPaths = computed(() => {
   const histPts = history.map((v, i) => `${toX(i)},${toY(v)}`)
   const histPath = `M ${histPts.join(' L ')}`
 
-  // 刻度
   const yTicks = 5
   const yLabels = Array.from({ length: yTicks }, (_, i) => {
     const v = paddedMin + (i / (yTicks - 1)) * paddedRange
@@ -401,7 +400,6 @@ onMounted(async () => {
             preserveAspectRatio="none"
             class="dfp-svg"
           >
-            <!-- 网格线 -->
             <g class="dfp-grid">
               <line
                 v-for="tick in chartPaths.yTicks"
@@ -415,14 +413,12 @@ onMounted(async () => {
               />
             </g>
 
-            <!-- 置信带 -->
             <path
               :d="chartPaths.bandPath"
               fill="rgba(43,108,176,.12)"
               stroke="none"
             />
 
-            <!-- 历史线 -->
             <path
               :d="chartPaths.histPath"
               fill="none"
@@ -431,7 +427,6 @@ onMounted(async () => {
               stroke-dasharray="4,3"
             />
 
-            <!-- 预测线 -->
             <path
               :d="chartPaths.linePath"
               fill="none"

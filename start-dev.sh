@@ -25,7 +25,8 @@ CMD="${1:-frontend}"
 SUBCMD="${2:-}"
 LOG_DIR="${LOG_DIR:-/tmp/disasterguard-logs}"
 SPRING_PROFILE="${SPRING_PROFILE:-default}"
-JWT_SECRET="${JWT_SECRET:-disasterguard-dev-secret-key-at-least-32-chars-long-xyz}"
+# JWT_SECRET 从环境变量读取，不在脚本中硬编码默认值
+JWT_SECRET="${JWT_SECRET:-}"
 
 # ─── .env 加载 ───
 load_dotenv() {
@@ -182,9 +183,15 @@ backend() {
   export POSTGRES_PORT=15432
   export REDIS_PORT=16379
   export REDIS_HOST=127.0.0.1
-  export REDIS_PASSWORD=redis123
+  # REDIS_PASSWORD 从环境变量读取，.env 已定义 CHANGE_ME 占位值（开发用）
+  export REDIS_PASSWORD="${REDIS_PASSWORD:-CHANGE_ME__dev_redis_password_2026}"
   export MINIO_ENDPOINT=http://127.0.0.1:19000
-  export JWT_SECRET="$JWT_SECRET"
+  # JWT_SECRET 从环境变量读取，不在脚本中硬编码
+  if [[ -n "$JWT_SECRET" ]]; then
+    export JWT_SECRET="$JWT_SECRET"
+  else
+    warn "JWT_SECRET 未设置，请通过环境变量或 .env 文件配置"
+  fi
   export DEV_USERS_ENABLED=true
   export DEVICE_AUTH_STRICT=false
   export TDENGINE_ENABLED=false
@@ -303,9 +310,9 @@ all_stack() {
     export POSTGRES_PORT=15432
     export REDIS_PORT=16379
     export REDIS_HOST=127.0.0.1
-    export REDIS_PASSWORD=redis123
+    export REDIS_PASSWORD="${REDIS_PASSWORD:-CHANGE_ME__dev_redis_password_2026}"
     export MINIO_ENDPOINT=http://127.0.0.1:19000
-    export JWT_SECRET="$JWT_SECRET"
+    [[ -n "$JWT_SECRET" ]] && export JWT_SECRET="$JWT_SECRET" || true
     export DEV_USERS_ENABLED=true
     export DEVICE_AUTH_STRICT=false
     export TDENGINE_ENABLED=false

@@ -6,6 +6,7 @@ YOLO 裂缝/落石图像识别模型加载与推理。
 - 不存在：返回 mock 检测结果（含随机 bbox + 置信度）
 
 不硬依赖 ultralytics，只在训练脚本中使用。
+模型目录可通过环境变量 MODELS_DIR 覆盖。
 """
 from __future__ import annotations
 
@@ -16,7 +17,7 @@ from typing import List, Dict, Any, Optional
 
 import numpy as np
 
-MODELS_DIR = Path(__file__).resolve().parent.parent.parent / "models"
+from app.config import MODELS_DIR
 
 # 类别定义（训练时可调整）
 CLASSES = ["crack", "rockfall", "slump", "debris", "normal"]
@@ -70,9 +71,7 @@ class YoloDetector:
             return self._run_onnx(image_bytes)
         return self._run_mock()
 
-    # ------------------------------------------------------------------
     # 真实 ONNX 推理
-    # ------------------------------------------------------------------
     def _run_onnx(self, image_bytes: bytes) -> Dict[str, Any]:
         try:
             import cv2  # noqa
@@ -170,9 +169,7 @@ class YoloDetector:
         union = (ax2 - ax1) * (ay2 - ay1) + (bx2 - bx1) * (by2 - by1) - inter
         return inter / union if union > 0 else 0.0
 
-    # ------------------------------------------------------------------
     # Mock 降级
-    # ------------------------------------------------------------------
     def _run_mock(self) -> Dict[str, Any]:
         """启发式 mock：返回 0-2 个随机检测框，用于无模型环境。"""
         num = random.randint(0, 2)

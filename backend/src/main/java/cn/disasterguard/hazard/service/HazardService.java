@@ -165,7 +165,6 @@ public class HazardService {
           properties.put("lon", dto.lon());
           properties.put("lat", dto.lat());
           properties.put("distance", null);
-          // v1.6.0：AI 监测元信息（前端用于"AI 实时监测"徽标）
           properties.put("source", dto.source());
           properties.put("discoveredAt", dto.discoveredAt());
           properties.put("detectionConfidence", dto.detectionConfidence());
@@ -189,7 +188,6 @@ public class HazardService {
     point.setLastInspectionAt(OffsetDateTime.now().minusHours(4));
     point.setSource("MANUAL");  // 手动新增
     HazardPoint saved = repository.save(point);
-    // v1.7.0+ P3-4：写入 unified_event，建立"灾害点 ↔ 事件"双向锚点
     String eventCode = eventStateService.createFromManualReport(
         saved.getHazardCode(), saved.getName(), "system");
     log.info("Hazard created with unified_event: hazard={}, eventCode={}", saved.getHazardCode(), eventCode);
@@ -252,7 +250,6 @@ public class HazardService {
     point.setDiscoveredAt(now);
     point.setDetectionConfidence(detectionConfidence == null ? 0.5 : Math.min(1.0, Math.max(0.0, detectionConfidence)));
     HazardPoint saved = repository.save(point);
-    // v1.7.0+ P3-4：写入 unified_event（DETECTED 状态，来源 AI_AUTO）
     String eventCode = eventStateService.createFromAiDetection(
         saved.getHazardCode(), saved.getName());
     log.info("AI Hazard detected with unified_event: hazard={}, eventCode={}", saved.getHazardCode(), eventCode);
@@ -347,11 +344,9 @@ public class HazardService {
         point.getThreatObject(),
         point.getLastInspectionAt(),
         null,  // distance 依赖调用方传入参考点后计算，这里无上下文返回 null
-        // ---- v1.6.0 数据来源 ----
         point.getSource() == null ? "AI_MONITOR" : point.getSource(),
         point.getDiscoveredAt(),
         point.getDetectionConfidence(),
-        // ---- AI 综合分 ----
         ai == null ? null : ai.riskLevel(),
         ai == null ? null : ai.levelLabel(),
         ai == null ? null : ai.riskScore(),
@@ -360,7 +355,6 @@ public class HazardService {
         ai == null ? null : ai.disasterTypeSource(),
         ai == null ? null : ai.concernLabel(),
         ai == null ? null : ai.deviceAvailable(),
-        // ---- v1.7.0+ P3-4：统一事件锚点 ----
         eventCode,
         eventState
     );

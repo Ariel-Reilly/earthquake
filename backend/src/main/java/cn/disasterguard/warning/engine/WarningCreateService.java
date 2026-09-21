@@ -68,7 +68,6 @@ public class WarningCreateService {
                             String warningLevel, String metricCode, double triggerValue,
                             Map<String, Double> metrics) {
 
-    // ====== 阶段 1：AI 融合评分（事务外，AI 异常安全降级）======
     String title = ruleName == null ? ruleCode : ruleName;
     String level = warningLevel == null ? "黄色预警" : warningLevel;
     boolean aiAvailable = false;
@@ -101,7 +100,6 @@ public class WarningCreateService {
       }
     }
 
-    // ====== 阶段 2：DB 写入（在独立事务中，保证原子性）======
     try {
       doPersist(ruleCode, hazardCode, title, finalLevel, metricCode, triggerValue,
           aiSource, aiAvailable, fusion, aiFactors);

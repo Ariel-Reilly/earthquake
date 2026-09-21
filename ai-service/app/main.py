@@ -5,11 +5,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-# ────────────────────────────────────────────────────────────────────────
 # .env 加载（必须在读取任何业务环境变量之前完成）
 # 顺序：ai-service/.env（优先,服务专用） → 项目根 .env（共享配置,后到,不覆盖已设置）
 # 依赖 python-dotenv,见 requirements.txt
-# ────────────────────────────────────────────────────────────────────────
 try:
     from dotenv import load_dotenv
     _ROOT = Path(__file__).resolve().parent.parent  # ai-service/
@@ -37,9 +35,7 @@ from app.routers import (
 )
 
 
-# ────────────────────────────────────────────────────────────────────────
 # 应用 lifespan：启动/关闭 HTTP client（共享 aiohttp session）
-# ────────────────────────────────────────────────────────────────────────
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """FastAPI lifespan:启动时 lazy init HttpClientHolder,关闭时优雅释放连接池。
@@ -48,7 +44,6 @@ async def lifespan(app: FastAPI):
       aiohttp 的连接器(TCPConnector)在 GC 时不会立即关闭 keep-alive 连接,会打印
       "Unclosed client session / connector" 警告,生产环境更可能泄漏 socket 句柄。
     """
-    # ───── startup ─────
     from app.utils.http_client import HttpClientHolder
     holder = HttpClientHolder.instance()
     # 主动触发 session 创建,让连接池在启动期就绪(避免首请求冷启动)
@@ -57,7 +52,6 @@ async def lifespan(app: FastAPI):
     try:
         yield
     finally:
-        # ───── shutdown ─────
         await holder.close()
 
 
@@ -135,10 +129,10 @@ app.include_router(fusion.router)
 app.include_router(comprehensive.router)
 app.include_router(device_health.router)
 app.include_router(disaster_assessment.router)
-app.include_router(feedback.router)  # v1.4.0: 反馈学习闭环
-app.include_router(model_info.router)  # v1.5.0: 真实模型信息/重训/重载
-app.include_router(social_media.router)  # v2.0: 社交媒体文本分析
-app.include_router(sentinel.router)  # v1.8.0: Sentinel-1+2 合成卫星图层
+app.include_router(feedback.router)
+app.include_router(model_info.router)
+app.include_router(social_media.router)
+app.include_router(sentinel.router)
 
 # 静态文件挂载（必须在 include_router 之后，所有路由尝试匹配后才会落到 static files）
 app.mount("/sentinel_files", StaticFiles(directory=str(_SENTINEL_DIR)), name="sentinel_files")

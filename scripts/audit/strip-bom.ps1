@@ -1,6 +1,6 @@
 $paths = @(
-  'D:\earthquake\backend\src\main\java\cn\disasterguard',
-  'D:\earthquake\backend\src\test\java\cn\disasterguard'
+  'D:\DisasterGuard\backend\src\main\java\cn\disasterguard',
+  'D:\DisasterGuard\backend\src\test\java\cn\disasterguard'
 )
 $totalFixed = 0
 foreach ($dir in $paths) {

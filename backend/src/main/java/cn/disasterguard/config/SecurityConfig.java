@@ -2,10 +2,12 @@ package cn.disasterguard.config;
 
 import cn.disasterguard.common.security.DeviceAuthFilter;
 import cn.disasterguard.common.security.JwtAuthenticationFilter;
+import cn.disasterguard.common.security.RateLimitFilter;
 import cn.disasterguard.device.repository.MonitoringDeviceRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -18,6 +20,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 
 @Configuration
 @EnableMethodSecurity
+@Profile("!prod")
 public class SecurityConfig {
 
   @Value("${disasterguard.device.auth-strict-mode:false}")
@@ -25,7 +28,7 @@ public class SecurityConfig {
 
   @Bean
   public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtAuthenticationFilter jwtAuthenticationFilter,
-      MonitoringDeviceRepository deviceRepository) throws Exception {
+      MonitoringDeviceRepository deviceRepository, RateLimitFilter rateLimitFilter) throws Exception {
     DeviceAuthFilter deviceAuthFilter = new DeviceAuthFilter(deviceRepository, deviceAuthStrictMode);
     return http
         .csrf(AbstractHttpConfigurer::disable)
@@ -36,12 +39,14 @@ public class SecurityConfig {
                 "/api/system/health", "/api/auth/login").permitAll()
             // WebSocket 握手由 JwtHandshakeInterceptor 在握手层鉴权，Spring Security 放行
             .requestMatchers("/ws").permitAll()
-            // 国家气象数据接入：公开资源（NSMC / NMC 不需要鉴权），CORS 由 CorsConfig 接管
+            // 国家气象数据接入：公开资源（NSMC / NMC 不需要鉴权），CORS 由 CorsConfig 接管，限流由 RateLimitFilter 保护
             .requestMatchers("/api/weather/**").permitAll()
-            // 卫星覆盖数据：公开资源（CDSE / Sentinel-2 / Landsat 等）
+            // 卫星覆盖数据：公开资源（CDSE / Sentinel-2 / Landsat 等），限流由 RateLimitFilter 保护
             .requestMatchers("/api/sentinel/**").permitAll()
             .requestMatchers("/api/devices/{deviceCode}/data").hasRole("DEVICE")
             .anyRequest().authenticated())
+        // 限流过滤器最先执行，保护公开端点
+        .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
         // 显式顺序：DeviceAuthFilter 先于 JwtAuthenticationFilter
         // 否则 JWT 过滤器会拦截 /api/devices/**/data 请求返回 401
         .addFilterBefore(deviceAuthFilter, UsernamePasswordAuthenticationFilter.class)

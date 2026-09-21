@@ -97,7 +97,7 @@ const loading = ref(false)
 const statsLoading = ref(false)
 const showMobileFilter = ref(false)
 const showDecisionModal = ref(false)
-const decisionMode = ref('approve') // approve / reject
+const decisionMode = ref('approve')
 const decisionComment = ref('')
 const decisionError = ref('')
 const submitting = ref(false)
@@ -520,7 +520,6 @@ defineExpose({ refresh })
         </div>
       </div>
 
-      <!-- 图表区 -->
       <section class="panel system-panel chart-panel">
         <div class="panel-header compact">
           <div>
@@ -581,7 +580,6 @@ defineExpose({ refresh })
         </div>
       </section>
 
-      <!-- 表格 -->
       <section class="panel warning-panel">
         <div class="panel-header compact">
           <div>

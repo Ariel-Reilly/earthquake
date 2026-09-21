@@ -31,11 +31,11 @@ import {
 } from "lucide-vue-next";
 
 const props = defineProps({
-  states: { type: Array, required: true },       // 7 个状态节点
-  transitions: { type: Array, required: true },  // 12 条转移关系
-  activeState: { type: String, default: "" },    // 当前选中/激活状态
-  counts: { type: Object, default: () => ({}) }, // 各状态计数
-  highlightedStates: { type: Array, default: () => [] }, // 高亮（>0 计数）
+  states: { type: Array, required: true },
+  transitions: { type: Array, required: true },
+  activeState: { type: String, default: "" },
+  counts: { type: Object, default: () => ({}) },
+  highlightedStates: { type: Array, default: () => [] },
 });
 const emit = defineEmits(["select-state"]);
 
@@ -137,7 +137,6 @@ function arrowPath(t) {
   const x2 = nodeLeftEdge(toIdx);
   const y2 = nodeY() + NODE_H / 2;
   if (t.fromId === t.toId) {
-    // 自环
     const cx = x1;
     return {
       d: `M ${cx} ${y1 - 8} q 18 -18 0 -36`,

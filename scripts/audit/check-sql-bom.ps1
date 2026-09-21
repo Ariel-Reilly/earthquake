@@ -1,6 +1,6 @@
 $files = @(
-  'D:\earthquake\backend\src\main\resources\schema.sql',
-  'D:\earthquake\backend\src\main\resources\data.sql'
+  'D:\DisasterGuard\backend\src\main\resources\schema.sql',
+  'D:\DisasterGuard\backend\src\main\resources\data.sql'
 )
 foreach ($f in $files) {
   $bytes = [System.IO.File]::ReadAllBytes($f)

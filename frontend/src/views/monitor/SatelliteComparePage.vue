@@ -55,9 +55,7 @@ import { describeJobStatus } from '../../services/sentinelService'
 const emit = defineEmits(['notify'])
 const route = useRoute()
 
-// =====================================================================
 // AOI 预设：常用灾区坐标
-// =====================================================================
 const AOI_PRESETS = [
   { id: 'jiuzhaigou', name: '九寨沟', bbox: [103.85, 33.10, 104.10, 33.35] },
   { id: 'wenchuan',   name: '汶川',   bbox: [103.30, 30.80, 103.80, 31.20] },
@@ -74,9 +72,7 @@ const FORM_PRESETS = {
   '24m': { days: 730 },
 }
 
-// =====================================================================
 // 表单状态
-// =====================================================================
 const form = reactive({
   aoiPreset: 'wenchuan',
   bbox: [103.30, 30.80, 103.80, 31.20],
@@ -95,7 +91,7 @@ const compareMode = ref('swipe')  // swipe | flicker | sidebyside
 const showHeatmap = ref(true)
 const showHotspots = ref(true)
 const heatmapOpacity = ref(0.65)
-const swipePosition = ref(50)  // 0..100
+const swipePosition = ref(50)
 const flickerSide = ref('before')  // before | after
 const flickerPlaying = ref(true)
 const flickerInterval = ref(null)
@@ -109,9 +105,7 @@ const loading = ref(false)
 const errorMessage = ref('')
 const exportFormat = ref('png')
 
-// =====================================================================
 // 工具函数：日期范围
-// =====================================================================
 function dateOffsetDays(days) {
   const d = new Date()
   d.setDate(d.getDate() - days)
@@ -160,9 +154,7 @@ onMounted(() => {
   applyPresetAfter(form.afterPreset)
 })
 
-// =====================================================================
 // 提交工作流
-// =====================================================================
 async function submitCompare() {
   if (loading.value) return
   errorMessage.value = ''
@@ -202,9 +194,7 @@ async function submitCompare() {
   }
 }
 
-// =====================================================================
 // 闪烁模式自动播放
-// =====================================================================
 function startFlicker() {
   stopFlicker()
   flickerInterval.value = setInterval(() => {
@@ -236,9 +226,7 @@ watch(flickerPlaying, (playing) => {
 
 onBeforeUnmount(() => stopFlicker())
 
-// =====================================================================
 // 计算属性：进度 / 状态文案 / 图像 URL
-// =====================================================================
 const beforeStatus = computed(() => describeJobStatus(composeBefore.value))
 const afterStatus = computed(() => describeJobStatus(composeAfter.value))
 const diffStatus = computed(() => describeDiffJobStatus(diffJob.value))
@@ -270,9 +258,7 @@ const canSubmit = computed(() => !loading.value && bboxValid.value
   && form.beforeStart && form.beforeEnd && form.afterStart && form.afterEnd
   && form.beforeEnd < form.afterStart)
 
-// =====================================================================
 // 画布交互：卷帘位置拖动
-// =====================================================================
 const canvasRef = ref(null)
 const dragging = ref(false)
 
@@ -299,9 +285,7 @@ function onPointerUp() {
   dragging.value = false
 }
 
-// =====================================================================
 // 导出 PNG
-// =====================================================================
 async function exportComparison() {
   if (!canvasRef.value || !beforeUrl.value || !afterUrl.value) {
     errorMessage.value = '没有可导出的对比图，请先运行对比'
@@ -356,16 +340,11 @@ function loadImageToCanvas(url) {
   })
 }
 
-// =====================================================================
 // 模式切换
-// =====================================================================
 function setCompareMode(mode) {
   compareMode.value = mode
 }
 
-// =====================================================================
-// 清空
-// =====================================================================
 function resetAll() {
   composeBefore.value = null
   composeAfter.value = null
@@ -377,7 +356,7 @@ function resetAll() {
 
 <template>
   <div class="satellite-compare-page">
-    <!-- ===== 顶部标题 ===== -->
+    <!-- 顶部标题 -->
     <header class="cmp-header">
       <div class="cmp-header-main">
         <div class="cmp-title">
@@ -404,7 +383,7 @@ function resetAll() {
         </div>
       </div>
 
-      <!-- ===== 工具栏：表单 ===== -->
+      <!-- 工具栏：表单 -->
       <div class="cmp-toolbar">
         <div class="cmp-toolbar-group">
           <label class="cmp-label">AOI 区域</label>
@@ -474,7 +453,6 @@ function resetAll() {
       </div>
     </header>
 
-    <!-- ===== 状态条 ===== -->
     <section class="cmp-status-bar">
       <div class="cmp-status-card">
         <span class="cmp-status-label">灾前合成</span>
@@ -493,7 +471,7 @@ function resetAll() {
       </div>
     </section>
 
-    <!-- ===== 错误提示 ===== -->
+    <!-- 错误提示 -->
     <div v-if="errorMessage" class="cmp-error">
       <AlertTriangle :size="16" />
       <span>{{ errorMessage }}</span>
@@ -502,9 +480,8 @@ function resetAll() {
       </button>
     </div>
 
-    <!-- ===== 主体：画布 + 侧栏 ===== -->
+    <!-- 主体：画布 + 侧栏 -->
     <div class="cmp-main">
-      <!-- ===== 画布区 ===== -->
       <section class="cmp-canvas-section">
         <!-- 模式切换 -->
         <div class="cmp-mode-tabs">
@@ -556,7 +533,7 @@ function resetAll() {
           </div>
         </div>
 
-        <!-- ===== 卷帘模式 ===== -->
+        <!-- 卷帘模式 -->
         <div
           v-show="compareMode === 'swipe'"
           ref="canvasRef"

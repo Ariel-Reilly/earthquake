@@ -51,7 +51,7 @@ const loading = ref(true)
 const refreshingAll = ref(false)
 const fetchedAt = ref('')
 const products = reactive({})
-const activeKinds = ref([]) // 用户在主图上叠加的 overlay 列表（多选）
+const activeKinds = ref([])
 const mainMapContainer = ref(null)
 let mainMapController = null
 
@@ -107,7 +107,7 @@ async function createMainMap() {
   }
   mainMapController = createOpenLayersController(mainMapContainer.value, {
     center: [107.21, 30.61],
-    zoom: 5, // 中国全境视野，5 级能看到九段线外的边缘
+    zoom: 5,
     baseMap: 'vector',
   })
 }

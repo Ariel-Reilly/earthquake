@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 @RestController
 @RequestMapping("/api/analytics")
@@ -42,6 +43,7 @@ public class AnalyticsController {
    * </pre>
    */
   @GetMapping("/inspection-report")
+  @PreAuthorize("hasAuthority('analytics:view')")
   public ApiResponse<Map<String, Object>> inspectionReport(
       @RequestParam(required = false) Integer days,
       @RequestParam(required = false) String from,
@@ -130,6 +132,7 @@ public class AnalyticsController {
    * </pre>
    */
   @GetMapping("/compare")
+  @PreAuthorize("hasAuthority('analytics:view')")
   public ApiResponse<Map<String, Object>> compare(
       @RequestParam(required = false, defaultValue = "24h") String base,
       @RequestParam(required = false, defaultValue = "previous") String compare,
@@ -227,9 +230,7 @@ public class AnalyticsController {
     return ApiResponse.success(response);
   }
 
-  // --------------------------------------------------------------------
   // 工具方法
-  // --------------------------------------------------------------------
 
   /** 解析 days / from / to 三种入参，返回最终天数。 */
   private static int resolveDays(Integer days, String from, String to) {

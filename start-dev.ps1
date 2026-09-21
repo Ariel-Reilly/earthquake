@@ -39,7 +39,7 @@ param(
   # ---- 后端参数 ----
   [ValidateSet("default", "dev", "docker", "prod")]
   [string]$SpringProfile = "default",
-  [string]$JwtSecret = "disasterguard-dev-secret-key-at-least-32-chars-long-xyz",
+  [string]$JwtSecret = "",  # 空字符串表示从环境变量读取
   [switch]$SkipTest,           # 跳过单元测试（默认 true）
   [switch]$Jmx,                # 开启 JVM 调试端口 5005
 
@@ -93,7 +93,13 @@ function Get-PortOwnerName([int]$Port) {
 function Free-Port([int]$Port, [string]$SvcName) {
   if (-not (Test-PortListening $Port)) { return $true }
   $owner = Get-PortOwnerName $Port
-  Write-Warn "Port $Port 被 $owner 占用，强制释放..."
+  Write-Warn "Port $Port 被 $owner 占用"
+  # ⚠️ 确认提示：避免误杀无关进程
+  $confirm = Read-Host "  强制释放端口 $Port（终止 $owner）？[y/N]"
+  if ($confirm -ne 'y' -and $confirm -ne 'Y') {
+    Write-Info "已取消，请手动处理端口 $Port 后重试"
+    return $false
+  }
   try {
     $conn = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1
     Stop-Process -Id $conn.OwningProcess -Force -ErrorAction Stop
@@ -302,9 +308,16 @@ function Invoke-Backend {
   $env:POSTGRES_PORT         = "15432"
   $env:REDIS_PORT            = "16379"
   $env:REDIS_HOST            = "127.0.0.1"
-  $env:REDIS_PASSWORD        = "redis123"
+  # REDIS_PASSWORD 从环境变量读取，Load-DotEnv 已从 .env 加载
+  # 如果 .env 未设置则使用 .env 中的 CHANGE_ME 占位值（开发用）
+  $env:REDIS_PASSWORD        = if ([string]::IsNullOrEmpty($env:REDIS_PASSWORD)) { "CHANGE_ME__dev_redis_password_2026" } else { $env:REDIS_PASSWORD }
   $env:MINIO_ENDPOINT        = "http://127.0.0.1:19000"
-  $env:JWT_SECRET            = $JwtSecret
+  # JWT_SECRET 从环境变量读取，不在脚本中硬编码默认值
+  if (-not [string]::IsNullOrEmpty($JwtSecret)) {
+    $env:JWT_SECRET = $JwtSecret
+  } elseif ([string]::IsNullOrEmpty($env:JWT_SECRET)) {
+    Write-Warn "JWT_SECRET 未设置，请通过环境变量或 .env 文件配置"
+  }
   $env:DEV_USERS_ENABLED     = "true"
   $env:DEVICE_AUTH_STRICT    = "false"
   $env:TDENGINE_ENABLED      = "false"
@@ -472,15 +485,18 @@ function Invoke-AllStack {
   # ─── 3. 启动后端 ───
   $beLog = Join-Path $logDir "backend-$PID.log"
   Write-Info "[2/4] 启动后端（Spring Boot）..."
+  # 从环境变量读取 JWT_SECRET 和 REDIS_PASSWORD，不在脚本中硬编码
+  $beJwtSecret = if ([string]::IsNullOrEmpty($env:JWT_SECRET)) { "''" } else { "'" + $env:JWT_SECRET + "'" }
+  $beRedisPassword = if ([string]::IsNullOrEmpty($env:REDIS_PASSWORD)) { "'CHANGE_ME__dev_redis_password_2026'" } else { "'" + $env:REDIS_PASSWORD + "'" }
   $beScriptBlock = [ScriptBlock]::Create(@"
 Set-Location '$PROJECT_ROOT\backend'
 `$env:SPRING_PROFILES_ACTIVE='$SpringProfile'
 `$env:POSTGRES_PORT='15432'
 `$env:REDIS_PORT='16379'
 `$env:REDIS_HOST='127.0.0.1'
-`$env:REDIS_PASSWORD='redis123'
+`$env:REDIS_PASSWORD=$beRedisPassword
 `$env:MINIO_ENDPOINT='http://127.0.0.1:19000'
-`$env:JWT_SECRET='$JwtSecret'
+`$env:JWT_SECRET=$beJwtSecret
 `$env:DEV_USERS_ENABLED='true'
 `$env:DEVICE_AUTH_STRICT='false'
 `$env:TDENGINE_ENABLED='false'

@@ -8,9 +8,7 @@
  */
 import { SEED_BASE } from "./seed";
 
-// =====================================================================
 // 人工确认工作台：默认 2 条示例数据 + 统计
-// =====================================================================
 
 export function getConfirmationQueueMock() {
   return {
@@ -49,15 +47,11 @@ export function getConfirmationQueueMock() {
 
 export const confirmationQueueStatsMock = { pending: 2 };
 
-// =====================================================================
 // 预警统计（顶栏红点）
-// =====================================================================
 
 export const warningStatsMock = { pending: 5, dispatched: 2, closed: 18 };
 
-// =====================================================================
 // 待办中心 —— 4 个汇总入口
-// =====================================================================
 
 /** 待我确认（取 SEED_BASE.hazardPoints 前 8 条派生） */
 export function listMyConfirmationsMock() {
@@ -147,9 +141,7 @@ export function listMyOpenTasksMock() {
   };
 }
 
-// =====================================================================
 // 消息中心：5 条示例 + 未读统计
-// =====================================================================
 
 export function getMessagesMock() {
   return {
@@ -209,11 +201,7 @@ export function getMessagesMock() {
 
 export const messageStatsMock = { unread: 3 };
 
-// =====================================================================
-// v1.7.0+ 统一事件中心 mock —— 跨 hazard/warning/emergency 的统一视图
-// =====================================================================
 
-const NOW = () => new Date().toISOString();
 const MINUS_MIN = (m) => new Date(Date.now() - m * 60 * 1000).toISOString();
 
 /**
@@ -383,7 +371,7 @@ export const unifiedEventsStatsMock = {
   CLOSED: 1,
   REJECTED: 1,
   total: 7,
-  active: 5, // 非终态计数
+  active: 5,
 };
 
 export function getUnifiedEventDetailMock(code) {

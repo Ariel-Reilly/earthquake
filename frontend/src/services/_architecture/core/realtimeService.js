@@ -17,9 +17,9 @@ let personnelInterval = 30000;
  * WS 在线期间的兜底轮询间隔。WS 静默或后端没推送时，靠这个保底刷新。
  * 默认比正常间隔长 4 倍，避免与 WS 推送打架。
  */
-let fallbackPollingInterval = 60000;
-let fallbackWarningInterval = 40000;
-let fallbackPersonnelInterval = 120000;
+const fallbackPollingInterval = 60000;
+const fallbackWarningInterval = 40000;
+const fallbackPersonnelInterval = 120000;
 /** WS 是否已建立 */
 let wsActive = false;
 /** WS 最近一次收到任意消息的时间戳（epoch ms）。用于静默检测。 */
@@ -186,7 +186,6 @@ function normalizeHazard(item) {
     lon: item.lon,
     lat: item.lat,
     threatObject: item.threatObject,
-    // v1.6.0：AI 实时监测元信息
     source: item.source ?? "MANUAL",
     discoveredAt: item.discoveredAt,
     detectionConfidence: item.detectionConfidence,
@@ -292,19 +291,6 @@ function replaceFromSnapshot(stateList, incomingList) {
 }
 
 /**
- * @deprecated 旧版只增不删的合并逻辑已弃用（导致后端已剔除的项永远残留）。
- * 全量轮询请改用 replaceFromSnapshot；仅在 WS 单条增量场景下用 upsert。
- */
-function mergeSnapshot(list, incomingList) {
-  // 保留旧行为兜底：仅作为 WS 增量内部使用，不再被轮询调用
-  let merged = list.slice();
-  for (const incoming of incomingList) {
-    merged = upsert(merged, incoming);
-  }
-  return merged;
-}
-
-/**
  * 本地模拟轨迹：仅演示/开发使用。生产环境由移动端每 10~30s 上报
  * GPS 坐标序列，前端通过轮询或 WebSocket 获取，不应做本地推演（点 2）。
  */
@@ -362,7 +348,6 @@ function applySnapshot(snapshot = {}) {
       state.personnel,
       snapshot.personnel.map(normalizePersonnel),
     );}
-  // v1.6.0：snapshot 也包含 hazards（与 poll 行为对齐），保证首屏后立即拿到灾害点位
   if (Array.isArray(snapshot.hazards))
     {state.hazards = replaceFromSnapshot(
       state.hazards,
@@ -410,7 +395,7 @@ function deriveWsUrl() {
 /** 优先用一次性 ticket 连接，失败时 fallback 到 raw JWT。 */
 async function connectSocket(url) {
   if (!url || typeof WebSocket === "undefined") {return null;}
-  wsUrl = url; // 保存 base url 用于重连
+  wsUrl = url;
   let connectUrl;
   const token = getAuthToken();
   if (token) {
@@ -485,7 +470,6 @@ function tryOpen(fullUrl) {
           state.personnel,
           normalizePersonnel(message.data),
         );}
-      // v1.6.0：AI 实时监测到的灾害（hazard 事件来自 AiHazardMonitorScheduler）
       if (message.type === "hazard" && message.data) {
         state.hazards = upsert(state.hazards, normalizeHazard(message.data));
       }
@@ -568,7 +552,7 @@ async function pollPersonnel() {
 
 /** 本地轨迹动画：演示专用。真实系统以移动端上报频率驱动，无需定时推演（点 2、8）。 */
 function animatePersonnel() {
-  if (USE_LIVE_PERSONNEL) {return;} // 生产模式：位置来自上报，不做本地推演
+  if (USE_LIVE_PERSONNEL) {return;}
   state.personnel = state.personnel.map((person, index) => {
     const route = person.route?.length
       ? person.route
@@ -645,7 +629,7 @@ export function startRealtimeSync(options = {}) {
     wsUrl = explicitWs;
   } else if (!isBackendRuntime()) {
     wsUrl = "";
-    console.info(
+    console.warn(
       "[realtimeService] 后端不可达（演示模式），跳过 WebSocket，实时数据由轮询兜底。",
     );
   } else {
@@ -757,7 +741,7 @@ function demotePollingToFallback() {
  * WebSocket 断开时恢复正常频率轮询兜底。
  */
 function resumePolling() {
-  if (pollingTimer) {return;} // 已在运行
+  if (pollingTimer) {return;}
   pollingTimer = window.setInterval(
     () => {
       pollSnapshot().catch(() => {});

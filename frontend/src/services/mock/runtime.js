@@ -6,9 +6,7 @@
  */
 import { SEED_BASE } from "./seed";
 
-// =====================================================================
 // 设备轨迹：从 seed 设备的 lon/lat 中心派生 20 个稳定点
-// =====================================================================
 
 export function getDeviceTrackMock(deviceId, { from, to } = {}) {
   const device =
@@ -38,9 +36,7 @@ export function getDeviceTrackMock(deviceId, { from, to } = {}) {
   return points;
 }
 
-// =====================================================================
 // 路径规划：直线距离 + ±10% 抖动生成 2 套方案
-// =====================================================================
 
 export function planRouteMock(payload = {}) {
   const { startLon = 0, startLat = 0, endLon = 0, endLat = 0 } = payload;
@@ -89,9 +85,7 @@ export function planRouteMock(payload = {}) {
   ];
 }
 
-// =====================================================================
 // P0-1：路径规划（含避障）
-// =====================================================================
 
 export function getObstacleAreasMock() {
   // 与 seed.hazardPoints 中风险等级>=橙的灾害点对应形成避障多边形
@@ -206,9 +200,7 @@ export function exportRouteGeoJsonMock(route) {
   };
 }
 
-// =====================================================================
 // P0-2：预警解除通知预览
-// =====================================================================
 
 const RESOLVE_TEMPLATES = [
   "经现场核查，监测数据已恢复正常，特解除本预警。",
@@ -226,9 +218,7 @@ export function previewWarningResolveMock(warning) {
   };
 }
 
-// =====================================================================
 // P0-3：用户偏好默认
-// =====================================================================
 
 export const DEFAULT_USER_PREFERENCE = {
   channels: { sms: true, email: false, app: true, inApp: true, phone: false },
@@ -261,9 +251,7 @@ export function saveUserPreferenceMock(userId = "u-admin", pref = {}) {
   return { ok: true, savedAt: new Date().toISOString() };
 }
 
-// =====================================================================
 // P0-4：会签
-// =====================================================================
 
 export const SIGN_MODE_OPTIONS = [
   { value: "PARALLEL", label: "并行会签", desc: "所有人同时收到待办，全部确认后汇总" },
@@ -391,9 +379,7 @@ export function transferEventMock(eventId, toUser, reason, operator) {
   return transfer;
 }
 
-// =====================================================================
 // P0-5：区域专项大屏
-// =====================================================================
 
 export function getZoneKpiMock({ region = "all", kind = "all", range = "7d" } = {}) {
   const factor = (region === "all" ? 1 : 0.4) * (kind === "all" ? 1 : 0.5);
@@ -472,9 +458,6 @@ export function getZoneRelatedEmergenciesMock({ region = "all" } = {}) {
   }));
 }
 
-// =====================================================================
-// v1.9.0 P1：人员位置上报 mock（前端演示用，无后端时模拟 Redis 写入成功）
-// =====================================================================
 
 export function reportPersonnelPositionMock(payload = {}) {
   return {
@@ -496,9 +479,6 @@ export function reportPersonnelPositionMock(payload = {}) {
   };
 }
 
-// =====================================================================
-// v1.9.0 P1：人员列表 mock（Redis + DB 双源 fallback 时使用）
-// =====================================================================
 
 const PERSONNEL_DEMO = [
   { id: "周小雨", name: "周小雨", role: "值班员", status: "巡检中", taskCode: "TK-001", taskName: "HZ-LA-001 巡检", hazardCode: "HZ-LA-001", lon: 118.542, lat: 30.128, region: "龙安镇", speed: 1.2 },

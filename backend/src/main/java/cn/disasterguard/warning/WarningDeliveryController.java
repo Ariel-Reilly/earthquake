@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 /**
  * 预警送达（Warning Delivery）REST API。
@@ -39,6 +40,7 @@ public class WarningDeliveryController {
   }
 
   @GetMapping("/{id}/delivery/summary")
+  @PreAuthorize("hasAuthority('warnings:view')")
   public ApiResponse<Map<String, Object>> getSummary(@PathVariable Long id) {
     var warning = warningRepository.findById(id).orElse(null);
     if (warning == null) {
@@ -65,6 +67,7 @@ public class WarningDeliveryController {
   }
 
   @GetMapping("/{id}/delivery/records")
+  @PreAuthorize("hasAuthority('warnings:view')")
   public ApiResponse<Map<String, Object>> getRecords(
       @PathVariable Long id,
       @RequestParam(defaultValue = "1") int page,
@@ -113,6 +116,7 @@ public class WarningDeliveryController {
   }
 
   @PostMapping("/{id}/delivery/redeliver")
+  @PreAuthorize("hasAuthority('warnings:create')")
   public ApiResponse<Map<String, Object>> redeliver(
       @PathVariable Long id,
       @RequestBody Map<String, Object> body) {

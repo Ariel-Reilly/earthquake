@@ -1,0 +1,17 @@
+﻿编号,名称,类型,分区,X_mm,Y_mm,地面高程_mm,Revit建议族类别,说明
+SB-CRACK-01,裂缝计,crack_meter,A,250,480,211.6,设备/传感器,滑坡体后缘
+SB-DISP-01,位移计,displacement,A,320,550,210.7,设备/传感器,滑坡体滑轨
+SB-INCL-01,倾角计,inclinometer,A,300,540,218.2,设备/传感器,滑坡体
+SB-SOIL-01,土壤湿度,soil_moisture,A,200,620,207.3,设备/传感器,坡体
+SB-RAIN-01,雨量计,rain_gauge,A,400,180,130.7,通用/气象设备,A区上方
+SB-TILT-01,六轴加速度,accelerometer,A,300,400,229.3,设备/传感器,A区
+SB-DHT-01,温湿度,temp_humidity,A,350,220,158.0,设备/传感器,A区气象站
+SB-CAM-01,摄像头A,camera,A,420,120,96.7,安防/摄像头,A区俯瞰
+WS-WATER-01,水位计,water_level,B,850,500,0.0,设备/传感器,B区水槽
+SB-CAM-02,摄像头B,camera,B,850,50,0.0,安防/摄像头,B区俯瞰
+SB-VIB-01,振动传感器,vibration,C,1300,600,31.0,设备/传感器,C区
+SB-LED-01,LED预警屏,led_matrix,C,1350,500,28.6,电气/显示设备,C区
+SB-ALARM-01,声光报警器,alarm,C,1300,700,29.2,电气/警报装置,C区
+SB-SERVO-01,舵机,servo,A,300,550,213.5,通用/机电设备,滑坡体驱动
+SB-PUMP-01,微型水泵,pump,B,850,880,0.0,水/机械装置,水位控制
+SB-VALVE-01,电磁阀,valve,A,400,180,130.7,管道/阀门部件,降雨控制

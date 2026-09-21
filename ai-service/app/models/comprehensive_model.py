@@ -139,11 +139,9 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
+from app.config import MODELS_DIR
 from app.models.xgboost_model import get_fusion_model
 
-MODELS_DIR = Path(__file__).resolve().parent.parent.parent / "models"
-
-# ---- 归一化截断值 ----
 IMAGE_NORM_MAX = 100.0
 RAIN_24H_NORM_MAX = 150.0
 RAIN_7D_NORM_MAX = 400.0
@@ -158,7 +156,6 @@ SOCIAL_ALERT_NORM_MAX = 4.0
 NIGHTLIGHT_NORM_MAX = 63.0
 INFRASTRUCTURE_NORM_MAX = 1.0
 
-# ---- 维度权重（v2.0 七类数据融合权重）----
 # 说明：
 #   - 气象水文（0.22）和遥感（0.20）权重最高：触发条件+空间基础是核心
 #   - 地面传感器（0.18）：近实时前兆信号，秒级预警
@@ -176,7 +173,6 @@ DIMENSION_WEIGHTS: Dict[str, float] = {
     "supporting":       0.07,  # 辅助数据
 }
 
-# ---- 风险等级阈值 ----
 LEVEL_THRESHOLDS = (
     (80.0, "CRITICAL"),
     (60.0, "HIGH"),
@@ -200,9 +196,7 @@ def safe_norm(value: float, max_val: float) -> float:
     return max(0.0, min(1.0, value / max_val))
 
 
-# ==============================================================================
 # 七维度评分函数
-# ==============================================================================
 
 def score_remote_sensing(factors: Dict[str, float]) -> Dict[str, Any]:
     """[1] 遥感影像维度：光学/雷达/热红外/无人机图像异常评分。"""
@@ -589,9 +583,7 @@ def get_source_label(source: str) -> str:
     return labels.get(source.lower(), source)
 
 
-# ==============================================================================
 # 综合评分
-# ==============================================================================
 
 class ComprehensiveRiskModel:
     """
@@ -692,9 +684,7 @@ class ComprehensiveRiskModel:
                 print(f"[ComprehensiveRiskModel v2] XGBoost 推理失败: {e}，降级为维度加权")
         return self._overall_weighted(dims)
 
-    # --------------------------------------------------------------------------
     # Reasoning（可解释归因）
-    # --------------------------------------------------------------------------
     def build_reasoning(
         self, overall_level: str, dims: Dict[str, Dict[str, Any]], factors: Dict[str, float]
     ) -> List[str]:
@@ -819,9 +809,7 @@ class ComprehensiveRiskModel:
             actions.append("保持常规监测频次，关注24h降雨趋势和各维度指标变化")
         return actions
 
-    # --------------------------------------------------------------------------
     # 主接口
-    # --------------------------------------------------------------------------
     def score(self, factors: Dict[str, float]) -> Dict[str, Any]:
         # [1] 六维度独立评分（remote_sensing / meteorology / terrain / sensor / historical / supporting）
         #  注：supporting 维度包含 social_media + 辅助数据（夜间灯光/基础设施/电力）

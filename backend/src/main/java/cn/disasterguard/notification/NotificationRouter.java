@@ -69,7 +69,6 @@ public class NotificationRouter {
     this.senders = senderList.stream()
         .collect(Collectors.toMap(NotificationSender::getChannel, s -> s));
 
-    // 初始化限流器
     rateLimiters.put("SMS", new RateLimiter(100));      // 每分钟 100 条
     rateLimiters.put("APP", new RateLimiter(200));      // 每分钟 200 条
     rateLimiters.put("EMAIL", new RateLimiter(50));     // 每分钟 50 条
@@ -106,7 +105,6 @@ public class NotificationRouter {
       Long recordId, String channel, String target,
       String title, String content, Map<String, Object> variables) {
 
-    // 检查限流
     if (isRateLimited(channel)) {
       log.warn("渠道 {} 触发限流，跳过", channel);
       createReceipt(recordId, channel, target, "RATE_LIMITED", "触发限流");
@@ -146,7 +144,6 @@ public class NotificationRouter {
       return request.channels();
     }
 
-    // 查询渠道配置
     List<String> configuredChannels = queryConfiguredChannels(
         request.disasterType(), request.level());
 

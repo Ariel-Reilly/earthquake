@@ -30,6 +30,7 @@ public class EmergencyController {
   }
 
   @GetMapping
+  @PreAuthorize("hasAuthority('emergency:view')")
   public ApiResponse<PageResponse<EmergencyDto>> list(
       @RequestParam(defaultValue = "1") int page,
       @RequestParam(defaultValue = "10") int size,
@@ -40,6 +41,7 @@ public class EmergencyController {
   }
 
   @GetMapping("/{id}")
+  @PreAuthorize("hasAuthority('emergency:view')")
   public ApiResponse<Map<String, Object>> detail(@PathVariable Long id) {
     return ApiResponse.success(Map.of("item", emergencyService.getById(id)));
   }

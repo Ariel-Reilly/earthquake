@@ -38,7 +38,6 @@ public class SoundLightSender implements NotificationSender {
       // TODO: 集成真实声光报警器 API（如 HTTP POST / MQTT）
       String messageId = UUID.randomUUID().toString();
 
-      // 解析告警级别
       String level = (String) variables.getOrDefault("level", "normal");
       String soundPattern = getSoundPattern(level);
       String lightColor = getLightColor(level);

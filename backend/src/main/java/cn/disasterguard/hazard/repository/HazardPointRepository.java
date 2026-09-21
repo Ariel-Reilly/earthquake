@@ -27,7 +27,6 @@ public interface HazardPointRepository extends JpaRepository<HazardPoint, Long>,
       @Param("lat") double lat,
       @Param("radiusMeters") double radiusMeters);
 
-  // ===== v1.6.0 AI 实时监测专用查询 =====
 
   /** 按 source 过滤（AI_MONITOR / MANUAL / DEMO），用于 HazardController ?source= 查询参数 */
   List<HazardPoint> findBySourceOrderByDiscoveredAtDesc(String source);

@@ -71,10 +71,12 @@ public class ProductionConfigValidator {
   @Value("${emqx.password:}")
   String emqxPassword;
 
-  @Value("${minio.access.key:}")
+  // 与 MinioCredentialValidator 同样修正为 application.yml 中的连字符键名，
+  // 否则 @Value 取不到值（不做宽松绑定），生产校验形同虚设。
+  @Value("${minio.access-key:}")
   String minioAccessKey;
 
-  @Value("${minio.access.secret:}")
+  @Value("${minio.secret-key:}")
   String minioSecret;
 
   private final SysUserRepository userRepository;

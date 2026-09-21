@@ -49,7 +49,6 @@ class BaselineRequest(BaseModel):
     description: Optional[str] = ""
 
 
-# ==================== 漂移检测 ====================
 
 @router.post("/detect", response_model=DetectResponse)
 async def detect_drift(request: DetectRequest) -> DetectResponse:
@@ -159,7 +158,6 @@ async def get_feature_drift_detail(
     }
 
 
-# ==================== 基线管理 ====================
 
 @router.get("/baseline/{model_id}")
 async def get_baseline(model_id: str) -> Dict[str, Any]:
@@ -198,7 +196,6 @@ async def update_baseline(request: BaselineRequest) -> Dict[str, Any]:
     }
 
 
-# ==================== 重训触发 ====================
 
 @router.post("/retrain", response_model=RetrainResponse)
 async def trigger_retrain(request: RetrainRequest) -> RetrainResponse:

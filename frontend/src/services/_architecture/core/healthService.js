@@ -31,7 +31,7 @@ function deriveState() {
   if (consecutiveFailures >= 3) {return "down";}
   if (consecutiveFailures >= 1 && consecutiveSuccesses === 0) {return "degraded";}
   if (consecutiveSuccesses >= 2) {return "ok";}
-  return "ok"; // 默认 OK
+  return "ok";
 }
 
 /**

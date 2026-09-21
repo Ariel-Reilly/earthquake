@@ -179,7 +179,7 @@ function findFallbackAnswer(text) {
   }
 }
 
-// === 渲染附件：综合报告卡 / 排行榜卡 ===
+// 渲染附件：综合报告卡 / 排行榜卡
 const LEVEL_INFO = {
   LOW: { label: '低风险', color: '#2f7f80' },
   MEDIUM: { label: '中等风险', color: '#4a8cc2' },
@@ -311,7 +311,6 @@ onBeforeUnmount(() => {
     <!-- 聊天面板 -->
     <transition name="panel-slide">
       <div v-show="isOpen" class="assistant-panel" :style="panelStyle">
-        <!-- 头部 -->
         <div class="panel-header">
           <div class="panel-header-info">
             <div class="panel-avatar"><BrandMascot :size="36" /></div>

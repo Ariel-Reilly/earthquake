@@ -46,7 +46,7 @@ const assignForm = reactive({
   note: "",
 })
 
-// ===================== 路径规划 Tab 状态 =====================
+// 路径规划 Tab 状态
 const routeTabActive = ref(false)
 const routeStart = ref("")
 const routeEnd = ref("")
@@ -142,7 +142,7 @@ function exportRouteGPX() {
   emit("notify", "GPX 已导出")
 }
 
-// ===================== 原资源调度功能 =====================
+// 原资源调度功能
 const typeMeta = {
   team:    { label: "救援队伍", icon: Users,    color: "#2b6cb0" },
   material:{ label: "应急物资",  icon: Package,  color: "#9b761e" },
@@ -238,7 +238,7 @@ onMounted(() => loadResources())
       </div>
     </header>
 
-    <!-- ========== 资源调度 Tab ========== -->
+    <!-- 资源调度 Tab -->
     <template v-if="!routeTabActive">
       <section class="stat-grid">
         <div class="stat-card">

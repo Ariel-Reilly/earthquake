@@ -226,7 +226,6 @@ const channels = ref([
   },
 ]);
 
-// 过滤
 const filteredChannels = computed(() => {
   if (!searchTerm.value.trim()) return channels.value;
   const k = searchTerm.value.toLowerCase();
@@ -347,7 +346,6 @@ const channelColor = (type) => {
 
 <template>
   <div class="channels-page">
-    <!-- 顶部 -->
     <div class="page-header">
       <div class="header-actions">
         <button class="btn-secondary" @click="goToTemplates">
@@ -405,7 +403,6 @@ const channelColor = (type) => {
           class="channel-card"
           :class="{ disabled: !ch.enabled }"
         >
-          <!-- 头部 -->
           <div class="card-header">
             <div class="card-icon" :style="{ background: channelColor(ch.type) + '20', color: channelColor(ch.type) }">
               <component :is="channelIcon(ch.type)" :size="20" />
@@ -441,7 +438,6 @@ const channelColor = (type) => {
             </div>
           </div>
 
-          <!-- 统计 -->
           <div class="card-stats">
             <div class="stat-item">
               <span class="stat-label">今日发送</span>
@@ -459,7 +455,6 @@ const channelColor = (type) => {
             </div>
           </div>
 
-          <!-- 操作 -->
           <div class="card-actions">
             <button class="btn-test" @click="testConnection(ch)" :disabled="testing[ch.id]">
               <Loader2 v-if="testing[ch.id]" :size="13" class="spinning" />
@@ -475,7 +470,6 @@ const channelColor = (type) => {
           </div>
         </div>
 
-        <!-- 空状态 -->
         <div v-if="!tabChannels.length" class="empty-state">
           <Bell :size="40" />
           <p>该类型暂无渠道配置</p>

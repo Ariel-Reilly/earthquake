@@ -1,4 +1,4 @@
-$root = 'D:\earthquake\backend\src'
+$root = 'D:\DisasterGuard\backend\src'
 $results = @()
 Get-ChildItem -Path $root -Recurse -Include '*.java','*.kt' -File | ForEach-Object {
   $file = $_

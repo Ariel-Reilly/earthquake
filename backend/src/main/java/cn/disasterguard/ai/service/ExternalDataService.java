@@ -53,9 +53,7 @@ public class ExternalDataService {
         .build();
   }
 
-  // ==================================================================
   // 真实接入的 API（全部为公开免费/无需 OAuth 的真实接口）
-  // ==================================================================
 
   /**
    * Open-Meteo：温度/湿度/降雨/气压/风速/土壤含水率（ERA5 + ERA5-Land）。
@@ -348,9 +346,7 @@ public class ExternalDataService {
     }
   }
 
-  // ==================================================================
   // 内部解析
-  // ==================================================================
 
   private MeteorologyResult parseMeteorology(String body, double lat, double lon) {
     try {
@@ -532,9 +528,7 @@ public class ExternalDataService {
     }
   }
 
-  // ==================================================================
   // HTTP + 工具
-  // ==================================================================
 
   private HttpResponse<String> sendGet(String url) {
     return sendGet(url, props.timeoutSeconds());
@@ -695,9 +689,7 @@ public class ExternalDataService {
     return "unknown";
   }
 
-  // ==================================================================
   // 内部 record（仅保留真实返回的）
-  // ==================================================================
 
   public record MeteorologyResult(
       double temperature, double humidity, double rainfallMmPerHour,

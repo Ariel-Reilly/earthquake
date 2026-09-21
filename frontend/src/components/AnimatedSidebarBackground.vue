@@ -17,20 +17,29 @@ onMounted(() => {
   let particles = []
   const mouse = { x: -9999, y: -9999 }
 
-  const COLORS = ['rgba(94, 168, 158, ', 'rgba(99, 209, 156, ', 'rgba(105, 156, 206, ', 'rgba(244, 200, 123, ']
+  // 优化配色方案 - 更有层次感
+  const COLORS = [
+    'rgba(99, 209, 156, ',   // 绿色 - 主色调
+    'rgba(94, 168, 158, ',   // 青色 - 侧边栏主色
+    'rgba(105, 156, 206, ',  // 蓝色 - 科技感
+    'rgba(244, 200, 123, ',   // 金色 - 强调色
+  ]
 
   function spawn() {
     return {
       x: Math.random() * width,
       y: Math.random() * height,
-      vx: (Math.random() - 0.5) * 0.22,
-      vy: (Math.random() - 0.5) * 0.22,
+      vx: (Math.random() - 0.5) * 0.25,
+      vy: (Math.random() - 0.5) * 0.25,
       phase: Math.random() * Math.PI * 2,
-      freq: 0.22 + Math.random() * 0.38,
-      drift: 0.06 + Math.random() * 0.1,
-      r: 0.8 + Math.random() * 1.6,
+      freq: 0.2 + Math.random() * 0.4,
+      drift: 0.05 + Math.random() * 0.12,
+      r: 0.6 + Math.random() * 1.8,
       color: COLORS[Math.floor(Math.random() * COLORS.length)],
-      alpha: 0.18 + Math.random() * 0.3,
+      alpha: 0.15 + Math.random() * 0.25,
+      // 新增：星芒效果
+      hasGlow: Math.random() > 0.7,
+      glowPhase: Math.random() * Math.PI * 2,
     }
   }
 
@@ -39,7 +48,8 @@ onMounted(() => {
     const nextWidth = canvas.clientWidth
     const nextHeight = canvas.clientHeight
     if (!nextWidth || !nextHeight) return
-    const target = Math.min(56, Math.max(18, Math.round((nextWidth * nextHeight) / 7000)))
+    // 根据侧边栏宽度调整粒子数量
+    const target = Math.min(48, Math.max(14, Math.round((nextWidth * nextHeight) / 7500)))
 
     canvas.width = Math.round(nextWidth * dpr)
     canvas.height = Math.round(nextHeight * dpr)
@@ -57,7 +67,7 @@ onMounted(() => {
         p.x *= sx
         p.y *= sy
         p.vx *= Math.sqrt(sx * sy)
-        p.vy *= Math.sqrt(sx * sy)
+        p.vy *= Math.sqrt(sy * sy)
       }
       while (particles.length < target) particles.push(spawn())
       if (particles.length > target) particles.length = target
@@ -71,56 +81,73 @@ onMounted(() => {
     ctx.clearRect(0, 0, width, height)
 
     for (const p of particles) {
-      p.vx += Math.sin(t * p.freq + p.phase) * p.drift * 0.035
-      p.vy += Math.cos(t * p.freq * 0.9 + p.phase) * p.drift * 0.035
+      // 改进运动算法 - 更自然
+      p.vx += Math.sin(t * p.freq + p.phase) * p.drift * 0.04
+      p.vy += Math.cos(t * p.freq * 0.85 + p.phase) * p.drift * 0.04
 
+      // 鼠标交互 - 更柔和的排斥效果
       const dx = p.x - mouse.x
       const dy = p.y - mouse.y
       const dist = Math.hypot(dx, dy)
-      if (dist < 140 && dist > 0) {
-        const force = (140 - dist) / 140
-        p.vx += (dx / dist) * force * 0.016
-        p.vy += (dy / dist) * force * 0.016
+      if (dist < 120 && dist > 0) {
+        const force = Math.pow((120 - dist) / 120, 2) * 0.018
+        p.vx += (dx / dist) * force
+        p.vy += (dy / dist) * force
       }
 
+      // 速度限制 - 更平滑
       const speed = Math.hypot(p.vx, p.vy)
-      if (speed > 0.9) {
-        p.vx *= 0.99
-        p.vy *= 0.99
+      if (speed > 0.85) {
+        p.vx *= 0.985
+        p.vy *= 0.985
       }
 
       p.x += p.vx
       p.y += p.vy
 
+      // 边界循环
       if (p.x < -24) p.x = width + 24
       if (p.x > width + 24) p.x = -24
       if (p.y < -24) p.y = height + 24
       if (p.y > height + 24) p.y = -24
     }
 
-    ctx.lineWidth = 1
+    ctx.lineWidth = 0.8
+    // 改进连线效果
     for (let i = 0; i < particles.length; i++) {
       const a = particles[i]
       for (let j = i + 1; j < particles.length; j++) {
         const b = particles[j]
         const d = Math.hypot(a.x - b.x, a.y - b.y)
-        if (d < 100) {
-          ctx.strokeStyle = `rgba(94, 168, 158, ${(1 - d / 100) * 0.08})`
+        if (d < 90) {
+          const opacity = (1 - d / 90) * 0.1
+          ctx.strokeStyle = `rgba(94, 168, 158, ${opacity})`
           ctx.beginPath()
           ctx.moveTo(a.x, a.y)
           ctx.lineTo(b.x, b.y)
           ctx.stroke()
         }
       }
+      // 鼠标连线效果
       const md = Math.hypot(a.x - mouse.x, a.y - mouse.y)
-      if (md < 150) {
-        ctx.strokeStyle = `rgba(99, 209, 156, ${(1 - md / 150) * 0.16})`
+      if (md < 130) {
+        ctx.strokeStyle = `rgba(99, 209, 156, ${(1 - md / 130) * 0.18})`
         ctx.beginPath()
         ctx.moveTo(a.x, a.y)
         ctx.lineTo(mouse.x, mouse.y)
         ctx.stroke()
       }
 
+      // 星芒效果
+      if (a.hasGlow) {
+        const glowAlpha = a.alpha * (0.5 + 0.5 * Math.sin(t * 2 + a.glowPhase))
+        ctx.beginPath()
+        ctx.arc(a.x, a.y, a.r * 1.5, 0, Math.PI * 2)
+        ctx.fillStyle = a.color + glowAlpha * 0.5 + ')'
+        ctx.fill()
+      }
+
+      // 主粒子
       ctx.beginPath()
       ctx.arc(a.x, a.y, a.r, 0, Math.PI * 2)
       ctx.fillStyle = a.color + a.alpha + ')'
@@ -183,10 +210,19 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="sidebar-bg" aria-hidden="true">
+    <!-- 装饰性渐变 blob -->
     <div class="sidebar-bg-blob sidebar-bg-blob-1"></div>
     <div class="sidebar-bg-blob sidebar-bg-blob-2"></div>
     <div class="sidebar-bg-blob sidebar-bg-blob-3"></div>
+    <!-- 底部渐变 -->
+    <div class="sidebar-bg-gradient-bottom"></div>
+    <!-- 顶部渐变 -->
+    <div class="sidebar-bg-gradient-top"></div>
+    <!-- 暗角效果 -->
     <div class="sidebar-bg-vignette"></div>
+    <!-- 网格纹理 -->
+    <div class="sidebar-bg-grid"></div>
+    <!-- 粒子画布 -->
     <canvas ref="canvasRef" class="sidebar-bg-canvas"></canvas>
   </div>
 </template>
@@ -200,48 +236,93 @@ onBeforeUnmount(() => {
   pointer-events: none;
 }
 
+/* 装饰性渐变 blob */
 .sidebar-bg-blob {
   position: absolute;
   border-radius: 50%;
-  filter: blur(64px);
-  opacity: 0.32;
+  filter: blur(72px);
+  opacity: 0.28;
   will-change: transform;
 }
 
 .sidebar-bg-blob-1 {
-  width: 380px;
-  height: 380px;
-  left: -170px;
-  top: -120px;
+  width: 320px;
+  height: 320px;
+  left: -140px;
+  top: -100px;
   background: radial-gradient(circle at 34% 34%, #2f8f7a, #12383e 68%);
-  animation: sidebar-blob-float 24s ease-in-out infinite;
+  animation: sidebar-blob-float 22s ease-in-out infinite;
 }
 
 .sidebar-bg-blob-2 {
-  width: 420px;
-  height: 420px;
-  right: -210px;
-  top: 32%;
+  width: 380px;
+  height: 380px;
+  right: -180px;
+  top: 30%;
   background: radial-gradient(circle at 58% 42%, #3a7d8f, #12383e 70%);
-  animation: sidebar-blob-float 30s ease-in-out infinite reverse;
+  animation: sidebar-blob-float 28s ease-in-out infinite reverse;
 }
 
 .sidebar-bg-blob-3 {
-  width: 360px;
-  height: 360px;
-  left: 22%;
-  bottom: -190px;
+  width: 300px;
+  height: 300px;
+  left: 18%;
+  bottom: -160px;
   background: radial-gradient(circle at 50% 50%, #9a6f3e, #12383e 72%);
-  animation: sidebar-blob-float 36s ease-in-out infinite;
+  animation: sidebar-blob-float 34s ease-in-out infinite;
 }
 
+/* 底部渐变 - 增加深度感 */
+.sidebar-bg-gradient-bottom {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 200px;
+  background: linear-gradient(to top,
+    rgba(7, 27, 29, 0.6) 0%,
+    rgba(18, 56, 62, 0.3) 40%,
+    transparent 100%
+  );
+  pointer-events: none;
+}
+
+/* 顶部渐变 - 与顶部装饰线呼应 */
+.sidebar-bg-gradient-top {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 120px;
+  background: linear-gradient(to bottom,
+    rgba(47, 143, 122, 0.15) 0%,
+    rgba(18, 56, 62, 0.08) 50%,
+    transparent 100%
+  );
+  pointer-events: none;
+}
+
+/* 暗角效果 */
 .sidebar-bg-vignette {
   position: absolute;
   inset: 0;
-  background: radial-gradient(120% 86% at 36% 12%, transparent 38%, rgba(7, 27, 29, 0.5) 100%);
+  background: radial-gradient(120% 86% at 36% 12%, transparent 38%, rgba(7, 27, 29, 0.45) 100%);
   mix-blend-mode: multiply;
 }
 
+/* 网格纹理 - 增加科技感 */
+.sidebar-bg-grid {
+  position: absolute;
+  inset: 0;
+  opacity: 0.04;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+  background-size: 24px 24px;
+  pointer-events: none;
+}
+
+/* 粒子画布 */
 .sidebar-bg-canvas {
   position: absolute;
   inset: 0;
@@ -249,15 +330,18 @@ onBeforeUnmount(() => {
   height: 100%;
 }
 
+/* 减少动画偏好 */
 @media (prefers-reduced-motion: reduce) {
   .sidebar-bg-blob {
     animation: none;
   }
 }
 
+/* Blob 浮动动画 */
 @keyframes sidebar-blob-float {
   0%, 100% { transform: translate(0, 0) scale(1); }
-  33% { transform: translate(34px, -28px) scale(1.08); }
-  66% { transform: translate(-26px, 22px) scale(0.94); }
+  25% { transform: translate(28px, -22px) scale(1.05); }
+  50% { transform: translate(-18px, 16px) scale(0.96); }
+  75% { transform: translate(22px, 12px) scale(1.02); }
 }
 </style>

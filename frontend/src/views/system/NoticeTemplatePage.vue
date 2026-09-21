@@ -60,7 +60,16 @@ function formatPlaceholder(key) {
 
 const placeholderDocs = Object.keys(placeholderSamples)
 
-const hazardOptions = ["滑坡", "崩塌", "泥石流", "地面沉降", "地震"]
+// 取值必须与后端 unified_event.hazard_type 一致（landslide / collapse / ...），
+// 后端 notice_template.disaster_type 存的同样是英文码；这里原先直接写中文标签，
+// 导致筛选参数永远匹配不到库里的记录。
+const hazardOptions = [
+  { value: "landslide", label: "滑坡" },
+  { value: "collapse", label: "崩塌" },
+  { value: "debris_flow", label: "泥石流" },
+  { value: "subsidence", label: "地面沉降" },
+  { value: "earthquake", label: "地震" },
+]
 const levelOptions = [
   { value: "red", label: "红色" },
   { value: "orange", label: "橙色" },
@@ -96,7 +105,7 @@ const sampleTemplates = [
   {
     id: "tpl-001",
     name: "滑坡橙色预警 · 通用模板",
-    hazardType: "滑坡",
+    hazardType: "landslide",
     level: "orange",
     channels: {
       sms: "【地脉智巡·橙色预警】{{hazardName}} 出现加速变形，请周边 {{bufferKm}} 公里内人员立即撤离至应急避难场所。",
@@ -111,7 +120,7 @@ const sampleTemplates = [
   {
     id: "tpl-002",
     name: "崩塌红色预警 · 声光联动",
-    hazardType: "崩塌",
+    hazardType: "collapse",
     level: "red",
     channels: {
       sms: "【红色·紧急】{{region}} 发生崩塌险情，立即撤离！",
@@ -126,7 +135,7 @@ const sampleTemplates = [
   {
     id: "tpl-003",
     name: "泥石流黄色预警 · 山区提示",
-    hazardType: "泥石流",
+    hazardType: "debris_flow",
     level: "yellow",
     channels: {
       sms: "【黄色提示】{{hazardName}} 周边注意强降雨，避免进入沟谷。",
@@ -141,7 +150,7 @@ const sampleTemplates = [
   {
     id: "tpl-004",
     name: "地面沉降蓝色预警 · 城市运维",
-    hazardType: "地面沉降",
+    hazardType: "subsidence",
     level: "blue",
     channels: {
       sms: "【蓝色关注】{{region}} 沉降速率偏快，请安排复测。",
@@ -179,6 +188,9 @@ const filteredList = computed(() => list.value)
 function levelLabel(lv) {
   return levelOptions.find((o) => o.value === lv)?.label ?? lv
 }
+function hazardLabel(hz) {
+  return hazardOptions.find((o) => o.value === hz)?.label ?? hz
+}
 function levelColorOf(lv) {
   return levelColor[lv] ?? "#7a8d89"
 }
@@ -193,7 +205,7 @@ function openCreate() {
   editing.value = {
     id: null,
     name: "",
-    hazardType: "滑坡",
+    hazardType: "landslide",
     level: "orange",
     channels: { sms: "", email: "", app: "", sound: "" },
     enabled: true,
@@ -313,7 +325,7 @@ onMounted(load)
       <Filter :size="14" color="#56716e" />
       <select v-model="filter.hazardType">
         <option value="">全部灾种</option>
-        <option v-for="t in hazardOptions" :key="t" :value="t">{{ t }}</option>
+        <option v-for="t in hazardOptions" :key="t.value" :value="t.value">{{ t.label }}</option>
       </select>
       <select v-model="filter.level">
         <option value="">全部等级</option>
@@ -346,7 +358,7 @@ onMounted(load)
         </header>
         <div class="tpl-meta">
           <span class="level-pill" :style="{ background: levelColorOf(tpl.level) + '22', color: levelColorOf(tpl.level) }">
-            {{ tpl.hazardType }} · {{ levelLabel(tpl.level) }}
+            {{ hazardLabel(tpl.hazardType) }} · {{ levelLabel(tpl.level) }}
           </span>
           <div class="channel-badges">
             <span v-for="ch in channelList(tpl)" :key="ch" class="badge" :style="{ background: channelMeta[ch].color + '22', color: channelMeta[ch].color }">
@@ -388,7 +400,7 @@ onMounted(load)
             <label>模板名称<input v-model="editing.name" placeholder="如：滑坡橙色预警 · 通用模板" /></label>
             <label>灾种
               <select v-model="editing.hazardType">
-                <option v-for="t in hazardOptions" :key="t" :value="t">{{ t }}</option>
+                <option v-for="t in hazardOptions" :key="t.value" :value="t.value">{{ t.label }}</option>
               </select>
             </label>
             <label>等级

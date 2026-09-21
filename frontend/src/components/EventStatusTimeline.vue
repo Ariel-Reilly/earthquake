@@ -88,10 +88,10 @@ const latestEmergency = computed(() => related.value.emergencies?.[0] ?? null)
 /** 当前 hazard 处于哪个阶段(高亮逻辑) */
 const currentStepIndex = computed(() => {
   const c = counts.value
-  if (c.emergency > 0) {return 3}                  // 处置流程中
-  if (c.warning > 0) {return 2}                    // 已发布预警
-  if (c.inspection > 0) {return 1}                 // 现场核查中
-  if (c.hazard > 0) {return 0}                    // 只有灾害点
+  if (c.emergency > 0) {return 3}
+  if (c.warning > 0) {return 2}
+  if (c.inspection > 0) {return 1}
+  if (c.hazard > 0) {return 0}
   return 0
 })
 

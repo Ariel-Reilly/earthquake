@@ -14,18 +14,18 @@ const emit = defineEmits(['notify'])
 const route = useRoute()
 const router = useRouter()
 
-// === 基础信息 & 编辑（保留原有交互） ===
+// 基础信息 & 编辑（保留原有交互）
 const task = ref(null)
 const loading = ref(true)
 const editMode = ref(false)
 const form = ref({})
 
-// === 运行时指标 ===
+// 运行时指标
 const runtime = ref(null)
 const runtimeLoading = ref(false)
 const runtimeError = ref('')
 
-// === 实时日志 ===
+// 实时日志
 const logs = ref([])
 const logScrollerRef = ref(null)
 const logPaused = ref(false)
@@ -35,7 +35,7 @@ const logError = ref('')
 const logCursor = ref(null)
 const LOG_MAX = 200
 
-// === 控制动作状态 ===
+// 控制动作状态
 const retrying = ref(false)
 const terminating = ref(false)
 const showTerminateConfirm = ref(false)
@@ -44,7 +44,6 @@ const autoRetried = ref(false)
 let runtimeTimer = null
 let logTimer = null
 
-// === 计算属性 ===
 const STATUS_LABEL = { RUNNING: '运行中', SUCCESS: '已完成', FAILED: '失败', PENDING: '排队中', PAUSED: '已暂停', TERMINATED: '已终止', TIMEOUT: '超时' }
 
 const visibleLogs = computed(() => logLevelFilter.value === 'ALL'
@@ -86,7 +85,7 @@ const finishedAtLabel = computed(() => formatDate(runtime.value?.finishedAt))
 const canTerminate = computed(() => runtime.value?.status === 'RUNNING')
 const logMetaLabel = computed(() => `${logPaused.value ? '已暂停' : '轮询中'} · ${logs.value.length} / ${LOG_MAX}`)
 
-// === 工具方法 ===
+// 工具方法
 function clamp(n, lo, hi) { return Number.isNaN(n) ? lo : Math.min(hi, Math.max(lo, n)) }
 
 function colorForUsage(value) {
@@ -109,7 +108,7 @@ function formatDuration(seconds) {
   return hh > 0 ? `${pad(hh)}:${pad(mm)}:${pad(ss)}` : `${pad(mm)}:${pad(ss)}`
 }
 
-// === 数据加载 ===
+// 数据加载
 async function loadBasic() {
   loading.value = true
   try {
@@ -182,7 +181,7 @@ async function refreshDetail() {
   await Promise.all([loadBasic(), loadRuntime(), refreshLogsNow()])
 }
 
-// === 轮询控制 ===
+// 轮询控制
 function startPolling() {
   stopPolling()
   runtimeTimer = window.setInterval(() => { if (!document.hidden) loadRuntime() }, 5000)
@@ -198,7 +197,7 @@ function stopPolling() {
 
 onBeforeUnmount(stopPolling)
 
-// === 保存编辑 ===
+// 保存编辑
 async function saveDetail() {
   if (!task.value) return
   try {
@@ -216,7 +215,7 @@ async function saveDetail() {
   }
 }
 
-// === 重试 / 终止 ===
+// 重试 / 终止
 async function performRetry(silent = false) {
   if (!task.value) return
   retrying.value = true
@@ -251,7 +250,7 @@ function scrollToLinked() {
   if (el && typeof el.scrollIntoView === 'function') el.scrollIntoView({ behavior: 'smooth', block: 'center' })
 }
 
-// === 导出日志 ===
+// 导出日志
 function exportLogs() {
   if (!logs.value.length) return emit('notify', '暂无日志可导出')
   const lines = logs.value.map((l) => `[${l.ts || '—'}] ${l.level || 'INFO'} ${l.message || ''}`)
@@ -267,7 +266,7 @@ function exportLogs() {
   emit('notify', `日志已导出（${logs.value.length} 条）`)
 }
 
-// === 自动重试入口：?retry=1 ===
+// 自动重试入口：?retry=1
 async function maybeAutoRetry() {
   if (route.query.retry !== '1' || autoRetried.value || !task.value) return
   autoRetried.value = true

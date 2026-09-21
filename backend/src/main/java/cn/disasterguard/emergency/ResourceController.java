@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 @RestController
 @RequestMapping("/api/resources")
@@ -94,6 +95,7 @@ public class ResourceController {
   );
 
   @GetMapping
+  @PreAuthorize("hasAuthority('resource:view')")
   public ApiResponse<PageResponse<Map<String, Object>>> list(
       @RequestParam(defaultValue = "1") int page,
       @RequestParam(defaultValue = "10") int size,
@@ -130,6 +132,7 @@ public class ResourceController {
    * <p>说明：保持向后兼容，前端 {@code assignResource()} 调用此接口。
    */
   @PostMapping("/assign")
+  @PreAuthorize("hasAuthority('resource:view')")
   public ApiResponse<Map<String, Object>> assign(@RequestBody Map<String, Object> request) {
     if (request == null) {
       throw new AppException(400, "请求体不能为空");
@@ -169,6 +172,7 @@ public class ResourceController {
    * <p>说明：当前为占位实现，返回 fastest + safest 两条确定性伪路径，避免旧版前端因 404 报错。
    */
   @PostMapping("/route")
+  @PreAuthorize("hasAuthority('resource:view')")
   public ApiResponse<List<Map<String, Object>>> planRoute(@RequestBody Map<String, Object> request) {
     if (request == null) {
       throw new AppException(400, "请求体不能为空");
@@ -209,9 +213,7 @@ public class ResourceController {
     return ApiResponse.success(List.of(fastest, safest));
   }
 
-  // --------------------------------------------------------------------
   // 工具方法
-  // --------------------------------------------------------------------
 
   private static double readDouble(Map<String, Object> map, String key, boolean required) {
     Object v = map.get(key);

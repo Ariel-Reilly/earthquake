@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500.0mm" height="1000.0mm" viewBox="0 0 1500.0 1000.0">
+<title>01 layer elev=0.0m</title>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<path d="M 0,0 L 1500.00,0 L 1500.00,1000.00 L 0,1000.00 Z M 0.00,0.00 L 1500.00,0.00 L 1500.00,1000.00 L 0.00,1000.00 Z" fill="#7E4433" fill-rule="evenodd" stroke="#333333" stroke-width="0.4"/>
+<rect x="0" y="0" width="1500.0" height="1000.0" fill="none" stroke="#000" stroke-width="0.8"/>
+<text x="8" y="18" font-size="12" fill="#000">L01  z>=0.0m  t=20.0mm  [整块板，无需切割轮廓]</text>
+</svg>

@@ -9,7 +9,7 @@ Note: due to encoding issues with dashboardApi.js, we use errors='ignore'
 import re
 from pathlib import Path
 
-ROOT = r'd:\earthquake'
+ROOT = r'd:\DisasterGuard'
 files = list(Path(f'{ROOT}/src/views').rglob('*.vue')) + list(Path(f'{ROOT}/src/components').rglob('*.vue'))
 
 empty_features = []

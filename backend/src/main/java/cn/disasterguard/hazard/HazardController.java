@@ -34,6 +34,7 @@ public class HazardController {
   }
 
   @GetMapping
+  @PreAuthorize("hasAuthority('hazards:view')")
   public ApiResponse<PageResponse<HazardDto>> list(
       @RequestParam(defaultValue = "1") int page,
       @RequestParam(defaultValue = "10") int size,
@@ -48,6 +49,7 @@ public class HazardController {
   }
 
   @GetMapping("/viewport")
+  @PreAuthorize("hasAuthority('hazards:view')")
   public ApiResponse<List<HazardDto>> viewport(
       @RequestParam(required = false) String bbox,
       @RequestParam(required = false) String keyword,
@@ -60,6 +62,7 @@ public class HazardController {
   }
 
   @GetMapping("/{id}")
+  @PreAuthorize("hasAuthority('hazards:view')")
   public ApiResponse<Map<String, Object>> detail(@PathVariable Long id) {
     HazardDto hazard = hazardService.getById(id);
     return ApiResponse.success(Map.of(
@@ -100,6 +103,7 @@ public class HazardController {
   }
 
   @GetMapping("/geojson")
+  @PreAuthorize("hasAuthority('hazards:view')")
   public ApiResponse<Map<String, Object>> geojson(
       @RequestParam(required = false) String bbox,
       @RequestParam(required = false) String keyword,
@@ -116,6 +120,7 @@ public class HazardController {
    * 不分页（最多 50 条），供"AI 实时监测"面板秒级刷新用。
    */
   @GetMapping("/ai-monitor")
+  @PreAuthorize("hasAuthority('hazards:view')")
   public ApiResponse<List<HazardDto>> aiMonitorList() {
     return ApiResponse.success(hazardService.listAiMonitoredRecent(50));
   }

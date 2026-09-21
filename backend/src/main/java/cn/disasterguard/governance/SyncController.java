@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 @RestController
 @RequestMapping("/api/sync")
@@ -88,6 +89,7 @@ public class SyncController {
   }
 
   @GetMapping("/stats")
+  @PreAuthorize("hasAuthority('sync:view')")
   public ApiResponse<Map<String, Object>> stats() {
     long running = TASKS.values().stream().filter(t -> "RUNNING".equals(t.get("status"))).count();
     long paused = TASKS.values().stream().filter(t -> "PAUSED".equals(t.get("status"))).count();
@@ -107,11 +109,13 @@ public class SyncController {
   }
 
   @GetMapping("/tasks")
+  @PreAuthorize("hasAuthority('sync:view')")
   public ApiResponse<List<Map<String, Object>>> listTasks() {
     return ApiResponse.success(new ArrayList<>(TASKS.values()));
   }
 
   @GetMapping("/history")
+  @PreAuthorize("hasAuthority('sync:view')")
   public ApiResponse<PageResponse<Map<String, Object>>> history(
       @RequestParam(defaultValue = "1") int page,
       @RequestParam(defaultValue = "10") int size,
@@ -129,6 +133,7 @@ public class SyncController {
   }
 
   @GetMapping("/integrity")
+  @PreAuthorize("hasAuthority('sync:view')")
   public ApiResponse<Map<String, Object>> integrity() {
     return ApiResponse.success(Map.of(
         "totalRecords", 6_561_112,
@@ -141,11 +146,13 @@ public class SyncController {
   }
 
   @GetMapping("/anomalies")
+  @PreAuthorize("hasAuthority('sync:view')")
   public ApiResponse<List<Map<String, Object>>> anomalies() {
     return ApiResponse.success(new ArrayList<>(ANOMALIES));
   }
 
   @PostMapping("/tasks/{id}/trigger")
+  @PreAuthorize("hasAuthority('sync:manage')")
   public ApiResponse<Map<String, Object>> trigger(@PathVariable String id) {
     Map<String, Object> t = TASKS.get(id);
     if (t == null) {
@@ -160,6 +167,7 @@ public class SyncController {
   }
 
   @PostMapping("/tasks/{id}/pause")
+  @PreAuthorize("hasAuthority('sync:manage')")
   public ApiResponse<Map<String, Object>> pause(@PathVariable String id) {
     Map<String, Object> t = TASKS.get(id);
     if (t == null) {

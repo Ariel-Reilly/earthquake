@@ -64,7 +64,9 @@ public class PathPlanningService {
                     if (!typed.isEmpty()) return typed;
                 }
             }
-        } catch (Exception ignore) { /* redis 不可用时退化 */ }
+        } catch (Exception e) {
+          log.debug("Redis 缓存读取失败（退化到本地计算）：{}", e.getMessage());
+        }
 
         List<PathRequestDto.ObstacleDto> obstacles = req.obstacles() == null ? List.of() : req.obstacles();
         List<PathResponseDto.RouteDto> routes = new ArrayList<>();
@@ -82,7 +84,9 @@ public class PathPlanningService {
             if (redisTemplate.isPresent() && !routes.isEmpty()) {
                 redisTemplate.get().opsForValue().set(cacheKey, routes, CACHE_TTL);
             }
-        } catch (Exception ignore) { /* ignore */ }
+        } catch (Exception e) {
+          log.debug("Redis 缓存写入失败（不影响返回结果）：{}", e.getMessage());
+        }
         return routes;
     }
 

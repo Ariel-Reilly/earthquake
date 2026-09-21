@@ -37,6 +37,7 @@ public class DeviceController {
   }
 
   @GetMapping
+  @PreAuthorize("hasAuthority('devices:view')")
   public ApiResponse<PageResponse<DeviceDto>> list(
       @RequestParam(defaultValue = "1") int page,
       @RequestParam(defaultValue = "10") int size,
@@ -49,6 +50,7 @@ public class DeviceController {
   }
 
   @GetMapping("/viewport")
+  @PreAuthorize("hasAuthority('devices:view')")
   public ApiResponse<List<DeviceDto>> viewport(
       @RequestParam(required = false) String bbox,
       @RequestParam(required = false) String keyword,
@@ -59,6 +61,7 @@ public class DeviceController {
   }
 
   @GetMapping("/{id}")
+  @PreAuthorize("hasAuthority('devices:view')")
   public ApiResponse<Map<String, Object>> detail(@PathVariable Long id) {
     return ApiResponse.success(Map.of("item", deviceService.getById(id)));
   }
@@ -69,6 +72,7 @@ public class DeviceController {
    * 写入 device_metric 表 + TDengine 时序存储（若启用），供规则引擎消费。
    */
   @PostMapping("/{deviceCode}/data")
+  @PreAuthorize("hasAuthority('devices:edit')")
   public ApiResponse<Map<String, Object>> reportData(@PathVariable String deviceCode,
                                                      @RequestBody Map<String, Object> payload) {
     int count = deviceDataService.ingest(deviceCode, payload);

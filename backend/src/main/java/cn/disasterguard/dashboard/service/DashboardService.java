@@ -40,9 +40,7 @@ public class DashboardService {
     this.taskRepository = taskRepository;
   }
 
-  // ------------------------------------------------------------------
   // 概览卡片：全部用 DB 侧 COUNT，避免 findAll + stream 加载实体
-  // ------------------------------------------------------------------
 
   public List<OverviewCard> overviewCards() {
     long hazardCount = hazardRepository.count();
@@ -61,9 +59,7 @@ public class DashboardService {
     );
   }
 
-  // ------------------------------------------------------------------
   // 图表数据：全部用 DB 侧 GROUP BY 聚合，避免 findAll
-  // ------------------------------------------------------------------
 
   public ChartData chartData() {
     // 预警按等级聚合（DB 侧 GROUP BY ✅）
@@ -114,9 +110,7 @@ public class DashboardService {
     );
   }
 
-  // ------------------------------------------------------------------
   // 辅助：将 Object[] 聚合行转为 { "yyyy-mm": count } Map
-  // ------------------------------------------------------------------
 
   private Map<String, Long> toMonthMap(List<Object[]> rows) {
     Map<String, Long> result = new HashMap<>();
@@ -129,9 +123,7 @@ public class DashboardService {
     return result;
   }
 
-  // ------------------------------------------------------------------
   // 区域风险热力 / 风险分区：纯内存计算（hazard_point 表数据量小）
-  // ------------------------------------------------------------------
 
   private List<RegionRisk> buildHeatmap(List<HazardPoint> hazards) {
     if (hazards == null || hazards.isEmpty()) {

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""精确扫描：所有 frontend request/get/post 调用 vs 后端 Controller 端点。"""
+"""精确扫描：所�?frontend request/get/post 调用 vs 后端 Controller 端点�?""
 import re, glob
 from pathlib import Path
 
-ROOT = r'd:\earthquake'
+ROOT = r'd:\DisasterGuard'
 
 def find_calls(content, func_name):
     results = []
@@ -48,7 +48,7 @@ def norm_path(p):
     # Replace {id}/{name}/etc with *VAR*
     p = re.sub(r'\{[^}]+\}', '*VAR*', p)
     # Drop trailing /VAR* chained ONLY IF the path starts WITHOUT preceding / for the var,
-    # i.e. it's an append like /tasks${withQuery(...)} → /tasks.
+    # i.e. it's an append like /tasks${withQuery(...)} �?/tasks.
     # We detect this by checking if original (pre-trim) had no '/' before *VAR*
     # Simpler: keep *VAR* and rely on fuzzy match
     # Drop leading *VAR*? (rare)
@@ -83,7 +83,7 @@ for path in glob.glob(f'{ROOT}/backend/src/main/java/cn/disasterguard/**/*Contro
         if not full.startswith('/'): full = '/' + full
         full = re.sub(r'/+', '/', full).rstrip('/') or '/'
         backend_eps[(verb, full)] = rel
-print(f'[后端] 端点数: {len(backend_eps)}')
+print(f'[后端] 端点�? {len(backend_eps)}')
 
 # === 前端 ===
 fp_calls = []
@@ -156,9 +156,9 @@ for verb, path, file in fp_calls:
         norm = '/api' + (norm if norm.startswith('/') else '/' + norm)
     fp_norm_keys.setdefault((verb, norm), set()).add(file)
 
-print(f'[前端] 唯一 (verb, path) 数: {len(fp_norm_keys)}')
+print(f'[前端] 唯一 (verb, path) �? {len(fp_norm_keys)}')
 
-# === 模糊匹配：backend (verb, path) 是否被任何 frontend (verb,*) 匹配？ ===
+# === 模糊匹配：backend (verb, path) 是否被任�?frontend (verb,*) 匹配�?===
 def fuzzy_match(be_path, fe_path):
     """Match backend path against frontend path allowing *VAR* anywhere, including trailing-only."""
     if be_path == fe_path:
@@ -220,7 +220,7 @@ for (verb, path), file in backend_eps.items():
     if not matched:
         unused.append((verb, path, file))
 
-print(f'\n[后端实现但前端可能未调用] {len(unused)} 个（已 fuzzy 匹配）：\n')
+print(f'\n[后端实现但前端可能未调用] {len(unused)} 个（�?fuzzy 匹配）：\n')
 by_file = {}
 for v, p, f in unused:
     by_file.setdefault(f, []).append((v, p))

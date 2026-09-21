@@ -33,7 +33,7 @@ import { useRouter } from "vue-router";
 import { dashboardApi } from "../../services/dashboardApi";
 
 const props = defineProps({
-  event: { type: Object, default: null }, // UnifiedEventEntity
+  event: { type: Object, default: null },
   visible: { type: Boolean, default: false },
 });
 const emit = defineEmits(["close", "transitioned", "notify"]);
@@ -274,7 +274,6 @@ const onTabClick = (tab) => {
                 <div class="kv-row"><span class="k">类型</span><strong>{{ event.hazard.type }}</strong></div>
                 <div class="kv-row"><span class="k">等级</span><strong :style="{ color: '#c7553b' }">{{ event.hazard.level }}</strong></div>
                 <div class="kv-row"><span class="k">坐标</span><strong>{{ event.hazard.lon?.toFixed(4) ?? "—" }}, {{ event.hazard.lat?.toFixed(4) ?? "—" }}</strong></div>
-                <!-- v1.7.0+ P3-4：修复 bug —— 使用 event.hazard.id 而不是 event.id -->
                 <button
                   v-if="event.hazard.id"
                   class="link-btn"

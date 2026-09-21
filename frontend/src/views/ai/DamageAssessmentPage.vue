@@ -327,7 +327,6 @@ onMounted(async () => {
         </div>
 
         <div class="dap-results-grid">
-          <!-- 雷达图 -->
           <div class="dap-card">
             <div class="dap-card-header">
               <strong><Radar :size="14" /> 七维度风险分布</strong>
@@ -335,9 +334,7 @@ onMounted(async () => {
             </div>
             <div class="dap-radar-wrap">
               <svg :viewBox="`0 0 ${RADAR_W} ${RADAR_H}`" class="dap-radar-svg">
-                <!-- 网格 -->
                 <path v-for="(p, i) in RADAR_GRID" :key="i" :d="p" fill="none" stroke="rgba(47,127,128,.15)" stroke-width="1" />
-                <!-- 轴线 -->
                 <line
                   v-for="(axis, i) in RADAR_AXES"
                   :key="'a'+i"
@@ -355,7 +352,6 @@ onMounted(async () => {
                   :cy="(() => { const a=(Math.PI*2*i)/DIMENSIONS.length-Math.PI/2; const r=(d.score/100)*RADAR_R; return RADAR_CY+r*Math.sin(a); })()"
                   r="5" fill="#2b6cb0" stroke="#fff" stroke-width="2"
                 />
-                <!-- 标签 -->
                 <text
                   v-for="(l, i) in RADAR_LABELS"
                   :key="'l'+i"

@@ -4,90 +4,125 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/** 角色 → 权限码映射，与前端 auth.js 的 ROLE_PERMISSION_MAP 保持一致。 */
+/**
+ * 角色 → 权限码映射。
+ *
+ * <p>与前端 auth.js 的 ROLE_PERMISSION_MAP 保持一致，且角色名使用 sys_role.role_code
+ * 的下划线形式（system_admin / emergency_commander / ai_engineer）。
+ *
+ * <p>注意：未在此处注册的角色，permissionsOf() 会返回空权限集。
+ * 因此新增角色时必须同步更新本表，否则该角色的用户将被所有 @PreAuthorize 拒绝。
+ * 本文件由 scripts/fix/sync-permission-registry.mjs 从前端定义生成。
+ */
 public final class PermissionRegistry {
 
   private static final Map<String, Set<String>> ROLE_PERMISSIONS = Map.of(
       "admin", Set.of(
-          "overview:view", "overview:export",
-          "map:view", "map:export",
-          "ai:task:view", "ai:task:create", "ai:task:edit", "ai:task:delete",
-          "ai:result:view", "ai:result:confirm",
-          "ai:insight:view", "ai:insight:refresh",
-          "ai:model:view", "ai:model:manage",
-          "hazards:view", "hazards:create", "hazards:edit", "hazards:delete", "hazards:export",
-          "confirmation:view", "confirmation:claim", "confirmation:confirm", "confirmation:reject", "confirmation:transfer",
-          "approval:view", "approval:sign",
-          "events:view", "events:transition",
-          "tasks:view", "tasks:create", "tasks:edit", "tasks:delete", "tasks:export",
-          "warnings:view", "warnings:confirm", "warnings:dispatch", "warnings:close", "warnings:create", "warnings:export",
-          "notice:view", "notice:edit",
-          "plans:view", "plans:edit", "plans:launch",
-          "emergency:view", "emergency:dispatch", "emergency:close", "emergency:export",
-          "resource:view", "resource:dispatch",
-          "devices:view", "devices:create", "devices:edit", "devices:delete", "devices:export", "devices:control", "devices:ota",
-          "datasource:view", "datasource:config",
-          "analytics:view", "analytics:export",
-          "history:view", "history:export",
+          "overview:view", "overview:export", "map:view", "map:export",
+          "map:edit", "zone:view", "ai:task:view", "ai:task:create",
+          "ai:task:edit", "ai:task:delete", "ai:task:retry", "ai:task:terminate",
+          "ai:result:view", "ai:result:confirm", "ai:result:transfer", "ai:result:review",
+          "ai:insight:view", "ai:insight:refresh", "ai:forecast:view", "ai:model:view",
+          "ai:model:manage", "ai:model:edit", "hazards:view", "hazards:create",
+          "hazards:edit", "hazards:delete", "hazards:export", "confirmation:view",
+          "confirmation:claim", "confirmation:confirm", "confirmation:reject", "confirmation:transfer",
+          "inspection:view", "inspection:submit", "personnel:view", "personnel:report",
+          "approval:view", "approval:sign", "approval:initiate", "approval:approve",
+          "approval:reject", "events:view", "events:transition", "events:reopen",
+          "warnings:view", "warnings:confirm", "warnings:dispatch", "warnings:close",
+          "warnings:create", "warnings:export", "warnings:resend", "notice:view",
+          "notice:edit", "plans:view", "plans:edit", "plans:launch",
+          "emergency:view", "emergency:start", "emergency:dispatch", "emergency:close",
+          "emergency:export", "resource:view", "resource:dispatch", "resource:assign",
+          "resource:create", "resource:edit", "devices:view", "devices:create",
+          "devices:edit", "devices:delete", "devices:export", "devices:control",
+          "devices:ota", "datasource:view", "datasource:config", "datasource:create",
+          "datasource:edit", "datasource:delete", "sync:view", "sync:manage",
+          "analytics:view", "analytics:export", "history:view", "history:export",
           "users:view", "users:create", "users:edit", "users:delete",
-          "roles:view", "roles:edit",
-          "rules:view", "rules:edit",
-          "audit:view", "audit:export",
-          "monitor:view",
-          "backup:view", "backup:manage",
-          "messages:view", "messages:send",
-          "todo:view",
-          "reports:view", "reports:create", "reports:delete",
-          "data:catalog:view",
-          "settings:view", "settings:edit"
+          "roles:view", "roles:edit", "rules:view", "rules:edit",
+          "rules:create", "rules:delete", "audit:view", "audit:export",
+          "monitor:view", "backup:view", "backup:manage", "settings:view",
+          "settings:edit", "reports:view", "reports:create", "reports:delete",
+          "data:catalog:view", "messages:view", "messages:send", "todo:view",
+          "route:view", "route:plan", "route:approve", "route:export",
+          "sign:view", "sign:create", "sign:confirm", "profile:view",
+          "profile:edit"
       ),
       "attendant", Set.of(
-          "overview:view", "overview:export",
-          "map:view",
-          "ai:task:view", "ai:task:create",
-          "ai:insight:view", "ai:insight:refresh",
-          "hazards:view", "hazards:create", "hazards:edit",
-          "confirmation:view", "confirmation:claim", "confirmation:confirm", "confirmation:reject", "confirmation:transfer",
-          "tasks:view", "tasks:create",
-          "warnings:view", "warnings:confirm", "warnings:dispatch", "warnings:close", "warnings:export",
-          "notice:view", "notice:edit",
-          "plans:view", "plans:edit", "plans:launch",
-          "emergency:view", "emergency:dispatch",
-          "devices:view",
-          "weather:view",
-          "analytics:view",
-          "messages:view",
-          "todo:view",
-          "settings:view"
+          "overview:view", "overview:export", "map:view", "map:edit",
+          "zone:view", "ai:task:view", "ai:task:create", "ai:result:view",
+          "ai:result:transfer", "ai:insight:view", "ai:insight:refresh", "ai:forecast:view",
+          "ai:model:view", "hazards:view", "hazards:create", "hazards:edit",
+          "confirmation:view", "confirmation:claim", "confirmation:confirm", "confirmation:reject",
+          "confirmation:transfer", "inspection:view", "inspection:submit", "personnel:view",
+          "personnel:report", "warnings:view", "warnings:confirm", "warnings:dispatch",
+          "warnings:create", "warnings:export", "events:view", "events:transition",
+          "notice:view", "notice:edit", "plans:view", "plans:edit",
+          "plans:launch", "emergency:view", "emergency:dispatch", "devices:view",
+          "weather:view", "analytics:view", "reports:view", "approval:view",
+          "approval:initiate", "messages:view", "todo:view", "settings:view",
+          "route:view", "route:export", "sign:view", "sign:create",
+          "profile:view", "profile:edit"
       ),
       "expert", Set.of(
-          "overview:view",
-          "hazards:view", "hazards:create",
-          "confirmation:view", "confirmation:claim", "confirmation:confirm", "confirmation:reject", "confirmation:transfer",
-          "approval:view", "approval:sign",
-          "events:view", "events:transition",
-          "ai:insight:view",
-          "ai:model:view",
-          "plans:view",
-          "data:catalog:view",
-          "emergency:view", "emergency:dispatch",
-          "messages:view",
-          "todo:view",
-          "settings:view"
+          "overview:view", "zone:view", "hazards:view", "hazards:create",
+          "hazards:edit", "ai:task:view", "ai:insight:view", "ai:result:view",
+          "ai:result:review", "ai:forecast:view", "ai:model:view", "confirmation:view",
+          "confirmation:claim", "confirmation:confirm", "confirmation:reject", "confirmation:transfer",
+          "inspection:view", "personnel:view", "approval:view", "approval:sign",
+          "approval:approve", "approval:reject", "events:view", "warnings:view",
+          "warnings:dispatch", "plans:view", "data:catalog:view", "emergency:view",
+          "emergency:dispatch", "rules:view", "reports:view", "analytics:view",
+          "messages:view", "todo:view", "settings:view", "route:view",
+          "sign:view", "sign:create", "sign:confirm", "profile:view",
+          "profile:edit"
       ),
       "maintenance", Set.of(
-          "overview:view", "overview:export",
-          "hazards:view", "hazards:export",
-          "devices:view", "devices:create", "devices:edit", "devices:delete", "devices:export", "devices:control", "devices:ota",
-          "datasource:view", "datasource:config",
-          "data:catalog:view",
-          "weather:view",
-          "analytics:view",
-          "monitor:view",
-          "backup:view",
-          "messages:view",
-          "todo:view",
-          "settings:view"
+          "overview:view", "map:view", "zone:view", "hazards:view",
+          "devices:view", "devices:create", "devices:edit", "devices:delete",
+          "devices:export", "devices:control", "devices:ota", "datasource:view",
+          "sync:view", "data:catalog:view", "weather:view", "analytics:view",
+          "emergency:view", "emergency:dispatch", "resource:view", "route:view",
+          "inspection:view", "inspection:submit", "personnel:view", "personnel:report",
+          "monitor:view", "backup:view", "messages:view", "todo:view",
+          "settings:view", "profile:view", "profile:edit"
+      ),
+      "system_admin", Set.of(
+          "overview:view", "overview:export", "analytics:view", "analytics:export",
+          "history:view", "history:export", "reports:view", "reports:create",
+          "reports:delete", "users:view", "users:create", "users:edit",
+          "users:delete", "roles:view", "roles:edit", "audit:view",
+          "audit:export", "monitor:view", "backup:view", "backup:manage",
+          "sync:view", "settings:view", "settings:edit", "messages:view",
+          "messages:send", "todo:view", "profile:view", "profile:edit"
+      ),
+      "emergency_commander", Set.of(
+          "overview:view", "overview:export", "map:view", "map:edit",
+          "zone:view", "ai:task:view", "ai:result:view", "ai:forecast:view",
+          "hazards:view", "hazards:create", "hazards:edit", "confirmation:view",
+          "inspection:view", "personnel:view", "events:view", "events:transition",
+          "events:reopen", "sign:view", "sign:create", "sign:confirm",
+          "warnings:view", "warnings:dispatch", "warnings:close", "warnings:create",
+          "warnings:export", "warnings:resend", "notice:view", "plans:view",
+          "plans:edit", "plans:launch", "emergency:view", "emergency:start",
+          "emergency:dispatch", "emergency:close", "resource:view", "resource:dispatch",
+          "resource:assign", "resource:create", "resource:edit", "route:view",
+          "route:plan", "route:approve", "route:export", "devices:view",
+          "approval:view", "approval:approve", "approval:reject", "reports:view",
+          "reports:create", "analytics:view", "analytics:export", "profile:view",
+          "profile:edit"
+      ),
+      "ai_engineer", Set.of(
+          "overview:view", "analytics:view", "ai:task:view", "ai:task:create",
+          "ai:task:edit", "ai:task:delete", "ai:task:retry", "ai:task:terminate",
+          "ai:result:view", "ai:result:transfer", "ai:model:view", "ai:model:manage",
+          "ai:model:edit", "ai:insight:view", "ai:insight:refresh", "ai:forecast:view",
+          "rules:view", "rules:edit", "rules:create", "rules:delete",
+          "datasource:view", "datasource:config", "datasource:create", "datasource:edit",
+          "datasource:delete", "sync:view", "sync:manage", "data:catalog:view",
+          "reports:view", "monitor:view", "messages:view", "todo:view",
+          "profile:view", "profile:edit"
       )
   );
 

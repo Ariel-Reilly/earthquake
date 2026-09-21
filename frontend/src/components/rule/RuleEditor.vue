@@ -15,7 +15,7 @@ import {
 } from "lucide-vue-next"
 
 const props = defineProps({
-  rule: { type: Object, default: null }, // 传入规则时为编辑模式
+  rule: { type: Object, default: null },
 })
 
 const emit = defineEmits(["save", "test", "notify"])

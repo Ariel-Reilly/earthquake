@@ -21,18 +21,32 @@ public class MinioCredentialValidator {
 
   private static final Logger log = LoggerFactory.getLogger(MinioCredentialValidator.class);
 
-  private static final Set<String> WEAK_KEYS = Set.of(
-      "minioadmin", "minioadmin123", "admin", "password",
-      "12345678", "default", "changeme", "disasterguard"
+  // 用户名（access key）是公开标识，黑名单只覆盖通用默认账号即可。
+  // 注意：不要把项目名（如 disasterguard）放进这里——compose 中默认 access key
+  // 就是它，会导致生产模式因"用户名命中黑名单"而无法启动。
+  private static final Set<String> WEAK_ACCESS_KEYS = Set.of(
+      "admin", "root", "user", "test", "minioadmin"
   );
 
-  @Value("${minio.access.key:}")
+  // 密钥（secret key）才是真正的凭据，黑名单 + 长度双重校验。
+  private static final Set<String> WEAK_SECRET_KEYS = Set.of(
+      "minioadmin", "minioadmin123", "admin", "password",
+      "12345678", "default", "changeme", "disasterguard", "secret"
+  );
+
+  // 必须与 application.yml 中的键名完全一致：minio.access-key / minio.secret-key。
+  // 此前误写为点号形式（minio.access.key / minio.access.secret），而 @Value 不做
+  // 宽松绑定（relaxed binding），导致两者恒为空字符串，进而在 validate() 开头
+  // 的 isBlank 分支直接 return —— 弱口令防护从未真正执行过。
+  @Value("${minio.access-key:}")
   String accessKey;
 
-  @Value("${minio.access.secret:}")
+  @Value("${minio.secret-key:}")
   String secretKey;
 
-  @Value("${disasterguard.dev-users-enabled:true}")
+  // 同样修正为 application.yml 中实际存在的 disasterguard.security.dev-users-enabled，
+  // 默认值与 application.yml 保持一致（false），避免生产误判为开发模式。
+  @Value("${disasterguard.security.dev-users-enabled:false}")
   boolean devMode;
 
   @PostConstruct
@@ -41,8 +55,8 @@ public class MinioCredentialValidator {
       log.warn("MinIO 凭证未配置；附件上传功能将不可用。");
       return;
     }
-    boolean weak = WEAK_KEYS.contains(accessKey.trim().toLowerCase())
-        || WEAK_KEYS.contains(secretKey.trim().toLowerCase())
+    boolean weak = WEAK_ACCESS_KEYS.contains(accessKey.trim().toLowerCase())
+        || WEAK_SECRET_KEYS.contains(secretKey.trim().toLowerCase())
         || secretKey.length() < 16;
     if (weak) {
       String msg = "MinIO 凭证过弱（access/secret 命中黑名单或 secret 长度 < 16）。"

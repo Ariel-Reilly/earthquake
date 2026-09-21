@@ -26,6 +26,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 /**
  * 人工确认工作台（v1.7.0+ P3-4 确认队列 + v2.0 全功能实现）。
@@ -66,6 +67,7 @@ public class ConfirmationQueueController {
    * GET /api/confirmation/stats
    */
   @GetMapping("/stats")
+  @PreAuthorize("hasAuthority('confirmation:view')")
   public ApiResponse<Map<String, Object>> stats() {
     long pending = unifiedEventRepository.findByState(EventState.DETECTED).size()
         + unifiedEventRepository.findByState(EventState.CONFIRMING).size();
@@ -91,6 +93,7 @@ public class ConfirmationQueueController {
    * @param keyword 事件号/标题模糊搜索
    */
   @GetMapping("/queue")
+  @PreAuthorize("hasAuthority('confirmation:view')")
   public ApiResponse<Map<String, Object>> queue(
       @RequestParam(defaultValue = "1") int page,
       @RequestParam(defaultValue = "10") int size,
@@ -144,6 +147,7 @@ public class ConfirmationQueueController {
    * @param payload {operator: "username"}
    */
   @PostMapping("/queue/{id}/claim")
+  @PreAuthorize("hasAuthority('confirmation:view')")
   public ApiResponse<Map<String, Object>> claim(
       @PathVariable Long id,
       @RequestBody Map<String, String> payload
@@ -189,6 +193,7 @@ public class ConfirmationQueueController {
    * @param payload {toUser: "target_user", reason: "原因"}
    */
   @PostMapping("/queue/{id}/transfer")
+  @PreAuthorize("hasAuthority('confirmation:view')")
   public ApiResponse<Map<String, Object>> transfer(
       @PathVariable Long id,
       @RequestBody Map<String, String> payload
@@ -239,6 +244,7 @@ public class ConfirmationQueueController {
    * @param payload {operator: "username", reason: "optional"}
    */
   @PostMapping("/queue/{id}/confirm")
+  @PreAuthorize("hasAuthority('confirmation:view')")
   public ApiResponse<Map<String, Object>> confirm(
       @PathVariable Long id,
       @RequestBody Map<String, String> payload
@@ -286,6 +292,7 @@ public class ConfirmationQueueController {
    * @param payload {operator: "username", reason: "驳回原因"}
    */
   @PostMapping("/queue/{id}/reject")
+  @PreAuthorize("hasAuthority('confirmation:view')")
   public ApiResponse<Map<String, Object>> reject(
       @PathVariable Long id,
       @RequestBody Map<String, String> payload

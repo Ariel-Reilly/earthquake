@@ -4,6 +4,8 @@ XGBoost 融合预警模型：多因子综合风险评分。
 自动检测 models/xgboost_fusion.json 是否存在：
 - 存在：用 xgboost 加载并做真实推理
 - 不存在：用加权线性融合（权重根据因子重要性手工设定）
+
+模型目录可通过环境变量 MODELS_DIR 覆盖。
 """
 from __future__ import annotations
 
@@ -14,7 +16,7 @@ from typing import Dict, Any, Optional, Tuple
 
 import numpy as np
 
-MODELS_DIR = Path(__file__).resolve().parent.parent.parent / "models"
+from app.config import MODELS_DIR
 
 
 # 默认因子权重（融合方向一致：值越大越危险）

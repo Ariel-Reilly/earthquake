@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 /**
  * 操作审计日志（v1.7.0+ 审计日志页面）。
@@ -33,6 +34,7 @@ public class AuditLogController {
 
   /** 查询操作日志（分页 + 关键字过滤）。 */
   @GetMapping("/logs")
+  @PreAuthorize("hasAuthority('audit:view')")
   public ApiResponse<Map<String, Object>> list(
       @RequestParam(defaultValue = "1") int page,
       @RequestParam(defaultValue = "20") int size,

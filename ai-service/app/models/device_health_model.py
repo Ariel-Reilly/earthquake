@@ -83,7 +83,7 @@ class DeviceHealthScorer:
     FORECAST_DEVIATION_MM = 10.0      # 预测超过 10mm 视为满风险
     COVERAGE_TRUST_FULL = 4           # 4 指标全覆盖视为完全可信任
 
-    # 设备维度上限（v1.4.0：保留做兜底，正常用 adaptive_normalizer）
+    # 设备维度上限（保留做兜底，正常用 adaptive_normalizer）
     DISPLACEMENT_RATE_NORM_MAX = 30.0
     DISPLACEMENT_TOTAL_NORM_MAX = 200.0
     CRACK_WIDTH_NORM_MAX = 50.0
@@ -92,7 +92,6 @@ class DeviceHealthScorer:
     def __init__(self):
         self._anomaly = get_detector()
         self._forecaster = get_forecaster()
-        # v1.4.0：自适应归一化器
         self._normalizer = get_adaptive_normalizer()
 
     def _dynamic_norm(self, factor_key: str, region_code: str, fallback: float) -> float:
@@ -102,13 +101,10 @@ class DeviceHealthScorer:
         except Exception:
             return fallback
 
-    # ------------------------------------------------------------------ #
-    # 内部：单指标异常评分（v1.4.0：使用自适应归一化修正归一化系数）
-    # ------------------------------------------------------------------ #
     def _score_series(self, device_code: str, series: List[float], metric: str) -> Tuple[float, bool]:
         """对一段时序做 anomaly，返回 (score_0_100, degraded)。
 
-        v1.4.0：metric 与自适应归一化器的因子名对齐，让 score 反映"该设备本地的异常程度"，
+        metric 与自适应归一化器的因子名对齐，让 score 反映"该设备本地的异常程度"，
         而非全局 3-sigma。同时记录观测推进窗口。
         """
         if not series or len(series) < 3:
@@ -125,7 +121,6 @@ class DeviceHealthScorer:
         # isolation forest / 3-sigma 的 score 可能是负值（越小越异常），统一映射到 0-100
         raw = float(result.get("score", 0.0))
         if raw <= 0:
-            # v1.4.0：把 -raw 范围根据自适应 P95 缩放，避免硬编码系数 25
             local_p95 = self._normalizer.get_dynamic_max(metric, region, fallback=1.0)
             # raw 通常在 [-1, 0]；local_p95 在 1~30；用 local_p95 做尺度
             normalized = max(0.0, min(100.0, -raw * 100.0))
@@ -134,9 +129,6 @@ class DeviceHealthScorer:
         degraded = bool(result.get("mock", False))
         return normalized, degraded
 
-    # ------------------------------------------------------------------ #
-    # 内部：位移预测风险
-    # ------------------------------------------------------------------ #
     def _forecast_risk(self, device_code: str, disp_series: List[float]) -> Tuple[float, Optional[str], bool]:
         """LSTM 预测未来 7 步位移最大值的"风险分"（0-100），返回 (forecast_risk, model_name, degraded)。"""
         if not disp_series or len(disp_series) < 5:
@@ -155,9 +147,6 @@ class DeviceHealthScorer:
         degraded = bool(result.get("mock", False))
         return risk, result.get("model"), degraded
 
-    # ------------------------------------------------------------------ #
-    # 内部：reasoning + suggested actions（v1.4.0：增加位移加速度衍生归因）
-    # ------------------------------------------------------------------ #
     @staticmethod
     def _build_reasoning_and_actions(
         worst_anomaly: float,
@@ -195,7 +184,6 @@ class DeviceHealthScorer:
         if covered < 2:
             reasoning.append("参与评估的指标不足（< 2 条），建议核查设备接入完整性")
 
-        # v1.4.0：位移加速度衍生特征归因
         if disp_derivative is not None and abs(disp_derivative) > 0.5:
             if disp_derivative > 0:
                 reasoning.append(
@@ -210,9 +198,6 @@ class DeviceHealthScorer:
             actions.append("保持当前观测节奏")
         return reasoning, actions
 
-    # ------------------------------------------------------------------ #
-    # 对外主接口（v1.4.0：接入特征工程 + 自适应归一化）
-    # ------------------------------------------------------------------ #
     def score(
         self,
         device_code: str,
@@ -253,7 +238,7 @@ class DeviceHealthScorer:
         if forecast_degraded:
             any_degraded = True
 
-        # 3) v1.4.0：派生特征 —— 位移加速度
+        # 3) 派生特征 —— 位移加速度
         disp_derivative = compute_disp_derivative(metrics.get("disp_rate"))
         # 把加速度也推入窗口（让模型能学到本地"正常加速度"基线）
         self._normalizer.fit_one(
@@ -274,13 +259,12 @@ class DeviceHealthScorer:
             health -= penalty
         if covered < 2:
             health -= self.COVERAGE_PENALTY
-        # v1.4.0：加速度异常时再加 5 分惩罚（>5 mm/day² 视为严重加速）
         if disp_derivative > 5.0:
             health -= 5.0
         health = max(0.0, min(100.0, health))
         health_level = _score_to_level(health)
 
-        # 4) reasoning + actions（v1.4.0：传入 disp_derivative）
+        # 4) reasoning + actions
         reasoning, actions = self._build_reasoning_and_actions(
             worst_anomaly=worst_anomaly,
             anomaly_by_metric=anomaly_by_metric,
@@ -306,7 +290,7 @@ class DeviceHealthScorer:
         # 7) 异常时间戳提示（按调用方字段约定传 ISO 字符串回写）
         last_anomaly_at = now.isoformat() if worst_anomaly > 30 else None
 
-        # 8) v1.4.0：构造 SHAP-like 特征贡献度（简单按异常分占比分配）
+        # 8) 构造 SHAP-like 特征贡献度（简单按异常分占比分配）
         contributions = []
         if worst_anomaly > 0:
             for metric_name, mscore in anomaly_by_metric.items():
@@ -347,8 +331,8 @@ class DeviceHealthScorer:
             "forecast_risk": _safe_round(forecast_risk, 2),
             "metric_coverage": covered,
             "anomaly_by_metric": anomaly_by_metric,
-            "feature_contributions": contributions,  # v1.4.0
-            "disp_derivative": _safe_round(disp_derivative, 4),  # v1.4.0
+            "feature_contributions": contributions,
+            "disp_derivative": _safe_round(disp_derivative, 4),
             "reasoning": reasoning,
             "suggested_actions": actions,
             "confidence": confidence,

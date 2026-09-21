@@ -44,7 +44,6 @@ class InsightRequest(BaseModel):
     refresh: bool = False
 
 
-# ==================== 融合接口 ====================
 
 @router.post("/fuse", response_model=FuseResponse)
 async def fuse_modals(request: FuseRequest) -> FuseResponse:
@@ -213,7 +212,6 @@ async def refresh_insight(request: InsightRequest) -> Dict[str, Any]:
     }
 
 
-# ==================== 权重配置 ====================
 
 class WeightConfigRequest(BaseModel):
     """权重配置请求"""

@@ -6,7 +6,7 @@ import { computed } from 'vue'
 import { CheckCircle2, Clock, Loader2, UserPlus, X } from 'lucide-vue-next'
 
 const props = defineProps({
-  sign: { type: Object, required: true }, // 含 signers, mode, status, transfers
+  sign: { type: Object, required: true },
 })
 
 const fmt = (iso) => iso ? new Date(iso).toLocaleString('zh-CN', { hour12: false }) : ''

@@ -10,68 +10,124 @@ import {
 } from "../stores/auth";
 import WelcomePage from "../views/WelcomePage.vue";
 import DashboardLayout from "../layouts/DashboardLayout.vue";
-import OverviewPage from "../views/OverviewPage.vue";
-import HazardsListPage from "../views/hazard/HazardsListPage.vue";
-import HazardDetailPage from "../views/hazard/HazardDetailPage.vue";
-import TaskDetailPage from "../views/hazard/TaskDetailPage.vue";
-import DevicesPage from "../views/device/DevicesPage.vue";
-import DeviceDetailPage from "../views/device/DeviceDetailPage.vue";
-import WarningsPage from "../views/warning/WarningsPage.vue";
-import WarningDetailPage from "../views/warning/WarningDetailPage.vue";
-import EmergencyPage from "../views/warning/EmergencyPage.vue";
-import AnalyticsPage from "../views/data/AnalyticsPage.vue";
-import WeatherPage from "../views/monitor/WeatherPage.vue";
-import SettingsPage from "../views/settings/SettingsPage.vue";
-import AiInsightPage from "../views/ai/AiInsightPage.vue";
-// v1.7.0 目标架构新增 13 个界面
-import RealTimeMapPage from "../views/monitor/RealTimeMapPage.vue";
-import AiTaskManagePage from "../views/ai/AiTaskManagePage.vue";
-import AiResultsPage from "../views/ai/AiResultsPage.vue";
-import ConfirmationWorkbenchPage from "../views/hazard/ConfirmationWorkbenchPage.vue";
-import WarningCreatePage from "../views/warning/WarningCreatePage.vue";
-import ResourceDispatchPage from "../views/warning/ResourceDispatchPage.vue";
-import DataSourcesPage from "../views/data/DataSourcesPage.vue";
-import DataSyncPage from "../views/data/DataSyncPage.vue";
-import HistoryHazardsPage from "../views/monitor/HistoryHazardsPage.vue";
-import UserManagementPage from "../views/system/UserManagementPage.vue";
-import AuditLogPage from "../views/system/AuditLogPage.vue";
-import SystemMonitorPage from "../views/system/SystemMonitorPage.vue";
-import MessageCenterPage from "../views/system/MessageCenterPage.vue";
-import TodoCenterPage from "../views/system/TodoCenterPage.vue";
-import ApprovalCenterPage from "../views/system/ApprovalCenterPage.vue";
-// v1.7.0+ P0 统一事件中心（跨 hazard/warning/emergency 的统一视图）
-import EventCenterPage from "../views/system/EventCenterPage.vue";
-import WarningDeliveryPage from "../views/warning/WarningDeliveryPage.vue";
-import ZoneDashboardPage from "../views/monitor/ZoneDashboardPage.vue";
-import ModelManagePage from "../views/ai/ModelManagePage.vue";
-import OtaManagePage from "../views/device/OtaManagePage.vue";
-import NoticeTemplatePage from "../views/system/NoticeTemplatePage.vue";
-import PlanManagePage from "../views/system/PlanManagePage.vue";
-import ReportCenterPage from "../views/system/ReportCenterPage.vue";
-import DataCatalogPage from "../views/data/DataCatalogPage.vue";
-import BackupRecoveryPage from "../views/system/BackupRecoveryPage.vue";
-import AccountSecurityPage from "../views/settings/AccountSecurityPage.vue";
-import RuleEnginePage from "../views/ai/RuleEnginePage.vue";
-import SatelliteComparePage from "../views/monitor/SatelliteComparePage.vue";
-import DeviceMapPage from "../views/monitor/DeviceMapPage.vue";
-import ForbiddenPage from "../views/ForbiddenPage.vue";
-import ServerErrorPage from "../views/ServerErrorPage.vue";
-// P1 阶段新增
-import ProfilePage from "../views/settings/ProfilePage.vue";
-import RoutePlanningPage from "../views/warning/RoutePlanningPage.vue";
-import ConfirmationSignPage from "../views/hazard/ConfirmationSignPage.vue";
-import WarningResolvePage from "../views/warning/WarningResolvePage.vue";
-import DisasterForecastPage from "../views/ai/DisasterForecastPage.vue";
-import DamageAssessmentPage from "../views/ai/DamageAssessmentPage.vue";
-import FieldInspectionPage from "../views/hazard/FieldInspectionPage.vue";
-import PersonnelManagePage from "../views/system/PersonnelManagePage.vue";
-// v1.7+ 补全缺口
-import MobileCommandPage from "../views/mobile/MobileCommandPage.vue";
-import SocialMediaPage from "../views/ai/SocialMediaPage.vue";
-import HelpCenterPage from "../views/system/HelpCenterPage.vue";
-import NotificationChannelsPage from "../views/system/NotificationChannelsPage.vue";
-// P1 指挥大屏（无需登录，全屏展示）
-import CommandScreenPage from "../views/screen/CommandScreenPage.vue";
+
+// 懒加载所有页面组件（首屏只加载 Layout 和 WelcomePage）
+// 使用直接返回 import() 即可,Vue Router 4 自动按路由级代码分割,
+// 无需再用 defineAsyncComponent() 包一层(后者会触发警告并丢失部分 router 特性)
+const OverviewPage = () =>
+  import(/* webpackChunkName: "overview" */ "../views/OverviewPage.vue");
+const HazardsListPage = () =>
+  import(/* webpackChunkName: "hazard" */ "../views/hazard/HazardsListPage.vue");
+const HazardDetailPage = () =>
+  import(/* webpackChunkName: "hazard" */ "../views/hazard/HazardDetailPage.vue");
+const TaskDetailPage = () =>
+  import(/* webpackChunkName: "hazard" */ "../views/hazard/TaskDetailPage.vue");
+const DevicesPage = () =>
+  import(/* webpackChunkName: "device" */ "../views/device/DevicesPage.vue");
+const DeviceDetailPage = () =>
+  import(/* webpackChunkName: "device" */ "../views/device/DeviceDetailPage.vue");
+const WarningsPage = () =>
+  import(/* webpackChunkName: "warning" */ "../views/warning/WarningsPage.vue");
+const WarningDetailPage = () =>
+  import(/* webpackChunkName: "warning" */ "../views/warning/WarningDetailPage.vue");
+const EmergencyPage = () =>
+  import(/* webpackChunkName: "warning" */ "../views/warning/EmergencyPage.vue");
+const AnalyticsPage = () =>
+  import(/* webpackChunkName: "data" */ "../views/data/AnalyticsPage.vue");
+const WeatherPage = () =>
+  import(/* webpackChunkName: "monitor" */ "../views/monitor/WeatherPage.vue");
+const SettingsPage = () =>
+  import(/* webpackChunkName: "settings" */ "../views/settings/SettingsPage.vue");
+const AiInsightPage = () =>
+  import(/* webpackChunkName: "ai" */ "../views/ai/AiInsightPage.vue");
+const RealTimeMapPage = () =>
+  import(/* webpackChunkName: "monitor" */ "../views/monitor/RealTimeMapPage.vue");
+const AiTaskManagePage = () =>
+  import(/* webpackChunkName: "ai" */ "../views/ai/AiTaskManagePage.vue");
+const AiResultsPage = () =>
+  import(/* webpackChunkName: "ai" */ "../views/ai/AiResultsPage.vue");
+const ConfirmationWorkbenchPage = () =>
+  import(/* webpackChunkName: "hazard" */ "../views/hazard/ConfirmationWorkbenchPage.vue");
+const WarningCreatePage = () =>
+  import(/* webpackChunkName: "warning" */ "../views/warning/WarningCreatePage.vue");
+const ResourceDispatchPage = () =>
+  import(/* webpackChunkName: "warning" */ "../views/warning/ResourceDispatchPage.vue");
+const DataSourcesPage = () =>
+  import(/* webpackChunkName: "data" */ "../views/data/DataSourcesPage.vue");
+const DataSyncPage = () =>
+  import(/* webpackChunkName: "data" */ "../views/data/DataSyncPage.vue");
+const HistoryHazardsPage = () =>
+  import(/* webpackChunkName: "monitor" */ "../views/monitor/HistoryHazardsPage.vue");
+const UserManagementPage = () =>
+  import(/* webpackChunkName: "system" */ "../views/system/UserManagementPage.vue");
+const AuditLogPage = () =>
+  import(/* webpackChunkName: "system" */ "../views/system/AuditLogPage.vue");
+const SystemMonitorPage = () =>
+  import(/* webpackChunkName: "system" */ "../views/system/SystemMonitorPage.vue");
+const MessageCenterPage = () =>
+  import(/* webpackChunkName: "system" */ "../views/system/MessageCenterPage.vue");
+const TodoCenterPage = () =>
+  import(/* webpackChunkName: "system" */ "../views/system/TodoCenterPage.vue");
+const ApprovalCenterPage = () =>
+  import(/* webpackChunkName: "system" */ "../views/system/ApprovalCenterPage.vue");
+const EventCenterPage = () =>
+  import(/* webpackChunkName: "system" */ "../views/system/EventCenterPage.vue");
+const WarningDeliveryPage = () =>
+  import(/* webpackChunkName: "warning" */ "../views/warning/WarningDeliveryPage.vue");
+const ZoneDashboardPage = () =>
+  import(/* webpackChunkName: "monitor" */ "../views/monitor/ZoneDashboardPage.vue");
+const ModelManagePage = () =>
+  import(/* webpackChunkName: "ai" */ "../views/ai/ModelManagePage.vue");
+const OtaManagePage = () =>
+  import(/* webpackChunkName: "device" */ "../views/device/OtaManagePage.vue");
+const NoticeTemplatePage = () =>
+  import(/* webpackChunkName: "system" */ "../views/system/NoticeTemplatePage.vue");
+const PlanManagePage = () =>
+  import(/* webpackChunkName: "system" */ "../views/system/PlanManagePage.vue");
+const ReportCenterPage = () =>
+  import(/* webpackChunkName: "system" */ "../views/system/ReportCenterPage.vue");
+const DataCatalogPage = () =>
+  import(/* webpackChunkName: "data" */ "../views/data/DataCatalogPage.vue");
+const BackupRecoveryPage = () =>
+  import(/* webpackChunkName: "system" */ "../views/system/BackupRecoveryPage.vue");
+const AccountSecurityPage = () =>
+  import(/* webpackChunkName: "settings" */ "../views/settings/AccountSecurityPage.vue");
+const RuleEnginePage = () =>
+  import(/* webpackChunkName: "ai" */ "../views/ai/RuleEnginePage.vue");
+const SatelliteComparePage = () =>
+  import(/* webpackChunkName: "monitor" */ "../views/monitor/SatelliteComparePage.vue");
+const DeviceMapPage = () =>
+  import(/* webpackChunkName: "monitor" */ "../views/monitor/DeviceMapPage.vue");
+const ForbiddenPage = () =>
+  import(/* webpackChunkName: "error" */ "../views/ForbiddenPage.vue");
+const ServerErrorPage = () =>
+  import(/* webpackChunkName: "error" */ "../views/ServerErrorPage.vue");
+const ProfilePage = () =>
+  import(/* webpackChunkName: "settings" */ "../views/settings/ProfilePage.vue");
+const RoutePlanningPage = () =>
+  import(/* webpackChunkName: "warning" */ "../views/warning/RoutePlanningPage.vue");
+const ConfirmationSignPage = () =>
+  import(/* webpackChunkName: "hazard" */ "../views/hazard/ConfirmationSignPage.vue");
+const WarningResolvePage = () =>
+  import(/* webpackChunkName: "warning" */ "../views/warning/WarningResolvePage.vue");
+const DisasterForecastPage = () =>
+  import(/* webpackChunkName: "ai" */ "../views/ai/DisasterForecastPage.vue");
+const DamageAssessmentPage = () =>
+  import(/* webpackChunkName: "ai" */ "../views/ai/DamageAssessmentPage.vue");
+const FieldInspectionPage = () =>
+  import(/* webpackChunkName: "hazard" */ "../views/hazard/FieldInspectionPage.vue");
+const PersonnelManagePage = () =>
+  import(/* webpackChunkName: "system" */ "../views/system/PersonnelManagePage.vue");
+const MobileCommandPage = () =>
+  import(/* webpackChunkName: "mobile" */ "../views/mobile/MobileCommandPage.vue");
+const SocialMediaPage = () =>
+  import(/* webpackChunkName: "ai" */ "../views/ai/SocialMediaPage.vue");
+const HelpCenterPage = () =>
+  import(/* webpackChunkName: "system" */ "../views/system/HelpCenterPage.vue");
+const NotificationChannelsPage = () =>
+  import(/* webpackChunkName: "system" */ "../views/system/NotificationChannelsPage.vue");
+const CommandScreenPage = () =>
+  import(/* webpackChunkName: "screen" */ "../views/screen/CommandScreenPage.vue");
 
 // 404 组件（inline，避免单独建文件）
 const NotFoundPage = {
@@ -140,7 +196,6 @@ const routePermissionMap = {
   "damage-assessment": "ai:forecast:view",
   "field-inspection": "inspection:view",
   "personnel-manage": "personnel:view",
-  // v1.7+ 缺口补全
   "mobile-command": "overview:view",
   "social-media": "ai:forecast:view",
   "help-center": "settings:view",
@@ -184,14 +239,14 @@ const router = createRouter({
       component: DashboardLayout,
       meta: { requiresAuth: true },
       children: [
-        // ===X= 监测与态势 ===X=
+        // 监测与态势
         { path: "", name: "overview", component: OverviewPage },
         {
           path: "real-time-map",
           name: "real-time-map",
           component: RealTimeMapPage,
         },
-        // ===X= AI 与事件 ===X=
+        // AI 与事件
         {
           path: "ai-tasks",
           children: [
@@ -242,7 +297,7 @@ const router = createRouter({
             },
           ],
         },
-        // ===X= 预警与处置 ===X=
+        // 预警与处置
         {
           path: "warnings",
           children: [
@@ -266,7 +321,7 @@ const router = createRouter({
           name: "resource-dispatch",
           component: ResourceDispatchPage,
         },
-        // ===X= 数据与模型 ===X=
+        // 数据与模型
         {
           path: "devices",
           children: [
@@ -290,7 +345,7 @@ const router = createRouter({
           component: DataSyncPage,
         },
         { path: "weather", name: "weather", component: WeatherPage },
-        // ===X= 系统管理 ===X=
+        // 系统管理
         { path: "analytics", name: "analytics", component: AnalyticsPage },
         {
           path: "history-hazards",
@@ -402,7 +457,7 @@ const router = createRouter({
           name: "device-map",
           component: DeviceMapPage,
         },
-        // ===X= P0 阶段新增路由 ===X=
+        // P0 阶段新增路由
         {
           path: "route-planning",
           name: "route-planning",
@@ -430,7 +485,7 @@ const router = createRouter({
           component: ConfirmationSignPage,
           props: true,
         },
-        // ===X= P1 AI 预测与评估 ===X=
+        // P1 AI 预测与评估
         {
           path: "disaster-forecast",
           name: "disaster-forecast",
@@ -441,7 +496,7 @@ const router = createRouter({
           name: "damage-assessment",
           component: DamageAssessmentPage,
         },
-        // ===X= P1 现场巡检 + 人员管理 ===X=
+        // P1 现场巡检 + 人员管理
         {
           path: "field-inspection",
           name: "field-inspection",
@@ -452,7 +507,6 @@ const router = createRouter({
           name: "personnel-manage",
           component: PersonnelManagePage,
         },
-        // ===X= v1.7+ 缺口补全 ===X=
         {
           path: "social-media",
           name: "social-media",
@@ -468,7 +522,7 @@ const router = createRouter({
           name: "notification-channels",
           component: NotificationChannelsPage,
         },
-        // ===X= 错误页 ===X=
+        // 错误页
         {
           path: "error/403",
           name: "forbidden",

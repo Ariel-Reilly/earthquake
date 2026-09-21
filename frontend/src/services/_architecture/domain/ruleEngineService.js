@@ -2,16 +2,7 @@
  * 规则引擎服务 API 封装
  */
 import { request, createApiError, USE_BACKEND } from "../../dashboardApi.js";
-
-function withQuery(params) {
-  const search = new URLSearchParams();
-  Object.entries(params).forEach(([key, value]) => {
-    if (value !== undefined && value !== null && `${value}`.trim() !== "")
-      {search.set(key, String(value));}
-  });
-  const suffix = search.toString();
-  return suffix ? `?${suffix}` : "";
-}
+import { withQuery } from "../../../utils/query.js";
 
 async function apiRequest(path, options = {}) {
   if (!USE_BACKEND) {
@@ -35,9 +26,6 @@ export async function getRule(id) {
   return apiRequest(`/rules/${id}`);
 }
 
-/**
- * 创建规则
- */
 export async function createRule(rule) {
   return apiRequest("/rules", {
     method: "POST",
@@ -45,9 +33,6 @@ export async function createRule(rule) {
   });
 }
 
-/**
- * 更新规则
- */
 export async function updateRule(id, rule) {
   return apiRequest(`/rules/${id}`, {
     method: "PUT",
@@ -55,9 +40,6 @@ export async function updateRule(id, rule) {
   });
 }
 
-/**
- * 删除规则
- */
 export async function deleteRule(id) {
   return apiRequest(`/rules/${id}`, {
     method: "DELETE",
@@ -73,9 +55,6 @@ export async function toggleRule(id) {
   });
 }
 
-/**
- * 测试规则
- */
 export async function testRule(request) {
   return apiRequest("/rules/test", {
     method: "POST",
@@ -97,9 +76,6 @@ export async function getAllRuleLogs(page = 1, size = 20) {
   return apiRequest(`/rules/logs${withQuery({ page, size })}`);
 }
 
-/**
- * 字段字典
- */
 export async function getFieldDicts() {
   return apiRequest("/rules/fields");
 }
@@ -120,9 +96,6 @@ export async function reloadRules() {
   });
 }
 
-/**
- * 版本回滚
- */
 export async function rollbackRule(id, version) {
   return apiRequest(`/rules/${id}/rollback?version=${version}`, {
     method: "POST",

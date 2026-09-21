@@ -6,9 +6,28 @@ aiohttp==3.11.11
 Pillow==11.1.0
 python-dotenv==1.0.1
 
+# ---------------------------------------------------------------------------
+# 数值计算：此前未声明，但 comprehensive_model / drift_monitor / fusion_engine /
+# yolo_model 均直接 import。此前仅靠 torch / scikit-learn 的传递依赖侥幸可用。
+# numpy 锁定 1.x：与 torch==2.5.1 的 ABI 兼容性最稳妥。
+# ---------------------------------------------------------------------------
+numpy==1.26.4
+scipy==1.14.1
+
+# ---------------------------------------------------------------------------
+# 计算机视觉：yolo_model.py 的 OpenCV DNN 推理路径（imdecode / resize /
+# blobFromImage）必需。此前完全缺失且无任何传递来源，导致容器内 YOLO 恒走
+# mock 分支，返回 random.uniform(0.4, 0.85) 的随机检测框，且调用方无法分辨真假。
+# 使用 headless 变体：服务端无 GUI 需求，可避免引入 libGL 等图形库依赖。
+# ---------------------------------------------------------------------------
+opencv-python-headless==4.10.0.84
+
 # 可选推理依赖：模型文件存在时启用真实推理（可移除，降级逻辑仍可用）
 onnxruntime==1.20.1
 torch==2.5.1
 scikit-learn==1.5.2
 xgboost==2.1.3
 joblib==1.4.2
+
+# 注意：ultralytics（YOLOv8 训练）仅在 app/training/ 下使用，运行时不需要，
+# 且其依赖体积较大，如需训练请单独安装：pip install ultralytics

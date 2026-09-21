@@ -13,9 +13,9 @@ import { watch, onBeforeUnmount } from "vue";
  */
 export function useBodyScrollLock(activeRef) {
   const lock = () => {
-    if (typeof document === "undefined") return;
+    if (typeof document === "undefined") { return; }
     const body = document.body;
-    if (body.dataset.scrollLocked === "1") return;
+    if (body.dataset.scrollLocked === "1") { return; }
     const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
     body.dataset.scrollLocked = "1";
     body.dataset.scrollLockPrevPadding = body.style.paddingRight;
@@ -27,9 +27,9 @@ export function useBodyScrollLock(activeRef) {
   };
 
   const unlock = () => {
-    if (typeof document === "undefined") return;
+    if (typeof document === "undefined") { return; }
     const body = document.body;
-    if (body.dataset.scrollLocked !== "1") return;
+    if (body.dataset.scrollLocked !== "1") { return; }
     body.style.overflow = body.dataset.scrollLockPrevOverflow || "";
     body.style.paddingRight = body.dataset.scrollLockPrevPadding || "";
     delete body.dataset.scrollLocked;
@@ -38,8 +38,8 @@ export function useBodyScrollLock(activeRef) {
   };
 
   watch(activeRef, (active) => {
-    if (active) lock();
-    else unlock();
+    if (active) { lock(); }
+    else { unlock(); }
   });
 
   // 卸载时保险解锁一次，避免热更新或路由切换后页面无法滚动

@@ -145,7 +145,6 @@ public class RuleCompiler {
       String op = matcher.group(2);
       String valueStr = matcher.group(3);
 
-      // 解析值
       Object value = parseValue(valueStr);
 
       return new ConditionNode(field, op, value, null);

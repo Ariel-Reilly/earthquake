@@ -68,6 +68,7 @@ public class PersonnelController {
    * 若 Redis 不可用则优雅降级，不阻塞移动端点。
    */
   @PostMapping("/positions/report")
+  @PreAuthorize("hasAuthority('personnel:report')")
   public ApiResponse<Map<String, Object>> report(@RequestBody PositionReportRequest request) {
     // 限制用户只能上报自己的位置：JWT 主体与 payload.userId 必须一致
     // （管理员除外，允许代报）
@@ -102,7 +103,6 @@ public class PersonnelController {
       log.warn("Redis 写入人员位置失败 userId={}: {}", request.userId(), e.getMessage());
     }
 
-    // 广播给 WebSocket 连接的前端
     if (broadcastService != null) {
       broadcastService.broadcastPersonnel(position);
     }
@@ -115,7 +115,7 @@ public class PersonnelController {
   }
 
   @GetMapping("/positions")
-  @PreAuthorize("hasAuthority('overview:view')")
+  @PreAuthorize("hasAuthority('personnel:view')")
   public ApiResponse<List<Map<String, Object>>> positions() {
     // 优先从 Redis 读取移动端上报的实时位置（使用 SCAN 非阻塞遍历）
     List<Map<String, Object>> redisPositions = scanRedisPositions();
@@ -263,7 +263,6 @@ public class PersonnelController {
     return m;
   }
 
-  /** 从 SecurityContext 取当前登录名，异常时回落为 null。 */
   private String currentOperator() {
     try {
       var auth = SecurityContextHolder.getContext().getAuthentication();

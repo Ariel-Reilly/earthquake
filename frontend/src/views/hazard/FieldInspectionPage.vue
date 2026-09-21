@@ -43,10 +43,10 @@ import {
 import { dashboardApi } from '../../services/dashboardApi'
 import { safeMin, safeMax } from '../../utils/safeMinMax'
 
-// ============ Tab ============
+// Tab
 const activeTab = ref('tasks') // tasks | fence | record | example
 
-// ============ Tasks ============
+// Tasks
 const loading = ref(false)
 const errorMsg = ref('')
 const tasks = ref([])
@@ -68,7 +68,7 @@ async function loadTasks() {
   }
 }
 
-// ============ GPS Fence Demo ============
+// GPS Fence Demo
 const fenceResult = ref(null)
 const fenceLoading = ref(false)
 const fenceForm = ref({
@@ -118,7 +118,7 @@ async function runGpsCheck() {
   }
 }
 
-// ============ Submit Inspection ============
+// Submit Inspection
 const records = ref([])
 const recordsLoading = ref(false)
 const submitResult = ref(null)
@@ -202,7 +202,7 @@ async function submitInspection() {
   }
 }
 
-// ============ Example Payload ============
+// Example Payload
 const examplePayload = ref(null)
 async function loadExample() {
   try {
@@ -212,7 +212,7 @@ async function loadExample() {
   }
 }
 
-// ============ Trajectory Replay ============
+// Trajectory Replay
 const trajectoryLoading = ref(false)
 const trajectoryData = ref(null)
 async function loadTrajectory(deviceCode) {
@@ -233,7 +233,7 @@ async function loadTrajectory(deviceCode) {
 
 const currentUser = ref('admin')
 
-// ============ Stats ============
+// Stats
 const stats = computed(() => {
   const total = tasks.value.length
   const pending = tasks.value.filter((t) => (t.status ?? 'PENDING') === 'PENDING' || (t.status ?? '').includes('待')).length
@@ -634,7 +634,6 @@ onMounted(async () => {
             <span v-if="TRAJECTORY_SVG.points[0].speed">速度：<b>{{ TRAJECTORY_SVG.points[0].speed.toFixed(1) }} m/s</b></span>
           </div>
           <svg :viewBox="`0 0 ${TRAJECTORY_SVG.W} ${TRAJECTORY_SVG.H}`" class="fip-trajectory-svg">
-            <!-- 网格 -->
             <line
               v-for="i in 4"
               :key="i"
@@ -644,15 +643,11 @@ onMounted(async () => {
               :y2="TRAJECTORY_SVG.PAD.top + ((TRAJECTORY_SVG.H - TRAJECTORY_SVG.PAD.top - TRAJECTORY_SVG.PAD.bottom) / 4) * (i - 1)"
               stroke="rgba(47,127,128,.1)" stroke-width="1"
             />
-            <!-- 轨迹线 -->
             <path :d="TRAJECTORY_SVG.path" fill="none" stroke="#2b6cb0" stroke-width="2" stroke-linejoin="round" />
-            <!-- 起点 -->
             <circle :cx="TRAJECTORY_SVG.start.x" :cy="TRAJECTORY_SVG.start.y" r="6" fill="#4f8f99" />
             <text :x="TRAJECTORY_SVG.start.x" :y="TRAJECTORY_SVG.start.y - 10" text-anchor="middle" class="fip-traj-label">起点</text>
-            <!-- 终点 -->
             <circle :cx="TRAJECTORY_SVG.end.x" :cy="TRAJECTORY_SVG.end.y" r="6" fill="#e06060" />
             <text :x="TRAJECTORY_SVG.end.x" :y="TRAJECTORY_SVG.end.y + 18" text-anchor="middle" class="fip-traj-label">终点</text>
-            <!-- 数据点 -->
             <circle
               v-for="(p, i) in TRAJECTORY_SVG.points"
               :key="i"

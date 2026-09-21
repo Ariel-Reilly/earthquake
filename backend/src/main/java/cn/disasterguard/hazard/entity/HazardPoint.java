@@ -71,7 +71,6 @@ public class HazardPoint {
   @Column(name = "detection_confidence")
   private Double detectionConfidence;
 
-  // ---- v2.0 新增字段 ----
 
   /** 上次巡检设备类型（camera / drone / sentinel2 / landsat / radar 等）。 */
   @Column(name = "last_inspection_device_type")

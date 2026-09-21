@@ -135,7 +135,9 @@ public class UserProfileService {
         levels = objectMapper.readValue(pref.getLevels(),
             objectMapper.getTypeFactory().constructMapType(HashMap.class, String.class, List.class));
       }
-    } catch (Exception ignore) { /* 容忍坏数据 */ }
+    } catch (Exception e) {
+      log.debug("无法解析用户 {} 的 NotificationPreference JSON（容忍脏数据）：{}", pref.getUserId(), e.getMessage());
+    }
     return new NotificationPreferenceDto(
         channels, levels,
         pref.getLanguage(), pref.getTheme(),

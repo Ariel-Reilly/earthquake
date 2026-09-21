@@ -16,14 +16,14 @@ import {
 
 const emit = defineEmits(['notify'])
 
-// ==================== 顶部 KPI ====================
+// 顶部 KPI
 const kpiLoading = ref(true)
 const kpiData = ref({ onlineCount: 0, todayInferences: 0, avgLatency: 0,综合F1: 0 })
 
-// ==================== Tab 状态 ====================
+// Tab 状态
 const activeTab = ref('versions')
 
-// ==================== Tab1: 模型版本库 ====================
+// Tab1: 模型版本库
 const VERSIONS_COLS = ['versionId', 'family', 'trainSize', 'valF1', 'latencyMs', 'status', 'onlineAt', 'actions']
 const FAMILY_OPTIONS = ['全部', 'XGBoost fusion', 'YOLO', 'LSTM', '综合研判', 'Device Health']
 const STATUS_OPTIONS = ['全部', '在线', '灰度', '已下线']
@@ -126,7 +126,6 @@ async function offlineVersion(versionId) {
   }
 }
 
-// ==================== Tab2: 训练任务 ====================
 const JOB_STATUS_OPTIONS = [
   { value: '全部', label: '全部' },
   { value: 'pending', label: '排队' },
@@ -237,23 +236,47 @@ async function fetchJobLog(id) {
   }
 }
 
-// ==================== Mini Chart (纯 CSS/SVG) ====================
-function buildMiniLine(dataPoints, color) {
-  if (!dataPoints || dataPoints.length < 2) return ''
-  const w = 280, h = 60, pad = 4
+// Mini Chart coords — 返回坐标数据对象而非 SVG 字符串，避免 v-html XSS 风险
+function buildMiniCoords(dataPoints, w = 280, h = 60, pad = 4) {
+  if (!dataPoints || dataPoints.length < 2) return null
   const vals = dataPoints.map(Number)
   // ⚠️ 不写 Math.min(...vals)：10k+ 元素时抛 RangeError（调用栈溢出）。
   // 用 reduce 代替，O(1) 栈深度。
   const minV = vals.reduce((m, v) => (v < m ? v : m), Infinity)
   const maxV = vals.reduce((m, v) => (v > m ? v : m), -Infinity)
   const range = maxV - minV || 1
-  const coords = vals.map((v, i) => {
-    const x = pad + (i / (vals.length - 1)) * (w - pad * 2)
-    const y = h - pad - ((v - minV) / range) * (h - pad * 2)
-    return `${x.toFixed(1)},${y.toFixed(1)}`
-  })
-  return `<polyline points="${coords.join(' ')}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><circle cx="${coords[coords.length - 1].split(',')[0]}" cy="${coords[coords.length - 1].split(',')[1]}" r="3" fill="${color}"/>`
+  const points = vals.map((v, i) => ({
+    x: Number((pad + (i / (vals.length - 1)) * (w - pad * 2)).toFixed(1)),
+    y: Number((h - pad - ((v - minV) / range) * (h - pad * 2)).toFixed(1)),
+  }))
+  return { points, lastPoint: points[points.length - 1] }
 }
+
+// 训练曲线坐标（computed 用）
+const trainLossCoords = computed(() => buildMiniCoords(versionDrawerData.value?.trainLoss, 280, 60, 4))
+const valLossCoords = computed(() => buildMiniCoords(versionDrawerData.value?.valLoss, 280, 60, 4))
+const testMetricCoords = computed(() => buildMiniCoords(versionDrawerData.value?.testMetric, 280, 60, 4))
+
+// 漂移趋势坐标
+const driftCoords = computed(() => {
+  if (!driftTrend.value || driftTrend.value.length < 2) return null
+  const vals = driftTrend.value.map(t => t.psi || t.value || 0)
+  const minV = vals.reduce((m, v) => (v < m ? v : m), Infinity)
+  const maxV = vals.reduce((m, v) => (v > m ? v : m), -Infinity)
+  const range = maxV - minV || 1
+  const w = 280, h = 50, pad = 4
+  const points = vals.map((v, i) => ({
+    x: Number((pad + (i / (vals.length - 1)) * (w - pad * 2)).toFixed(1)),
+    y: Number((h - pad - ((v - minV) / range) * (h - pad * 2)).toFixed(1)),
+  }))
+  return { points, lastPoint: points[points.length - 1] }
+})
+const driftLineColor = computed(() => {
+  const s = driftResult.value?.overallStatus
+  if (s === 'SIGNIFICANT') return '#e06060'
+  if (s === 'SLIGHT') return '#d18f2f'
+  return '#38a169'
+})
 
 function buildFeatureBars(features) {
   if (!features || features.length === 0) return []
@@ -297,7 +320,6 @@ const JOB_LABEL = {
   failed: '失败',
 }
 
-// ==================== Tab3: 漂移监控 ====================
 const driftModels = ref([
   { id: 'xgboost_fusion', name: 'XGBoost 融合模型', version: 'v2.3', family: 'XGBoost fusion' },
   { id: 'lstm_forecast', name: 'LSTM 时序预测', version: 'v1.5', family: 'LSTM' },
@@ -456,9 +478,8 @@ onMounted(async () => {
       </button>
     </div>
 
-    <!-- ===== Tab1: 模型版本库 ===== -->
+    <!-- Tab1: 模型版本库 -->
     <div v-if="activeTab === 'versions'" class="tab-content">
-      <!-- 过滤条 -->
       <div class="filter-bar">
         <div class="filter-group">
           <label>模型族</label>
@@ -478,7 +499,6 @@ onMounted(async () => {
         </button>
       </div>
 
-      <!-- 表格 -->
       <div class="panel system-panel">
         <div class="panel-header compact">
           <div>
@@ -552,7 +572,7 @@ onMounted(async () => {
       </div>
     </div>
 
-    <!-- ===== Tab2: 训练任务 ===== -->
+    <!-- Tab2: 训练任务 -->
     <div v-if="activeTab === 'training'" class="tab-content">
       <div class="panel system-panel">
         <div class="panel-header compact">
@@ -760,15 +780,33 @@ onMounted(async () => {
               <div class="curves-grid">
                 <div class="curve-card">
                   <span>训练集损失</span>
-                  <svg viewBox="0 0 280 60" class="mini-svg" v-html="buildMiniLine(versionDrawerData.trainLoss, '#4f8f99')"></svg>
+                  <svg viewBox="0 0 280 60" class="mini-svg" v-if="trainLossCoords">
+                    <polyline
+                      :points="trainLossCoords.points.map(p => `${p.x},${p.y}`).join(' ')"
+                      fill="none" stroke="#4f8f99" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"
+                    />
+                    <circle :cx="trainLossCoords.lastPoint.x" :cy="trainLossCoords.lastPoint.y" r="3" fill="#4f8f99"/>
+                  </svg>
                 </div>
                 <div class="curve-card">
                   <span>验证集损失</span>
-                  <svg viewBox="0 0 280 60" class="mini-svg" v-html="buildMiniLine(versionDrawerData.valLoss, '#6dbfa5')"></svg>
+                  <svg viewBox="0 0 280 60" class="mini-svg" v-if="valLossCoords">
+                    <polyline
+                      :points="valLossCoords.points.map(p => `${p.x},${p.y}`).join(' ')"
+                      fill="none" stroke="#6dbfa5" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"
+                    />
+                    <circle :cx="valLossCoords.lastPoint.x" :cy="valLossCoords.lastPoint.y" r="3" fill="#6dbfa5"/>
+                  </svg>
                 </div>
                 <div class="curve-card">
                   <span>测试集指标</span>
-                  <svg viewBox="0 0 280 60" class="mini-svg" v-html="buildMiniLine(versionDrawerData.testMetric, '#d9c040')"></svg>
+                  <svg viewBox="0 0 280 60" class="mini-svg" v-if="testMetricCoords">
+                    <polyline
+                      :points="testMetricCoords.points.map(p => `${p.x},${p.y}`).join(' ')"
+                      fill="none" stroke="#d9c040" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"
+                    />
+                    <circle :cx="testMetricCoords.lastPoint.x" :cy="testMetricCoords.lastPoint.y" r="3" fill="#d9c040"/>
+                  </svg>
                 </div>
               </div>
             </div>
@@ -874,7 +912,13 @@ onMounted(async () => {
                 </div>
               </div>
               <div class="drift-trend-chart">
-                <svg viewBox="0 0 280 50" class="mini-svg" v-html="buildDriftMiniLine()"></svg>
+                <svg viewBox="0 0 280 50" class="mini-svg" v-if="driftCoords">
+                  <polyline
+                    :points="driftCoords.points.map(p => `${p.x},${p.y}`).join(' ')"
+                    fill="none" :stroke="driftLineColor" stroke-width="2" stroke-linejoin="round"
+                  />
+                  <circle :cx="driftCoords.lastPoint.x" :cy="driftCoords.lastPoint.y" r="3" :fill="driftLineColor"/>
+                </svg>
               </div>
             </div>
 

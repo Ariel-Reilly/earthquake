@@ -309,7 +309,6 @@ function openOriginal(post) {
       </div>
     </div>
 
-    <!-- 加载 -->
     <div v-if="loading" class="loading-state">
       <Loader2 :size="40" class="spinning" />
       <span>正在分析社交媒体数据…</span>
@@ -413,10 +412,8 @@ function openOriginal(post) {
                 </div>
               </div>
 
-              <!-- 内容 -->
               <div class="post-content">{{ post.content }}</div>
 
-              <!-- 标签行 -->
               <div class="post-tags">
                 <span class="tag hazard-tag">{{ post.hazardType }}</span>
                 <span

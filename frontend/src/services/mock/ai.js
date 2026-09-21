@@ -9,9 +9,7 @@
  */
 import { SEED_BASE } from "./seed";
 
-// =====================================================================
 // AI 综合分析：从 hazardPoints 派生完整列表（v1.3.0+ 落库结构）
-// =====================================================================
 
 export function getAiComprehensiveAllMock() {
   const list = SEED_BASE.hazardPoints.map((h, i) => ({
@@ -58,9 +56,7 @@ export const aiDeviceHealthRefreshMock = {
   elapsedMs: 0,
 };
 
-// =====================================================================
 // 任务运行时监控：基于 taskId 散列出稳定的阶段与指标
-// =====================================================================
 
 /** 把任意 id 转成稳定种子 */
 function seedFromId(id) {
@@ -104,9 +100,7 @@ export function getTaskRuntimeMock(id) {
   };
 }
 
-// =====================================================================
 // 任务执行日志：固定模板按 id 派生稳定序列
-// =====================================================================
 
 const LOG_SAMPLES = [
   { level: "INFO", message: "已接收任务，进入排队" },
@@ -144,7 +138,7 @@ export function getTaskExecutionLogMock(id) {
     const pick = LOG_SAMPLES[(seed + i * 3) % LOG_SAMPLES.length];
     const ts = new Date(baseTs + i * 30 * 1000).toISOString();
     entries.push({
-      ts: ts.slice(11, 19), // HH:MM:SS
+      ts: ts.slice(11, 19),
       level: pick.level,
       message: pick.message,
     });
@@ -155,9 +149,7 @@ export function getTaskExecutionLogMock(id) {
   };
 }
 
-// =====================================================================
 // AI 模型族统计离线骨架（在线模式无落库）
-// =====================================================================
 
 export const modelFamilyStatsMock = {
   onlineCount: 0,
@@ -172,15 +164,13 @@ export const trainingJobsMock = [];
 // AI 训练日志空壳
 export const trainingJobLogMock = { entries: [], cursor: null };
 
-// =====================================================================
 // P1 灾害预测 + 损失评估 mock
-// =====================================================================
 
 /**
  * 时序预测 mock —— 基于 deviceCode + horizon 派生稳定序列
  * 对应后端 ForecastResult
  */
-export function getDisasterForecastMock({ deviceCode, metric = 'displacement', horizon = 24, historyLimit = 30 } = {}) {
+export function getDisasterForecastMock({ deviceCode, metric = 'displacement', horizon = 24 } = {}) {
   const seed = seedFromId(deviceCode);
   // 基础值 + 趋势 + 周期性
   const base = 10 + (seed % 20);
@@ -286,7 +276,7 @@ export const disasterAssessmentStatusMock = {
  */
 export function runIndependentAssessmentMock(payload = {}) {
   const points = payload?.points ?? [];
-  const results = points.map((pt, i) => {
+  const results = points.map((pt) => {
     const seed = seedFromId(`${pt.lon}-${pt.lat}`);
     const score = 10 + (seed % 80);
     const riskLevel = score >= 75 ? 'CRITICAL' : score >= 55 ? 'HIGH' : score >= 35 ? 'MEDIUM' : 'LOW';

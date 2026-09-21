@@ -7,7 +7,7 @@ import { CheckSquare, Clock, Loader2, Send, Users } from 'lucide-vue-next'
 
 const props = defineProps({
   record:  { type: Object, default: null },
-  experts: { type: Array,  required: true }, // EXPERT_POOL
+  experts: { type: Array,  required: true },
   modeOptions:    { type: Array, required: true },
   timeoutOptions: { type: Array, default: () => [12, 24, 48, 72] },
 })

@@ -10,9 +10,7 @@
  */
 import { SEED_BASE } from "./seed";
 
-// =====================================================================
 // 总览分析图表
-// =====================================================================
 
 export function getAnalyticsMock() {
   return {
@@ -80,10 +78,8 @@ export function getAnalyticsMock() {
   };
 }
 
-// =====================================================================
 // 多时相对比：FNV-1a + LCG 派生确定性伪随机序列
 // 保证同 base+compare+mode 下结果可复现
-// =====================================================================
 
 function fnv1aHash(str) {
   let h = 2166136261;
@@ -128,7 +124,7 @@ export function getTimeRangeComparisonMock({ base, compare, mode = "side" } = {}
   const devices = Array.isArray(SEED_BASE.devices) ? SEED_BASE.devices : [];
 
   const seedKey = `${safeBase}|${safeCompare}|${safeMode}`;
-  const bucket = 24; // 与"24h"基准等长的折线桶数
+  const bucket = 24;
   const baseIncidents = Math.max(incidents.length, 8);
   const baseWarnings = Math.max(warnings.length, 6);
   const baseHazards = Math.max(hazards.length, 12);
@@ -277,9 +273,7 @@ export function getTimeRangeComparisonMock({ base, compare, mode = "side" } = {}
   };
 }
 
-// =====================================================================
 // 灾种 / 区域专项大屏：聚合 SEED_BASE
-// =====================================================================
 
 export function getZoneSummaryMock({ kind, region } = {}) {
   const hazards = SEED_BASE.hazardPoints.filter((p) => {
@@ -358,9 +352,7 @@ export function getZoneRiskTrendMock({ kind, region } = {}) {
   };
 }
 
-// =====================================================================
 // AI 巡检报告：覆盖率/发现数/误报/漏检 + 模型 F1 + 混淆矩阵
-// =====================================================================
 
 export function getInspectionReportMock(params = {}) {
   const days = params.days ?? 7;
@@ -416,17 +408,13 @@ export function getInspectionReportMock(params = {}) {
   };
 }
 
-// =====================================================================
 // 模块元信息（顶部 BrandMascot 用）
-// =====================================================================
 
 export const moduleMetaMock = {
   item: { title: "地脉智巡", desc: "本地模拟模式" },
 };
 
-// =====================================================================
 // Sentinel 卫星合成图层离线回退
-// =====================================================================
 
 export const sentinelCoverageMock = {
   tiles: [],

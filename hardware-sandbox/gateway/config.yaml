@@ -1,0 +1,223 @@
+# ============================================================
+# GL-Sandbox 边缘网关配置
+# 混合沙盘 C方案（1.5m x 1.0m 三区一体化）
+#   A区 山区/滑坡区 (0-600mm)   — 高地，坡度25-35，可动滑坡体
+#   B区 河谷/洪水区 (600-1100mm) — 低洼，亚克力水槽，水位可控
+#   C区 城镇/避难区 (1100-1500mm) — 平地，仿真建筑群，LED预警屏
+# ============================================================
+
+sandbox:
+  name: "混合沙盘 C方案"
+  width_mm: 1500.0
+  depth_mm: 1000.0
+  # 与 tools/build_mixed_sandbox.py 保持一致
+  horizontal_scale: 1991          # 1:1991（1.5m / 2986m 真实跨度）
+  vertical_exaggeration: 2.5
+  contour_interval_m: 39.8        # 设计地形泡沫分层等高距（由 build_mixed_sandbox.py 算出）
+  foam_layers: 13
+  foam_thickness_mm: 20.0
+  # 三区布局（mm 坐标，西南角为原点）
+  zones:
+    a_mountain:
+      x_range: [0, 600]
+      label: "山区/滑坡区"
+      features: ["滑坡体(150x200mm)", "雨量计", "裂缝计", "位移计", "倾角计", "土壤湿度"]
+    b_river:
+      x_range: [600, 1100]
+      label: "河谷/洪水区"
+      features: ["亚克力水槽", "水位计(MB1000)", "微型水泵", "流速仪"]
+    c_town:
+      x_range: [1100, 1500]
+      label: "城镇/避难区"
+      features: ["仿真建筑群(8栋)", "LED点阵屏(32x16)", "声光报警器", "道路网"]
+
+# 沙盘 mm <-> 真实经纬度（西南角为原点）
+geo:
+  lon0: 106.5150
+  lat0: 29.5425
+  lon_span: 0.0300
+  lat_span: 0.0175
+
+# ------------------------------------------------------------
+# MQTT 接入（与后端 MqttDataSubscriber 约定一致）
+#   topic = disasterguard/{deviceCode}/data
+# ------------------------------------------------------------
+mqtt:
+  host: "127.0.0.1"
+  port: 11883                     # EMQX 宿主机映射端口（容器 1883）
+  username: ""                    # EMQX 未开认证时留空
+  password: ""
+  qos: 1
+  client_id: "gl-sandbox-gateway"
+  cmd_topic: "disasterguard/sandbox/cmd"   # 下行指令（后端只订阅 /data，不会误消费）
+  keepalive: 30
+
+# ------------------------------------------------------------
+# 标定：沙盘物理量 -> 真实量纲
+# ------------------------------------------------------------
+calibration:
+  time_compress: 360              # 演示 4 min = 真实 24 h
+  rain_bucket_mm: 0.5             # 翻斗雨量计：0.5 mm/斗
+  rain_gain: 1.0                  # 承雨口非标修正系数
+  disp_gain: 10                   # 位移放大：沙盘 1mm = 真实 10mm
+  crack_gain: 10                  # 裂缝放大：同上
+  soil_dry_adc: 2900              # 干沙标定 ADC
+  soil_wet_adc: 1180              # 饱和标定 ADC（两点线性插值）
+  crack_zero_adc: 512             # 裂缝计零点
+  crack_span_adc: 900             # 全行程 ADC 跨度 -> 30 mm 沙盘行程
+  crack_travel_mm: 30.0
+  water:
+    base_m: 160.0                 # 沙盘水深 0mm 对应真实水位
+    span_m: 20.0                  # 沙盘水深 80mm 对应 20m 变幅
+    depth_mm: 80.0
+  warning_level_m: 175.0          # 嘉陵江警戒水位（R003 右值）
+  slope_deg: 32.0                 # 李子坝岸坡坡度（R001 右值）
+  elevation_m: 245.0              # 坡体传感器高程
+
+# ------------------------------------------------------------
+# 串口：网关 <-> ESP32 节点
+# ------------------------------------------------------------
+serial:
+  - node: "Node-A"
+    port: "COM3"
+    baud: 115200
+  - node: "Node-B"
+    port: "COM4"
+    baud: 115200
+  - node: "Node-C"
+    port: "COM5"
+    baud: 115200
+
+# ------------------------------------------------------------
+# 设备清单
+#   metrics   : 真实物理量指标（进规则表达式）
+#   sentinels : 哨兵指标（★ 必填）
+#     后端 RuleEngineScheduler 有门控：
+#       if (!metrics.containsKey(rule.metricCode)) continue;
+#     规则不认识的组合键（如 rainfall_24h_disp）必须先存在，否则规则永不触发。
+#   同一隐患点下，同一 metric_code 只能由一台设备上报（否则互相覆盖，结果不确定）。
+# ------------------------------------------------------------
+devices:
+  - code: "SB-RAIN-01"
+    name: "李子坝雨量站"
+    type: "rain_gauge"
+    hazard: "HZ-SBOX-01"
+    node: "Node-A"
+    metrics: ["rainfall_1h", "rainfall_6h", "rainfall_24h", "rainfall_30d"]
+    sentinels: ["rainfall_24h_slope", "rainfall_24h_disp"]   # 开 R001 / R002
+
+  - code: "SB-SOIL-01"
+    name: "坡体土壤含水站"
+    type: "soil_moisture"
+    hazard: "HZ-SBOX-01"
+    node: "Node-B"
+    metrics: ["soil_moisture", "pore_pressure"]
+    sentinels: []
+
+  - code: "SB-GNSS-01"
+    name: "坡体位移站"
+    type: "gnss"
+    hazard: "HZ-SBOX-01"
+    node: "Node-B"
+    metrics: ["displacement_rate", "displacement_total", "slope", "elevation_m"]
+    sentinels: []
+
+  - code: "SB-INCL-01"
+    name: "佛图关倾角站"
+    type: "inclinometer"
+    hazard: "HZ-SBOX-02"
+    node: "Node-C"
+    metrics: ["tilt_angle"]
+    sentinels: []
+
+  - code: "SB-CRACK-01"
+    name: "佛图关裂缝计"
+    type: "crack_meter"
+    hazard: "HZ-SBOX-02"
+    node: "Node-C"
+    metrics: ["crack_width", "crack_width_rate", "rainfall_24h"]
+    sentinels: ["crack_rate_rain"]                            # 开 R006
+
+  - code: "WS-RIVER-01"
+    name: "嘉陵江水位站"
+    type: "water_level"
+    hazard: "HZ-SBOX-03"
+    node: "Node-A"
+    metrics: ["water_level", "warning_level", "rainfall_6h"]
+    sentinels: ["water_level_rain6h"]                         # 开 R003
+
+  - code: "SB-FLOOD-01"
+    name: "滨江低洼积水站"
+    type: "water_level"
+    hazard: "HZ-SBOX-04"
+    node: "Node-A"
+    metrics: ["ponding_depth", "rainfall_1h"]
+    sentinels: []
+
+  # ---- C方案新增：执行器 + 视觉（下行控制 / 视频回传）----
+  - code: "SB-LED-01"
+    name: "C区LED预警屏"
+    type: "led_matrix"
+    hazard: "HZ-SBOX-05"
+    node: "Node-C"
+    metrics: ["display_text", "display_color"]
+    sentinels: []
+
+  - code: "SB-ALARM-01"
+    name: "C区声光报警器"
+    type: "alarm"
+    hazard: "HZ-SBOX-05"
+    node: "Node-C"
+    metrics: ["alarm_state"]
+    sentinels: []
+
+  - code: "SB-SERVO-01"
+    name: "A区滑坡舵机"
+    type: "servo"
+    hazard: "HZ-SBOX-01"
+    node: "Node-A"
+    metrics: ["servo_angle", "servo_speed"]
+    sentinels: []
+
+  - code: "SB-PUMP-01"
+    name: "B区微型水泵"
+    type: "pump"
+    hazard: "HZ-SBOX-03"
+    node: "Node-B"
+    metrics: ["pump_pwm", "flow_rate"]
+    sentinels: []
+
+  - code: "SB-VALVE-01"
+    name: "A区电磁阀(降雨)"
+    type: "valve"
+    hazard: "HZ-SBOX-01"
+    node: "Node-A"
+    metrics: ["valve_state"]
+    sentinels: []
+
+  - code: "SB-CAM-01"
+    name: "A区摄像头"
+    type: "camera"
+    hazard: "HZ-SBOX-01"
+    node: "Node-A"
+    metrics: ["ai_confidence", "ai_label"]
+    sentinels: ["ai_disp"]                                    # 开 AI+位移组合规则
+
+  - code: "SB-CAM-02"
+    name: "B区摄像头"
+    type: "camera"
+    hazard: "HZ-SBOX-03"
+    node: "Node-B"
+    metrics: ["ai_confidence", "ai_label"]
+    sentinels: []
+
+# ------------------------------------------------------------
+# 上报节奏
+# ------------------------------------------------------------
+publish:
+  interval_sec: 2                 # ★ 必须 >=1s：后端 (device,metric,ts) 唯一索引会吞掉同毫秒重发
+  jitter_ms: 120                  # 轻微抖动，避免多设备同毫秒
+  batch_metrics: true             # 一次 payload 携带该设备全部指标
+
+# 演示期建议把后端规则调度收紧（默认 30s 太慢，预警升级会明显滞后）：
+#   disasterguard.warning.rule-engine-cron: "*/5 * * * * *"

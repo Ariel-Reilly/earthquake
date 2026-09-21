@@ -305,7 +305,6 @@ public class AiInsightService {
     };
   }
 
-  // ----------------------- 内部：单点分析 + UPSERT -----------------------
 
   /**
    * 对单个 hazard 跑灾害评估（地理 + 天气 + 可选设备），把结果 UPSERT 进 ai_comprehensive_score。
@@ -361,7 +360,6 @@ public class AiInsightService {
     return value == null ? fallback : value;
   }
 
-  // ----------------------- 工具方法 -----------------------
 
   private static boolean containsAny(String text, String... needles) {
     if (text == null) return false;

@@ -7,6 +7,7 @@ import java.util.Map;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 /**
  * 角色管理（v1.7.0+ 静态角色列表）。
@@ -47,8 +48,8 @@ public class RoleController {
       )
   );
 
-  /** 返回预定义角色列表。 */
   @GetMapping
+  @PreAuthorize("hasAuthority('roles:view')")
   public ApiResponse<List<Map<String, Object>>> list() {
     return ApiResponse.success(ROLES);
   }

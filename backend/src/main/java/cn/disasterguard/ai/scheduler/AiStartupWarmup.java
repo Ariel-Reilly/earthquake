@@ -78,7 +78,6 @@ public class AiStartupWarmup {
       var r2 = deviceHealthService.refreshAllNow();
       log.info("AI 设备健康 warmup 完成: ok={} fail={} 耗时 {}ms",
           r2.get("ok"), r2.get("fail"), System.currentTimeMillis() - t1);
-      // v1.6.0：AI 灾害监测首次冷启动出首批点
       long t2 = System.currentTimeMillis();
       var r3 = hazardMonitor.tick();
       log.info("AI 灾害监测 warmup 完成: ok={} grid_points={} ai_detections={} 耗时 {}ms",

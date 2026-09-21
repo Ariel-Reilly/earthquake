@@ -4,18 +4,9 @@
  * 提供多模态数据融合、贡献度分析、权重配置等功能
  */
 import { request, createApiError, USE_BACKEND } from "../../dashboardApi.js";
+import { withQuery } from "../../../utils/query.js";
 
 const AI_SERVICE_BASE = import.meta.env.VITE_AI_SERVICE_URL || "http://localhost:8000/api";
-
-function withQuery(params) {
-  const search = new URLSearchParams();
-  Object.entries(params).forEach(([key, value]) => {
-    if (value !== undefined && value !== null && `${value}`.trim() !== "")
-      {search.set(key, String(value));}
-  });
-  const suffix = search.toString();
-  return suffix ? `?${suffix}` : "";
-}
 
 async function aiServiceRequest(path, options = {}) {
   const url = `${AI_SERVICE_BASE}${path}`;

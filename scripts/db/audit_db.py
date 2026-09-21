@@ -2,8 +2,8 @@
 import re
 from collections import defaultdict
 
-SCHEMA_PATH = r'D:\earthquake\backend\src\main\resources\schema.sql'
-DATA_PATH = r'D:\earthquake\backend\src\main\resources\data.sql'
+SCHEMA_PATH = r'D:\DisasterGuard\backend\src\main\resources\schema.sql'
+DATA_PATH = r'D:\DisasterGuard\backend\src\main\resources\data.sql'
 
 with open(SCHEMA_PATH, encoding='utf-8') as f:
     raw_schema = f.read()
@@ -395,7 +395,7 @@ print('\n' + '='*70)
 print('7. PERMISSION GRANULARITY CHECK')
 print('='*70)
 admin_perms = set()
-admin_block = re.search(r"-- 超级管理员全部权限.*?ON CONFLICT", data, re.DOTALL)
+admin_block = re.search(r"-- 超级管理员全部权�?*?ON CONFLICT", data, re.DOTALL)
 if admin_block:
     # Find SELECT id FROM sys_role WHERE role_code = 'admin'
     admin_block2 = re.search(r"SELECT r\.id, p\.code.*?role_code = 'admin'", data, re.DOTALL)

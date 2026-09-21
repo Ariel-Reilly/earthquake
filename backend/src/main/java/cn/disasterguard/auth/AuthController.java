@@ -59,7 +59,6 @@ public class AuthController {
     }
     boolean dbUser = userDetails.getPassword().startsWith("$2b$") || userDetails.getPassword().startsWith("$2a$");
     if (dbUser) {
-      // 更新最后登录时间
       var sysUser = userRepository.findByUsername(request.username());
       if (sysUser.isPresent()) {
         SysUser u = sysUser.get();

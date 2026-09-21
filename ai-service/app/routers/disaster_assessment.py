@@ -78,9 +78,6 @@ class DisasterAssessmentResponse(BaseModel):
     message: str = "ok"
 
 
-# ===== v1.6.0：批量灾害监测（AiHazardMonitorScheduler 调用） =====
-
-
 class MonitoringPoint(BaseModel):
     """单个监控点 v2.0：支持七类数据源全部字段。"""
 
@@ -113,7 +110,6 @@ class MonitoringPoint(BaseModel):
     geology_label: Optional[str] = Field(default=None, description="地质岩性标签")
     fault_distance_m: Optional[float] = Field(default=None, description="距最近活动断层距离（米）")
 
-    # ---- [4] 传感器（可选：接入设备才有）----
     displacement_rate: Optional[float] = Field(default=None, description="位移速率 mm/day")
     crack_width: Optional[float] = Field(default=None, description="裂缝宽度 mm")
 
@@ -179,7 +175,6 @@ def _factors_from_point(p: MonitoringPoint) -> Dict[str, float]:
     """
     factors: Dict[str, float] = {}
 
-    # ---- [1] 遥感影像 ----
     if p.image_anomaly_score is not None:
         factors["image_anomaly_score"] = float(p.image_anomaly_score)
     if p.image_source is not None:
@@ -200,7 +195,6 @@ def _factors_from_point(p: MonitoringPoint) -> Dict[str, float]:
         elif k == "rain_1h" and "rainfall_24h" not in weather:
             factors["rainfall_24h"] = float(v) * 24.0
 
-    # ---- [3] 地形地质 ----
     factors.setdefault("elevation_m", 800.0)
     factors.setdefault("slope_deg", 25.0)
     factors.setdefault("aspect_deg", 180.0)
@@ -220,21 +214,17 @@ def _factors_from_point(p: MonitoringPoint) -> Dict[str, float]:
     if p.geology_grade is not None:         factors["geology_grade"] = float(p.geology_grade)
     if p.fault_distance_m is not None:      factors["fault_distance_m"] = float(p.fault_distance_m)
 
-    # ---- [4] 地面传感器 ----
     if p.displacement_rate is not None: factors["displacement_rate"] = float(p.displacement_rate)
     if p.crack_width is not None:        factors["crack_width"] = float(p.crack_width)
 
-    # ---- [5] 历史灾情与承灾体 ----
     if p.historical_count is not None:      factors["historical_count"] = float(p.historical_count)
     if p.exposure_population is not None:   factors["exposure_population"] = float(p.exposure_population)
     if p.land_use_type is not None:        factors["land_use_type"] = 0.0  # 字符串
 
-    # ---- [6] 社交媒体 ----
     if p.social_alert_level is not None:     factors["social_alert_level"] = float(p.social_alert_level)
     if p.social_post_count is not None:      factors["social_post_count"] = float(p.social_post_count)
     if p.social_sentiment_score is not None: factors["social_sentiment_score"] = float(p.social_sentiment_score)
 
-    # ---- [7] 辅助数据 ----
     if p.nighttime_light_index is not None: factors["nighttime_light_index"] = float(p.nighttime_light_index)
     if p.infrastructure_score is not None:   factors["infrastructure_score"] = float(p.infrastructure_score)
     if p.road_access_score is not None:     factors["road_access_score"] = float(p.road_access_score)
@@ -324,7 +314,6 @@ class DetectRegionsRequest(BaseModel):
     region_codes: List[str] = Field(
         description="区域代码列表（如 ['100101', '100201']）"
     )
-    # v1.7.0：可选的区域中心坐标映射。key=region_code，value=(center_lon, center_lat)
     # 若传则优先使用；为空则回退到 _DEFAULT_REGION_CENTERS
     region_centers: Optional[Dict[str, Tuple[float, float]]] = Field(
         default=None,
@@ -348,10 +337,7 @@ class DetectRegionsResponse(BaseModel):
     execution_ms: int
 
 
-# -------------------------------------------------------------------------------------------------
-# v1.7.0 降级用：仅当 region_centers 未传入时作为兜底（仅 demo/测试用，不保证覆盖全国）
 # 生产环境请通过 Java 调度器从 region 表加载 center_lon/center_lat 并通过 region_centers 传入
-# -------------------------------------------------------------------------------------------------
 _DEFAULT_REGION_CENTERS: Dict[str, Tuple[float, float]] = {
     "100000": (107.34, 30.55),  # 龙川县
     "100100": (107.21, 30.61),  # 龙安镇
@@ -459,11 +445,8 @@ async def disaster_assessment_status():
     }
 
 
-# ================================================================================================
-# v1.7.0：独立测算路由 —— 不依赖接入设备，不依赖已知灾害点档案，
 #   只需传入坐标 + 天气（或仅坐标，AI 自动估算天气），返回完整七维度报告。
 #   支持中国任意经纬度（支持 lat∈[18,54]、lon∈[73,135] 范围）。
-# ================================================================================================
 
 
 class IndependentPoint(BaseModel):
@@ -479,7 +462,6 @@ class IndependentPoint(BaseModel):
         default=None,
         description="行政区划名称（可选；仅用于响应报告展示）",
     )
-    # ---- 可选天气因子 ----
     rainfall_24h: Optional[float] = Field(
         default=None, description="过去 24 小时累计降雨量（mm）"
     )
@@ -492,7 +474,6 @@ class IndependentPoint(BaseModel):
     humidity: Optional[float] = Field(
         default=None, description="相对湿度（0.0-1.0）"
     )
-    # ---- 可选地理因子 ----
     elevation_m: Optional[float] = Field(
         default=None, description="海拔（m）"
     )

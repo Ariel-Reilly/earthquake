@@ -36,6 +36,7 @@ public class TaskController {
   }
 
   @GetMapping
+  @PreAuthorize("hasAuthority('tasks:view')")
   public ApiResponse<PageResponse<TaskDto>> list(
       @RequestParam(defaultValue = "1") int page,
       @RequestParam(defaultValue = "10") int size,
@@ -46,6 +47,7 @@ public class TaskController {
   }
 
   @GetMapping("/{id}")
+  @PreAuthorize("hasAuthority('tasks:view')")
   public ApiResponse<Map<String, Object>> detail(@PathVariable Long id) {
     return ApiResponse.success(Map.of("item", taskService.getById(id)));
   }
@@ -82,7 +84,6 @@ public class TaskController {
   }
 
   // ============================================================ //
-  // v2.0：任务运行时端点（进度 / 执行日志 / 重试 / 终止）
   // ============================================================ //
 
   /**
@@ -90,6 +91,7 @@ public class TaskController {
    * GET /api/tasks/{id}/runtime
    */
   @GetMapping("/{id}/runtime")
+  @PreAuthorize("hasAuthority('tasks:view')")
   public ApiResponse<Map<String, Object>> taskRuntime(@PathVariable Long id) {
     InspectionTask task = taskService.findEntityById(id);
     if (task == null) {
@@ -131,6 +133,7 @@ public class TaskController {
    * GET /api/tasks/{id}/execution-log
    */
   @GetMapping("/{id}/execution-log")
+  @PreAuthorize("hasAuthority('tasks:view')")
   public ApiResponse<Map<String, Object>> taskExecutionLog(
       @PathVariable Long id,
       @RequestParam(defaultValue = "1") int page,
@@ -233,7 +236,7 @@ public class TaskController {
     return ApiResponse.fail(400, "当前状态不允许终止");
   }
 
-  /** 根据任务状态返回当前步骤描述 */
+  /** 根据 task.status + progress 返回执行步骤描述，用于前端轮询时实时显示进度文案。 */
   private String getCurrentStep(InspectionTask task) {
     if (task == null || task.getStatus() == null) return "未知";
     return switch (task.getStatus()) {

@@ -176,9 +176,7 @@ export const useUserPreferenceStore = defineStore('userPreference', {
   },
 })
 
-// ===X===X===X===X===X===X===X===X===X===X===X===X===X===X===X
 // 兼容层: 旧函数 API → store
-// ===X===X===X===X===X===X===X===X===X===X===X===X===X===X===X
 
 /**
  * @deprecated 直接使用 useUserPreferenceStore().xxx

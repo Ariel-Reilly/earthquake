@@ -29,7 +29,6 @@ public record WarningDto(
     OffsetDateTime confirmedAt,
     OffsetDateTime dispatchedAt,
     OffsetDateTime closedAt,
-    // ---- 所属灾害点的 AI 综合分析 ----
     String aiLevel,
     String aiLevelLabel,
     Double aiScore,

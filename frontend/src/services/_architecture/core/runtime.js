@@ -22,7 +22,7 @@ const API_BASE =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api";
 
 const HEALTH_PATH = "/system/health";
-const REPROBE_INTERVAL_MS = 30_000; // mock 模式下每 30 秒复检一次
+const REPROBE_INTERVAL_MS = 30_000;
 
 const EXPLICIT_FLAG = String(import.meta.env.VITE_USE_BACKEND ?? "")
   .toLowerCase();
@@ -40,7 +40,7 @@ let USE_BACKEND = EXPLICIT_FLAG === "true";
 
 let _reprobeTimer = null;
 let _reprobeInFlight = null;
-let _listeners = new Set();
+const _listeners = new Set();
 
 function setRuntime(mode, useBackend) {
   const prevMode = RUNTIME_MODE;

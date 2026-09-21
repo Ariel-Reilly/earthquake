@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 /**
  * 审批中心（v1.7.0+ P2-1）。
@@ -42,6 +43,7 @@ public class ApprovalCenterController {
 
   /** 审批统计（顶栏红点 + 审批中心顶部 4 个数字 + 14 天每日审批量）。 */
   @GetMapping("/stats")
+  @PreAuthorize("hasAuthority('approval:view')")
   public ApiResponse<Map<String, Object>> stats() {
     var all = warningRepository.findAll();
     long pending = all.stream().filter(w -> {
@@ -101,6 +103,7 @@ public class ApprovalCenterController {
 
   /** 审批列表（支持按状态 / 级别 / 关键字过滤）。 */
   @GetMapping
+  @PreAuthorize("hasAuthority('approval:view')")
   public ApiResponse<Map<String, Object>> list(
       @RequestParam(required = false) String status,
       @RequestParam(required = false) String level,

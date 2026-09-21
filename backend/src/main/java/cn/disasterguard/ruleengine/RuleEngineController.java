@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 @RestController
 @RequestMapping("/api/rules")
@@ -25,6 +26,7 @@ public class RuleEngineController {
    * 规则列表
    */
   @GetMapping
+  @PreAuthorize("hasAuthority('rules:view')")
   public ApiResponse<PageResponse<RuleDto>> list(
       @RequestParam(required = false) String disasterType,
       @RequestParam(required = false) String level,
@@ -40,6 +42,7 @@ public class RuleEngineController {
    * 规则详情
    */
   @GetMapping("/{id}")
+  @PreAuthorize("hasAuthority('rules:view')")
   public ApiResponse<RuleDto> detail(@PathVariable Long id) {
     RuleDto result = service.getById(id);
     return ApiResponse.success(result);
@@ -49,6 +52,7 @@ public class RuleEngineController {
    * 创建规则
    */
   @PostMapping
+  @PreAuthorize("hasAuthority('rules:edit')")
   public ApiResponse<RuleDto> create(@Valid @RequestBody RuleCreateRequest request) {
     String operator = currentOperator();
     RuleDto result = service.create(request, operator);
@@ -59,6 +63,7 @@ public class RuleEngineController {
    * 更新规则
    */
   @PutMapping("/{id}")
+  @PreAuthorize("hasAuthority('rules:edit')")
   public ApiResponse<RuleDto> update(@PathVariable Long id, @Valid @RequestBody RuleCreateRequest request) {
     RuleDto result = service.update(id, request);
     return ApiResponse.success(result);
@@ -68,6 +73,7 @@ public class RuleEngineController {
    * 删除规则
    */
   @DeleteMapping("/{id}")
+  @PreAuthorize("hasAuthority('rules:edit')")
   public ApiResponse<Void> delete(@PathVariable Long id) {
     service.delete(id);
     return ApiResponse.success("删除成功", null);
@@ -77,6 +83,7 @@ public class RuleEngineController {
    * 启用/停用
    */
   @PutMapping("/{id}/toggle")
+  @PreAuthorize("hasAuthority('rules:edit')")
   public ApiResponse<RuleDto> toggle(@PathVariable Long id) {
     RuleDto result = service.toggle(id);
     return ApiResponse.success(result);
@@ -86,6 +93,7 @@ public class RuleEngineController {
    * 测试规则
    */
   @PostMapping("/test")
+  @PreAuthorize("hasAuthority('rules:edit')")
   public ApiResponse<RuleTestResponse> test(
       @RequestBody RuleTestRequest request,
       @RequestParam Map<String, Object> inputData) {
@@ -98,6 +106,7 @@ public class RuleEngineController {
    * 执行日志
    */
   @GetMapping("/{id}/logs")
+  @PreAuthorize("hasAuthority('rules:view')")
   public ApiResponse<PageResponse<RuleExecutionLogDto>> logs(
       @PathVariable Long id,
       @RequestParam(defaultValue = "1") int page,
@@ -111,6 +120,7 @@ public class RuleEngineController {
    * 所有执行日志
    */
   @GetMapping("/logs")
+  @PreAuthorize("hasAuthority('rules:view')")
   public ApiResponse<PageResponse<RuleExecutionLogDto>> allLogs(
       @RequestParam(defaultValue = "1") int page,
       @RequestParam(defaultValue = "20") int size) {
@@ -123,6 +133,7 @@ public class RuleEngineController {
    * 版本回滚
    */
   @PostMapping("/{id}/rollback")
+  @PreAuthorize("hasAuthority('rules:edit')")
   public ApiResponse<RuleDto> rollback(
       @PathVariable Long id,
       @RequestParam Integer version) {
@@ -135,6 +146,7 @@ public class RuleEngineController {
    * 字段字典
    */
   @GetMapping("/fields")
+  @PreAuthorize("hasAuthority('rules:view')")
   public ApiResponse<List<FieldDictDto>> fields() {
     List<FieldDictDto> result = service.getFieldDicts();
     return ApiResponse.success(result);
@@ -144,6 +156,7 @@ public class RuleEngineController {
    * 可用操作符
    */
   @GetMapping("/operators")
+  @PreAuthorize("hasAuthority('rules:view')")
   public ApiResponse<List<Map<String, String>>> operators() {
     return ApiResponse.success(compiler.getAvailableOperators());
   }
@@ -152,6 +165,7 @@ public class RuleEngineController {
    * 刷新规则缓存
    */
   @PostMapping("/reload")
+  @PreAuthorize("hasAuthority('rules:edit')")
   public ApiResponse<Void> reload() {
     service.reloadRules();
     return ApiResponse.success("规则缓存已刷新", null);

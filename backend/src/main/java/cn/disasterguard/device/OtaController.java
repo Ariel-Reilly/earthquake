@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 @RestController
 @RequestMapping("/api/ota")
@@ -88,6 +89,7 @@ public class OtaController {
   // ── Firmware endpoints ─────────────────────────────────────────────────────
 
   @GetMapping("/firmwares")
+  @PreAuthorize("hasAuthority('devices:view')")
   public ApiResponse<PageResponse<Map<String, Object>>> listFirmwares(
       @RequestParam(defaultValue = "1") int page,
       @RequestParam(defaultValue = "10") int size,
@@ -111,6 +113,7 @@ public class OtaController {
   }
 
   @PostMapping("/firmwares")
+  @PreAuthorize("hasAuthority('devices:edit')")
   public ApiResponse<Map<String, Object>> uploadFirmware(
       @RequestParam("file") MultipartFile file,
       @RequestParam("version") String version,
@@ -130,6 +133,7 @@ public class OtaController {
   }
 
   @DeleteMapping("/firmwares/{firmwareId}")
+  @PreAuthorize("hasAuthority('devices:delete')")
   public ApiResponse<Void> deleteFirmware(@PathVariable String firmwareId) {
     FIRMWARES.remove(firmwareId);
     return ApiResponse.success("删除成功", null);
@@ -138,6 +142,7 @@ public class OtaController {
   // ── OTA task endpoints ─────────────────────────────────────────────────────
 
   @GetMapping("/tasks")
+  @PreAuthorize("hasAuthority('devices:view')")
   public ApiResponse<PageResponse<Map<String, Object>>> listTasks(
       @RequestParam(defaultValue = "1") int page,
       @RequestParam(defaultValue = "10") int size,
@@ -155,6 +160,7 @@ public class OtaController {
   }
 
   @PostMapping("/tasks")
+  @PreAuthorize("hasAuthority('devices:edit')")
   public ApiResponse<Map<String, Object>> createTask(@RequestBody Map<String, Object> body) {
     String firmwareId = (String) body.get("firmwareId");
     @SuppressWarnings("unchecked")
@@ -174,6 +180,7 @@ public class OtaController {
   }
 
   @GetMapping("/tasks/{taskId}")
+  @PreAuthorize("hasAuthority('devices:view')")
   public ApiResponse<Map<String, Object>> taskDetail(@PathVariable String taskId) {
     Map<String, Object> task = TASKS.get(taskId);
     if (task == null) {
@@ -197,6 +204,7 @@ public class OtaController {
   }
 
   @PostMapping("/tasks/{taskId}/cancel")
+  @PreAuthorize("hasAuthority('devices:edit')")
   public ApiResponse<Map<String, Object>> cancelTask(@PathVariable String taskId) {
     Map<String, Object> task = TASKS.get(taskId);
     if (task == null) {
@@ -208,6 +216,7 @@ public class OtaController {
   }
 
   @PostMapping("/tasks/{taskId}/retry")
+  @PreAuthorize("hasAuthority('devices:edit')")
   public ApiResponse<Map<String, Object>> retryTask(@PathVariable String taskId) {
     Map<String, Object> task = TASKS.get(taskId);
     if (task == null) {

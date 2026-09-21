@@ -46,7 +46,6 @@ public class OperationLog {
   @Column(name = "created_at", nullable = false)
   private OffsetDateTime createdAt;
 
-  // --- getters/setters ---
   public Long getId() { return id; }
   public void setId(Long id) { this.id = id; }
   public String getOperator() { return operator; }

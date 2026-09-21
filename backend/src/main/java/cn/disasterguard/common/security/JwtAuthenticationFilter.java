@@ -42,6 +42,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
   @Override
   protected boolean shouldNotFilter(HttpServletRequest request) {
     String path = request.getRequestURI();
+    // WebSocket 握手路径由 JwtHandshakeInterceptor 在握手层鉴权，Spring Security 放行
+    if (path.startsWith("/ws")) {
+      return true;
+    }
     // 只放行匿名端点；/api/auth/change-password、/api/auth/ws-ticket 等需要 JWT 身份，
     // 必须在过滤器内解析 token 注入 SecurityContext，否则 SecurityConfig 的
     // anyRequest().authenticated() 会拦截这些接口（改密/WS ticket 将永远 401）。

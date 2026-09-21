@@ -83,7 +83,6 @@ const SOURCE_COLOR = {
   MANUAL: "#2a8154",
 };
 
-// 状态
 const loading = ref(false);
 const refreshing = ref(false);
 const items = ref([]);
@@ -99,7 +98,7 @@ const selectedEvent = ref(null);
 const drawerVisible = ref(false);
 
 const filter = reactive({
-  state: "",        // 空 = 全部；点 KPI / 节点会写入
+  state: "",
   source: "",
   keyword: "",
 });
@@ -232,6 +231,16 @@ watch(
     if (code) openEventByCode(code);
   },
   { immediate: true },
+);
+
+// 当同一组件被 /events 与 /events/:code 两条路由复用时,
+// 路由参数 code 变化不会触发 onMounted,需要主动重拉数据。
+watch(
+  () => route.params.code,
+  () => {
+    if (!route.params.code) return; // 列表路由首次加载交给 onMounted
+    loadAll();
+  },
 );
 
 onMounted(async () => {

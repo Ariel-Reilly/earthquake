@@ -92,9 +92,7 @@ class HttpClientHolder:
         pass
 
 
-# ============================================================================
 # 并发 helpers
-# ============================================================================
 async def race_first_non_empty(
     *coros: Awaitable[Any],
     is_non_empty: Callable[[Any], bool],

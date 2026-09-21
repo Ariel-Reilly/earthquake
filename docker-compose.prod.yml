@@ -9,6 +9,36 @@
 # =============================================================================
 
 services:
+  # ---------------------------------------------------------------------------
+  # 基础设施凭证覆盖
+  # 原 dev 文件给 postgres/redis/minio 配了弱口令默认值，而 prod backend 读取的
+  # 是另一组变量（且为空）。两者不一致会导致：服务用弱口令启动、后端却拿到空密码，
+  # 表现为连接被拒或 healthcheck 永久失败（进而 backend 的 depends_on 永久阻塞）。
+  # 这里让基础设施与 backend 共用同一组变量，并用 :? 实现缺失即 fail-fast。
+  # ---------------------------------------------------------------------------
+  postgres:
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-disasterguard}
+      POSTGRES_USER: ${POSTGRES_USER:-disasterguard}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?生产环境必须设置 POSTGRES_PASSWORD}
+      TZ: ${TZ:-Asia/Shanghai}
+
+  redis:
+    command:
+      - "redis-server"
+      - "--appendonly"
+      - "yes"
+      - "--requirepass"
+      - "${REDIS_PASSWORD:?生产环境必须设置 REDIS_PASSWORD}"
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:?生产环境必须设置 REDIS_PASSWORD}", "ping"]
+
+  minio:
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-disasterguard}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?生产环境必须设置 MINIO_ROOT_PASSWORD}
+      TZ: ${TZ:-Asia/Shanghai}
+
   backend:
     build:
       context: .
@@ -37,14 +67,15 @@ services:
       POSTGRES_PORT: 5432
       POSTGRES_DB: ${POSTGRES_DB:-disasterguard}
       POSTGRES_USER: ${POSTGRES_USER:-disasterguard}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?生产环境必须设置 POSTGRES_PASSWORD}
       # Redis
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      REDIS_PASSWORD: ${REDIS_PASSWORD}
-      # MinIO（prod 必须显式设置）
-      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
-      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?生产环境必须设置 REDIS_PASSWORD}
+      # MinIO：必须与上方 minio 服务的 MINIO_ROOT_* 同源。
+      # 若后端用一套凭证、MinIO 服务端用另一套，连接必然被 403 拒绝。
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-disasterguard}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:?生产环境必须设置 MINIO_ROOT_PASSWORD}
       # EMQX MQTT（prod 必须显式设置）
       EMQX_USERNAME: ${EMQX_USERNAME}
       EMQX_PASSWORD: ${EMQX_PASSWORD}
@@ -56,7 +87,7 @@ services:
       TDENGINE_USERNAME: ${TDENGINE_USERNAME:-root}
       TDENGINE_PASSWORD: ${TDENGINE_PASSWORD:-taosdata}
       # AI 服务
-      AI_SERVICE_BASE_URL: ${AI_SERVICE_BASE_URL:-http://ai-service:8000/api/ai}
+      AI_SERVICE_BASE_URL: ${AI_SERVICE_BASE_URL:-http://ai-service:8001/api/ai}
       AI_ENABLED: ${AI_ENABLED:-true}
       AI_SCHEDULER_ENABLED: ${AI_SCHEDULER_ENABLED:-false}
       TZ: ${TZ:-Asia/Shanghai}

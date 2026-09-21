@@ -22,7 +22,7 @@ const loading = ref(true)
 /** AI 综合分排行。 */
 const aiList = ref([])
 
-// ===================== AI 巡检报告 Tab 状态 =====================
+// AI 巡检报告 Tab 状态
 const inspectionTabActive = ref(false)
 const inspectionDays = ref(7)
 const inspectionCustomFrom = ref("")
@@ -134,7 +134,7 @@ onMounted(loadData)
       >AI 巡检报告</button>
     </div>
 
-    <!-- ========== AI 综合分析 Tab ========== -->
+    <!-- AI 综合分析 Tab -->
     <template v-if="!inspectionTabActive">
     <div v-if="loading" class="panel" style="padding: 24px;">统计分析数据加载中...</div>
     <template v-else>

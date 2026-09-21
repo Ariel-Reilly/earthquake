@@ -23,7 +23,6 @@ public record DeviceDto(
     OffsetDateTime lastReportAt,
     String last,
     String point,
-    // ---- 所属灾害点的 AI 综合分析 ----
     String aiLevel,
     String aiLevelLabel,
     Double aiScore,

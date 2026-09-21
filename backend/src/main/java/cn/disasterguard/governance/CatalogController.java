@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 @RestController
 @RequestMapping("/api/catalog")
@@ -46,6 +47,7 @@ public class CatalogController {
   }
 
   @GetMapping("/summary")
+  @PreAuthorize("hasAuthority('data:catalog:view')")
   public ApiResponse<Map<String, Object>> summary() {
     Map<String, Object> result = Map.of(
         "totalAssets", 4L,
@@ -57,6 +59,7 @@ public class CatalogController {
   }
 
   @GetMapping("/assets")
+  @PreAuthorize("hasAuthority('data:catalog:view')")
   public ApiResponse<PageResponse<Map<String, Object>>> listAssets(
       @RequestParam(defaultValue = "1") int page,
       @RequestParam(defaultValue = "10") int size,
@@ -87,6 +90,7 @@ public class CatalogController {
   }
 
   @GetMapping("/assets/{id}")
+  @PreAuthorize("hasAuthority('data:catalog:view')")
   public ApiResponse<Map<String, Object>> getAsset(@PathVariable Long id) {
     Map<String, Object> asset = MOCK_ASSETS.stream()
         .filter(a -> a.get("id").equals(id))
@@ -114,6 +118,7 @@ public class CatalogController {
   }
 
   @PutMapping("/assets/{id}/tags")
+  @PreAuthorize("hasAuthority('data:catalog:view')")
   public ApiResponse<Map<String, Object>> updateTags(
       @PathVariable Long id,
       @RequestBody Map<String, Object> request
@@ -129,6 +134,7 @@ public class CatalogController {
   }
 
   @GetMapping("/usage")
+  @PreAuthorize("hasAuthority('data:catalog:view')")
   public ApiResponse<List<Map<String, Object>>> usage() {
     List<Map<String, Object>> stats = List.of(
         Map.of(
@@ -164,6 +170,7 @@ public class CatalogController {
   }
 
   @PostMapping("/assets/{id}/subscribe")
+  @PreAuthorize("hasAuthority('data:catalog:view')")
   public ApiResponse<Map<String, Object>> subscribe(
       @PathVariable Long id,
       @RequestBody Map<String, Object> request
@@ -180,5 +187,27 @@ public class CatalogController {
         "createdAt", OffsetDateTime.now(ZoneOffset.UTC).toString()
     );
     return ApiResponse.success("订阅成功", result);
+  }
+
+  /**
+   * 提交数据资产访问申请。
+   *
+   * <p>前端 DataCatalogPage 的「申请访问」按钮调用此接口，此前后端没有映射，
+   * 点击直接 404。这里补上映射并保留入参校验，但仍然返回 501：资产目录目前
+   * 返回的是内存示例数据（见 {@code listAssets}），没有落库的资产台账与审批流，
+   * 无法真正受理申请。与其返回一个假的"申请已提交"、让用户误以为有人在跟进，
+   * 不如明确告知未实现——待资产台账落库 + 接入审批流后再实现。
+   */
+  @PostMapping("/assets/{id}/access-requests")
+  @PreAuthorize("hasAuthority('data:catalog:view')")
+  public ApiResponse<Map<String, Object>> requestAccess(
+      @PathVariable Long id,
+      @RequestBody(required = false) Map<String, Object> payload
+  ) {
+    if (payload == null || payload.get("scenario") == null) {
+      return ApiResponse.fail(400, "请填写申请场景");
+    }
+    return ApiResponse.fail(501,
+        "数据资产访问申请尚未实现：资产目录为内存示例数据，未落库，暂无法受理申请（资产 " + id + "）");
   }
 }

@@ -1,0 +1,9 @@
+device_code,name,device_type,hazard_code,X,Y,Z_m
+SB-RAIN-01,李子坝雨量站,rain_gauge,HZ-SBOX-01,968.389,846.294,257.431
+SB-SOIL-01,坡体土壤含水站,soil_moisture,HZ-SBOX-01,1016.809,1112.364,359.644
+SB-GNSS-01,坡体位移站,gnss,HZ-SBOX-01,1065.228,1378.323,279.272
+SB-INCL-01,佛图关倾角站,inclinometer,HZ-SBOX-02,726.292,435.196,184.247
+SB-CRACK-01,佛图关裂缝计,crack_meter,HZ-SBOX-02,798.921,265.959,203.766
+WS-RIVER-01,嘉陵江水位站,water_level,HZ-SBOX-03,1452.584,1716.797,160.445
+SB-FLOOD-01,滨江低洼积水站,water_level,HZ-SBOX-04,2299.924,1257.393,147.283
+SB-CAM-01,沙盘坡体摄像头,camera,HZ-SBOX-01,992.599,725.474,179.717

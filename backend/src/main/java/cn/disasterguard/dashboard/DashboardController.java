@@ -17,6 +17,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -61,16 +62,19 @@ public class DashboardController {
   }
 
   @GetMapping("/overview")
+  @PreAuthorize("hasAuthority('overview:view')")
   public ApiResponse<List<OverviewCard>> overview() {
     return ApiResponse.success(dashboardService.overviewCards());
   }
 
   @GetMapping("/charts")
+  @PreAuthorize("hasAuthority('overview:view')")
   public ApiResponse<ChartData> charts() {
     return ApiResponse.success(dashboardService.chartData());
   }
 
   @GetMapping("/analytics")
+  @PreAuthorize("hasAuthority('overview:view')")
   public ApiResponse<Map<String, Object>> analytics() {
     ChartData chartData = dashboardService.chartData();
     List<HazardPoint> hazards = hazardRepository.findAll();
@@ -95,6 +99,7 @@ public class DashboardController {
   }
 
   @GetMapping("/summary")
+  @PreAuthorize("hasAuthority('overview:view')")
   public ApiResponse<Map<String, Object>> summary() {
     Map<String, Object> modules = new LinkedHashMap<>();
     modules.put("hazardPoints", hazardRepository.count());
@@ -120,7 +125,7 @@ public class DashboardController {
 
   /** 总览指标导出（xlsx 附件流）。 */
   @PostMapping("/overview/export")
-  @org.springframework.security.access.prepost.PreAuthorize("hasAuthority('overview:export')")
+  @PreAuthorize("hasAuthority('overview:view') or hasAuthority('overview:export')")
   public void export(jakarta.servlet.http.HttpServletResponse response) throws java.io.IOException {
     List<OverviewCard> cards = dashboardService.overviewCards();
     List<DashboardExportRow> rows = cards.stream()

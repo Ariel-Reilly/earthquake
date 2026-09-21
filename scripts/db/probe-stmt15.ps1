@@ -1,4 +1,19 @@
-﻿$env:PGPASSWORD = 'disasterguard123'
+﻿# Load .env for credential override
+$envFile = Join-Path $PSScriptRoot '..\..\.env'
+if (Test-Path $envFile) {
+  Get-Content $envFile | ForEach-Object {
+    if ($_ -match '^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$') {
+      $key = $Matches[1].Trim()
+      $val = $Matches[2].Trim().Trim('"', "'")
+      if (-not [string]::IsNullOrEmpty($key) -and [string]::IsNullOrEmpty([System.Environment]::GetEnvironmentVariable($key))) {
+        [System.Environment]::SetEnvironmentVariable($key, $val, 'Process')
+      }
+    }
+  }
+}
+$env:PGPASSWORD = $env:POSTGRES_PASSWORD
+if ([string]::IsNullOrEmpty($env:PGPASSWORD)) { $env:PGPASSWORD = 'disasterguard' }
+
 $content = Get-Content -Raw (Join-Path $PSScriptRoot '..\..\backend\src\main\resources\schema.sql')
 
 # 提取 schema.sql 第 15 句（hazard_point DO $E$ 块）到临时目录，psql 跑完即删

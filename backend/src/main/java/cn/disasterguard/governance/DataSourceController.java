@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 @RestController
 @RequestMapping("/api/datasources")
@@ -48,11 +49,13 @@ public class DataSourceController {
   }
 
   @GetMapping
+  @PreAuthorize("hasAuthority('datasource:view')")
   public ApiResponse<List<Map<String, Object>>> list() {
     return ApiResponse.success(new ArrayList<>(DATASOURCES.values()));
   }
 
   @PostMapping("/{code}/toggle")
+  @PreAuthorize("hasAuthority('datasource:view')")
   public ApiResponse<Map<String, Object>> toggle(@PathVariable String code, @RequestBody Map<String, Object> body) {
     Map<String, Object> ds = DATASOURCES.get(code);
     if (ds == null) {
@@ -67,6 +70,7 @@ public class DataSourceController {
   }
 
   @PostMapping("/{code}/test")
+  @PreAuthorize("hasAuthority('datasource:view')")
   public ApiResponse<Map<String, Object>> test(@PathVariable String code) {
     Map<String, Object> ds = DATASOURCES.get(code);
     if (ds == null) {

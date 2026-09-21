@@ -69,21 +69,24 @@ export default [
         AbortController: 'readonly',
         AbortSignal: 'readonly',
         WebGLRenderingContext: 'readonly',
+        HTMLCanvasElement: 'readonly',
+        HTMLImageElement: 'readonly',
+        queueMicrotask: 'readonly',
       },
     },
     rules: {
       // 代码风格
-      'no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
-      'no-undef': 'warn',
-      'no-console': ['off'],  // 开发环境保留 console
-      'no-debugger': 'warn',
+      'no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' }],
+      'no-undef': 'error',
+      'no-console': ['error', { allow: ['warn', 'error'] }],  // 生产环境只允许 warn/error
+      'no-debugger': 'error',
       'no-var': 'error',
-      'prefer-const': ['warn', { destructuring: 'all' }],
-      'no-constant-condition': ['warn', { checkLoops: false }],
+      'prefer-const': ['error', { destructuring: 'all' }],
+      'no-constant-condition': ['error', { checkLoops: false }],
       'no-useless-return': 'warn',
-      'no-empty': ['warn', { allowEmptyCatch: true }],
-      'eqeqeq': ['warn', 'allow-null'],
-      'curly': ['warn', 'all'],
+      'no-empty': ['error', { allowEmptyCatch: true }],
+      'eqeqeq': ['error', 'allow-null'],
+      'curly': ['error', 'all'],
     },
   },
 
@@ -95,7 +98,7 @@ export default [
       sourceType: 'module',
     },
     rules: {
-      'no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' }],
+      'no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' }],
     },
   },
 ];

@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 /**
  * 账户安全（Account Security）REST API。
@@ -47,7 +48,6 @@ public class AccountSecurityController {
   }
 
   private void initSampleData() {
-    // 初始化登录历史
     String[] ips = {"192.168.1.100", "10.0.0.50", "172.16.0.25"};
     String[] devices = {"Chrome/Windows", "Safari/macOS", "Chrome/Android"};
     String[] locations = {"北京", "上海", "广州"};
@@ -65,7 +65,6 @@ public class AccountSecurityController {
       loginHistory.put(id, history);
     }
 
-    // 初始化活跃会话
     for (int i = 0; i < 2; i++) {
       long sessionId = SESSION_ID_GEN.incrementAndGet();
       Map<String, Object> session = new LinkedHashMap<>();
@@ -78,7 +77,6 @@ public class AccountSecurityController {
       sessions.put(String.valueOf(sessionId), session);
     }
 
-    // 初始化审计日志
     String[] actions = {"修改密码", "启用两步验证", "登录", "退出登录", "修改手机号"};
     for (int i = 0; i < 5; i++) {
       long id = AUDIT_ID_GEN.incrementAndGet();
@@ -93,6 +91,7 @@ public class AccountSecurityController {
   }
 
   @GetMapping("/security")
+  @PreAuthorize("hasAuthority('settings:view')")
   public ApiResponse<Map<String, Object>> getSecuritySettings() {
     Map<String, Object> result = new LinkedHashMap<>();
     result.put("username", "admin");
@@ -105,6 +104,7 @@ public class AccountSecurityController {
   }
 
   @PostMapping("/2fa")
+  @PreAuthorize("hasAuthority('settings:edit')")
   public ApiResponse<Map<String, Object>> toggle2fa(@RequestBody Map<String, Object> body) {
     boolean enabled = Boolean.TRUE.equals(body.get("enabled"));
     String method = String.valueOf(body.getOrDefault("method", "APP"));
@@ -117,12 +117,14 @@ public class AccountSecurityController {
 
   /** 别名：/security/2fa（前端 doc 路径兼容）。 */
   @PostMapping("/security/2fa")
+  @PreAuthorize("hasAuthority('settings:edit')")
   public ApiResponse<Map<String, Object>> toggle2faAlias(@RequestBody Map<String, Object> body) {
     return toggle2fa(body);
   }
 
   /** 重新生成 2FA 备用恢复码。 */
   @PostMapping("/security/backup-codes/regenerate")
+  @PreAuthorize("hasAuthority('settings:edit')")
   public ApiResponse<Map<String, Object>> regenerateBackupCodes() {
     java.util.List<String> codes = new java.util.ArrayList<>();
     for (int i = 0; i < 10; i++) {
@@ -136,6 +138,7 @@ public class AccountSecurityController {
   }
 
   @GetMapping("/login-history")
+  @PreAuthorize("hasAuthority('settings:view')")
   public ApiResponse<Map<String, Object>> getLoginHistory(
       @RequestParam(defaultValue = "1") int page,
       @RequestParam(defaultValue = "20") int size) {
@@ -161,11 +164,13 @@ public class AccountSecurityController {
   }
 
   @GetMapping("/sessions")
+  @PreAuthorize("hasAuthority('settings:view')")
   public ApiResponse<List<Map<String, Object>>> getSessions() {
     return ApiResponse.success(new ArrayList<>(sessions.values()));
   }
 
   @DeleteMapping("/sessions/{sessionId}")
+  @PreAuthorize("hasAuthority('settings:edit')")
   public ApiResponse<Map<String, Object>> revokeSession(@PathVariable String sessionId) {
     if (!sessions.containsKey(sessionId)) {
       return ApiResponse.fail(404, "会话不存在: " + sessionId);
@@ -175,6 +180,7 @@ public class AccountSecurityController {
   }
 
   @GetMapping("/audit")
+  @PreAuthorize("hasAuthority('settings:view')")
   public ApiResponse<Map<String, Object>> getAuditLog(
       @RequestParam(defaultValue = "1") int page,
       @RequestParam(defaultValue = "20") int size,

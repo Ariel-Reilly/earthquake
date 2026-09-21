@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 /**
  * 统一事件状态查询 / 驱动 API（v1.7.0+ P3-4）。
@@ -39,11 +40,13 @@ public class EventStateController {
   }
 
   @GetMapping("/stats")
+  @PreAuthorize("hasAuthority('events:view')")
   public Map<EventState, Long> stats() {
     return service.countByState();
   }
 
   @GetMapping("/active")
+  @PreAuthorize("hasAuthority('events:view')")
   public List<UnifiedEventEntity> active() {
     return service.listActive();
   }
@@ -55,6 +58,7 @@ public class EventStateController {
    * @return items + total + page + size + pages
    */
   @GetMapping("/list")
+  @PreAuthorize("hasAuthority('events:view')")
   public Map<String, Object> list(
       @RequestParam(required = false) String type,
       @RequestParam(required = false) String keyword,
@@ -79,6 +83,7 @@ public class EventStateController {
   }
 
   @GetMapping("/{code}")
+  @PreAuthorize("hasAuthority('events:view')")
   public UnifiedEventEntity detail(@PathVariable String code) {
     return service.findByEventCode(code);
   }
@@ -90,6 +95,7 @@ public class EventStateController {
    * </pre>
    */
   @PostMapping("/{code}/transition")
+  @PreAuthorize("hasAuthority('events:view')")
   public Map<String, Object> transition(
       @PathVariable String code,
       @RequestBody TransitionRequest body
@@ -104,6 +110,7 @@ public class EventStateController {
 
   /** 兼容旧用法：通过 query 触发，便于快速调试 */
   @PostMapping("/{code}/transition/query")
+  @PreAuthorize("hasAuthority('events:view')")
   public Map<String, Object> transitionQuery(
       @PathVariable String code,
       @RequestParam String trigger,

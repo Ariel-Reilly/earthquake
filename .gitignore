@@ -109,8 +109,10 @@ coverage/
 # 临时 SQL 片段（probe-stmt*.ps1 抽取 schema.sql 片段调试，产物不入库）
 statement*.sql
 # ai-service 偶发写入根目录的日志文件（Windows 启动脚本调试残留）
-ai-service/$aiLog
-ai-service/$*.Log
+# ai-service/ai-*.log
+# ai-service/infra-*.log
+# ai-service/backend-*.log
+# ai-service/frontend-*.log
 # AI 服务运行期产物（合成图、差异图、SAR / 真彩 PNG / JPG）
 # 体积较大且可由接口按需重建，禁用入版本库
 ai-service/outputs/
@@ -123,3 +125,7 @@ Desktop.ini
 *.swo
 *~
 .bundle/
+
+# ===== 本地助手 / 临时产物（不入库）=====
+.workbuddy/
+.trae-html-share-packages/

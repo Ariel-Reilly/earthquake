@@ -334,12 +334,12 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="welcome-page" :style="{ '--scroll-y': scrollY + 'px' }">
-    <!-- ====== 背景层（与登录页一致的粒子动画背景，固定铺满视口） ====== -->
+    <!-- 背景层（与登录页一致的粒子动画背景，固定铺满视口） -->
     <div class="bg" aria-hidden="true">
       <AnimatedLoginBackground />
     </div>
 
-    <!-- ====== 顶部导航 ====== -->
+    <!-- 顶部导航 -->
     <header class="topnav" :class="{ scrolled: navScrolled }">
       <div class="topnav-inner">
         <button class="brand" @click="scrollToTop">
@@ -375,7 +375,7 @@ onBeforeUnmount(() => {
       </div>
     </header>
 
-    <!-- ====== Hero ====== -->
+    <!-- Hero -->
     <section class="hero">
       <div class="hero-inner">
         <span class="hero-badge reveal">
@@ -475,7 +475,6 @@ onBeforeUnmount(() => {
       </div>
     </section>
 
-    <!-- ====== 数据条 ====== -->
     <section class="stats-strip reveal" data-stat-section="true">
       <div
         v-for="(s, i) in stats"
@@ -491,7 +490,7 @@ onBeforeUnmount(() => {
       </div>
     </section>
 
-    <!-- ====== 核心能力 ====== -->
+    <!-- 核心能力 -->
     <section id="features" class="section features-section">
       <div class="section-head reveal">
         <span class="eyebrow">CAPABILITIES</span>
@@ -514,7 +513,7 @@ onBeforeUnmount(() => {
       </div>
     </section>
 
-    <!-- ====== 工作流程 ====== -->
+    <!-- 工作流程 -->
     <section id="workflow" class="section workflow-section">
       <div class="section-head reveal">
         <span class="eyebrow">WORKFLOW</span>
@@ -609,7 +608,7 @@ onBeforeUnmount(() => {
       </div>
     </section>
 
-    <!-- ====== 系统架构 ====== -->
+    <!-- 系统架构 -->
     <section id="architecture" class="section architecture-section">
       <div class="section-head reveal">
         <span class="eyebrow">ARCHITECTURE</span>
@@ -638,7 +637,6 @@ onBeforeUnmount(() => {
       </div>
     </section>
 
-    <!-- ====== 定制化 ====== -->
     <section class="section tailored-section">
       <div class="section-head reveal">
         <span class="eyebrow">KEY FEATURES</span>
@@ -660,7 +658,7 @@ onBeforeUnmount(() => {
       </div>
     </section>
 
-    <!-- ====== 角色方案 ====== -->
+    <!-- 角色方案 -->
     <section id="roles" class="section roles-section">
       <div class="section-head reveal">
         <span class="eyebrow">PLATFORM ROLES</span>
@@ -690,7 +688,7 @@ onBeforeUnmount(() => {
       </div>
     </section>
 
-    <!-- ====== FAQ ====== -->
+    <!-- FAQ -->
     <section id="faq" class="section faq-section">
       <div class="section-head reveal">
         <span class="eyebrow">FAQ</span>
@@ -711,7 +709,7 @@ onBeforeUnmount(() => {
       </div>
     </section>
 
-    <!-- ====== CTA ====== -->
+    <!-- CTA -->
     <section class="section cta-section">
       <div class="cta-card reveal">
         <div class="cta-glow" />
@@ -727,7 +725,6 @@ onBeforeUnmount(() => {
       </div>
     </section>
 
-    <!-- ====== 页脚 ====== -->
     <footer class="footer">
       <div class="footer-inner">
         <div class="footer-brand">
@@ -747,7 +744,7 @@ onBeforeUnmount(() => {
       </div>
     </footer>
 
-    <!-- ====== 登录弹窗 ====== -->
+    <!-- 登录弹窗 -->
     <Teleport to="body">
       <Transition name="modal">
         <div v-if="showLoginModal" class="login-modal-overlay" @click.self="closeLogin">

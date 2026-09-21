@@ -61,7 +61,7 @@ const loading = ref(false)
 const errorMsg = ref('')
 const batchLoading = ref(false)
 
-// ==================== 多模态融合状态 ====================
+// 多模态融合状态
 const fusionResult = ref(null)
 const fusionLoading = ref(false)
 const fusionExpanded = ref(false)
@@ -97,7 +97,7 @@ function startFusionAutoRefresh() {
     if (fusionAutoRefresh.value && fusionExpanded.value) {
       loadFusionResult()
     }
-  }, 5 * 60 * 1000) // 5分钟
+  }, 5 * 60 * 1000)
 }
 
 function stopFusionAutoRefresh() {
@@ -165,7 +165,6 @@ async function loadReport() {
   loading.value = true
   errorMsg.value = ''
   try {
-    // v1.3.0 改为调 disaster-assessment 端点（独立测算 + 灾害类型）
     report.value = await aiApi.disasterAssessment(selectedCode.value)
   } catch (err) {
     errorMsg.value = err?.message || 'AI 灾害评估失败，请稍后重试'
@@ -219,7 +218,6 @@ const concernBadge = computed(() => {
 const reasoning = computed(() => report.value?.reasoning ?? [])
 const suggestedActions = computed(() => report.value?.suggestedActions ?? [])
 
-// v1.4.0：SHAP-like 特征贡献度
 const featureContributions = computed(() => report.value?.feature_contributions ?? [])
 const MAX_CONTRIB = computed(() => {
   const cs = featureContributions.value
@@ -232,9 +230,9 @@ function contribWidth(c) {
   return Math.max(2, (c / Math.max(MAX_CONTRIB.value, 1)) * 100)
 }
 function contribColor(c) {
-  if (c >= 20) return '#dc2626'  // 红：高分
-  if (c >= 10) return '#f59e0b'  // 橙：中分
-  return '#10b981'  // 绿：低分
+  if (c >= 20) return '#dc2626'
+  if (c >= 10) return '#f59e0b'
+  return '#10b981'
 }
 const FEATURE_LABELS = {
   rainfall_24h: '24h 降雨',
@@ -261,12 +259,10 @@ function featureLabel(name) {
   return FEATURE_LABELS[name] || name
 }
 
-// v1.4.0：AI 反馈状态
-const feedbackSubmitted = ref(null)  // null=未反馈, true=实际发生, false=实际未发生
+const feedbackSubmitted = ref(null)
 const feedbackSending = ref(false)
 const feedbackError = ref('')
 
-// v1.5.0：XGBoost 真实模型状态
 const modelInfo = ref(null)
 const reloading = ref(false)
 async function loadModelInfo() {
@@ -442,7 +438,6 @@ onMounted(async () => {
               <small>/ 100</small>
             </div>
             <div class="overall-card-meta">
-              <!-- v1.3.0 三件套：风险等级 + 关注度 + 灾害类型 -->
               <div class="overall-tag-row">
                 <span class="overall-level-badge">{{ overallLevel.label }}</span>
                 <span class="concern-badge" :class="`level-${concernBadge.color}`">
@@ -458,7 +453,6 @@ onMounted(async () => {
               <p class="overall-model">
                 模型 <code>{{ report.overall.model }}</code>
                 <span v-if="report.degraded" class="mock-tag">降级</span>
-                <!-- v1.5.0：真实模型/启发式徽标 -->
                 <span v-if="modelInfo" class="model-badge" :class="modelInfo.model_loaded ? 'model-real' : 'model-heuristic'">
                   <Cpu :size="11" />
                   {{ modelInfo.model_loaded ? '真实模型' : '启发式' }}
@@ -491,7 +485,7 @@ onMounted(async () => {
             </div>
           </div>
 
-          <!-- ===== 多模态融合面板 v2.0 ===== -->
+          <!-- 多模态融合面板 v2.0 -->
           <div class="fusion-panel" :class="{ expanded: fusionExpanded }">
             <div class="fusion-header" @click="toggleFusionPanel">
               <div class="fusion-title">

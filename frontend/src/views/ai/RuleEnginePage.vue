@@ -12,7 +12,6 @@ import RuleTestPanel from "../../components/rule/RuleTestPanel.vue"
 
 const emit = defineEmits(["notify"])
 
-// 状态
 const view = ref("list") // list | edit | test
 const editingRule = ref(null)
 const testingRule = ref(null)
@@ -23,7 +22,6 @@ function handleEdit(rule) {
   view.value = "edit"
 }
 
-// 新建
 function handleCreate() {
   editingRule.value = null
   view.value = "edit"
@@ -34,13 +32,11 @@ function handleSave() {
   view.value = "list"
 }
 
-// 复制
 function handleDuplicate(rule) {
   editingRule.value = rule
   view.value = "edit"
 }
 
-// 测试
 function handleTest(rule) {
   testingRule.value = rule
   view.value = "test"

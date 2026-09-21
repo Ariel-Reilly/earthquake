@@ -298,7 +298,6 @@ public class RuleEngineService {
       logPage = logRepository.findAllByOrderByExecutedAtDesc(PageRequest.of(page - 1, size));
     }
 
-    // 获取规则名称映射
     Map<Long, String> ruleNames = ruleRepository.findAll().stream()
         .collect(HashMap::new, (m, r) -> m.put(r.getId(), r.getName()), Map::putAll);
 
@@ -327,7 +326,6 @@ public class RuleEngineService {
     throw new UnsupportedOperationException("版本回滚功能待实现");
   }
 
-  // ===== 私有方法 =====
 
   private void applyRequest(Rule rule, RuleCreateRequest request) {
     rule.setName(request.name());

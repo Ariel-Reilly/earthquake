@@ -42,6 +42,7 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import cn.disasterguard.common.api.ApiResponse;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 @RestController
 @RequestMapping("/api/ai")
@@ -79,6 +80,7 @@ public class AiController {
 
   /** 图像识别。 */
   @PostMapping("/detect")
+  @PreAuthorize("hasAuthority('ai:insight:view')")
   public ApiResponse<DetectionResult> detect(
       @RequestPart("file") MultipartFile file,
       @RequestParam(required = false, defaultValue = "yolo") String modelType
@@ -88,12 +90,14 @@ public class AiController {
 
   /** 时序预测（显式传入历史数据）。 */
   @PostMapping("/forecast")
+  @PreAuthorize("hasAuthority('ai:insight:view')")
   public ApiResponse<ForecastResult> forecast(@RequestBody ForecastRequest request) {
     return ApiResponse.success(client.forecast(request.deviceCode(), request.metric(), request.horizon(), request.history()));
   }
 
   /** 时序预测（自动从 DB 拉取历史数据）。 */
   @GetMapping("/forecast/auto")
+  @PreAuthorize("hasAuthority('ai:insight:view')")
   public ApiResponse<ForecastResult> forecastAuto(
       @RequestParam String deviceCode,
       @RequestParam(defaultValue = "displacement") String metric,
@@ -125,12 +129,14 @@ public class AiController {
 
   /** 异常检测。 */
   @PostMapping("/anomaly")
+  @PreAuthorize("hasAuthority('ai:insight:view')")
   public ApiResponse<AnomalyResult> anomaly(@RequestBody AnomalyRequest request) {
     return ApiResponse.success(client.anomaly(request.deviceCode(), request.data()));
   }
 
   /** 融合预警（显式传入因子）。 */
   @PostMapping("/fusion-risk")
+  @PreAuthorize("hasAuthority('ai:insight:view')")
   public ApiResponse<FusionRiskResult> fusionRisk(@RequestBody FusionRiskRequest request) {
     return ApiResponse.success(client.fusionRisk(request.hazardCode(), request.factors()));
   }
@@ -143,6 +149,7 @@ public class AiController {
    * 若 hazard 无关联设备或无指标数据，使用合成因子兜底（仍调用 AI，保证前端能看到结果）。
    */
   @GetMapping("/fusion-risk/auto")
+  @PreAuthorize("hasAuthority('ai:insight:view')")
   public ApiResponse<FusionRiskResult> fusionRiskAuto(@RequestParam String hazardCode) {
     Map<String, Double> factors = new LinkedHashMap<>();
 
@@ -214,6 +221,7 @@ public class AiController {
    * <p>不读落库表（即使已有缓存也强制跑一遍）；前端"AI 综合分析"页面或点击"重新分析"时调用。
    */
   @GetMapping("/comprehensive-analysis")
+  @PreAuthorize("hasAuthority('ai:insight:view')")
   public ApiResponse<ComprehensiveAnalysisResult> comprehensiveAnalysis(
       @RequestParam String hazardCode
   ) {
@@ -244,6 +252,7 @@ public class AiController {
    * 给地脉智巡助手 + 概览页面 + 排行榜组件使用；5 分钟一定时刷新（来自 scheduler）。
    */
   @GetMapping("/comprehensive-analysis/all")
+  @PreAuthorize("hasAuthority('ai:insight:view')")
   public ApiResponse<List<Map<String, Object>>> comprehensiveAnalysisAll() {
     List<Map<String, Object>> rows = new ArrayList<>();
     for (AiComprehensiveScore s : insightService.listAll()) {
@@ -258,6 +267,7 @@ public class AiController {
    * 缓存缺失（未到下一次落库周期）时返回 404，前端可选择触发 /refresh-one 强制跑一次。
    */
   @GetMapping("/comprehensive-analysis/cached")
+  @PreAuthorize("hasAuthority('ai:insight:view')")
   public ApiResponse<Map<String, Object>> comprehensiveAnalysisCached(
       @RequestParam String hazardCode
   ) {
@@ -272,12 +282,14 @@ public class AiController {
    * @return 包含 analyzedCount/failedCount/failedHazards/beforeCount/afterCount 的 Map
    */
   @PostMapping("/comprehensive-analysis/refresh")
+  @PreAuthorize("hasAuthority('ai:insight:view')")
   public ApiResponse<Map<String, Object>> comprehensiveAnalysisRefresh() {
     return ApiResponse.success(insightService.refreshAllNow());
   }
 
   /** 强制刷新单个 hazard。 */
   @PostMapping("/comprehensive-analysis/refresh-one")
+  @PreAuthorize("hasAuthority('ai:insight:view')")
   public ApiResponse<Boolean> comprehensiveAnalysisRefreshOne(@RequestParam String hazardCode) {
     try {
       insightService.refreshOne(hazardCode);
@@ -287,7 +299,6 @@ public class AiController {
     }
   }
 
-  // ----------------------- 灾害评估 v1.3.0 -----------------------
 
   /**
    * 单独灾害评估：基于 hazard 实体 + DB 因子聚合调 Python 灾害评估端点。
@@ -301,6 +312,7 @@ public class AiController {
    * <p>设备维度可选 —— 无设备时 Python 端会按 geographic+precipitation 权重自动测算并标 device_available=false。
    */
   @GetMapping("/disaster-assessment")
+  @PreAuthorize("hasAuthority('ai:insight:view')")
   public ApiResponse<DisasterAssessmentResponseDto> disasterAssessment(@RequestParam String hazardCode) {
     DisasterAssessmentRequestDto req = support.buildDisasterAssessmentRequest(hazardCode);
     DisasterAssessmentResponseDto result = client.disasterAssessment(req);
@@ -309,6 +321,7 @@ public class AiController {
 
   /** 灾害评估字典自检（前端探针/调试用）。 */
   @GetMapping("/disaster-assessment/status")
+  @PreAuthorize("hasAuthority('ai:insight:view')")
   public ApiResponse<Map<String, Object>> disasterAssessmentStatus() {
     Map<String, Object> dict = new LinkedHashMap<>();
     dict.put("disasterTypes", List.of("滑坡", "崩塌", "泥石流", "地裂缝", "地面沉降", "塌陷"));
@@ -321,7 +334,6 @@ public class AiController {
     return ApiResponse.success(dict);
   }
 
-  // ----------------------- v1.7.0 全国独立测算 -----------------------
 
   /**
    * 全国独立测算：基于坐标 + 可选天气/地理因子，不依赖接入设备/已知灾害点档案。
@@ -341,6 +353,7 @@ public class AiController {
    * @return 每个点的完整七维度评估结论（riskLevel / concernLabel / disasterType / reasoning / suggestedActions）
    */
   @PostMapping("/disaster-assessment/independent")
+  @PreAuthorize("hasAuthority('ai:insight:view')")
   public ApiResponse<IndependentAssessmentResponseDto> independentAssessment(
       @Valid @RequestBody IndependentAssessmentRequestDto request
   ) {
@@ -379,13 +392,13 @@ public class AiController {
     return ApiResponse.success(result);
   }
 
-  // ----------------------- 设备健康评分 -----------------------
 
   /**
    * AI 设备健康评分落库列表（按健康分升序，异常在前）。
    * 给 DevicesPage / DeviceDetailPage / 概览统计 / AiAssistant 排行用。
    */
   @GetMapping("/device-health/all")
+  @PreAuthorize("hasAuthority('ai:insight:view')")
   public ApiResponse<List<Map<String, Object>>> deviceHealthAll() {
     List<Map<String, Object>> rows = new ArrayList<>();
     for (var s : deviceHealthService.listAll()) {
@@ -396,6 +409,7 @@ public class AiController {
 
   /** 单设备 AI 健康评分。 */
   @GetMapping("/device-health")
+  @PreAuthorize("hasAuthority('ai:insight:view')")
   public ApiResponse<Map<String, Object>> deviceHealth(@RequestParam String deviceCode) {
     return deviceHealthService.findByDeviceCode(deviceCode)
         .map(s -> ApiResponse.success(deviceHealthService.toAttachmentMap(s)))
@@ -404,12 +418,14 @@ public class AiController {
 
   /** 强制刷新所有设备 AI 健康评分。 */
   @PostMapping("/device-health/refresh")
+  @PreAuthorize("hasAuthority('ai:insight:view')")
   public ApiResponse<Map<String, Object>> deviceHealthRefresh() {
     return ApiResponse.success(deviceHealthService.refreshAllNow());
   }
 
   /** 强制刷新单台设备 AI 健康评分。 */
   @PostMapping("/device-health/refresh-one")
+  @PreAuthorize("hasAuthority('ai:insight:view')")
   public ApiResponse<Map<String, Object>> deviceHealthRefreshOne(@RequestParam String deviceCode) {
     try {
       var row = deviceHealthService.refreshOne(deviceCode);
@@ -427,12 +443,14 @@ public class AiController {
    * <p>demo 阶段用关键词分发到具体分析能力。生产可替换为 LLM（OpenAI/Moonshot）。
    */
   @PostMapping("/chat")
+  @PreAuthorize("hasAuthority('ai:insight:view')")
   public ApiResponse<Map<String, Object>> chat(@RequestBody ChatRequest request) {
     return ApiResponse.success(insightService.chat(request.message()));
   }
 
   /** GET 形态兼容（部分前端 fetch 库不便 POST JSON 时使用）。 */
   @GetMapping("/chat")
+  @PreAuthorize("hasAuthority('ai:insight:view')")
   public ApiResponse<Map<String, Object>> chatGet(@RequestParam("q") String message) {
     return ApiResponse.success(insightService.chat(message));
   }
@@ -444,6 +462,7 @@ public class AiController {
    * 后续可触发 train_xgboost.py 重新训练。
    */
   @PostMapping("/feedback")
+  @PreAuthorize("hasAuthority('ai:insight:view')")
   public ApiResponse<Map<String, Object>> submitFeedback(@RequestBody FeedbackRequestDto request) {
     try {
       Map<String, Object> resp = client.submitFeedback(request);
@@ -455,7 +474,6 @@ public class AiController {
   }
 
   // ============================================================ //
-  // v1.5.0：真实 XGBoost 模型信息端点（透传到 Python ai-service）
   // ============================================================ //
 
   /**
@@ -463,6 +481,7 @@ public class AiController {
    * 用于前端展示「真实模型/启发式」徽标 + 训练时间 + 模型版本。
    */
   @GetMapping("/model/info")
+  @PreAuthorize("hasAuthority('ai:insight:view')")
   public ApiResponse<Map<String, Object>> modelInfo() {
     try {
       Map<String, Object> info = client.modelInfo();
@@ -475,6 +494,7 @@ public class AiController {
 
   /** 重新加载磁盘模型（训练后立即热加载）。 */
   @PostMapping("/model/reload")
+  @PreAuthorize("hasAuthority('ai:insight:view')")
   public ApiResponse<Map<String, Object>> modelReload() {
     try {
       Map<String, Object> info = client.modelReload();
@@ -499,6 +519,7 @@ public class AiController {
    * 真实失败信息放在 {@code detail} 字段供运维排查。
    */
   @GetMapping("/health")
+  @PreAuthorize("hasAuthority('ai:insight:view')")
   public ApiResponse<Map<String, Object>> health() {
     Map<String, Object> body = new java.util.LinkedHashMap<>();
     body.put("service", "disasterguard-ai");
@@ -557,7 +578,6 @@ public class AiController {
   }
 
   // ============================================================ //
-  // v2.0：AI 模型管理端点（模型版本 / 训练任务 / 激活）
   // ============================================================ //
 
   /**
@@ -588,6 +608,7 @@ public class AiController {
    * GET /api/ai/models
    */
   @GetMapping("/models")
+  @PreAuthorize("hasAuthority('ai:insight:view')")
   public ApiResponse<Map<String, Object>> listModels() {
     List<Map<String, Object>> items = new java.util.ArrayList<>();
     items.add(modelEntry("v1.0.0", "fusion_xgb", "v1.0.0", "ACTIVE",
@@ -609,6 +630,7 @@ public class AiController {
    * <p>设计为可以扩展为真实 XGBoost 模型元数据拉取（当前为与 v1.0.0 / v0.9.1 对齐的演示数据）。
    */
   @GetMapping("/models/{versionId}")
+  @PreAuthorize("hasAuthority('ai:insight:view')")
   public ApiResponse<Map<String, Object>> getModelDetail(@PathVariable String versionId) {
     java.util.LinkedHashMap<String, Object> item = new java.util.LinkedHashMap<>();
     item.put("versionId", versionId);
@@ -667,6 +689,7 @@ public class AiController {
    * GET /api/ai/models/stats
    */
   @GetMapping("/models/stats")
+  @PreAuthorize("hasAuthority('ai:insight:view')")
   public ApiResponse<Map<String, Object>> modelStats() {
     List<Map<String, Object>> families = List.of(
         Map.of(
@@ -684,6 +707,7 @@ public class AiController {
    * GET /api/ai/models/training-jobs
    */
   @GetMapping("/models/training-jobs")
+  @PreAuthorize("hasAuthority('ai:insight:view')")
   public ApiResponse<Map<String, Object>> listTrainingJobs() {
     List<Map<String, Object>> items = List.of(
         Map.of(
@@ -704,6 +728,7 @@ public class AiController {
    * POST /api/ai/models/training-jobs
    */
   @PostMapping("/models/training-jobs")
+  @PreAuthorize("hasAuthority('ai:insight:view')")
   public ApiResponse<Map<String, Object>> createTrainingJob(@RequestBody Map<String, Object> request) {
     String family = (String) request.getOrDefault("family", "fusion_xgb");
     Integer datasetSize = request.get("datasetSize") != null
@@ -725,6 +750,7 @@ public class AiController {
    * POST /api/ai/models/training-jobs/{id}/start
    */
   @PostMapping("/models/training-jobs/{id}/start")
+  @PreAuthorize("hasAuthority('ai:insight:view')")
   public ApiResponse<Map<String, Object>> startTrainingJob(@PathVariable Long id) {
     Map<String, Object> result = new java.util.LinkedHashMap<>();
     result.put("id", id);
@@ -738,6 +764,7 @@ public class AiController {
    * POST /api/ai/models/training-jobs/{id}/stop
    */
   @PostMapping("/models/training-jobs/{id}/stop")
+  @PreAuthorize("hasAuthority('ai:insight:view')")
   public ApiResponse<Map<String, Object>> stopTrainingJob(@PathVariable Long id) {
     Map<String, Object> result = new java.util.LinkedHashMap<>();
     result.put("id", id);
@@ -751,6 +778,7 @@ public class AiController {
    * GET /api/ai/models/training-jobs/{id}/log
    */
   @GetMapping("/models/training-jobs/{id}/log")
+  @PreAuthorize("hasAuthority('ai:insight:view')")
   public ApiResponse<Map<String, Object>> trainingJobLog(
       @PathVariable Long id,
       @RequestParam(defaultValue = "1") int page,
@@ -777,6 +805,7 @@ public class AiController {
    * POST /api/ai/models/{versionId}/activate
    */
   @PostMapping("/models/{versionId}/activate")
+  @PreAuthorize("hasAuthority('ai:insight:view')")
   public ApiResponse<Map<String, Object>> activateModelByPath(@PathVariable String versionId) {
     Map<String, Object> result = new java.util.LinkedHashMap<>();
     result.put("versionId", versionId);
@@ -790,6 +819,7 @@ public class AiController {
    * POST /api/ai/models/activate
    */
   @PostMapping("/models/activate")
+  @PreAuthorize("hasAuthority('ai:insight:view')")
   public ApiResponse<Map<String, Object>> activateModel(@RequestBody Map<String, Object> request) {
     String versionId = (String) request.get("versionId");
     Map<String, Object> result = new java.util.LinkedHashMap<>();
@@ -804,6 +834,7 @@ public class AiController {
    * DELETE /api/ai/models/{versionId}
    */
   @DeleteMapping("/models/{versionId}")
+  @PreAuthorize("hasAuthority('ai:insight:view')")
   public ApiResponse<Void> deleteModel(@PathVariable String versionId) {
     if ("v1.0.0".equals(versionId) || "ACTIVE".equals(versionId)) {
       return ApiResponse.fail(400, "无法删除活跃版本的模型");

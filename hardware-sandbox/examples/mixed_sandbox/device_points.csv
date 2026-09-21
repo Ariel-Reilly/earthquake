@@ -1,0 +1,17 @@
+﻿编号,名称,类型,区域,X_mm,Y_mm,Z_mm,对应ESP32节点,MQTT主题,说明
+SB-CRACK-01,裂缝计,crack_meter,A,250,480,0,Node-A,disasterguard/SB-CRACK-01/data,滑坡体后缘
+SB-DISP-01,位移计,displacement,A,320,550,0,Node-A,disasterguard/SB-DISP-01/data,滑坡体滑轨
+SB-INCL-01,倾角计,inclinometer,A,300,540,0,Node-A,disasterguard/SB-INCL-01/data,滑坡体
+SB-SOIL-01,土壤湿度,soil_moisture,A,200,620,0,Node-A,disasterguard/SB-SOIL-01/data,坡体
+SB-RAIN-01,雨量计,rain_gauge,A,400,180,0,Node-A,disasterguard/SB-RAIN-01/data,A区上方
+SB-TILT-01,六轴加速度,accelerometer,A,300,400,0,Node-A,disasterguard/SB-TILT-01/data,A区
+SB-DHT-01,温湿度,temp_humidity,A,350,220,0,Node-A,disasterguard/SB-DHT-01/data,A区气象站
+SB-CAM-01,摄像头A,camera,A,420,120,0,Node-A,disasterguard/SB-CAM-01/data,A区俯瞰
+WS-WATER-01,水位计,water_level,B,850,500,0,Node-A,disasterguard/WS-WATER-01/data,B区水槽
+SB-CAM-02,摄像头B,camera,B,850,50,0,Node-A,disasterguard/SB-CAM-02/data,B区俯瞰
+SB-VIB-01,振动传感器,vibration,C,1300,600,0,Node-C,disasterguard/SB-VIB-01/data,C区
+SB-LED-01,LED预警屏,led_matrix,C,1350,500,0,Node-C,disasterguard/SB-LED-01/data,C区
+SB-ALARM-01,声光报警器,alarm,C,1300,700,0,Node-C,disasterguard/SB-ALARM-01/data,C区
+SB-SERVO-01,舵机,servo,A,300,550,0,Node-A,disasterguard/SB-SERVO-01/data,滑坡体驱动
+SB-PUMP-01,微型水泵,pump,B,850,880,0,Node-A,disasterguard/SB-PUMP-01/data,水位控制
+SB-VALVE-01,电磁阀,valve,A,400,180,0,Node-A,disasterguard/SB-VALVE-01/data,降雨控制

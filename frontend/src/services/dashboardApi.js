@@ -1,6 +1,3 @@
-// Step 3: ???????? _architecture/core/,???? re-export ????????
-// ??: ???? `import + export`,???? `export { foo } from '...'`,
-// ?? ESLint flat config ?? no-undef ???? foo ????????
 import { createApiError } from "./_architecture/core/errors.js";
 import { request, downloadFile } from "./_architecture/core/httpClient.js";
 import {
@@ -11,6 +8,7 @@ import {
   requireBackend,
   API_BASE,
 } from "./_architecture/core/runtime.js";
+import { withQuery } from "../utils/query.js";
 
 export {
   createApiError,
@@ -22,23 +20,18 @@ export {
   initBackendMode,
   requireBackend,
   API_BASE,
+  withQuery,
 };
 
 // USE_BACKEND ?? runtime.js ??,?? getUseBackend() ??;
-// ???? export { USE_BACKEND } ???? boolean ??(????????)
 export const USE_BACKEND = getUseBackend();
 
-// response(): mock ?????? (latency ms), ????????
 const _latency = 240;
 function _clone(data) {
   return typeof structuredClone === "function"
     ? structuredClone(data)
     : JSON.parse(JSON.stringify(data));
 }
-/**
- * ????????: ?????? _latency ms ????????
- * ?? mock ???? notificationService / ????????????
- */
 export function response(data) {
   return new Promise((resolve) => {
     window.setTimeout(() => resolve(_clone(data)), _latency);
@@ -66,29 +59,17 @@ function normalizePaged(payload, fallback = []) {
   };
 }
 
-function withQuery(params) {
-  const search = new URLSearchParams();
-  Object.entries(params).forEach(([key, value]) => {
-    if (value !== undefined && value !== null && `${value}`.trim() !== "")
-      {search.set(key, String(value));}
-  });
-  const suffix = search.toString();
-  return suffix ? `?${suffix}` : "";
-}
-
+// withQuery 已迁移到 utils/query.js
 /**
- * ????????????
- * - USE_BACKEND=false ?????? seedState ??????/??????
- * - USE_BACKEND=true ?????????? API ?? null ???? mock ??
- * ???????? ./mock/seed.js??
+ * fallback(): 统一兜底数据源
+ * - USE_BACKEND=false 时从 mock.seed.SEED_BASE 读取/克隆
+ * - USE_BACKEND=true 时返回空数组，避免 null 传播到 mock
+ * 详见 ./mock/seed.js
  */
 function fallback(key) {
   if (USE_BACKEND) {return [];}
   return mock.seed.SEED_BASE[key] ?? [];
 }
-
-const seedState = mock.seed.SEED_BASE;
-const SEED_ATTACHMENTS = mock.seed.SEED_ATTACHMENTS;
 
 export async function loginRequest(payload) {
   if (USE_BACKEND) {
@@ -104,7 +85,7 @@ export async function loginRequest(payload) {
   const role = String(payload?.role ?? "admin");
 
   if (!username || !password) {
-    throw createApiError("????????");
+    throw createApiError("用户名和密码不能为空");
   }
 
   return response(mock.empty.loginMockUser(username, role));
@@ -119,11 +100,11 @@ export async function logoutRequest() {
 
 export const dashboardApi = {
   getOverview: async () => {
-    if (!USE_BACKEND) {requireBackend("??????");}
+    if (!USE_BACKEND) {requireBackend("综合态势");}
     return request("/dashboard/overview");
   },
   getHazards: async (params = {}) => {
-    if (!USE_BACKEND) {requireBackend("????????");}
+    if (!USE_BACKEND) {requireBackend("灾害列表");}
     const data = await request(`/hazards${withQuery(params)}`);
     const normalized = normalizePaged(data, fallback("hazardPoints"));
     return {
@@ -135,12 +116,8 @@ export const dashboardApi = {
     };
   },
 
-  /**
-   * v1.6.0?AI ???????? ???? ???? discovered_at DESC ??????????????
-   * ???????? 50 ??????"AI ????"??????????
-   */
   getAiMonitorHazards: async () => {
-    if (!USE_BACKEND) {requireBackend("?? AI ??????");}
+    if (!USE_BACKEND) {requireBackend("获取 AI 监测灾害");}
     const data = await request("/hazards/ai-monitor");
     return Array.isArray(data) ? data : (data.list ?? data.records ?? []);
   },
@@ -153,36 +130,36 @@ export const dashboardApi = {
     type,
   } = {}) => {
     const params = { bbox, zoom, level, keyword, regionCode, type };
-    if (!USE_BACKEND) {requireBackend("??????????");}
+    if (!USE_BACKEND) {requireBackend("按视野查询灾害");}
     const data = await request(`/hazards/viewport${withQuery(params)}`);
     return Array.isArray(data)
       ? data
       : normalizePaged(data, fallback("hazardPoints")).records;
   },
   getHazardDetail: async (id) => {
-    if (!USE_BACKEND) {requireBackend("????????");}
+    if (!USE_BACKEND) {requireBackend("灾害详情");}
     return request(`/hazards/${id}`);
   },
   createHazard: async (payload) => {
-    requireBackend("??????");
+    requireBackend("新建灾害");
     return request("/hazards", {
       method: "POST",
       body: JSON.stringify(payload),
     });
   },
   updateHazard: async (id, payload) => {
-    requireBackend("??????");
+    requireBackend("更新灾害");
     return request(`/hazards/${id}`, {
       method: "PUT",
       body: JSON.stringify(payload),
     });
   },
   deleteHazard: async (id) => {
-    requireBackend("??????");
+    requireBackend("删除灾害");
     return request(`/hazards/${id}`, { method: "DELETE" });
   },
   getTasks: async (params = {}) => {
-    requireBackend("??????");
+    requireBackend("巡检任务");
     const data = await request(`/tasks${withQuery(params)}`);
     const normalized = normalizePaged(data, fallback("tasks"));
     return {
@@ -194,33 +171,33 @@ export const dashboardApi = {
     };
   },
   getTaskDetail: async (id) => {
-    requireBackend("????????");
+    requireBackend("任务详情");
     return request(`/tasks/${id}`);
   },
   createTask: async (payload) => {
-    requireBackend("??????");
+    requireBackend("新建任务");
     return request("/tasks", { method: "POST", body: JSON.stringify(payload) });
   },
   updateTask: async (id, payload) => {
-    requireBackend("??????");
+    requireBackend("更新任务");
     return request(`/tasks/${id}`, {
       method: "PUT",
       body: JSON.stringify(payload),
     });
   },
   updateTaskStatus: async (id, status) => {
-    requireBackend("??????????");
+    requireBackend("更新任务状态");
     return request(`/tasks/${id}/status`, {
       method: "PATCH",
       body: JSON.stringify({ status }),
     });
   },
   deleteTask: async (id) => {
-    requireBackend("??????");
+    requireBackend("删除任务");
     return request(`/tasks/${id}`, { method: "DELETE" });
   },
   getDevices: async (params = {}) => {
-    requireBackend("??????");
+    requireBackend("设备列表");
     const data = await request(`/devices${withQuery(params)}`);
     const normalized = normalizePaged(data, fallback("devices"));
     return {
@@ -233,33 +210,33 @@ export const dashboardApi = {
   },
   getDevicesByViewport: async ({ bbox, zoom, state, keyword } = {}) => {
     const params = { bbox, zoom, state, keyword };
-    requireBackend("????????");
+    requireBackend("按视野查询设备");
     const data = await request(`/devices/viewport${withQuery(params)}`);
     return Array.isArray(data)
       ? data
       : normalizePaged(data, fallback("devices")).records;
   },
   getDeviceDetail: async (id) => {
-    requireBackend("??????");
+    requireBackend("设备详情");
     return request(`/devices/${id}`);
   },
   updateDevice: async (id, payload) => {
-    requireBackend("????");
+    requireBackend("更新设备");
     return request(`/devices/${id}`, {
       method: "PUT",
       body: JSON.stringify(payload),
     });
   },
   deleteDevice: async (id) => {
-    requireBackend("????");
+    requireBackend("删除设备");
     return request(`/devices/${id}`, { method: "DELETE" });
   },
   diagnoseDevice: async (id) => {
-    requireBackend("????");
+    requireBackend("设备诊断");
     return request(`/devices/${id}/diagnose`, { method: "POST" });
   },
   getWarnings: async (params = {}) => {
-    requireBackend("??????");
+    requireBackend("预警列表");
     const data = await request(`/warnings${withQuery(params)}`);
     const normalized = normalizePaged(data, fallback("warnings"));
     return {
@@ -271,8 +248,7 @@ export const dashboardApi = {
     };
   },
   getWarningsPreview: async () => {
-    // ??????????????????????
-    requireBackend("??????");
+    requireBackend("预警预览");
     const data = await request(`/warnings/preview`);
     return Array.isArray(data)
       ? { list: data }
@@ -280,49 +256,49 @@ export const dashboardApi = {
   },
   getWarningsByViewport: async ({ bbox, zoom, keyword, status } = {}) => {
     const params = { bbox, zoom, keyword, status };
-    requireBackend("????????");
+    requireBackend("按视野查询预警");
     const data = await request(`/warnings/viewport${withQuery(params)}`);
     return Array.isArray(data)
       ? data
       : normalizePaged(data, fallback("warnings")).records;
   },
   getWarningDetail: async (id) => {
-    requireBackend("??????");
+    requireBackend("预警详情");
     return request(`/warnings/${id}`);
   },
   updateWarning: async (id, payload) => {
-    requireBackend("????");
+    requireBackend("更新预警");
     return request(`/warnings/${id}`, {
       method: "PUT",
       body: JSON.stringify(payload),
     });
   },
   confirmWarning: async (id) => {
-    requireBackend("????");
+    requireBackend("确认预警");
     return request(`/warnings/${id}/confirm`, { method: "POST" });
   },
   dispatchWarning: async (id) => {
-    requireBackend("????");
+    requireBackend("下发预警");
     return request(`/warnings/${id}/dispatch`, { method: "POST" });
   },
   closeWarning: async (id, payload = {}) => {
-    requireBackend("????");
-    const reason = payload.reason ?? "????";
+    requireBackend("关闭预警");
+    const reason = payload.reason ?? "未填写关闭原因";
     return request(`/warnings/${id}/close`, {
       method: "POST",
       body: JSON.stringify({ reason }),
     });
   },
   dismissWarning: async (id) => {
-    requireBackend("????");
+    requireBackend("解除预警");
     return request(`/warnings/${id}/dismiss`, { method: "POST" });
   },
   resolveWarning: async (id) => {
-    requireBackend("??????");
+    requireBackend("预警解除");
     return request(`/warnings/${id}/resolve`, { method: "POST" });
   },
   getEmergency: async () => {
-    requireBackend("?????????");
+    requireBackend("应急事件列表");
     const data = await request("/emergency?size=200");
     const records = Array.isArray(data?.records)
       ? data.records
@@ -332,7 +308,7 @@ export const dashboardApi = {
     const incidents = records.map((e) => ({
       id: e.id,
       title: e.title,
-      level: e.status === "????" ? "????" : "???????",
+      level: e.status === "处置中" ? "处置中" : "已结束",
       owner: e.commander,
       step: e.stepName,
       warningId: e.warningCode,
@@ -345,36 +321,34 @@ export const dashboardApi = {
     return { incidents };
   },
   getPersonnel: async () => {
-    requireBackend("??????");
+    requireBackend("人员列表");
     const data = await request(`/personnel/positions`);
     return Array.isArray(data) ? { list: data } : normalizePaged(data, []);
   },
   closeIncident: async (id) => {
-    requireBackend("?????????");
-    // ?????POST /emergency/{id}/close ????????"????"??
-    // ?? DELETE ????
+    requireBackend("关闭应急事件");
     return request(`/emergency/${id}/close`, {
       method: "POST",
-      body: JSON.stringify({ summary: "??????????" }),
+      body: JSON.stringify({ summary: "应急处置已完成" }),
     });
   },
   exportOverviewReport: async () => {
-    return downloadFile("/dashboard/overview/export", "????.xlsx");
+    return downloadFile("/dashboard/overview/export", "综合态势报表.xlsx");
   },
   exportHazardReport: async () => {
-    return downloadFile("/hazards/export", "??????.xlsx");
+    return downloadFile("/hazards/export", "灾害统计报表.xlsx");
   },
   exportTaskReport: async () => {
-    return downloadFile("/tasks/export", "??????.xlsx");
+    return downloadFile("/tasks/export", "巡检任务报表.xlsx");
   },
   exportDeviceReport: async () => {
-    return downloadFile("/devices/export", "?????????.xlsx");
+    return downloadFile("/devices/export", "设备台账报表.xlsx");
   },
   exportWarningReport: async () => {
-    return downloadFile("/warnings/export", "??????.xlsx");
+    return downloadFile("/warnings/export", "预警统计报表.xlsx");
   },
   exportEmergencyReport: async () => {
-    return downloadFile("/emergency/export", "?????????.xlsx");
+    return downloadFile("/emergency/export", "应急事件报表.xlsx");
   },
   getAnalytics: async () => {
     if (USE_BACKEND) {return request("/dashboard/analytics");}
@@ -400,7 +374,7 @@ export const dashboardApi = {
     });
     const payload = await responseData.json().catch(() => null);
     if (!responseData.ok || payload?.code !== 0)
-      {throw createApiError(payload?.message || "????");}
+      {throw createApiError(payload?.message || "附件上传失败");}
     return payload.data;
   },
   getAttachments: async ({ businessType, businessCode }) => {
@@ -410,7 +384,6 @@ export const dashboardApi = {
       );}
     return response(mock.empty.emptyAttachments);
   },
-  /** ???? presigned URL???? 403/410 ???????? URL ?????? */
   refreshAttachmentUrl: async (attachmentId) => {
     if (USE_BACKEND) {
       const data = await request(`/attachments/${attachmentId}/refresh-url`, {
@@ -466,7 +439,6 @@ export const dashboardApi = {
   },
 
   /**
-   * v1.9.0 P1?????????????? payload?????????????
    * GET /api/inspection/example
    */
   getInspectionExample: async () => {
@@ -475,7 +447,6 @@ export const dashboardApi = {
   },
 
   /**
-   * v1.9.0 P1???????????????? Redis?WebSocket ??????
    * POST /api/personnel/positions/report
    * @param {{userId: string, name?: string, lon: number, lat: number, taskCode?: string, hazardCode?: string, speed?: number, heading?: number}} payload
    */
@@ -490,16 +461,9 @@ export const dashboardApi = {
   },
 
   /**
-   * v1.7.0 P1????????????????????????????
-   * ?????hazard ???????warning / emergency / inspection ????????
    *
-   * ??????
-   *   - ?????? seedState ??????
-   *   - ???????? hazard ?? / warnings / emergency???? hazardCode ???? join??
-   *     ???????????? /hazards/{id}/events ???P1 ???? v1.8 ??????
    *
    * @param {string|number} hazardId
-   * @param {string} hazardCode  -- ???? hazardCode??????????
    * @returns {Promise<{
    *   hazard: object|null,
    *   warnings: Array,
@@ -508,7 +472,7 @@ export const dashboardApi = {
    * }>}
    */
     getRelatedEvents: async (hazardId, hazardCode) => {
-    requireBackend("??????????????");
+    requireBackend("上报人员定位");
     let resolvedCode = hazardCode;
     let hazard = null;
 
@@ -537,14 +501,12 @@ export const dashboardApi = {
     return response(mock.ai.getAiComprehensiveAllMock());
   },
 
-  /** ??????????????????????? HazardDetailPage ???????? */
   getAiComprehensiveCached: (hazardCode) => {
     if (USE_BACKEND)
       {return request(`/ai/comprehensive-analysis/cached?hazardCode=${encodeURIComponent(hazardCode)}`);}
     return response(mock.ai.aiComprehensiveCachedMock);
   },
 
-  /** ???????? hazard ?? AI ?????? */
   refreshAiComprehensive: () => {
     if (USE_BACKEND)
       {return request("/ai/comprehensive-analysis/refresh", { method: "POST" });}
@@ -552,8 +514,6 @@ export const dashboardApi = {
   },
 
   /**
-   * ?? AI ???????????? / ???????? hazardCode ????
-   * ?? TasksPage/AnalyticsPage/WarningsPage ???? AI ??????
    * @param {Array<{id, hazardCode, ...}>} rows
    * @param {Map<string, {riskLevel, riskScore}>} aiMap
    */
@@ -567,7 +527,6 @@ export const dashboardApi = {
         aiScore: ai?.riskScore ?? null,
         aiLevel: ai?.riskLevel ?? null,
         aiAnalyzedAt: ai?.analyzedAt ?? null,
-        // v1.3.0 ?? ai_comprehensive_score ??????????
         aiDisasterType: ai?.disasterType ?? null,
         aiDisasterTypeSource: ai?.disasterTypeSource ?? null,
         aiConcernLabel: ai?.concernLabel ?? null,
@@ -576,10 +535,8 @@ export const dashboardApi = {
     });
   },
 
-  // ----------------------- AI ?????? -----------------------
 
   /**
-   * ?? AI ???????? healthScore ??????????
    * @returns {Promise<Array<{
    *   deviceCode, healthLevel, healthScore, anomalyScore, forecastRisk,
    *   metricCoverage, lastAnomalyAt, reasoning, suggestedActions,
@@ -591,23 +548,18 @@ export const dashboardApi = {
     return response(mock.ai.aiDeviceHealthAllMock);
   },
 
-  /** ???? AI ?????? */
   getAiDeviceHealth: (deviceCode) => {
     if (USE_BACKEND)
       {return request(`/ai/device-health?deviceCode=${encodeURIComponent(deviceCode)}`);}
     return response(null);
   },
 
-  /** ?????????? AI ?????? */
   refreshAiDeviceHealth: () => {
     if (USE_BACKEND)
       {return request("/ai/device-health/refresh", { method: "POST" });}
     return response(mock.ai.aiDeviceHealthRefreshMock);
   },
 
-  /**
-   * ?? AI ?????????????? deviceCode ????
-   */
   attachAiDeviceHealth: (rows, aiList) => {
     const map = new Map();
     (aiList ?? []).forEach((s) => {
@@ -628,13 +580,8 @@ export const dashboardApi = {
     });
   },
 
-  // ===X===X===X===X===X===X===X===X===X===X===X===X===X===X===
-  // v1.7.0 ????????
-  // ===X===X===X===X===X===X===X===X===X===X===X===X===X===X===
 
-  // ---------- 3.3 ???????? ----------
   /**
-   * ??"????"?????????????
    * @returns {Promise<{items: Array<{id, hazardCode, name, type, level, confidence, aiScore, reason, discoveredAt, status, assignee}>, total: number, pending: number}>}
    */
   getConfirmationQueue: async (params = {}) => {
@@ -645,64 +592,56 @@ export const dashboardApi = {
     return response(mock.workflow.getConfirmationQueueMock());
   },
 
-  /** ????????????????????????GET /api/confirmation/stats? */
   getConfirmationQueueStats: async () => {
     if (USE_BACKEND) {return request("/confirmation/stats");}
     return response(mock.workflow.confirmationQueueStatsMock);
   },
 
-  /** ????????assignee ???????? */
   claimConfirmation: async (id, operator) => {
-    requireBackend("????????");
+    requireBackend("认领会签任务");
     return request(`/confirmation/queue/${id}/claim`, {
       method: "POST",
       body: JSON.stringify({ operator }),
     });
   },
 
-  /** ???????? */
   transferConfirmation: async (id, toUser, reason) => {
-    requireBackend("????????");
+    requireBackend("转派会签任务");
     return request(`/confirmation/queue/${id}/transfer`, {
       method: "POST",
       body: JSON.stringify({ toUser, reason }),
     });
   },
 
-  /** ??????????????????? hazard_point?? */
   confirmHazard: async (id, payload = {}) => {
-    requireBackend("??????");
+    requireBackend("确认灾害");
     return request(`/confirmation/queue/${id}/confirm`, {
       method: "POST",
       body: JSON.stringify(payload),
     });
   },
 
-  /** ?????????? */
   rejectHazard: async (id, payload = {}) => {
-    requireBackend("??????");
+    requireBackend("驳回灾害");
     return request(`/confirmation/queue/${id}/reject`, {
       method: "POST",
       body: JSON.stringify(payload),
     });
   },
 
-  // ---------- 4.2 ???? ----------
   createWarning: async (payload) => {
-    requireBackend("????");
+    requireBackend("发布预警");
     return request("/warnings", {
       method: "POST",
       body: JSON.stringify(payload),
     });
   },
 
-  /** ???????????? */
   getWarningStats: async () => {
     if (USE_BACKEND) {return request("/warnings/stats");}
     return response(mock.workflow.warningStatsMock);
   },
 
-  // ---------- 6.3 ???? ----------
   getResources: async (params = {}) => {
     if (USE_BACKEND) {
       const data = await request(`/resources${withQuery(params)}`);
@@ -712,101 +651,67 @@ export const dashboardApi = {
   },
 
   assignResource: async (payload) => {
-    requireBackend("????");
+    requireBackend("资源调度");
     return request(`/resources/assign`, {
       method: "POST",
       body: JSON.stringify(payload),
     });
   },
 
-  // ---------- 5.5 ?????? ----------
   getDataSources: async () => {
     if (USE_BACKEND) {return request("/datasources");}
     return response(mock.operations.getDataSourcesMock());
   },
 
   toggleDataSource: async (code, enabled) => {
-    requireBackend("??????");
+    requireBackend("切换数据源");
     return request(`/datasources/${encodeURIComponent(code)}/toggle`, {
       method: "POST",
       body: JSON.stringify({ enabled }),
     });
   },
 
-  // ---------- 5.6 ???????P3-1?? ----------
-  /**
-   * ????????????????????????????????????????????????
-   * ???????GET /sync/stats?????? requireBackend ????
-   */
   getSyncStats: async () => {
     if (USE_BACKEND) {return request("/sync/stats");}
-    requireBackend("??????");
+    requireBackend("同步统计");
   },
 
-  /**
-   * ??????????????????????????????????
-   * ???????GET /sync/tasks??
-   */
   getSyncTasks: async () => {
     if (USE_BACKEND) {return request("/sync/tasks");}
-    requireBackend("??????");
+    requireBackend("同步任务");
   },
 
-  /**
-   * ????????
-   * ???????GET /sync/history?from=&to=&task=&status=??
-   */
   getSyncHistory: async (params = {}) => {
     if (USE_BACKEND) {return request("/sync/history", { params });}
-    requireBackend("??????");
+    requireBackend("同步历史");
   },
 
-  /**
-   * ???????????????? + ??????????
-   * ???????GET /sync/integrity??
-   */
   getIntegrityReport: async () => {
     if (USE_BACKEND) {return request("/sync/integrity");}
-    requireBackend("????????");
+    requireBackend("数据完整性报告");
   },
 
-  /**
-   * ?????????????????????????
-   * ???????GET /sync/anomalies??
-   */
   getSyncAnomalies: async () => {
     if (USE_BACKEND) {return request("/sync/anomalies");}
-    requireBackend("????????");
+    requireBackend("同步异常列表");
   },
 
-  /**
-   * ??????????
-   * ???????POST /sync/tasks/:id/trigger??
-   */
   triggerSyncTask: async (id) => {
-    requireBackend("??????");
+    requireBackend("触发同步");
     return request(`/sync/tasks/${encodeURIComponent(id)}/trigger`, {
       method: "POST",
     });
   },
 
-  /**
-   * ????????
-   * ???????POST /sync/tasks/:id/pause??
-   */
   pauseSyncTask: async (id) => {
-    requireBackend("??????");
+    requireBackend("暂停同步");
     return request(`/sync/tasks/${encodeURIComponent(id)}/pause`, {
       method: "POST",
     });
   },
 
-  /**
-   * ??????????
-   * ???????POST /sync/anomalies/:id/ignore??
-   */
   ignoreAnomaly: async (id, reason) => {
-    requireBackend("??????");
+    requireBackend("忽略异常");
     return request(`/sync/anomalies/${encodeURIComponent(id)}/ignore`, {
       method: "POST",
       body: JSON.stringify({ reason }),
@@ -814,13 +719,12 @@ export const dashboardApi = {
   },
 
   testDataSource: async (code) => {
-    requireBackend("????????");
+    requireBackend("测试数据源连接");
     return request(`/datasources/${encodeURIComponent(code)}/test`, {
       method: "POST",
     });
   },
 
-  // ---------- 8.1 ???? ----------
   getUsers: async (params = {}) => {
     if (USE_BACKEND) {
       const data = await request(`/users${withQuery(params)}`);
@@ -830,7 +734,7 @@ export const dashboardApi = {
   },
 
   createUser: async (payload) => {
-    requireBackend("????");
+    requireBackend("新建用户");
     return request("/users", {
       method: "POST",
       body: JSON.stringify(payload),
@@ -838,7 +742,7 @@ export const dashboardApi = {
   },
 
   updateUser: async (id, payload) => {
-    requireBackend("????");
+    requireBackend("更新用户");
     return request(`/users/${id}`, {
       method: "PUT",
       body: JSON.stringify(payload),
@@ -846,7 +750,7 @@ export const dashboardApi = {
   },
 
   deleteUser: async (id) => {
-    requireBackend("????");
+    requireBackend("删除用户");
     return request(`/users/${id}`, { method: "DELETE" });
   },
 
@@ -855,7 +759,6 @@ export const dashboardApi = {
     return response(mock.system.getRolesMock());
   },
 
-  // ---------- 8.3 ???? ----------
   getAuditLogs: async (params = {}) => {
     if (USE_BACKEND) {
       const data = await request(`/audit/logs${withQuery(params)}`);
@@ -864,13 +767,11 @@ export const dashboardApi = {
     return response(mock.system.getAuditLogsMock());
   },
 
-  // ---------- 8.4 ???? ----------
   getSystemMonitor: async () => {
     if (USE_BACKEND) {return request("/system/monitor");}
     return response(mock.system.getSystemMonitorMock());
   },
 
-  // ---------- 9.1 ???? ----------
   getMessages: async (params = {}) => {
     if (USE_BACKEND) {
       const data = await request(`/messages${withQuery(params)}`);
@@ -879,32 +780,27 @@ export const dashboardApi = {
     return response(mock.workflow.getMessagesMock());
   },
 
-  /** ???????????? */
   getMessageStats: async () => {
     if (USE_BACKEND) {return request("/messages/stats");}
     return response(mock.workflow.messageStatsMock);
   },
 
   markMessageRead: async (id) => {
-    requireBackend("????");
+    requireBackend("标记已读");
     return request(`/messages/${id}/read`, { method: "POST" });
   },
 
   markAllMessagesRead: async () => {
-    requireBackend("??????");
+    requireBackend("全部标记已读");
     return request(`/messages/read-all`, { method: "POST" });
   },
 
-  // ---------- ???sentinel ?????? ----------
   getSentinelCoverage: async (bbox) => {
     if (USE_BACKEND) {return request(`/sentinel/coverage${bbox ? `?bbox=${encodeURIComponent(bbox)}` : ""}`);}
     return response(mock.analytics.sentinelCoverageMock);
   },
 
-  // ---------- v1.7.x???????????? / ?? / ?? / ???? ----------
   /**
-   * ??????????CPU/GPU/??/??/????/????
-   * ???????? taskId + ????????? mock??????????????
    * @param {string|number} id ?? ID
    * @returns {Promise<{status: 'RUNNING'|'SUCCESS'|'FAILED'|'PENDING'|'PAUSED'|'TERMINATED'|'TIMEOUT', cpu: number, gpu: number, memMB: number, startedAt: string, finishedAt?: string, duration: number, retries: number, throughput: number}>}
    */
@@ -914,15 +810,12 @@ export const dashboardApi = {
   },
 
   /**
-   * ??????????????`since` ?????? ISO ??????
-   * ?????? taskId ?? 8-20 ???? mock?? ts ????
    * @param {string|number} id ?? ID
    * @param {{since?: string}} params
    * @returns {Promise<{entries: Array<{ts: string, level: 'INFO'|'WARN'|'ERR'|'DEBUG', message: string}>, cursor: string}>}
    */
   getTaskExecutionLog: async (id, params = {}) => {
     if (USE_BACKEND) {
-      // v1.9.1 P0?????? /api/tasks/{id}/execution-log?? .log ?????????
       const data = await request(`/tasks/${id}/execution-log${withQuery(params)}`);
       return data ?? { entries: [], cursor: new Date().toISOString() };
     }
@@ -930,109 +823,74 @@ export const dashboardApi = {
   },
 
   /**
-   * ????????????????????
-   * ?????? requireBackend ???????????UI ???? toast ????
    * @param {string|number} id ?? ID
    */
   retryTask: async (id) => {
-    requireBackend("????");
+    requireBackend("重试任务");
     return request(`/tasks/${id}/retry`, { method: "POST" });
   },
 
   /**
-   * ????????????????
-   * ?????? requireBackend ???UI ????????????????
    * @param {string|number} id ?? ID
    */
   terminateTask: async (id) => {
-    requireBackend("????");
+    requireBackend("终止任务");
     return request(`/tasks/${id}/terminate`, { method: "POST" });
   },
 
-  // ?????????????????????????????????????????????????? ???? / ???? ??????????????????????????????????????????????????
-  // ???????????????????? /todo/* ?? /approvals/* ??
-  // ?????? throw BACKEND_REQUIRED???? try/catch ????????????????
 
   /**
-   * ?????? 4 ????????
    * @returns {Promise<{confirmation:number, approval:number, pendingWarnings:number, openEmergency:number}>}
    */
   getTodoSummary: async () => {
-    if (!USE_BACKEND) {requireBackend("????????");}
+    if (!USE_BACKEND) {requireBackend("待办汇总");}
     return request("/todo/summary");
   },
 
-  /**
-   * ????????????????
-   * ?????? seedState ?? hazards ?? N ??????????
-   */
   listMyConfirmations: async () => {
     if (USE_BACKEND) {return request("/todo/confirmations");}
     return response(mock.workflow.listMyConfirmationsMock());
   },
 
-  /**
-   * ??????
-   * ?????? seedState.warnings ?? status=???? ????????
-   */
   listMyApprovals: async () => {
     if (USE_BACKEND) {return request("/todo/approvals");}
     return response(mock.workflow.listMyApprovalsMock());
   },
 
-  /**
-   * ????????
-   */
   listMyPendingWarnings: async () => {
     if (USE_BACKEND) {return request("/todo/warnings");}
     return response(mock.workflow.listMyPendingWarningsMock());
   },
 
-  /**
-   * ????????????????????????
-   */
   listMyOpenTasks: async () => {
     if (USE_BACKEND) {return request("/todo/tasks");}
     return response(mock.workflow.listMyOpenTasksMock());
   },
 
-  // ?????????????????????????????????????????????????? ???? ??????????????????????????????????????????????????
 
-  /**
-   * ????????????
-   * ???????? requireBackend ???UI ??????????????????
-   */
   listApprovals: async (filters = {}) => {
-    if (!USE_BACKEND) {requireBackend("??????");}
+    if (!USE_BACKEND) {requireBackend("审批列表");}
     return request(`/approvals${withQuery(filters)}`);
   },
 
-  /**
-   * ???????????????????????????????? + 14 ????????
-   * ?????????????????
-   */
   getApprovalStats: async () => {
-    if (!USE_BACKEND) {requireBackend("??????");}
+    if (!USE_BACKEND) {requireBackend("审批统计");}
     return request("/approvals/stats");
   },
 
   /**
-   * ????????? / ??????
    * @param {string|number} id
    * @param {{decision:'approve'|'reject', comment:string}} payload
    */
   decideApproval: async (id, payload) => {
-    if (!USE_BACKEND) {requireBackend("??????");}
+    if (!USE_BACKEND) {requireBackend("审批决策");}
     return request(`/approvals/${id}/decide`, {
       method: "POST",
       body: JSON.stringify(payload),
     });
   },
 
-  // ---------- v1.7.x???????? ----------
   /**
-   * ????????????????? / ????? / ???? / ????????
-   * ?????????????? UI ??????????????
    * @param {string|number} id ?? ID
    */
   getDeliverySummary: async (id) => {
@@ -1041,8 +899,6 @@ export const dashboardApi = {
   },
 
   /**
-   * ???? / ?????????????????
-   * ???????? records????????????
    * @param {string|number} id ?? ID
    * @param {{channel?: string, status?: string}} params
    */
@@ -1057,44 +913,41 @@ export const dashboardApi = {
   },
 
   /**
-   * ?????? / ?????????????????????
    * @param {string|number} id ?? ID
    * @param {{channel: string, targetIds?: Array<string|number>}} payload
    */
   redeliver: async (id, payload = {}) => {
-    requireBackend("????");
+    requireBackend("重新投递");
     return request(`/warnings/${id}/delivery/redeliver`, {
       method: "POST",
       body: JSON.stringify(payload ?? {}),
     });
   },
 
-  // ---------- v1.7.x???? / ?????? ----------
   /**
-   * ?? / ?????????????????? seedState ??????????
    * @param {{kind?: string, region?: string}} params
    */
   getZoneSummary: async ({ kind, region } = {}) => {
     if (USE_BACKEND) {
-      return request(`/zones/summary${withQuery({ kind, region })}`);
+      // 后端实际路径是 /api/dashboard/zone/kpi（ZoneDashboardController），
+      // 历史上写成了不存在的 /zones/summary，后端从未有过 /api/zones 这个基址。
+      return request(`/dashboard/zone/kpi${withQuery({ kind, region })}`);
     }
     return response(mock.analytics.getZoneSummaryMock({ kind, region }));
   },
 
   /**
-   * ?? / ?????? 14 ????????????? kind ??????????
    * @param {{kind?: string, region?: string}} params
    */
   getZoneRiskTrend: async ({ kind, region } = {}) => {
     if (USE_BACKEND) {
-      return request(`/zones/risk-trend${withQuery({ kind, region })}`);
+      // 同上：/zones/risk-trend 不存在，对应后端 /api/dashboard/zone/trend。
+      return request(`/dashboard/zone/trend${withQuery({ kind, region })}`);
     }
     return response(mock.analytics.getZoneRiskTrendMock({ kind, region }));
   },
 
-  // ---------- v1 PRD 2.5: AI ???? ----------
   /**
-   * ??????????????????????
    * @param {{family?: string, status?: string}} params
    */
   listModels: async ({ family, status } = {}) => {
@@ -1107,7 +960,6 @@ export const dashboardApi = {
   },
 
   /**
-   * ??????????????????????????????
    * @param {string|number} versionId
    */
   getModelDetail: async (versionId) => {
@@ -1117,9 +969,6 @@ export const dashboardApi = {
     return response(mock.system.modelDetailMock);
   },
 
-  /**
-   * ????????????????????????????????? F1????
-   */
   getModelFamilyStats: async () => {
     if (USE_BACKEND) {
       return request("/ai/models/stats");
@@ -1127,9 +976,6 @@ export const dashboardApi = {
     return response(mock.ai.modelFamilyStatsMock);
   },
 
-  /**
-   * ????????
-   */
   getModelTrainingJobs: async () => {
     if (USE_BACKEND) {
       return request("/ai/models/training-jobs");
@@ -1138,7 +984,6 @@ export const dashboardApi = {
   },
 
   /**
-   * ????????
    * @param {{family: string, dataset: string, epochs: number, lr: number, batchSize: number, remark?: string}} payload
    */
   createModelTrainingJob: async (payload = {}) => {
@@ -1152,7 +997,6 @@ export const dashboardApi = {
   },
 
   /**
-   * ????????
    * @param {string|number} id
    */
   startTrainingJob: async (id) => {
@@ -1165,7 +1009,6 @@ export const dashboardApi = {
   },
 
   /**
-   * ????????
    * @param {string|number} id
    */
   stopTrainingJob: async (id) => {
@@ -1178,7 +1021,6 @@ export const dashboardApi = {
   },
 
   /**
-   * ?????????? since ??????????
    * @param {string|number} id
    * @param {{since?: string}} params
    */
@@ -1192,7 +1034,6 @@ export const dashboardApi = {
   },
 
   /**
-   * ??????????????????
    * @param {string|number} versionId
    */
   activateModelVersion: async (versionId) => {
@@ -1205,7 +1046,6 @@ export const dashboardApi = {
   },
 
   /**
-   * ????????????????
    * @param {string|number} versionId
    */
   deleteModelVersion: async (versionId) => {
@@ -1217,9 +1057,7 @@ export const dashboardApi = {
     return response(mock.empty.ok);
   },
 
-  // ===================== 5.3 ?????? =====================
   /**
-   * ??????????
    * @param {string|number} deviceId
    * @param {{from: string, to: string}} params
    * @returns {Promise<Array<{lon: number, lat: number, ts: string, speed?: number}>>}
@@ -1232,9 +1070,7 @@ export const dashboardApi = {
     return response(mock.runtime.getDeviceTrackMock(deviceId, { from, to }));
   },
 
-  // ===================== 6.4 ???? =====================
   /**
-   * ??????
    * @param {{startLon: number, startLat: number, endLon: number, endLat: number, avoidZones?: Array}} payload
    * @returns {Promise<Array<{type: 'fastest'|'safest', distance: number, duration: string, warning?: string, geometry: Array}>>}
    */
@@ -1248,9 +1084,7 @@ export const dashboardApi = {
     return response(mock.runtime.planRouteMock(payload));
   },
 
-  // ===================== 2.4 AI ???? =====================
   /**
-   * AI ????????
    * @param {{days?: number, from?: string, to?: string}} params
    * @returns {Promise<{
    *   coverage: number, discoveredEvents: number, falsePositiveRate: number, missRate: number,
@@ -1266,9 +1100,7 @@ export const dashboardApi = {
     return response(mock.analytics.getInspectionReportMock(params));
   },
 
-  // ---------- OTA ?????? ----------
   /**
-   * ????????
    * @param {{deviceType?: string, keyword?: string}} filters
    */
   listFirmware: async (filters = {}) => {
@@ -1279,7 +1111,6 @@ export const dashboardApi = {
   },
 
   /**
-   * ??????multipart????
    * @param {{file: Blob, version: string, deviceType: string, remark?: string}} payload
    */
   uploadFirmware: async (payload = {}) => {
@@ -1297,7 +1128,6 @@ export const dashboardApi = {
   },
 
   /**
-   * ????????
    * @param {string|number} firmwareId
    */
   deleteFirmware: async (firmwareId) => {
@@ -1308,7 +1138,6 @@ export const dashboardApi = {
   },
 
   /**
-   * ?????????? status ???????
    * @param {{status?: string, deviceId?: string}} filters
    */
   listOtaTasks: async (filters = {}) => {
@@ -1319,7 +1148,6 @@ export const dashboardApi = {
   },
 
   /**
-   * ??????????
    * @param {{firmwareId: string|number, deviceIds: Array<string|number>, resumeOnReconnect?: boolean, rollbackOnFailure?: boolean}} payload
    */
   createOtaTask: async (payload = {}) => {
@@ -1333,7 +1161,6 @@ export const dashboardApi = {
   },
 
   /**
-   * ????????
    * @param {string|number} taskId
    */
   cancelOtaTask: async (taskId) => {
@@ -1344,7 +1171,6 @@ export const dashboardApi = {
   },
 
   /**
-   * ????????
    * @param {string|number} taskId
    */
   retryOtaTask: async (taskId) => {
@@ -1355,7 +1181,6 @@ export const dashboardApi = {
   },
 
   /**
-   * ??????????????????????
    * @param {string|number} taskId
    */
   getOtaTaskDetail: async (taskId) => {
@@ -1365,9 +1190,7 @@ export const dashboardApi = {
     return response(null);
   },
 
-  // ---------- ???? ----------
   /**
-   * ??????????/??/??/?????????
    * @param {{hazardType?: string, level?: string, channel?: string, status?: string}} filters
    */
   listNoticeTemplates: async (filters = {}) => {
@@ -1378,7 +1201,6 @@ export const dashboardApi = {
   },
 
   /**
-   * ????????
    * @param {string|number} id
    */
   getNoticeTemplate: async (id) => {
@@ -1389,7 +1211,6 @@ export const dashboardApi = {
   },
 
   /**
-   * ????????????payload.id ???? PUT????
    * @param {{id?: string|number, name: string, hazardType: string, level: string, channels: Record<string, string>, enabled?: boolean}} payload
    */
   upsertNoticeTemplate: async (payload = {}) => {
@@ -1404,7 +1225,6 @@ export const dashboardApi = {
   },
 
   /**
-   * ????????
    * @param {string|number} id
    */
   deleteNoticeTemplate: async (id) => {
@@ -1415,7 +1235,6 @@ export const dashboardApi = {
   },
 
   /**
-   * ???????????????
    * @param {string|number} id
    */
   toggleNoticeTemplate: async (id) => {
@@ -1425,9 +1244,7 @@ export const dashboardApi = {
     return response(mock.empty.ok);
   },
 
-  // ---------- ??????? ----------
   /**
-   * ????????
    * @param {{hazardType?: string, level?: string, status?: string}} filters
    */
   listPlans: async (filters = {}) => {
@@ -1438,7 +1255,6 @@ export const dashboardApi = {
   },
 
   /**
-   * ???????????????????????
    * @param {string|number} planId
    */
   getPlanDetail: async (planId) => {
@@ -1449,7 +1265,6 @@ export const dashboardApi = {
   },
 
   /**
-   * ????????payload.id ???? PUT????
    * @param {{id?: string|number, name: string, hazardType: string, level: string, steps: Array, attachments?: Array, owner?: string, enabled?: boolean}} payload
    */
   upsertPlan: async (payload = {}) => {
@@ -1464,7 +1279,6 @@ export const dashboardApi = {
   },
 
   /**
-   * ??????
    * @param {string|number} planId
    */
   deletePlan: async (planId) => {
@@ -1475,7 +1289,6 @@ export const dashboardApi = {
   },
 
   /**
-   * ?????????? timeline ?? 1 ??????????
    * @param {string|number} planId
    */
   simulatePlanLaunch: async (planId) => {
@@ -1485,9 +1298,6 @@ export const dashboardApi = {
     return response(mock.empty.ok);
   },
 
-  /**
-   * ??????????
-   */
   listPlanLaunches: async () => {
     if (USE_BACKEND) {
       return request("/plans/launches");
@@ -1495,9 +1305,7 @@ export const dashboardApi = {
     return response(mock.empty.emptyPaged);
   },
 
-  // ===================== 8.5 ?????? =====================
   /**
-   * ????????????????????????????
    * @param {{type?: string, source?: string, status?: string, page?: number, size?: number}} filters
    */
   listBackups: async (filters = {}) => {
@@ -1508,7 +1316,6 @@ export const dashboardApi = {
   },
 
   /**
-   * ????????????????
    * @param {{scope: string[], remark?: string}} payload
    */
   createBackup: async (payload = {}) => {
@@ -1522,7 +1329,6 @@ export const dashboardApi = {
   },
 
   /**
-   * ???????????????? verifyStatus ????????
    * @param {string|number} id
    */
   verifyBackup: async (id) => {
@@ -1535,7 +1341,6 @@ export const dashboardApi = {
   },
 
   /**
-   * ????????
    * @param {string|number} id
    * @param {{environment: 'dev'|'test'|'prod'|'sandbox', confirm?: boolean}} payload
    */
@@ -1550,7 +1355,6 @@ export const dashboardApi = {
   },
 
   /**
-   * ????????
    * @param {string|number} id
    */
   deleteBackup: async (id) => {
@@ -1560,9 +1364,6 @@ export const dashboardApi = {
     return response(mock.empty.ok);
   },
 
-  /**
-   * ????????
-   */
   listBackupStrategies: async () => {
     if (USE_BACKEND) {
       return request("/backup/strategies");
@@ -1571,7 +1372,6 @@ export const dashboardApi = {
   },
 
   /**
-   * ??????????payload.id ???? PUT????
    * @param {{id?: string|number, name: string, scope: string[], cron: string, retention: number, trigger?: string, notify?: string[], enabled?: boolean}} payload
    */
   upsertBackupStrategy: async (payload = {}) => {
@@ -1586,7 +1386,6 @@ export const dashboardApi = {
   },
 
   /**
-   * ????????
    * @param {string|number} id
    */
   deleteBackupStrategy: async (id) => {
@@ -1597,7 +1396,6 @@ export const dashboardApi = {
   },
 
   /**
-   * ????????????????
    * @param {string|number} id
    */
   runBackupStrategy: async (id) => {
@@ -1609,9 +1407,6 @@ export const dashboardApi = {
     return response(mock.empty.ok);
   },
 
-  /**
-   * ????????
-   */
   listRestoreHistory: async () => {
     if (USE_BACKEND) {
       return request("/backup/restores");
@@ -1619,17 +1414,12 @@ export const dashboardApi = {
     return response(mock.empty.emptyPaged);
   },
 
-  // ===================== ?????? =====================
-  /**
-   * ??????????????????2FA????????????
-   */
   getAccountSecurity: async () => {
     requireBackend("getAccountSecurity");
     return request("/account/security");
   },
 
   /**
-   * ??/??????????????
    * @param {{enabled: boolean, methods: ('totp'|'sms'|'email')[]}} payload
    */
   toggle2FA: async (payload = {}) => {
@@ -1640,9 +1430,6 @@ export const dashboardApi = {
     });
   },
 
-  /**
-   * ???????????????????????????????
-   */
   regenerateBackupCodes: async () => {
     requireBackend("regenerateBackupCodes");
     return request("/account/security/backup-codes/regenerate", {
@@ -1651,7 +1438,6 @@ export const dashboardApi = {
   },
 
   /**
-   * ????????
    * @param {{page?: number, size?: number, status?: string}} filters
    */
   listLoginHistory: async (filters = {}) => {
@@ -1659,16 +1445,12 @@ export const dashboardApi = {
     return request(`/account/login-history${withQuery(filters)}`);
   },
 
-  /**
-   * ????????????
-   */
   listActiveSessions: async () => {
     requireBackend("listActiveSessions");
     return request("/account/sessions");
   },
 
   /**
-   * ????????
    * @param {string|number} id
    */
   revokeSession: async (id) => {
@@ -1677,7 +1459,6 @@ export const dashboardApi = {
   },
 
   /**
-   * ??????????
    * @param {{page?: number, size?: number, type?: string}} filters
    */
   listAccountAudit: async (filters = {}) => {
@@ -1685,9 +1466,7 @@ export const dashboardApi = {
     return request(`/account/audit${withQuery(filters)}`);
   },
 
-  // ===================== ???? =====================
   /**
-   * ???????????? / ????????
    * @param {{category?: 'operation'|'supervision'|'custom', keyword?: string, page?: number, size?: number}} filters
    */
   listReportTemplates: async (filters = {}) => {
@@ -1698,7 +1477,6 @@ export const dashboardApi = {
   },
 
   /**
-   * ??????????????
    * @param {{name: string, category: 'operation'|'supervision'|'custom', description?: string, fields: string[], palette?: string}} payload
    */
   createReportTemplate: async (payload = {}) => {
@@ -1712,7 +1490,6 @@ export const dashboardApi = {
   },
 
   /**
-   * ????????
    * @param {string|number} id
    */
   deleteReportTemplate: async (id) => {
@@ -1723,7 +1500,6 @@ export const dashboardApi = {
   },
 
   /**
-   * ??????????????????
    * @param {string|number} id
    * @param {{range?: string, format?: 'pdf'|'excel'|'csv', recipients?: string[]}} payload
    */
@@ -1738,7 +1514,6 @@ export const dashboardApi = {
   },
 
   /**
-   * ?? / ??????????
    * @param {{templateId: string|number, cron: 'daily'|'weekly'|'monthly', time: string, recipients: string[], enabled: boolean}} payload
    */
   updateReportSubscription: async (payload = {}) => {
@@ -1752,7 +1527,6 @@ export const dashboardApi = {
   },
 
   /**
-   * ?????????????????????????????
    * @param {{templateId?: string|number, status?: 'pending'|'running'|'success'|'failed', trigger?: 'manual'|'scheduled'|'event', range?: string, page?: number, size?: number}} filters
    */
   listReportHistory: async (filters = {}) => {
@@ -1763,7 +1537,6 @@ export const dashboardApi = {
   },
 
   /**
-   * ????????????
    * @param {string|number} id
    */
   rerunReportHistory: async (id) => {
@@ -1776,7 +1549,6 @@ export const dashboardApi = {
   },
 
   /**
-   * ????????????
    * @param {string|number} id
    */
   cancelReportHistory: async (id) => {
@@ -1788,13 +1560,7 @@ export const dashboardApi = {
     return response(mock.empty.ok);
   },
 
-  // ===================== ?????? =====================
   /**
-   * ??????????????????????
-   * - base / compare???? "24h" / "7d" / "30d" / "custom:2025-09-01T00:00:00Z,2025-09-07T23:59:59Z"
-   * - mode???? / ?? / ?????? KPI ????????
-   * ?????????? `/analytics/compare`?????? base+compare ????????????????
-   * ???????????????????????? seedState ?? incidents/warnings/hazards/devices ??????
    * @param {{base: string, compare: string, mode?: 'side'|'overlay'|'delta'}} params
    */
   getTimeRangeComparison: async ({ base, compare, mode = "side" } = {}) => {
@@ -1812,17 +1578,12 @@ export const dashboardApi = {
     );
   },
 
-  // ===================== ?????? =====================
-  /**
-   * ???? KPI ????????? / ???? / ???? / ??????????
-   */
   getCatalogSummary: async () => {
     requireBackend("getCatalogSummary");
     return request("/catalog/summary");
   },
 
   /**
-   * ???????????????
    * @param {{type?: string, category?: string, source?: string, keyword?: string, page?: number, size?: number}} filters
    */
   listDataAssets: async (filters = {}) => {
@@ -1831,7 +1592,6 @@ export const dashboardApi = {
   },
 
   /**
-   * ???????? / ???? / ?? / ??????
    * @param {string|number} id
    */
   getDataAssetDetail: async (id) => {
@@ -1840,7 +1600,6 @@ export const dashboardApi = {
   },
 
   /**
-   * ????????????
    * @param {string|number} id
    * @param {{scenario: string, duration: string|number, reason: string}} payload
    */
@@ -1853,7 +1612,6 @@ export const dashboardApi = {
   },
 
   /**
-   * ????????
    * @param {string|number} id
    * @param {{tags: string[]}} payload
    */
@@ -1865,36 +1623,29 @@ export const dashboardApi = {
     });
   },
 
-  /**
-   * ???????? 7/30 ??????????
-   */
   listCatalogUsage: async () => {
     requireBackend("listCatalogUsage");
     return request("/catalog/usage");
   },
 
   /**
-   * ??????????
    * @param {string|number} id
    */
   subscribeAssetChange: async (id) => {
     requireBackend("subscribeAssetChange");
-    return request(`/catalog/assets/${id}/subscribe-change`, {
+    // 后端实际路径是 /api/catalog/assets/{id}/subscribe（CatalogController），
+    // 且该接口用 @RequestBody 读取 email/webhook，缺 body 会被 Spring 判为 400。
+    return request(`/catalog/assets/${id}/subscribe`, {
       method: "POST",
+      body: JSON.stringify({}),
     });
   },
 
-  // ==========================================================================
-  // P0 ??????
-  // ==========================================================================
 
-  // ---------- P0-1 ???? ----------
-  /** ?????????????????? */
   getObstacleAreas: async () => {
     if (USE_BACKEND) {return request("/path-planning/obstacles");}
     return response(mock.runtime.getObstacleAreasMock());
   },
-  /** ???????????? */
   planRoutes: async (payload = {}) => {
     if (USE_BACKEND) {
       return request("/path-planning/calculate", {
@@ -1904,7 +1655,6 @@ export const dashboardApi = {
     }
     return response(mock.runtime.planRoutesWithObstaclesMock(payload));
   },
-  /** ?????? GeoJSON */
   exportRouteGeoJson: async (route) => {
     if (USE_BACKEND) {
       return request("/path-planning/export", {
@@ -1915,39 +1665,34 @@ export const dashboardApi = {
     return response({ geojson: mock.runtime.exportRouteGeoJsonMock(route) });
   },
 
-  // ---------- P0-2 ???? ----------
-  /** ???????? */
   previewWarningResolve: async (warning) => {
     if (USE_BACKEND) {
       return request(`/warnings/${warning?.id ?? warning?.warningId}/resolve/preview`);
     }
     return response(mock.runtime.previewWarningResolveMock(warning));
   },
-  /** ???????????? */
   getWarningResolveScope: async (id) => {
     if (USE_BACKEND) {return request(`/warnings/${id}/resolve/scope`);}
     return response({ scopes: [
-      { value: "ALL", label: "??" },
-      { value: "????", label: "????" },
-      { value: "????", label: "????" },
-      { value: "????", label: "????" },
+      { value: "ALL", label: "全部" },
+      { value: "龙安镇", label: "龙安镇" },
+      { value: "石桥镇", label: "石桥镇" },
+      { value: "清河镇", label: "清河镇" },
     ] });
   },
-  /** ?????????? resolve ?? + ??/??/???? */
   resolveWarning: async (id, payload = {}) => {
-    requireBackend("????");
+    requireBackend("解除预警");
     return request(`/warnings/${id}/resolve`, {
       method: "POST",
       body: JSON.stringify(payload),
     });
   },
 
-  // ---------- P0-3 ???? ----------
   getProfile: async () => {
     if (USE_BACKEND) {return request("/profile");}
     return response(mock.system.getUsersMock?.()?.[0] ?? {
-      id: "u-admin", username: "admin", name: "????",
-      phone: "138****8888", email: "admin@disasterguard.cn", department: "?????????",
+      id: "u-admin", username: "admin", name: "系统管理员",
+      phone: "138****8888", email: "admin@disasterguard.cn", department: "应急管理中心",
       avatar: "", role: "admin",
     });
   },
@@ -1964,7 +1709,7 @@ export const dashboardApi = {
     if (payload?.current === "123456") {
       return response({ ok: true });
     }
-    const err = new Error("??????");
+    const err = new Error("修改密码");
     err.code = "PWD";
     throw err;
   },
@@ -1991,7 +1736,7 @@ export const dashboardApi = {
     return response({ ok: true, ...payload });
   },
 
-  // ---------- P0-4 ?? ----------
+  // P0-4 ??
   listSignRecords: async (eventId) => {
     if (USE_BACKEND) {return request(`/events/${eventId}/sign`);}
     return response(mock.runtime.listSignRecordsMock(eventId));
@@ -2033,7 +1778,6 @@ export const dashboardApi = {
     return response(mock.runtime.transferEventMock(eventId, toUser, reason));
   },
 
-  // ---------- P0-5 ?????? ----------
   getZoneKpi: async (params = {}) => {
     if (USE_BACKEND) {return request("/dashboard/zone/kpi" + withQuery(params));}
     return response(mock.runtime.getZoneKpiMock(params));
@@ -2055,8 +1799,6 @@ export const dashboardApi = {
     return response(mock.runtime.getZoneRelatedEmergenciesMock(params));
   },
 
-  // ===X= ZoneDashboardPage ???? shim???? KPI / ?? / Top5 / ???? / ??????? ===X=
-  /** @deprecated ?? getZoneKpi/getZoneTrend/getZoneTopHazards ???? */
   getZoneSummary: async (filter = {}) => {
     const [kpi, trend, topHazards, relatedWarnings, relatedIncidents] = await Promise.all([
       dashboardApi.getZoneKpi(filter).catch(() => ({})),
@@ -2071,29 +1813,12 @@ export const dashboardApi = {
   getZoneRiskTrend: async (filter = {}) => {
     return dashboardApi.getZoneTrend(filter);
   },
-  /** ???????? */
   getZoneRelatedWarningsBy: (params) => dashboardApi.getZoneRelatedWarnings(params),
   getZoneRelatedEmergenciesBy: (params) => dashboardApi.getZoneRelatedEmergencies(params),
 
-  // =====================================================================
-  // v1.7.0+ P0 ???????Unified Event Center??
-  // ---------------------------------------------------------------------
-  // ???backend/src/main/java/cn/disasterguard/event/
-  //   EventStateMachineConfig.java (7 ???? ? 10 ????)
-  //   EventStateController.java   (GET /api/event/active | /stats | /{code} | POST /{code}/transition)
-  //   UnifiedEventEntity.java     (?? hazard/warning/emergency ????????)
-  //
-  // ?????? hazard / warning / emergency ????????????????
-  // ?????AI ?? ?? ???? ?? ???? ?? ??????? ?? ????????
-  // =====================================================================
 
   /**
-   * ?????????? updated_at DESC ??????
    * @param {Object} params
-   *   - type:      ?????HAZARD / WARNING / EMERGENCY ???? ??????????
-   *   - state:     ??????????? (DETECTED/CONFIRMING/CONFIRMED/WARNING_ISSUED/EMERGENCY_ACTIVE/CLOSED/REJECTED)
-   *   - source:    ?????AI_AUTO / RULE_ENGINE / MANUAL
-   *   - keyword:   ????????? eventCode/title
    *   - page/size: ??
    */
   listUnifiedEvents: async (params = {}) => {
@@ -2112,7 +1837,6 @@ export const dashboardApi = {
   },
 
   /**
-   * ??????KPI ????????
    * @returns {Promise<{DETECTED, CONFIRMING, CONFIRMED, WARNING_ISSUED, EMERGENCY_ACTIVE, CLOSED, REJECTED, total, active}>}
    */
   getUnifiedEventStats: async () => {
@@ -2123,9 +1847,6 @@ export const dashboardApi = {
     return response(mock.workflow.unifiedEventsStatsMock);
   },
 
-  /**
-   * ???????? hazard/warning/emergency ????????
-   */
   getUnifiedEventDetail: async (code) => {
     if (USE_BACKEND) {
       return request(`/event/${encodeURIComponent(code)}`);
@@ -2134,16 +1855,10 @@ export const dashboardApi = {
   },
 
   /**
-   * ?????????CONFIRM / REJECT / ISSUE_WARNING / TRIGGER_EMERGENCY / CLOSE ????
-   * ??????? Spring StateMachine ??????????
-   * @param {string} code      ????
    * @param {Object} payload
-   *   - trigger:  EventTrigger ?????? (CONFIRM/REJECT/DISMISS/ISSUE_WARNING/TRIGGER_EMERGENCY/CLOSE/REOPEN/MANUAL_REPORT/START_CONFIRM/AI_DETECT)
-   *   - operator: ????
-   *   - reason:   ??????/??????
    */
   transitionUnifiedEvent: async (code, payload = {}) => {
-    requireBackend("???????????");
+    requireBackend("统一事件状态流转");
     return request(`/event/${encodeURIComponent(code)}/transition`, {
       method: "POST",
       body: JSON.stringify(payload),
@@ -2151,68 +1866,57 @@ export const dashboardApi = {
   },
 
   /**
-   * ????????????????????????
-   * ?????????????? EventStateMachineConfig ????????????
    * @param {string} code
    */
   getUnifiedEventAvailableTriggers: async (code) => {
-    // ???????? ???? ?? detail ?????? state ?????? triggers
     const detail = await dashboardApi.getUnifiedEventDetail(code);
-    if (!detail) return [];
+    if (!detail) { return []; }
     return dashboardApi.computeAvailableTriggers(detail.state);
   },
 
-  /**
-   * ?????? EventState ?????? EventTrigger??
-   * ?? EventStateMachineConfig.java ??????????
-   */
   computeAvailableTriggers: (currentState) => {
     const MAP = {
       DETECTED: [
-        { trigger: "AI_DETECT", label: "AI ??", tone: "blue" },
-        { trigger: "MANUAL_REPORT", label: "????", tone: "blue" },
-        { trigger: "DISMISS", label: "????", tone: "gray" },
+        { trigger: "AI_DETECT", label: "AI 识别", tone: "blue" },
+        { trigger: "MANUAL_REPORT", label: "人工上报", tone: "blue" },
+        { trigger: "DISMISS", label: "忽略", tone: "gray" },
       ],
       CONFIRMING: [
-        { trigger: "CONFIRM", label: "????", tone: "green" },
-        { trigger: "REJECT", label: "??", tone: "red" },
-        { trigger: "DISMISS", label: "????", tone: "gray" },
+        { trigger: "CONFIRM", label: "确认", tone: "green" },
+        { trigger: "REJECT", label: "驳回", tone: "red" },
+        { trigger: "DISMISS", label: "忽略", tone: "gray" },
       ],
       CONFIRMED: [
-        { trigger: "ISSUE_WARNING", label: "????", tone: "orange" },
-        { trigger: "TRIGGER_EMERGENCY", label: "??????", tone: "red" },
-        { trigger: "DISMISS", label: "????", tone: "gray" },
+        { trigger: "ISSUE_WARNING", label: "发布预警", tone: "orange" },
+        { trigger: "TRIGGER_EMERGENCY", label: "启动应急", tone: "red" },
+        { trigger: "DISMISS", label: "忽略", tone: "gray" },
       ],
       WARNING_ISSUED: [
-        { trigger: "TRIGGER_EMERGENCY", label: "??????", tone: "red" },
-        { trigger: "CLOSE", label: "????", tone: "green" },
+        { trigger: "TRIGGER_EMERGENCY", label: "启动应急", tone: "red" },
+        { trigger: "CLOSE", label: "关闭", tone: "green" },
       ],
       EMERGENCY_ACTIVE: [
-        { trigger: "CLOSE", label: "???????", tone: "green" },
+        { trigger: "CLOSE", label: "结束应急", tone: "green" },
       ],
       CLOSED: [
-        { trigger: "REOPEN", label: "????", tone: "blue" },
+        { trigger: "REOPEN", label: "重新打开", tone: "blue" },
       ],
       REJECTED: [
-        { trigger: "REOPEN", label: "????", tone: "blue" },
+        { trigger: "REOPEN", label: "重新打开", tone: "blue" },
       ],
     };
     return MAP[currentState] ?? [];
   },
 
-  /**
-   * ????????????????? 7 ??????? + ????????
-   * ?? EventStateMachineConfig.java ????????
-   */
   getStateMachineGraph: () => ({
     states: [
-      { id: "DETECTED",          label: "????",      color: "#4f8f99", icon: "Eye" },
-      { id: "CONFIRMING",        label: "????",      color: "#e0a050", icon: "ClipboardCheck" },
-      { id: "CONFIRMED",         label: "????",      color: "#638fc2", icon: "CheckCircle2" },
-      { id: "WARNING_ISSUED",    label: "????",    color: "#d88561", icon: "Bell" },
-      { id: "EMERGENCY_ACTIVE",  label: "???????",    color: "#e06060", icon: "Truck" },
-      { id: "CLOSED",            label: "????",      color: "#9baead", icon: "Archive" },
-      { id: "REJECTED",          label: "????",      color: "#7a8d89", icon: "XCircle" },
+      { id: "DETECTED",          label: "已发现",      color: "#4f8f99", icon: "Eye" },
+      { id: "CONFIRMING",        label: "确认中",      color: "#e0a050", icon: "ClipboardCheck" },
+      { id: "CONFIRMED",         label: "已确认",      color: "#638fc2", icon: "CheckCircle2" },
+      { id: "WARNING_ISSUED",    label: "预警发布",    color: "#d88561", icon: "Bell" },
+      { id: "EMERGENCY_ACTIVE",  label: "应急处置",    color: "#e06060", icon: "Truck" },
+      { id: "CLOSED",            label: "已关闭",      color: "#9baead", icon: "Archive" },
+      { id: "REJECTED",          label: "已驳回",      color: "#7a8d89", icon: "XCircle" },
     ],
     transitions: [
       { from: "DETECTED",         to: "CONFIRMING",       trigger: "AI_DETECT/MANUAL_REPORT" },
@@ -2230,10 +1934,8 @@ export const dashboardApi = {
     ],
   }),
 
-  // ==================== P1 ???? + ???? ====================
 
   /**
-   * ???????? DB ??????????
    * GET /api/ai/forecast/auto
    * @param {{deviceCode: string, metric?: string, horizon?: number, historyLimit?: number}} params
    * @returns {Promise<{deviceCode, metric, horizon, predictions: number[], confidence: number, model: string, degraded: boolean}>}
@@ -2246,7 +1948,6 @@ export const dashboardApi = {
   },
 
   /**
-   * ?????????? DB ??????
    * GET /api/ai/fusion-risk/auto?hazardCode=xxx
    * @param {string} hazardCode
    * @returns {Promise<{hazardCode, riskLevel: 'LOW'|'MEDIUM'|'HIGH'|'CRITICAL', riskScore: number, confidence: number, model: string, degraded: boolean}>}
@@ -2259,7 +1960,6 @@ export const dashboardApi = {
   },
 
   /**
-   * ?????????? hazardCode + DB ????????
    * GET /api/ai/disaster-assessment?hazardCode=xxx
    * @param {string} hazardCode
    * @returns {Promise<DisasterAssessmentResponseDto>}
@@ -2272,7 +1972,6 @@ export const dashboardApi = {
   },
 
   /**
-   * ?????????????? / ???? / ????????
    * GET /api/ai/disaster-assessment/status
    */
   getDisasterAssessmentStatus: async () => {
@@ -2283,7 +1982,6 @@ export const dashboardApi = {
   },
 
   /**
-   * ???????????????????? + ???????/????????
    * POST /api/ai/disaster-assessment/independent
    * @param {{points: Array<{lon: number, lat: number, regionCode?: string, regionName?: string, rainfall24h?: number, rainfall7d?: number, temperature?: number, humidity?: number, elevationM?: number, slopeDeg?: number, soilGrade?: number, vegetationCover?: number, distanceToWaterM?: number, geologyGrade?: number, geologyLabel?: string}>, minRiskLevel?: string, mockWeather?: boolean}} payload
    * @returns {Promise<{totalPoints: number, detectedCount: number, results: IndependentResultDto[], executionMs: number}>}

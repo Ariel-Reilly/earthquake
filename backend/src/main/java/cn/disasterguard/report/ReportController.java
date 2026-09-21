@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 /**
  * 报告管理（Report）REST API。
@@ -61,7 +62,6 @@ public class ReportController {
       templates.put(id, template);
     }
 
-    // 添加一些历史报告
     for (int i = 1; i <= 5; i++) {
       long id = REPORT_ID_GEN.incrementAndGet();
       Map<String, Object> report = new LinkedHashMap<>();
@@ -78,6 +78,7 @@ public class ReportController {
   }
 
   @GetMapping("/templates")
+  @PreAuthorize("hasAuthority('reports:view')")
   public ApiResponse<Map<String, Object>> listTemplates(
       @RequestParam(defaultValue = "1") int page,
       @RequestParam(defaultValue = "20") int size,
@@ -108,6 +109,7 @@ public class ReportController {
   }
 
   @PostMapping("/templates")
+  @PreAuthorize("hasAuthority('reports:create')")
   public ApiResponse<Map<String, Object>> createTemplate(@RequestBody Map<String, Object> body) {
     long id = TEMPLATE_ID_GEN.incrementAndGet();
     Map<String, Object> template = new LinkedHashMap<>();
@@ -123,6 +125,7 @@ public class ReportController {
   }
 
   @DeleteMapping("/templates/{templateId}")
+  @PreAuthorize("hasAuthority('reports:delete')")
   public ApiResponse<Map<String, Object>> deleteTemplate(@PathVariable Long templateId) {
     if (!templates.containsKey(templateId)) {
       return ApiResponse.fail(404, "模板不存在: " + templateId);
@@ -132,6 +135,7 @@ public class ReportController {
   }
 
   @PostMapping("/templates/{templateId}/run")
+  @PreAuthorize("hasAuthority('reports:create')")
   public ApiResponse<Map<String, Object>> runTemplate(@PathVariable Long templateId) {
     Map<String, Object> template = templates.get(templateId);
     if (template == null) {
@@ -142,12 +146,12 @@ public class ReportController {
     report.put("reportId", reportId);
     report.put("status", "RUNNING");
     report.put("startedAt", OffsetDateTime.now());
-    // 更新模板最后运行时间
     template.put("lastRunAt", OffsetDateTime.now());
     return ApiResponse.success(report);
   }
 
   @GetMapping("/history")
+  @PreAuthorize("hasAuthority('reports:view')")
   public ApiResponse<Map<String, Object>> listHistory(
       @RequestParam(defaultValue = "1") int page,
       @RequestParam(defaultValue = "20") int size,
@@ -181,6 +185,7 @@ public class ReportController {
   }
 
   @PostMapping("/history/{id}/rerun")
+  @PreAuthorize("hasAuthority('reports:create')")
   public ApiResponse<Map<String, Object>> rerun(@PathVariable Long id) {
     Map<String, Object> existing = history.get(id);
     if (existing == null) {
@@ -201,6 +206,7 @@ public class ReportController {
   }
 
   @PostMapping("/history/{id}/cancel")
+  @PreAuthorize("hasAuthority('reports:create')")
   public ApiResponse<Map<String, Object>> cancel(@PathVariable Long id) {
     Map<String, Object> report = history.get(id);
     if (report == null) {

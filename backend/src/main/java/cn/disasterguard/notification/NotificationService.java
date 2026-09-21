@@ -208,7 +208,9 @@ public class NotificationService {
       try {
         channels = objectMapper.readValue(record.getChannels(),
             new TypeReference<List<String>>() {});
-      } catch (Exception ignored) {}
+      } catch (Exception ignored) {
+        log.debug("无法解析 channels JSON '{}'（容忍脏数据）", record.getChannels());
+      }
     }
 
     return new NotificationRecordDto(
@@ -253,7 +255,9 @@ public class NotificationService {
       try {
         parsed.addAll(objectMapper.readValue(config.getChannels(),
             new TypeReference<List<String>>() {}));
-      } catch (Exception ignored) {}
+      } catch (Exception ignored) {
+        log.debug("无法解析 config.channels JSON '{}'（容忍脏数据）", config.getChannels());
+      }
       channelList = List.copyOf(parsed);
     } else {
       channelList = List.of();
@@ -264,7 +268,9 @@ public class NotificationService {
       try {
         parsed.putAll(objectMapper.readValue(config.getTemplateMapping(),
             new TypeReference<Map<String, String>>() {}));
-      } catch (Exception ignored) {}
+      } catch (Exception ignored) {
+        log.debug("无法解析 config.templateMapping JSON '{}'（容忍脏数据）", config.getTemplateMapping());
+      }
       templateMapping = Map.copyOf(parsed);
     } else {
       templateMapping = Map.of();
@@ -303,10 +309,15 @@ public class NotificationService {
     config.setDisasterType(disasterType);
     config.setLevel(level);
     config.setEnabled(true);
+    // 硬编码字面量序列化不会失败；捕获仅防止未来维护时引入不兼容对象
     try {
       config.setChannels(objectMapper.writeValueAsString(List.of("SMS", "APP", "SCREEN")));
       config.setTemplateMapping(objectMapper.writeValueAsString(Map.of()));
-    } catch (Exception ignored) {}
+    } catch (Exception e) {
+      log.error("createDefaultConfig 序列化失败（不应发生）：{}", e.getMessage());
+      config.setChannels("[\"SMS\",\"APP\",\"SCREEN\"]");
+      config.setTemplateMapping("{}");
+    }
     return config;
   }
 }

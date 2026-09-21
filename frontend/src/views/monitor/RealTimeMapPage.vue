@@ -27,6 +27,8 @@ import {
   Sun,
   Target,
   X,
+  AlertCircle,
+  Map,
 } from "lucide-vue-next"
 import { createOpenLayersController } from "../../services/mapService"
 import { dashboardApi } from "../../services/dashboardApi"
@@ -44,6 +46,7 @@ let mapController = null
 const mapReady = ref(false)
 const mapStyle = ref("vector")
 const loading = ref(true)
+const mapError = ref(null)
 const refreshing = ref(false)
 const showLayers = ref(true)
 const showLegend = ref(true)
@@ -67,19 +70,17 @@ const aiMonitorCount = ref(0)
 
 async function bootstrapMap() {
   if (!mapContainer.value) return
+  mapError.value = null
   try {
     mapController = await createOpenLayersController(mapContainer.value, {
       baseMap: mapStyle.value,
-      // ⚠️ showWeather / showSentinel 暂未实现：factory 不识别这两个参数，静默忽略。
-      // 如需控制气象 overlay / Sentinel 图层显隐，改为调用 mapController.setWeatherOverlay() / sentinel.setOverlay()。
-      // showWeather: layerState.weather,
-      // showSentinel: mapStyle.value === "satellite",
     })
     mapReady.value = true
     await loadAllOverlays()
     buildTimeline()
   } catch (e) {
-    emit("notify", e?.message ?? "地图初始化失败")
+    mapError.value = e?.message || "地图初始化失败"
+    emit("notify", mapError.value)
   } finally {
     loading.value = false
   }
@@ -221,7 +222,7 @@ const layerMeta = [
   { key: "personnel", label: "值守人员", color: "#2a8154" },
 ]
 
-// ===================== 设备轨迹回放 Tab 状态 =====================
+// 设备轨迹回放 Tab 状态
 const trackTabActive = ref(false)
 const trackDevices = ref([])
 const trackDeviceId = ref(null)
@@ -231,6 +232,7 @@ const trackSpeed = ref("1")
 const trackPlaying = ref(false)
 const trackProgress = ref(0) // 0-100
 const trackLoading = ref(false)
+const trackError = ref(null)
 const trackPoints = ref([])
 let trackPlayTimer = null
 let trackMapCtrl = null
@@ -259,13 +261,18 @@ function initDefaultTrackRange() {
 async function loadTrackData() {
   if (!trackDeviceId.value || !trackFrom.value || !trackTo.value) return
   trackLoading.value = true
+  trackError.value = null
   try {
     const data = await dashboardApi.getDeviceTrack(trackDeviceId.value, {
       from: trackFrom.value,
       to: trackTo.value,
     })
     trackPoints.value = Array.isArray(data) ? data : []
-  } catch {
+    if (trackPoints.value.length === 0) {
+      trackError.value = "未找到该设备在指定时间范围内的轨迹数据"
+    }
+  } catch (e) {
+    trackError.value = e?.message || "加载轨迹数据失败"
     trackPoints.value = []
   } finally {
     trackLoading.value = false
@@ -348,7 +355,21 @@ watch([trackFrom, trackTo], () => {
 <template>
   <div class="real-time-map-shell">
     <header class="page-header">
-      <div>
+      <div class="header-left">
+        <h2 class="page-title">实时监测地图</h2>
+        <!-- Tab 切换：地图 / 设备轨迹回放 -->
+        <div class="inline-tabs">
+          <button
+            class="inline-tab"
+            :class="{ active: !trackTabActive }"
+            @click="trackTabActive = false"
+          >地图视图</button>
+          <button
+            class="inline-tab"
+            :class="{ active: trackTabActive }"
+            @click="trackTabActive = true; loadTrackDevices(); initDefaultTrackRange()"
+          >设备轨迹回放</button>
+        </div>
       </div>
       <div class="actions">
         <div class="map-style-switch">
@@ -406,39 +427,120 @@ watch([trackFrom, trackTo], () => {
       </aside>
       <button v-else class="layer-toggle" @click="showLayers = true"><Layers :size="14" /></button>
 
-      <div class="map-stage">
+      <div class="map-stage" v-if="!trackTabActive">
+        <!-- 加载中状态 -->
         <div v-if="loading" class="map-loading">
-          <Loader2 :size="20" class="spin" />
-          地图加载中…
+          <Loader2 :size="24" class="spin" />
+          <span>地图加载中...</span>
         </div>
-        <div ref="mapContainer" class="ol-map"></div>
+        <!-- 加载失败状态 -->
+        <div v-else-if="mapError" class="map-error">
+          <AlertCircle :size="28" />
+          <strong>地图加载失败</strong>
+          <p>{{ mapError }}</p>
+          <button class="op-btn" @click="bootstrapMap">
+            <RefreshCw :size="14" />重试
+          </button>
+        </div>
+        <!-- 空状态 -->
+        <div v-else-if="stats.total === 0" class="map-empty">
+          <Map :size="32" />
+          <strong>暂无监测数据</strong>
+          <p>当前区域暂无灾害点、设备或预警信息</p>
+        </div>
+        <div ref="mapContainer" class="ol-map" :class="{ hidden: loading || mapError || stats.total === 0 }"></div>
 
         <div class="ai-banner" v-if="aiMonitorCount > 0">
           <Cpu :size="14" />
           AI 实时监测：<strong>{{ aiMonitorCount }}</strong> 个疑似灾害
           <small>· 由 AiHazardMonitorScheduler 每 90s 巡查</small>
         </div>
+        <!-- AI 监测数据为空时的提示 -->
+        <div v-else class="ai-banner ai-banner-empty">
+          <Cpu :size="14" />
+          <span>AI 实时监测：暂无疑似灾害</span>
+          <small>· 由 AiHazardMonitorScheduler 每 90s 巡查</small>
+        </div>
+      </div>
 
-        <!-- 内嵌 Tab 切换：地图 / 设备轨迹回放 -->
-        <div class="map-inline-tabs">
-          <button
-            class="map-inline-tab"
-            :class="{ active: !trackTabActive }"
-            @click="trackTabActive = false"
-          >地图视图</button>
-          <button
-            class="map-inline-tab"
-            :class="{ active: trackTabActive }"
-            @click="trackTabActive = true; loadTrackDevices(); initDefaultTrackRange()"
-          >设备轨迹回放</button>
+      <!-- 设备轨迹回放视图（替换地图视图） -->
+      <div class="track-stage" v-else>
+        <div class="track-toolbar">
+          <label class="track-label">
+            设备
+            <select v-model="trackDeviceId">
+              <option :value="null" disabled>选择设备</option>
+              <option v-for="d in trackDevices" :key="d.id" :value="d.id">{{ d.name }} ({{ d.state ?? '未知' }})</option>
+            </select>
+          </label>
+          <label class="track-label">
+            开始时间
+            <input type="datetime-local" v-model="trackFrom" />
+          </label>
+          <label class="track-label">
+            结束时间
+            <input type="datetime-local" v-model="trackTo" />
+          </label>
+          <label class="track-label">
+            速度
+            <select v-model="trackSpeed">
+              <option value="1">1x</option>
+              <option value="2">2x</option>
+              <option value="5">5x</option>
+              <option value="10">10x</option>
+            </select>
+          </label>
+          <button class="op-btn" @click="toggleTrackPlay" :disabled="trackPoints.length < 2">
+            <span v-if="trackPlaying">暂停</span>
+            <span v-else>播放</span>
+          </button>
+          <button class="op-btn" @click="exportTrackGeoJSON" :disabled="!trackPoints.length">
+            导出轨迹 GeoJSON
+          </button>
+        </div>
+
+        <div class="track-map-wrap">
+          <!-- 加载中状态 -->
+          <div v-if="trackLoading" class="track-map-status track-loading">
+            <Loader2 :size="24" class="spin" />
+            <span>加载轨迹数据...</span>
+          </div>
+          <!-- 错误/空状态 -->
+          <div v-else-if="trackError || trackPoints.length === 0" class="track-map-status track-empty">
+            <Map :size="28" />
+            <strong>{{ trackError ? '加载失败' : '暂无轨迹' }}</strong>
+            <p>{{ trackError || '请选择设备与时间范围后重新加载' }}</p>
+            <button v-if="trackError" class="op-btn" @click="loadTrackData">
+              <RefreshCw :size="14" />重试
+            </button>
+          </div>
+          <div ref="trackMapContainer" class="track-ol-map" :class="{ hidden: trackLoading || trackError || trackPoints.length === 0 }"></div>
+
+          <!-- 轨迹进度时间轴 -->
+          <div v-if="trackPoints.length > 1" class="track-timeline">
+            <div class="track-timeline-labels">
+              <span>{{ trackFrom ? new Date(trackFrom).toLocaleString('zh-CN', { hour12: false }) : '--' }}</span>
+              <span class="track-progress-text">当前: {{ Math.round(trackProgress / 100 * (trackPoints.length - 1)) + 1 }} / {{ trackPoints.length }}</span>
+              <span>{{ trackTo ? new Date(trackTo).toLocaleString('zh-CN', { hour12: false }) : '--' }}</span>
+            </div>
+            <input
+              type="range"
+              min="0"
+              max="100"
+              :value="trackProgress"
+              @input="onTrackScrub"
+              class="track-scrubber"
+            />
+          </div>
         </div>
       </div>
     </div>
 
-    <footer class="timeline-bar">
+    <!-- 时间轴（仅地图视图时显示） -->
+    <footer class="timeline-bar" v-if="!trackTabActive">
       <div class="timeline-head">
         <Clock :size="14" />
-        <span>时间轴：最近 24h</span>
+        <span class="timeline-title">时间轴：最近 24h</span>
         <button class="ghost-btn" @click="togglePlay">
           <span v-if="isPlaying">⏸ 暂停</span>
           <span v-else>▶ 播放</span>
@@ -455,68 +557,6 @@ watch([trackFrom, trackTo], () => {
         <span v-for="(f, i) in timeline" :key="i" :class="{ active: i === timelineIndex }">{{ f.label }}</span>
       </div>
     </footer>
-
-    <!-- ========== 设备轨迹回放 Tab ========== -->
-    <section v-if="trackTabActive" class="track-panel">
-      <div class="track-toolbar">
-        <label class="track-label">
-          设备
-          <select v-model="trackDeviceId">
-            <option :value="null" disabled>选择设备</option>
-            <option v-for="d in trackDevices" :key="d.id" :value="d.id">{{ d.name }} ({{ d.state ?? '未知' }})</option>
-          </select>
-        </label>
-        <label class="track-label">
-          开始时间
-          <input type="datetime-local" v-model="trackFrom" />
-        </label>
-        <label class="track-label">
-          结束时间
-          <input type="datetime-local" v-model="trackTo" />
-        </label>
-        <label class="track-label">
-          速度
-          <select v-model="trackSpeed">
-            <option value="1">1x</option>
-            <option value="2">2x</option>
-            <option value="5">5x</option>
-            <option value="10">10x</option>
-          </select>
-        </label>
-        <button class="op-btn" @click="toggleTrackPlay" :disabled="trackPoints.length < 2">
-          <span v-if="trackPlaying">暂停</span>
-          <span v-else>播放</span>
-        </button>
-        <button class="op-btn" @click="exportTrackGeoJSON" :disabled="!trackPoints.length">
-          导出轨迹 GeoJSON
-        </button>
-        <span class="track-hint">
-          <template v-if="trackLoading">加载轨迹数据...</template>
-          <template v-else-if="trackPoints.length > 0">{{ trackPoints.length }} 个轨迹点</template>
-          <template v-else>无轨迹数据，请选择设备与时间范围</template>
-        </span>
-      </div>
-
-      <div class="track-map-wrap">
-        <div ref="trackMapContainer" class="track-ol-map"></div>
-        <!-- polyline preview via CSS fallback when map not ready -->
-        <div v-if="trackPoints.length > 1" class="track-timeline">
-          <input
-            type="range"
-            min="0"
-            max="100"
-            :value="trackProgress"
-            @input="onTrackScrub"
-            class="track-scrubber"
-          />
-          <div class="track-timeline-labels">
-            <span>{{ trackFrom ? new Date(trackFrom).toLocaleString('zh-CN', { hour12: false }) : '--' }}</span>
-            <span>当前: {{ Math.round(trackProgress / 100 * (trackPoints.length - 1)) + 1 }} / {{ trackPoints.length }}</span>
-            <span>{{ trackTo ? new Date(trackTo).toLocaleString('zh-CN', { hour12: false }) : '--' }}</span>
-          </div>
-        </div>
-      </div>
-    </section>
   </div>
 </template>
 
@@ -532,12 +572,44 @@ watch([trackFrom, trackTo], () => {
 .page-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  padding: 20px 24px 12px;
+  align-items: center;
+  padding: 16px 24px 12px;
   border-bottom: 1px solid #e9eee9;
+  gap: 16px;
+  flex-wrap: wrap;
 }
-.page-header h2 { margin: 0; display: flex; gap: 8px; align-items: center; font-size: 18px; color: #1f3e44; }
-.page-header p { margin: 4px 0 0; color: #7a8d89; font-size: 12px; }
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.page-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1f3e44;
+}
+.inline-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: #f4f7f5;
+  border-radius: 10px;
+}
+.inline-tab {
+  padding: 6px 16px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #56716e;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.inline-tab.active {
+  background: #2f7f80;
+  color: #fff;
+}
 .page-header .actions { display: flex; gap: 10px; align-items: center; }
 
 .map-style-switch { display: flex; gap: 6px; background: #f4f7f5; padding: 4px; border-radius: 10px; }
@@ -571,26 +643,132 @@ watch([trackFrom, trackTo], () => {
 
 .map-stage { flex: 1; position: relative; }
 .ol-map { position: absolute; inset: 0; }
-.map-loading { position: absolute; inset: 0; display: flex; gap: 8px; align-items: center; justify-content: center; background: rgba(244,247,245,.85); color: #56716e; z-index: 4; }
+.ol-map.hidden { display: none; }
+.map-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  background: rgba(244, 247, 245, 0.95);
+  color: #56716e;
+  z-index: 4;
+}
+.map-loading span { font-size: 13px; }
+.map-error {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  background: rgba(254, 246, 244, 0.96);
+  color: #c7553b;
+  z-index: 4;
+}
+.map-error strong { font-size: 15px; }
+.map-error p { color: #8a5a4a; font-size: 12px; margin: 0; }
+.map-error .op-btn { margin-top: 8px; }
+.map-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  background: rgba(244, 247, 245, 0.96);
+  color: #7a8d89;
+  z-index: 4;
+}
+.map-empty strong { font-size: 15px; color: #4a6367; }
+.map-empty p { font-size: 12px; margin: 0; }
+.map-loading .spin,
+.map-error .spin { animation: spin 1s linear infinite; }
 
 .ai-banner { position: absolute; top: 12px; right: 12px; z-index: 3; display: flex; gap: 8px; align-items: center; padding: 8px 14px; border-radius: 999px; background: rgba(255,255,255,.92); color: #1f3e44; font-size: 12px; box-shadow: 0 4px 12px rgba(0,0,0,.06); }
 .ai-banner small { color: #7a8d89; }
+.ai-banner-empty {
+  background: rgba(255, 255, 255, 0.75);
+  color: #7a8d89;
+}
 
-.timeline-bar { padding: 10px 24px 14px; border-top: 1px solid #e9eee9; background: #fafdfc; }
-.timeline-head { display: flex; gap: 8px; align-items: center; font-size: 12px; color: #1f3e44; margin-bottom: 6px; }
-.timeline-head .ghost-btn { margin-left: auto; padding: 4px 10px; border: 1px solid #d9e6e1; background: #fff; border-radius: 6px; cursor: pointer; font-size: 11px; }
-.timeline-slider { width: 100%; }
-.timeline-labels { display: flex; justify-content: space-between; font-size: 10px; color: #7a8d89; margin-top: 2px; }
-.timeline-labels .active { color: #2f7f80; font-weight: 600; }
+.timeline-bar {
+  padding: 10px 24px 14px;
+  border-top: 1px solid #e9eee9;
+  background: #fafdfc;
+}
+.timeline-head {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 12px;
+  color: #1f3e44;
+  margin-bottom: 6px;
+}
+.timeline-title {
+  flex-shrink: 0;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.timeline-head .ghost-btn {
+  margin-left: auto;
+  padding: 4px 10px;
+  border: 1px solid #d9e6e1;
+  background: #fff;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 11px;
+}
+.timeline-slider {
+  width: 100%;
+}
+.timeline-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: #7a8d89;
+  margin-top: 2px;
+  /* 限制最多显示 9 个标签，每 3 小时一个 */
+  max-width: 400px;
+  margin-left: auto;
+  margin-right: 0;
+}
+.timeline-labels span {
+  flex: 1;
+  text-align: center;
+  min-width: 32px;
+}
+.timeline-labels span:nth-child(odd):not(:first-child):not(:last-child) {
+  /* 每 3 小时显示一个主要标签 */
+  display: none;
+}
+.timeline-labels span:first-child,
+.timeline-labels span:nth-child(7),
+.timeline-labels span:nth-child(13),
+.timeline-labels span:nth-child(19),
+.timeline-labels span:last-child {
+  display: block;
+}
+.timeline-labels .active {
+  color: #2f7f80;
+  font-weight: 600;
+}
 
 .spin { animation: spin 1s linear infinite; }
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
-/* 设备轨迹回放 */
-.track-panel {
+/* 设备轨迹回放视图 */
+.track-stage {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  height: 100%;
+  min-height: 0;
 }
 .track-toolbar {
   display: flex;
@@ -617,11 +795,6 @@ watch([trackFrom, trackTo], () => {
   font-size: 12px;
   color: #24494d;
 }
-.track-hint {
-  font-size: 11px;
-  color: #7a8d89;
-  margin-left: auto;
-}
 .track-map-wrap {
   flex: 1;
   position: relative;
@@ -631,6 +804,29 @@ watch([trackFrom, trackTo], () => {
   position: absolute;
   inset: 0;
 }
+.track-ol-map.hidden { display: none; }
+.track-map-status {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  z-index: 3;
+}
+.track-loading {
+  background: rgba(244, 247, 245, 0.96);
+  color: #56716e;
+}
+.track-loading span { font-size: 13px; }
+.track-empty {
+  background: rgba(244, 247, 245, 0.96);
+  color: #7a8d89;
+}
+.track-empty strong { font-size: 14px; color: #4a6367; }
+.track-empty p { font-size: 12px; margin: 0; }
+.track-empty .op-btn { margin-top: 8px; }
 .track-timeline {
   position: absolute;
   bottom: 0;
@@ -646,35 +842,13 @@ watch([trackFrom, trackTo], () => {
 .track-timeline-labels {
   display: flex;
   justify-content: space-between;
-  font-size: 10px;
+  align-items: center;
+  font-size: 11px;
   color: #7a8d89;
-  margin-top: 4px;
+  margin-bottom: 8px;
 }
-.map-inline-tabs {
-  position: absolute;
-  top: 12px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 4;
-  display: flex;
-  gap: 2px;
-  padding: 3px;
-  background: rgba(255, 255, 255, 0.92);
-  border-radius: 999px;
-  box-shadow: 0 2px 8px rgba(0,0,0,.08);
-}
-.map-inline-tab {
-  padding: 5px 14px;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: #56716e;
-  font-size: 12px;
-  cursor: pointer;
-  transition: background .15s, color .15s;
-}
-.map-inline-tab.active {
-  background: #2f7f80;
-  color: #fff;
+.track-progress-text {
+  color: #2f7f80;
+  font-weight: 600;
 }
 </style>

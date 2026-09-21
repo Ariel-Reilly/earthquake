@@ -23,7 +23,7 @@ const DEFAULT_AI_SERVICE_BASE = (() => {
     import.meta.env.VITE_AI_SERVICE_BASE ||
     import.meta.env.VITE_AI_SERVICE_BASE_URL ||
     'http://localhost:8001/api/ai'
-  let base = String(raw).replace(/\/$/, '')
+  const base = String(raw).replace(/\/$/, '')
   if (/\/api\/ai$/.test(base)) {return base}
   if (/\/api$/.test(base)) {return base + '/ai'}
   return base + '/api/ai'
@@ -248,9 +248,7 @@ export function hotspotToLonLat(hotspot, bbox) {
   return { lon: Number(lon.toFixed(6)), lat: Number(lat.toFixed(6)) }
 }
 
-// ============================================================================
 // 内部辅助
-// ============================================================================
 
 function sanitizeDiffRequest(req) {
   const out = {}

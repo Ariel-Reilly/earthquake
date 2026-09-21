@@ -11,9 +11,7 @@
 
 import { defineStore } from 'pinia'
 
-// ===X===X===X===X===X===X===X===X===X===X===X===X===X===X===X
 // 持久化 key 与角色定义
-// ===X===X===X===X===X===X===X===X===X===X===X===X===X===X===X
 const TOKEN_KEY = 'disasterguard_token'
 const USER_KEY = 'disasterguard_user'
 
@@ -35,6 +33,18 @@ export const ROLE_HOME_MAP = {
   expert:              '/dashboard/confirmation-workbench',
   'ai-engineer':      '/dashboard/ai-tasks',
   maintenance:         '/dashboard/devices',
+}
+
+/**
+ * 角色名规范化：后端 sys_role.role_code 使用下划线（system_admin / emergency_commander /
+ * ai_engineer），而本文件的角色映射表使用连字符（system-admin / ...）。
+ * 两者不一致时映射会 miss，历史上被 `?? ROLE_MENU_MAP.admin` 兜底掩盖，
+ * 导致这三个角色实际拿到的是管理员的全部菜单与权限（越权）。
+ * 统一在此处做一次转换，使两侧键名对齐。
+ */
+export function normalizeRole(role) {
+  if (!role) {return '';}
+  return String(role).trim().toLowerCase().replace(/_/g, '-');
 }
 
 export const ROLE_MENU_MAP = {
@@ -96,7 +106,6 @@ export const ROLE_MENU_MAP = {
     '/dashboard/account-security', '/dashboard/message-center', '/dashboard/todo',
     '/dashboard/settings', '/dashboard/profile',
   ],
-  // v1.7.0 新增角色
   'system-admin': [
     '/dashboard', '/dashboard/analytics', '/dashboard/history-hazards',
     '/dashboard/reports', '/dashboard/user-management', '/dashboard/audit-log',
@@ -211,7 +220,6 @@ export const ROLE_PERMISSION_MAP = {
     'monitor:view','backup:view','messages:view','todo:view','settings:view',
     'profile:view','profile:edit',
   ],
-  // v1.7.0 新增角色
   'system-admin': [
     'overview:view','overview:export',
     'analytics:view','analytics:export','history:view','history:export',
@@ -263,9 +271,7 @@ export const ROLE_PERMISSION_MAP = {
   ],
 }
 
-// ===X===X===X===X===X===X===X===X===X===X===X===X===X===X===X
 // Pinia store — 唯一状态源
-// ===X===X===X===X===X===X===X===X===X===X===X===X===X===X===X
 
 function safeParse(raw) {
   if (!raw) {return null}
@@ -283,10 +289,12 @@ export const useAuthStore = defineStore('auth', {
   state: () => loadInitialState(),
   getters: {
     isLoggedIn: (state) => Boolean(state.token && state.user),
-    role: (state) => state.user?.role ?? 'admin',
+    // 角色缺失或无法识别时一律视为"无角色"，绝不回落到 admin。
+    // 原实现 `?? 'admin'` 会让任意未知角色直接获得管理员全部菜单与权限。
+    role: (state) => normalizeRole(state.user?.role),
     homePath() { return ROLE_HOME_MAP[this.role] ?? '/dashboard' },
-    allowedPaths() { return ROLE_MENU_MAP[this.role] ?? ROLE_MENU_MAP.admin },
-    permissions() { return ROLE_PERMISSION_MAP[this.role] ?? ROLE_PERMISSION_MAP.admin },
+    allowedPaths() { return ROLE_MENU_MAP[this.role] ?? [] },
+    permissions() { return ROLE_PERMISSION_MAP[this.role] ?? [] },
   },
   actions: {
     setSession(session) {
@@ -314,9 +322,7 @@ export const useAuthStore = defineStore('auth', {
   },
 })
 
-// ===X===X===X===X===X===X===X===X===X===X===X===X===X===X===X
 // 兼容层: 旧函数 API → store (Step 4 引入,后续 Step 8 移除)
-// ===X===X===X===X===X===X===X===X===X===X===X===X===X===X===X
 
 /**
  * @deprecated 直接使用 useAuthStore().xxx。新代码不要再调用这些函数。
@@ -339,14 +345,16 @@ export function getRoleLabel(role) {
 export function hasPermission(role, permission) {
   // 注: 旧 API 把 role 作为参数传入, store 用 this.role。
   // 这里做一次映射: 如果 role 显式传入且和 store.role 不同,按传入计算 (兼容 mock 时多角色切换)。
-  if (role && role !== useAuthStore().role) {
-    return (ROLE_PERMISSION_MAP[role] ?? ROLE_PERMISSION_MAP.admin).includes(permission)
+  const normalized = normalizeRole(role)
+  if (normalized && normalized !== useAuthStore().role) {
+    return (ROLE_PERMISSION_MAP[normalized] ?? []).includes(permission)
   }
   return useAuthStore().hasPermission(permission)
 }
 export function canAccessPath(role, path) {
-  if (role && role !== useAuthStore().role) {
-    const allowed = ROLE_MENU_MAP[role] ?? ROLE_MENU_MAP.admin
+  const normalized = normalizeRole(role)
+  if (normalized && normalized !== useAuthStore().role) {
+    const allowed = ROLE_MENU_MAP[normalized] ?? []
     return allowed.some((p) => path === p || path.startsWith(`${p}/`))
   }
   return useAuthStore().canAccessPath(path)

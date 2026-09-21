@@ -226,7 +226,6 @@ public class AiDeviceHealthService {
     return m;
   }
 
-  // ---------- 工具方法 ----------
 
   private String toJson(Object o) {
     try {

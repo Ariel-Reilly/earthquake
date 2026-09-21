@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 @RestController
 @RequestMapping("/api/inspection")
@@ -27,26 +28,31 @@ public class InspectionController {
   }
 
   @PostMapping("/gps-check")
+  @PreAuthorize("hasAuthority('inspection:submit')")
   public ApiResponse<GpsCheckResult> gpsCheck(@Valid @RequestBody GpsCheckRequest request) {
     return ApiResponse.success(inspectionService.checkFence(request));
   }
 
   @PostMapping("/submit")
+  @PreAuthorize("hasAuthority('inspection:submit')")
   public ApiResponse<InspectionRecordDto> submit(@Valid @RequestBody InspectionSubmitRequest request) {
     return ApiResponse.success("上报成功", inspectionService.submit(request));
   }
 
   @GetMapping("/task/{taskCode}")
+  @PreAuthorize("hasAuthority('inspection:view')")
   public ApiResponse<List<InspectionRecordDto>> listByTask(@PathVariable String taskCode) {
     return ApiResponse.success(inspectionService.listByTask(taskCode));
   }
 
   @GetMapping("/hazard/{hazardCode}")
+  @PreAuthorize("hasAuthority('inspection:view')")
   public ApiResponse<List<InspectionRecordDto>> listByHazard(@PathVariable String hazardCode) {
     return ApiResponse.success(inspectionService.listByHazard(hazardCode));
   }
 
   @GetMapping("/example")
+  @PreAuthorize("hasAuthority('inspection:view')")
   public ApiResponse<Map<String, Object>> example() {
     Map<String, Object> sample = new java.util.LinkedHashMap<>();
     sample.put("taskCode", "TK-1750418932741");

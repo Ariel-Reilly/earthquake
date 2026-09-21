@@ -102,11 +102,9 @@ public class AiComprehensiveAnalysisSupport {
     this.externalDataService = externalDataService;
   }
 
-  // ---- 支持的灾害类型（命中时传给 AI 做 declared 快速通道） ----
   private static final java.util.Set<String> SUPPORTED_TYPES = java.util.Set.of(
       "滑坡", "崩塌", "泥石流", "地裂缝", "地面沉降", "塌陷");
 
-  // ---- 土地利用类型映射 ----
   private static final Map<String, String> LAND_USE_MAP = java.util.Map.ofEntries(
       java.util.Map.entry("urban",     "urban"),
       java.util.Map.entry("cropland", "cropland"),
@@ -142,7 +140,6 @@ public class AiComprehensiveAnalysisSupport {
     Double lat = hazard != null ? hazard.getLatitude() : null;
     Double lon = hazard != null ? hazard.getLongitude() : null;
 
-    // =================================================================
     // [3] 地形地质 —— 易发性判断
     //     数据来源：
     //     ① Open-Elevation API（SRTM 30m DEM，免费无 key）—— 真实海拔优先
@@ -150,7 +147,6 @@ public class AiComprehensiveAnalysisSupport {
     //     ③ Copernicus DEM / SRTM（需注册/付费）—— 更高精度地形分析（预留）
     //     包含：海拔/坡度/坡向/曲率/土壤类型/植被覆盖/距水距离/地质岩性/断层分布
     //     用于评估灾害易发性，如坡度>30°易滑坡、断层附近地震风险高等
-    // =================================================================
     // 先用 Open-Elevation（SRTM DEM）获取真实海拔
     Double elevationM = null;
     if (lat != null && lon != null) {
@@ -178,12 +174,10 @@ public class AiComprehensiveAnalysisSupport {
     factors.put("curvature", geo.curvature());
     factors.put("fault_distance_m", geo.faultDistanceM());
 
-    // =================================================================
     // [4] 实时传感器/IoT —— 近实时动态
     //     数据来源：DB monitoring_device_metrics 表（地震仪/GPS 位移/倾斜计/裂缝计/水位计/雨量站）
     //     多设备同一指标取最大值，实时捕捉前兆信号（如地震 P 波、边坡位移加速）
     //     用于秒级预警响应和动态风险评估
-    // =================================================================
     List<MonitoringDevice> devices = deviceRepository.findByHazardCode(hazardCode);
     if (!devices.isEmpty()) {
       List<String> deviceCodes = devices.stream().map(MonitoringDevice::getDeviceCode).toList();
@@ -222,14 +216,12 @@ public class AiComprehensiveAnalysisSupport {
       }
     }
 
-    // =================================================================
     // [2] 气象水文 —— 触发条件
     //     数据来源：
     //     ① DB 雨量站 rain_1h 聚合（DB 有数据时优先，实时性最高）
     //     ② Open-Meteo API（ERA5 再分析 + ERA5-Land 土壤湿度，0.25°/h，免费无 key）
     //     ③ NASA GPM IMERG（0.1°/30min，卫星降雨，需 EarthData 账号）
     //     包含：温度/湿度/降雨/气压/土壤含水率（ERA5-Land 真实数据）/风速
-    // =================================================================
     if (!factors.containsKey("rainfall_24h") && lat != null && lon != null) {
       var meteo = externalDataService.getMeteorology(lat, lon);
       if (meteo != null) {
@@ -259,11 +251,9 @@ public class AiComprehensiveAnalysisSupport {
       }
     }
 
-    // =================================================================
     // [4] 实时传感器/IoT —— 近实时动态（续）
     //     USGS FDSN 地震目录（最近 500km 内 M2+ 地震，用于地震触发报警）
     //     若无关联设备且无 DB 数据，降级到 USGS 实时地震目录
-    // =================================================================
     if (!factors.containsKey("earthquake_mag") && lat != null && lon != null) {
       var quake = externalDataService.getEarthquake(lat, lon, 500.0, 2.0);
       if (quake != null && quake.hasEvent()) {
@@ -273,14 +263,12 @@ public class AiComprehensiveAnalysisSupport {
       }
     }
 
-    // =================================================================
     // [1] 遥感影像（光学+雷达）—— 空间基础
     //     数据来源：
     //     ① 巡检记录（last_inspection_at）—— 优先，真实现场照片
     //     ② Copernicus Data Space（Sentinel-2 L2A 元数据，免费注册）—— 判断最近卫星影像时间
     //     ③ 卫星影像可用时，image_anomaly_score 基于距上次影像天数计算（越久越高）
     //     包含：image_anomaly_score / image_source（Sentinel-1/Sentinel-2/Landsat/巡检相机）
-    // =================================================================
     double imageAnomaly = 0.0;
     String imageSource = "unknown";
     String imageTimestamp = null;
@@ -327,13 +315,11 @@ public class AiComprehensiveAnalysisSupport {
     factors.put("image_anomaly_count", 1.0);  // 有影像 = 1
     factors.put("image_source", imageSource);
 
-    // =================================================================
     // [5] 历史灾情与承灾体 —— 训练验证
     //     数据来源：
     //     ① DB hazard_point 表历史统计字段（historicalCount / historicalMaxScore）
     //     ② OSM Overpass API（真实承灾体：土地利用/建筑物数量/路网密度）
     //     用于训练 AI 模型、生成灾害风险区划、评估潜在影响范围
-    // =================================================================
     int historicalCount = hazard != null ? hazard.getHistoricalCount() : 0;
     double historicalMaxScore = hazard != null ? hazard.getHistoricalMaxScore() : 0.0;
     long exposurePop = hazard != null ? hazard.getExposurePopulation() : 0L;
@@ -365,14 +351,12 @@ public class AiComprehensiveAnalysisSupport {
     factors.put("exposure_buildings", (double) exposureBuildings);
     factors.put("land_use_type", landUseType);  // 真实 OSM 土地利用类型
 
-    // =================================================================
     // [6] 舆情与辅助数据 —— 可选增强因子
     //     数据来源：
     //     ① GDACS RSS（真实灾害警报：地震/洪水/台风，alertlevel → social_alert_level）
     //     ② NASA Black Marble VNP46A2（真实夜间灯光，需 EarthData 账号）
     //     ③ OSM（路网/电力/可达性，已在上面接入）
     //     用于补充近实时现场情报，优化影响评估
-    // =================================================================
 
     // GDACS 真实灾害事件（无 GDACS 账号时用 0）
     double socialAlertLevel = 0.0;
@@ -405,9 +389,7 @@ public class AiComprehensiveAnalysisSupport {
     factors.put("infrastructure_score", infrastructureScore);  // OSM 真实路网密度
     factors.put("road_access_score", roadAccessScore);          // OSM 道路可达性
 
-    // =================================================================
     // 全局兜底（确保 AI 服务在任何因子缺失时都能返回结果）
-    // =================================================================
     if (!factors.containsKey("rainfall_24h")) factors.put("rainfall_24h", 0.0);
     if (!factors.containsKey("rainfall_7d"))  factors.put("rainfall_7d",  0.0);
     if (!factors.containsKey("rainfall_30d")) factors.put("rainfall_30d", 0.0);

@@ -3,8 +3,8 @@ import sys
 import time
 import psycopg2
 
-SCHEMA = r'D:\earthquake\backend\src\main\resources\schema.sql'
-DATA   = r'D:\earthquake\backend\src\main\resources\data.sql'
+SCHEMA = r'D:\DisasterGuard\backend\src\main\resources\schema.sql'
+DATA   = r'D:\DisasterGuard\backend\src\main\resources\data.sql'
 
 # connect as postgres (default superuser, no password assumed to work locally)
 conn = psycopg2.connect(dbname='postgres', user='postgres', host='localhost', port=5432, password='')

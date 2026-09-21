@@ -285,7 +285,6 @@ function quickConfirm(item) {
   tabState.confirmations.list[idx] = { ...tabState.confirmations.list[idx], status: '已确认' }
   summary.confirmation = Math.max(0, summary.confirmation - 1)
   emit('notify', `已确认：${item.title}`)
-  // TODO: await dashboardApi.confirmItem(item.id)
 }
 
 function gotoApproval(item) {
@@ -480,7 +479,6 @@ onBeforeUnmount(() => {
               <CheckCircle2 :size="13" />
               <span>{{ item.status ?? '待确认' }}</span>
             </div>
-            <!-- v1.7.0 移动端快捷确认按钮 -->
             <div class="todo-quick-actions" @click.stop>
               <button class="quick-btn success" @click.stop="quickConfirm(item)">
                 <Check :size="11" />确认

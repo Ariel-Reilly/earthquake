@@ -45,7 +45,7 @@ const defaults = {
   autoSignOut: true,
   dataRetention: 180,
   backupEnabled: true,
-  // ===X= 个人偏好 P2-2 ===X=
+  // 个人偏好 P2-2
   theme: 'auto',           // 'light' | 'dark' | 'auto'
   language: 'zh-CN',       // 'zh-CN' | 'en-US'
   landingPage: '/dashboard',
@@ -98,14 +98,12 @@ function persist() {
  */
 function applyPreferences() {
   const html = document.documentElement
-  // 主题
   if (settings.theme === 'dark') html.dataset.theme = 'dark'
   else if (settings.theme === 'light') html.dataset.theme = 'light'
   else html.removeAttribute('data-theme')
   // 紧凑模式
   if (settings.compactMode) html.dataset.density = 'compact'
   else html.removeAttribute('data-density')
-  // 语言
   window.localStorage.setItem('disasterguard_language', settings.language)
   // 默认首页
   window.localStorage.setItem('disasterguard_landing_page', settings.landingPage)

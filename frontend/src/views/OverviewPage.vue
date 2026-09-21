@@ -69,7 +69,7 @@ const props = defineProps({
 const emit = defineEmits(["notify", "open-task-modal"]);
 const router = useRouter();
 
-// ====== 我的位置：localStorage 缓存键 ======
+// 我的位置：localStorage 缓存键
 // 关闭浏览器再打开也能复用上次定位结果；只有用户主动"清除定位"或精度严重过期才会触发新的浏览器权限请求。
 const USER_LOCATION_KEY = "disasterguard_user_location";
 // 缓存有效时长：24 小时。过期后视为过期定位，进入页面会自动重新触发一次 GPS。
@@ -95,7 +95,6 @@ function persistUserLocation(location) {
       }),
     );
   } catch (_) {
-    /* 同上 */
   }
 }
 
@@ -426,7 +425,6 @@ async function createOrResizeMap() {
       zoom: 10,
       baseMap: "vector",
     });
-    // v1.8.0：初始化 Sentinel 合成元数据到 UI（初始为空，表示尚未合成）
     syncSentinelMeta();
   }
   bindMapEvents();
@@ -758,7 +756,6 @@ async function toggleWeatherOverlay(kind) {
     await refreshWeatherOverlay(kind)
     return
   }
-  // 关闭
   if (state.enabled && !state.ok) {
     state.enabled = false
     state.loading = false
@@ -1098,7 +1095,6 @@ function bindRealtime() {
       if (Array.isArray(payload.warnings)) warnings.value = payload.warnings;
       if (Array.isArray(payload.devices)) devices.value = payload.devices;
       if (Array.isArray(payload.personnel)) personnel.value = payload.personnel;
-      // v1.6.0：hazard 增量与 snapshot/poll 都需回写到 hazards.value，否则 AI 实时识别的新灾害不会反映到地图
       if (Array.isArray(payload.hazards)) hazards.value = payload.hazards;
       applyAiToHazards();
       syncMapLayers();
@@ -1231,14 +1227,14 @@ watch(selectedPoint, (point) => {
   mapController.value?.setSelectedHazard?.(point?.id ?? null);
 });
 
-// ===================== PRD 1.4 多时相对比 Tab =====================
+// PRD 1.4 多时相对比 Tab
 // 取与 OverviewPage 当前口径一致的色板，避免视觉割裂。
-const COMPARE_COLOR_BASE = "#4f8f99"; // 基准时段折线主色（蓝绿）
-const COMPARE_COLOR_COMPARE = "#e0a050"; // 对比时段折线主色（暖橙）
-const COMPARE_COLOR_RISE = "#e06060"; // 上升 / 不利变化
-const COMPARE_COLOR_FALL = "#6dbfa5"; // 下降 / 有利变化
-const COMPARE_COLOR_NEUTRAL = "#d9c040"; // 持平
-const COMPARE_COLOR_MUTE = "#7a8d89"; // 灰辅助
+const COMPARE_COLOR_BASE = "#4f8f99";
+const COMPARE_COLOR_COMPARE = "#e0a050";
+const COMPARE_COLOR_RISE = "#e06060";
+const COMPARE_COLOR_FALL = "#6dbfa5";
+const COMPARE_COLOR_NEUTRAL = "#d9c040";
+const COMPARE_COLOR_MUTE = "#7a8d89";
 const COMPARE_KPI_DEFS = [
   { key: "incidentTotal", label: "事件总数", unit: "起", higherIsBetter: false, nice: 0 },
   { key: "disposalRate", label: "处置率", unit: "%", higherIsBetter: true, nice: 1 },
@@ -1551,7 +1547,7 @@ function buildCompareCsv() {
   (compareData.value?.regions ?? []).forEach((r) => {
     lines.push(`${r.name},${r.base},${r.compare}`);
   });
-  return "\uFEFF" + lines.join("\n"); // 加 BOM，Excel 直接识别 UTF-8。
+  return "\uFEFF" + lines.join("\n");
 }
 
 async function exportCompareReport(format) {
@@ -1694,7 +1690,6 @@ function toggleCompareLegend(which) {
                   mapMode === "vector" ? "切换卫星" : "切换矢量"
                 }}
               </button>
-              <!-- v1.8.0：移除旧卫星图源选择器，改为 Sentinel 合成按钮 + 进度条 -->
               <button
                 class="filter-btn"
                 :class="{ 'is-sentinel-active': sentinelMeta?.s2 || sentinelMeta?.sar }"
@@ -1710,7 +1705,6 @@ function toggleCompareLegend(which) {
                 <span v-else-if="sentinelMeta?.s2">合成卫星（已加载）</span>
                 <span v-else>合成卫星</span>
               </button>
-              <!-- v1.8.0：合成进度条（sentinelJob 进行中时显示） -->
               <div v-if="sentinelJob" class="sentinel-progress-wrap">
                 <div
                   class="sentinel-progress-bar"
@@ -1832,7 +1826,6 @@ function toggleCompareLegend(which) {
 
           <div class="map-canvas map-real-container">
             <div ref="mapContainer" class="real-map-view"></div>
-            <!-- v1.7.2：图层弹窗（点击工具栏"图层"按钮触发），含底图/卫星源、业务图层、国家气象 overlay 三组 -->
             <transition name="layer-panel-fade">
               <div v-if="layerPanelOpen" class="layer-popup-panel" @click.stop>
                 <header class="layer-popup-head">
@@ -1858,7 +1851,6 @@ function toggleCompareLegend(which) {
                       卫星
                     </button>
                   </div>
-                  <!-- v1.8.0：Sentinel 合成图层说明 + 合成按钮 -->
                   <div class="sentinel-layer-info">
                     <p class="sentinel-info-text">
                       <Layers :size="12" />Sentinel-1（雷达 SAR） + Sentinel-2（光学真彩）合成卫星
@@ -2731,5 +2723,420 @@ function toggleCompareLegend(which) {
         </div>
       </transition>
     </template>
-  </div>
+    </div>
 </template>
+
+<style scoped>
+/* =====================================================================
+ * 多时相对比 Tab 样式 (PRD 1.4)
+ * 颜色基调与 .chart-card / .panel 一致,采用 #2f7f80 / #1f4f4a 作为强调色
+ * ===================================================================== */
+
+/* Tab 内容容器 */
+.compare-tab-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* 顶部控制条:继承自 .chart-card,这里只补内部布局 */
+.compare-toolbar-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)) auto;
+  gap: 14px 18px;
+  align-items: end;
+}
+.compare-toolbar-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.compare-toolbar-label {
+  font-size: 12px;
+  color: #4f6769;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.compare-toolbar-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.compare-toolbar-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+.compare-select,
+.compare-input {
+  border: 1px solid #d8e3df;
+  border-radius: 8px;
+  padding: 7px 10px;
+  font-size: 13px;
+  background: #fff;
+  color: #1f3e44;
+  min-width: 120px;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+.compare-select:focus,
+.compare-input:focus {
+  outline: none;
+  border-color: #2f7f80;
+  box-shadow: 0 0 0 3px rgba(47, 127, 128, 0.15);
+}
+.compare-input-sep {
+  color: #6e7f7c;
+  font-size: 12px;
+}
+.compare-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border: 1px solid #d8e3df;
+  border-radius: 8px;
+  background: #fff;
+  color: #1f3e44;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+.compare-btn:hover:not(:disabled) {
+  border-color: #2f7f80;
+  color: #2f7f80;
+  background: #eff9f6;
+}
+.compare-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.compare-btn-primary {
+  background: linear-gradient(135deg, #2f7f80, #1f4f4a);
+  color: #fff;
+  border-color: transparent;
+  font-weight: 600;
+}
+.compare-btn-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #379093, #225a55);
+  color: #fff;
+  border-color: transparent;
+}
+
+/* 错误提示 */
+.compare-error {
+  background: #fbe9e4;
+  color: #b04a3a;
+  border: 1px solid #f5c8c0;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 13px;
+  margin: 0;
+}
+
+/* 空状态 */
+.compare-empty {
+  margin: 0;
+  padding: 48px 20px;
+  text-align: center;
+  color: #6e7f7c;
+  font-size: 14px;
+  border: 2px dashed #d8e3df;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #ffffff, #f8fbfa);
+}
+
+/* KPI 矩阵 (并排模式) */
+.compare-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+.compare-kpi-card {
+  border: 1px solid #e3ebe7;
+  background: #fff;
+  border-radius: 13px;
+  padding: 14px 16px;
+  box-shadow: 0 5px 18px rgba(30, 75, 69, 0.025);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: box-shadow 0.28s ease, transform 0.28s cubic-bezier(0.25, 0.9, 0.35, 1);
+}
+.compare-kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(30, 75, 69, 0.08);
+}
+.compare-kpi-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.compare-kpi-label {
+  font-size: 12px;
+  color: #4f6769;
+  font-weight: 600;
+}
+.compare-kpi-unit {
+  font-size: 10px;
+  color: #93a39e;
+  background: #f1f5f3;
+  padding: 1px 6px;
+  border-radius: 999px;
+}
+.compare-kpi-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.compare-kpi-base,
+.compare-kpi-compare {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.compare-kpi-base strong,
+.compare-kpi-compare strong {
+  font-size: 20px;
+  color: #1f3e44;
+  font-weight: 700;
+  line-height: 1.1;
+}
+.compare-kpi-base em,
+.compare-kpi-compare em {
+  font-style: normal;
+  font-size: 11px;
+  color: #93a39e;
+}
+.compare-kpi-compare-line {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.compare-kpi-flat {
+  color: #93a39e;
+  font-size: 14px;
+}
+.compare-kpi-spark {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+.compare-kpi-spark-line {
+  width: 100%;
+  height: 28px;
+}
+.compare-kpi-spark-legend {
+  display: flex;
+  gap: 12px;
+  font-size: 10px;
+  color: #6e7f7c;
+  align-items: center;
+}
+.compare-kpi-spark-legend .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 3px;
+  vertical-align: middle;
+}
+.compare-kpi-spark-legend .dot-base {
+  background: #2f7f80;
+}
+.compare-kpi-spark-legend .dot-compare {
+  background: #b04a3a;
+}
+
+/* 图表区域 (并排 / 叠加 / 差异率) */
+.compare-charts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+  gap: 14px;
+}
+.compare-pie-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+.compare-pie-block {
+  flex: 1 1 240px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.compare-pie {
+  width: 100%;
+  height: 220px;
+}
+.compare-pie-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: #4f6769;
+}
+.compare-trend-chart {
+  width: 100%;
+  height: 240px;
+}
+.compare-trend-axis {
+  stroke: #d8e3df;
+  stroke-width: 1;
+}
+.compare-chart-legend {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  color: #4f6769;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.compare-legend-btn {
+  background: transparent;
+  border: 1px dashed #cbd5e1;
+  border-radius: 6px;
+  padding: 3px 8px;
+  cursor: pointer;
+  font-size: 11px;
+  color: #475569;
+}
+.compare-legend-btn:hover {
+  border-color: #2f7f80;
+  color: #2f7f80;
+}
+
+/* 区域柱图 */
+.compare-region-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+.compare-region-col {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.compare-region-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.compare-region-label {
+  font-size: 12px;
+  color: #4f6769;
+  display: flex;
+  justify-content: space-between;
+}
+.compare-region-track {
+  height: 8px;
+  background: #f1f5f3;
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+
+/* 差异 Top 5 卡片 */
+.compare-diff-section {
+  /* 复用 .panel / .chart-card 的卡片外观 */
+}
+.compare-diff-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin-top: 10px;
+}
+.compare-diff-card {
+  border: 1px solid #e3ebe7;
+  background: #fff;
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  box-shadow: 0 4px 14px rgba(30, 75, 69, 0.025);
+}
+.compare-diff-card header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.compare-diff-card header strong {
+  color: #1f3e44;
+  font-size: 13px;
+  font-weight: 600;
+}
+.compare-diff-card header em {
+  font-style: normal;
+  font-size: 12px;
+  font-weight: 600;
+}
+.compare-diff-numbers {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #4f6769;
+  margin: 0;
+}
+.compare-diff-numbers .arrow {
+  color: #2f7f80;
+  font-weight: 700;
+}
+.compare-diff-sentence {
+  font-size: 12px;
+  color: #6e7f7c;
+  margin: 0;
+}
+.compare-diff-link {
+  background: transparent;
+  border: 0;
+  color: #2f7f80;
+  font-size: 12px;
+  padding: 0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  align-self: flex-start;
+}
+.compare-diff-link:hover {
+  color: #1f4f4a;
+  text-decoration: underline;
+}
+
+/* 差异维度列表 (Top N) */
+.compare-diff-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.compare-diff-list li {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 0;
+  border-bottom: 1px dashed #ecf2ef;
+}
+.compare-diff-list li:last-child {
+  border-bottom: 0;
+}
+.compare-diff-label {
+  font-size: 12px;
+  color: #4f6769;
+}
+.compare-diff-track {
+  height: 6px;
+  background: #f1f5f3;
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+}
+</style>

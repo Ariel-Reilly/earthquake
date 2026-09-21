@@ -42,9 +42,7 @@ class StacClientError(RuntimeError):
     """STAC 客户端调用失败（不含凭证错误,凭证错走 CdseAuthError）。"""
 
 
-# ============================================================================
 # 客户端实现
-# ============================================================================
 class CdseStacClient:
     """Copernicus Data Space STAC (新版,2024+ OAuth-bearer)。
 

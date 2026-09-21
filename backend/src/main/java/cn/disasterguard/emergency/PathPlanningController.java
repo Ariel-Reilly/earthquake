@@ -37,6 +37,7 @@ public class PathPlanningController {
 
     /** 获取当前避障区域。 */
     @GetMapping("/obstacles")
+    @PreAuthorize("hasAuthority('resource:view')")
     public ApiResponse<List<PathRequestDto.ObstacleDto>> obstacles() {
         return ApiResponse.success(pathPlanningService.listObstacles());
     }

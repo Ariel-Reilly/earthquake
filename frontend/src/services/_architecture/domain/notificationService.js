@@ -2,16 +2,7 @@
  * 通知服务 API 封装
  */
 import { request, createApiError, USE_BACKEND } from "../../dashboardApi.js";
-
-function withQuery(params) {
-  const search = new URLSearchParams();
-  Object.entries(params).forEach(([key, value]) => {
-    if (value !== undefined && value !== null && `${value}`.trim() !== "")
-      {search.set(key, String(value));}
-  });
-  const suffix = search.toString();
-  return suffix ? `?${suffix}` : "";
-}
+import { withQuery } from "../../../utils/query.js";
 
 async function apiRequest(path, options = {}) {
   if (!USE_BACKEND) {

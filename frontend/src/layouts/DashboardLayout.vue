@@ -406,7 +406,7 @@ watch(
   }
 )
 
-// === 左侧分组菜单：可折叠/展开状态 ===
+// 左侧分组菜单：可折叠/展开状态
 const SIDEBAR_GROUPS_STORAGE_KEY = 'disasterguard_sidebar_groups'
 const expandedGroups = ref(new Set())
 
@@ -436,13 +436,12 @@ function isGroupExpanded(groupId) {
 function toggleGroup(groupId) {
   const next = new Set(expandedGroups.value)
   if (next.has(groupId)) {
-    // 如果点击的是已展开的分组，保持展开（不关闭）
-    // 如果想让它也可以关闭，可以删除这个 return
-    return
+    // 已展开 → 折叠
+    next.delete(groupId)
+  } else {
+    // 已折叠 → 展开（不关闭其他分组，允许同时展开多个）
+    next.add(groupId)
   }
-  // 手风琴效果：关闭其他所有分组，只展开当前点击的
-  next.clear()
-  next.add(groupId)
   expandedGroups.value = next
   persistExpandedGroups()
 }
@@ -530,11 +529,15 @@ onBeforeUnmount(() => {
               :title="`${group.label}（点击折叠）`"
               @click="toggleGroup(group.id)"
             >
-              <component :is="pickIcon(group.icon)" :size="14" class="nav-group-icon" />
-              <ChevronRight :size="12" class="nav-group-chevron" />
+              <component :is="pickIcon(group.icon)" :size="15" class="nav-group-icon" />
+              <ChevronRight :size="13" class="nav-group-chevron" />
               <span class="nav-group-label">{{ group.label }}</span>
               <em class="nav-group-count">{{ group.items.length }}</em>
             </button>
+            <!-- 折叠状态下的图标指示器 -->
+            <div v-else class="nav-group-collapsed-indicator">
+              <component :is="pickIcon(group.icon)" :size="18" />
+            </div>
             <div class="nav-group-body">
               <div class="nav-group-items">
                 <button
@@ -559,9 +562,17 @@ onBeforeUnmount(() => {
         </nav>
 
         <div class="sidebar-footer">
-          <button class="nav-item" :class="{ active: route.path === '/dashboard/settings' }" title="系统设置" @click="goTo('/dashboard/settings')"><Settings :size="18" /><span>系统设置</span></button>
-          <button class="nav-item" title="帮助中心"><CircleHelp :size="18" /><span>帮助中心</span></button>
-          <button class="nav-item" title="退出登录" @click="openLogoutModal"><LogOut :size="18" /><span>退出登录</span></button>
+          <div class="sidebar-footer-nav">
+            <button class="nav-item" :class="{ active: route.path === '/dashboard/settings' }" title="系统设置" @click="goTo('/dashboard/settings')">
+              <Settings :size="18" /><span>系统设置</span>
+            </button>
+            <button class="nav-item" title="帮助中心">
+              <CircleHelp :size="18" /><span>帮助中心</span>
+            </button>
+            <button class="nav-item" title="退出登录" @click="openLogoutModal">
+              <LogOut :size="18" /><span>退出登录</span>
+            </button>
+          </div>
           <div class="online-card">
             <span class="pulse-dot"></span>
             <span>数据服务正常</span>

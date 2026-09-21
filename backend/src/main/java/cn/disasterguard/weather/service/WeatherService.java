@@ -72,16 +72,13 @@ public class WeatherService {
 
   private static final Logger log = LoggerFactory.getLogger(WeatherService.class);
 
-  // ============================ 数据源基地址 ============================
   private static final String NSMC_MANIFEST_BASE = "http://img.nsmc.org.cn/PORTAL/NSMC/XML";
   private static final String NMC_PRODUCT_BASE = "https://image.nmc.cn";
 
-  // ============================ HTTP 探测参数 ============================
   private static final Duration HTTP_REQUEST_TIMEOUT = Duration.ofSeconds(3);
   private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(2);
   private static final int MAX_NMC_SLOTS = 100;
 
-  // ============================ 缓存 ============================
   private static final DateTimeFormatter NMC_TIMESTAMP_FORMAT =
       DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm").withZone(ZoneId.of("Asia/Shanghai"));
 
@@ -132,9 +129,7 @@ public class WeatherService {
     }
   }
 
-  // ============================================================
   //  对外 API
-  // ============================================================
 
   /** 列出所有产品目录（不拉最新 URL，仅返回元信息 + 缓存中的最新帧）。 */
   public List<WeatherProductDto> listProducts() {
@@ -231,9 +226,7 @@ public class WeatherService {
     );
   }
 
-  // ============================================================
   //  缓存读写
-  // ============================================================
 
   private WeatherProductDto findLatestInternal(WeatherProductKind kind, boolean forceRefresh) {
     if (cacheEnabled && !forceRefresh) {
@@ -247,9 +240,7 @@ public class WeatherService {
     return result;
   }
 
-  // ============================================================
   //  探测逻辑：按产品类型分派
-  // ============================================================
 
   private WeatherProductDto probeLatest(WeatherProductKind kind) {
     OffsetDateTime now = OffsetDateTime.now(ZoneId.of("Asia/Shanghai"));
@@ -407,9 +398,7 @@ public class WeatherService {
     return m.matches() ? m.group(1) : url;
   }
 
-  // ============================================================
   //  内部类型
-  // ============================================================
 
   /** 缓存项：保存最新一次探测结果与时间戳。 */
   private static final class CacheEntry {

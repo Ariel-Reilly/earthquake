@@ -189,19 +189,19 @@ function toggleChannel(channel) {
 
 // 获取渠道配置
 async function getChannelConfigsApi(disasterType, level) {
-  const { getChannelConfigs } = await import("./notificationService")
+  const { getChannelConfigs } = await import("../../services/_architecture/domain/notificationService.js")
   return getChannelConfigs(disasterType, level)
 }
 
 // 更新配置
 async function updateConfigApi(config) {
-  const { updateChannelConfig } = await import("./notificationService")
+  const { updateChannelConfig } = await import("../../services/_architecture/domain/notificationService.js")
   return updateChannelConfig(config)
 }
 
 // 测试发送
 async function testSendApi(request) {
-  const { testSend } = await import("./notificationService")
+  const { testSend } = await import("../../services/_architecture/domain/notificationService.js")
   return testSend(request)
 }
 

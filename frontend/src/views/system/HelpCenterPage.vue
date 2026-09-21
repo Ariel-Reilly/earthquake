@@ -215,7 +215,6 @@ const currentManual = manuals.find((m) => m.role === operator.role) ?? manuals[0
     </div>
 
     <div class="help-body">
-      <!-- 左列 -->
       <div class="help-main">
         <!-- 操作手册 -->
         <section id="manuals" class="help-section">
@@ -363,7 +362,6 @@ const currentManual = manuals.find((m) => m.role === operator.role) ?? manuals[0
         </section>
       </div>
 
-      <!-- 右列 -->
       <div class="help-side">
         <!-- 视频教程 -->
         <div class="side-card">

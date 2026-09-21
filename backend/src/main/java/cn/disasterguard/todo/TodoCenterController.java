@@ -12,6 +12,7 @@ import java.util.Map;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 /**
  * 待办中心汇总（v1.7.0+ P2-1 顶栏红点）。
@@ -46,6 +47,7 @@ public class TodoCenterController {
   }
 
   @GetMapping("/summary")
+  @PreAuthorize("hasAuthority('todo:view')")
   public ApiResponse<Map<String, Object>> summary() {
     long confirmation = unifiedEventRepository.findByState(EventState.DETECTED).size()
         + unifiedEventRepository.findByState(EventState.CONFIRMING).size();
@@ -73,6 +75,7 @@ public class TodoCenterController {
 
   /** 待我确认列表（顶栏红点点击进入）。 */
   @GetMapping("/confirmations")
+  @PreAuthorize("hasAuthority('todo:view')")
   public ApiResponse<List<Map<String, Object>>> listConfirmations() {
     List<Map<String, Object>> items = new java.util.ArrayList<>();
     unifiedEventRepository.findByState(EventState.DETECTED).forEach(e -> {
@@ -89,6 +92,7 @@ public class TodoCenterController {
 
   /** 待我审批列表（基于待发布 / 处理中 预警）。 */
   @GetMapping("/approvals")
+  @PreAuthorize("hasAuthority('todo:view')")
   public ApiResponse<List<Map<String, Object>>> listApprovals() {
     List<Map<String, Object>> items = new java.util.ArrayList<>();
     warningRepository.findAll().stream()
@@ -111,6 +115,7 @@ public class TodoCenterController {
    * GET /api/todo/warnings
    */
   @GetMapping("/warnings")
+  @PreAuthorize("hasAuthority('todo:view')")
   public ApiResponse<List<Map<String, Object>>> listPendingWarnings() {
     List<Map<String, Object>> items = new java.util.ArrayList<>();
     warningRepository.findAll().stream()
@@ -136,6 +141,7 @@ public class TodoCenterController {
    * GET /api/todo/tasks
    */
   @GetMapping("/tasks")
+  @PreAuthorize("hasAuthority('todo:view')")
   public ApiResponse<List<Map<String, Object>>> listOpenTasks() {
     List<Map<String, Object>> items = new java.util.ArrayList<>();
     taskRepository.findAll().stream()

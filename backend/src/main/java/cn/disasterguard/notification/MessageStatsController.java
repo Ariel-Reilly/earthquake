@@ -7,6 +7,7 @@ import java.util.Map;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 /**
  * 消息中心统计（v1.7.0+ 待办 / 消息红点用）。
@@ -34,6 +35,7 @@ public class MessageStatsController {
   }
 
   @GetMapping("/stats")
+  @PreAuthorize("hasAuthority('messages:view')")
   public ApiResponse<Map<String, Object>> stats() {
     // notification_record.status 取值见 NotificationService.send() 流转：
     //   PENDING -> SENT -> DELIVERED -> READ / FAILED

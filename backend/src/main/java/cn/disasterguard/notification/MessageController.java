@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 /**
  * 消息中心（v1.7.0+ 消息列表页面）。
@@ -57,6 +58,7 @@ public class MessageController {
    * 避免先全表加载再过滤造成的内存压力。
    */
   @GetMapping
+  @PreAuthorize("hasAuthority('messages:view')")
   public ApiResponse<Map<String, Object>> list(
       @RequestParam(defaultValue = "1") int page,
       @RequestParam(defaultValue = "20") int size,
@@ -128,6 +130,7 @@ public class MessageController {
 
   /** 标记单条消息为已读。 */
   @PostMapping("/{id}/read")
+  @PreAuthorize("hasAuthority('messages:view')")
   public ApiResponse<Void> markRead(@PathVariable Long id) {
     NotificationRecord record = recordRepository.findById(id).orElse(null);
     if (record == null) {
@@ -141,6 +144,7 @@ public class MessageController {
 
   /** 全部标为已读。 */
   @PostMapping("/read-all")
+  @PreAuthorize("hasAuthority('messages:view')")
   public ApiResponse<Void> markAllRead() {
     var all = recordRepository.findAll();
     int count = 0;

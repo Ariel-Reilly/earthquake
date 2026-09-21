@@ -14,6 +14,7 @@
  *   - fetchDeviceTrajectory(code) 自动生成一条 24h 的轨迹
  *   - 多次调用同样的 deviceCode 结果完全一致（确定性）
  */
+import { withQuery } from '../../../utils/query.js'
 
 const DEFAULT_API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'
 
@@ -148,18 +149,7 @@ export function mobilityIcon(mobilityKind) {
   return 'DEV'
 }
 
-// ============================================================================
 // 内部：fetch + JWT 注入
-// ============================================================================
-
-function withQuery(params) {
-  const search = new URLSearchParams()
-  Object.entries(params || {}).forEach(([k, v]) => {
-    if (v !== undefined && v !== null && `${v}`.trim() !== '') {search.set(k, String(v))}
-  })
-  const s = search.toString()
-  return s ? `?${s}` : ''
-}
 
 function fetchWithAuth(url, options = {}) {
   const token = (() => {
@@ -173,9 +163,7 @@ function fetchWithAuth(url, options = {}) {
   return fetch(url, { ...options, headers, credentials: 'include' })
 }
 
-// ============================================================================
 // Mock 数据（确定性：同样的 deviceCode 总得到同样的轨迹）
-// ============================================================================
 
 function generateMockDeviceMap() {
   const nowIso = new Date().toISOString()
@@ -234,7 +222,7 @@ function generateMockTrajectory(deviceCode, samples = 60) {
   const baseLon = 104.06 + ((seed >>> 16) & 0xFF) / 255 * 0.08
   const baseLat = 30.57 + ((seed >>> 8) & 0xFF) / 255 * 0.06
   const now = Date.now()
-  const stepMs = (24 * 3600 * 1000) / samples  // 24h 内均匀分布
+  const stepMs = (24 * 3600 * 1000) / samples
 
   const points = []
   let lon = baseLon

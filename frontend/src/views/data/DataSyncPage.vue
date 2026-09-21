@@ -43,7 +43,7 @@ const tasks = ref([]);
 const filter = ref({ keyword: "", status: "" });
 const selectedTask = ref(null);
 const detailDrawer = ref(false);
-const refreshing = ref(null);   // taskId → true while refreshing
+const refreshing = ref(null);
 const toggling = ref(null);
 
 // ─── 生命周期 ───────────────────────────────────

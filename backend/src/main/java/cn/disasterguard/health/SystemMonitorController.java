@@ -10,6 +10,7 @@ import java.util.Map;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 /**
  * 系统监控（v1.7.0+ 系统监控页面）。
@@ -34,6 +35,7 @@ public class SystemMonitorController {
 
   /** 获取系统监控指标。 */
   @GetMapping("/monitor")
+  @PreAuthorize("hasAuthority('monitor:view')")
   public ApiResponse<Map<String, Object>> monitor() {
     // CPU 使用率（JVM 进程级）
     double cpuUsage = getCpuUsage();

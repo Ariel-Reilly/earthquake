@@ -56,9 +56,6 @@ import {
   mobilityIcon,
 } from '../../services/deviceMapService'
 
-// ============================================================================
-// 状态
-// ============================================================================
 const emit = defineEmits(['notify'])
 const loading = ref(true)
 const mapRef = ref(null)
@@ -71,7 +68,7 @@ const selectedCode = ref('')
 const trajectory = ref(null)
 const trajectoryLoading = ref(false)
 const isPlaying = ref(false)
-const playProgress = ref(0)  // 0..1
+const playProgress = ref(0)
 const playSpeed = ref(4)  // 0.5x | 1x | 2x | 4x | 8x
 const showTrajectory = ref(true)
 const showHeatmap = ref(false)
@@ -107,9 +104,6 @@ let currentPosFeature = null
 let playTimer = null
 let resizeObserver = null
 
-// ============================================================================
-// 过滤
-// ============================================================================
 const filteredDevices = computed(() => {
   if (!deviceMap.value) return []
   let list = deviceMap.value.devices
@@ -136,9 +130,7 @@ const selectedDevice = computed(() => {
 
 const trajectoryPoints = computed(() => trajectory.value?.points || [])
 
-// ============================================================================
 // OpenLayers 懒加载
-// ============================================================================
 async function loadOpenLayers() {
   if (ol.loaded) return
   const [
@@ -335,12 +327,10 @@ function drawTrajectory(points) {
     mapView.fit(extent, { padding: [60, 60, 60, 60], duration: 600, maxZoom: 16 })
   }
 
-  playProgress.value = 1  // 默认处于"最新位置"
+  playProgress.value = 1
 }
 
-// ============================================================================
 // 数据加载
-// ============================================================================
 async function loadAll() {
   loading.value = true
   try {
@@ -362,9 +352,7 @@ async function refreshTrajectories() {
   await loadAll()
 }
 
-// ============================================================================
 // 回放控制
-// ============================================================================
 function togglePlay() {
   if (!trajectoryPoints.value.length) return
   if (isPlaying.value) {
@@ -429,9 +417,7 @@ function seekTo(progress) {
   }
 }
 
-// ============================================================================
 // 时间范围选择
-// ============================================================================
 const timeRangeLabel = computed(() => {
   return {
     '1h': '最近 1 小时',
@@ -446,9 +432,6 @@ function setTimeRange(range) {
   if (selectedCode.value) loadTrajectory(selectedCode.value)
 }
 
-// ============================================================================
-// 工具
-// ============================================================================
 function mobilityBadge(mobile, kind) {
   if (!mobile) return { label: '固定', icon: Radio, color: '#0ea5e9' }
   if (kind === 'drone') return { label: '无人机', icon: Plane, color: '#7c3aed' }
@@ -473,9 +456,7 @@ function batteryColor(level) {
   return '#dc2626'
 }
 
-// ============================================================================
 // 生命周期
-// ============================================================================
 onMounted(async () => {
   await loadAll()
   await initMap()
@@ -499,7 +480,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="devicemap-page">
-    <!-- ===== Header ===== -->
+    <!-- Header -->
     <header class="dm-header">
       <div class="dm-title">
         <MapPin :size="22" />
@@ -519,7 +500,7 @@ onBeforeUnmount(() => {
       </div>
     </header>
 
-    <!-- ===== Stat cards ===== -->
+    <!-- Stat cards -->
     <section class="dm-stats">
       <article class="dm-stat" v-for="card in [
         { label: '总设备数', value: stats.total,           icon: Cpu,         color: '#0ea5e9' },
@@ -539,9 +520,9 @@ onBeforeUnmount(() => {
       </article>
     </section>
 
-    <!-- ===== Main 3-column layout ===== -->
+    <!-- Main 3-column layout -->
     <div class="dm-main">
-      <!-- ===== 设备列表 ===== -->
+      <!-- 设备列表 -->
       <aside class="dm-device-list">
         <header class="dm-list-header">
           <h2>
@@ -605,7 +586,7 @@ onBeforeUnmount(() => {
         </div>
       </aside>
 
-      <!-- ===== Map ===== -->
+      <!-- Map -->
       <section class="dm-canvas-section">
         <div ref="mapRef" class="dm-map"></div>
         <div class="dm-map-legend">
@@ -625,7 +606,7 @@ onBeforeUnmount(() => {
         </div>
       </section>
 
-      <!-- ===== 右侧：选中详情 + 轨迹回放 ===== -->
+      <!-- 右侧：选中详情 + 轨迹回放 -->
       <aside class="dm-detail">
         <article class="dm-card" v-if="selectedDevice">
           <header class="dm-card-header">
@@ -679,7 +660,6 @@ onBeforeUnmount(() => {
               <p>暂无轨迹数据，点击上方"回填轨迹"可生成演示轨迹。</p>
             </div>
             <div v-else>
-              <!-- 进度条 -->
               <div class="dm-progress-wrap">
                 <input
                   type="range"
@@ -695,7 +675,6 @@ onBeforeUnmount(() => {
                 </div>
               </div>
 
-              <!-- 控制 -->
               <div class="dm-controls">
                 <button class="dm-btn dm-btn-primary" @click="togglePlay">
                   <component :is="isPlaying ? Pause : Play" :size="14" />

@@ -4,6 +4,8 @@ Isolation Forest 异常检测。
 自动检测 models/isolation_forest.joblib 是否存在：
 - 存在：用 scikit-learn 加载并做真实推理
 - 不存在：用 3-sigma 启发式检测
+
+模型目录可通过环境变量 MODELS_DIR 覆盖。
 """
 from __future__ import annotations
 
@@ -13,7 +15,7 @@ from typing import List, Dict, Any, Optional
 
 import numpy as np
 
-MODELS_DIR = Path(__file__).resolve().parent.parent.parent / "models"
+from app.config import MODELS_DIR
 
 
 class AnomalyDetector:

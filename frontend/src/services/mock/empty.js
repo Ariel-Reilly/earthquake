@@ -11,7 +11,7 @@
  * 把"离线回退骨架"集中到本文件统一维护。
  */
 
-// ---------------------- 标准分页壳 ----------------------
+// 标准分页壳
 
 export const emptyPaged = {
   records: [],
@@ -29,23 +29,23 @@ export function emptyList() {
   return [];
 }
 
-// ---------------------- 写操作成功壳 ----------------------
+// 写操作成功壳
 
 export const ok = { ok: true };
 
-// ---------------------- 单条详情（null 占位） ----------------------
+// 单条详情（null 占位）
 
 export const emptyDetail = null;
 
-// ---------------------- 任务执行日志空集 ----------------------
+// 任务执行日志空集
 
 export const emptyTaskLog = { entries: [], cursor: null };
 
-// ---------------------- 附件空集 ----------------------
+// 附件空集
 
 export const emptyAttachments = [];
 
-// ---------------------- 待办 / 审批 / 备份 / 报表等 占位 ----------------------
+// 待办 / 审批 / 备份 / 报表等 占位
 
 export const emptyTodoSummary = {
   confirmation: 0,
@@ -78,7 +78,7 @@ export const emptyDeliverySummary = (warningId) => ({
   channels: [],
 });
 
-// ---------------------- 上传附件回执骨架 ----------------------
+// 上传附件回执骨架
 
 export function uploadReceipt({ businessType, businessCode, file, uploader }) {
   return {
@@ -96,7 +96,7 @@ export function uploadReceipt({ businessType, businessCode, file, uploader }) {
   };
 }
 
-// ---------------------- GPS 围栏校验 demo 结果 ----------------------
+// GPS 围栏校验 demo 结果
 
 export function gpsCheckFallback({ taskCode, hazardCode, lon, lat, allowedRadius }) {
   return {
@@ -112,7 +112,7 @@ export function gpsCheckFallback({ taskCode, hazardCode, lon, lat, allowedRadius
   };
 }
 
-// ---------------------- 巡检结果回执 ----------------------
+// 巡检结果回执
 
 export function submitInspectionFallback(payload = {}) {
   const now = Date.now();
@@ -133,7 +133,7 @@ export function submitInspectionFallback(payload = {}) {
   };
 }
 
-// ---------------------- 巡检接口示例 payload ----------------------
+// 巡检接口示例 payload
 
 export function inspectionExampleFallback() {
   return {
@@ -159,7 +159,7 @@ export function inspectionExampleFallback() {
   };
 }
 
-// ---------------------- 登录 demo 回执 ----------------------
+// 登录 demo 回执
 
 export function loginMockUser(username, role = "admin") {
   return {
@@ -172,6 +172,6 @@ export function loginMockUser(username, role = "admin") {
   };
 }
 
-// ---------------------- 登出回执 ----------------------
+// 登出回执
 
 export const logoutOk = { success: true };

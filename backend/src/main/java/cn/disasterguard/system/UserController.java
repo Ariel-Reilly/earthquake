@@ -7,7 +7,9 @@ import java.time.OffsetDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -36,6 +38,19 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/users")
 public class UserController {
 
+  /**
+   * 允许的 roleCode 白名单（与 sys_role.role_code 保持一致）。
+   *
+   * <p>禁止把请求体里的 roleCode 原样写入数据库 —— 否则任意已登录的普通用户
+   * 都可以 POST 一个 roleCode=admin 把自己提权为管理员（SecurityConfig 仅校验
+   * "已登录"，不校验角色）。注意原默认值为 "VIEWER"，该值并不存在于 sys_role 表，
+   * 这里改为真实存在且权限最小的 attendant。
+   */
+  private static final Set<String> ALLOWED_ROLE_CODES = Set.of(
+      "admin", "system_admin", "emergency_commander", "attendant",
+      "expert", "ai_engineer", "maintenance"
+  );
+
   private final SysUserRepository userRepository;
   private final PasswordEncoder passwordEncoder;
 
@@ -44,8 +59,8 @@ public class UserController {
     this.passwordEncoder = passwordEncoder;
   }
 
-  /** 查询用户列表（分页 + 关键字过滤 + 角色过滤）。 */
   @GetMapping
+  @PreAuthorize("hasAuthority('users:view')")
   public ApiResponse<Map<String, Object>> list(
       @RequestParam(defaultValue = "1") int page,
       @RequestParam(defaultValue = "20") int size,
@@ -85,6 +100,7 @@ public class UserController {
 
   /** 创建用户。密码自动 BCrypt 哈希。 */
   @PostMapping
+  @PreAuthorize("hasAuthority('users:create')")
   public ApiResponse<Map<String, Object>> create(@RequestBody Map<String, Object> body) {
     String username = String.valueOf(body.getOrDefault("username", ""));
     if (username.isBlank()) {
@@ -103,7 +119,11 @@ public class UserController {
     user.setPasswordHash(passwordEncoder.encode(password));
     user.setRealName(String.valueOf(body.getOrDefault("realName", username)));
     user.setPhone(String.valueOf(body.getOrDefault("phone", "")));
-    user.setRoleCode(String.valueOf(body.getOrDefault("roleCode", "VIEWER")));
+    String roleCode = String.valueOf(body.getOrDefault("roleCode", "attendant"));
+    if (!ALLOWED_ROLE_CODES.contains(roleCode)) {
+      return ApiResponse.fail(400, "角色不合法，允许值：" + String.join(" / ", ALLOWED_ROLE_CODES));
+    }
+    user.setRoleCode(roleCode);
     user.setRegionCode(String.valueOf(body.getOrDefault("regionCode", "")));
     user.setStatus(String.valueOf(body.getOrDefault("status", "启用")));
     user.setCreatedAt(OffsetDateTime.now());
@@ -114,8 +134,9 @@ public class UserController {
     return ApiResponse.success("创建成功", dto);
   }
 
-  /** 更新用户。 */
+  /** 更新用户。roleCode 与 password 由服务端再次校验。 */
   @PutMapping("/{id}")
+  @PreAuthorize("hasAuthority('users:edit')")
   public ApiResponse<Map<String, Object>> update(
       @PathVariable Long id,
       @RequestBody Map<String, Object> body) {
@@ -130,7 +151,11 @@ public class UserController {
       user.setPhone(String.valueOf(body.get("phone")));
     }
     if (body.containsKey("roleCode")) {
-      user.setRoleCode(String.valueOf(body.get("roleCode")));
+      String roleCode = String.valueOf(body.get("roleCode"));
+      if (!ALLOWED_ROLE_CODES.contains(roleCode)) {
+        return ApiResponse.fail(400, "角色不合法，允许值：" + String.join(" / ", ALLOWED_ROLE_CODES));
+      }
+      user.setRoleCode(roleCode);
     }
     if (body.containsKey("regionCode")) {
       user.setRegionCode(String.valueOf(body.get("regionCode")));
@@ -149,8 +174,8 @@ public class UserController {
     return ApiResponse.success("更新成功", toDto(user));
   }
 
-  /** 删除用户。 */
   @DeleteMapping("/{id}")
+  @PreAuthorize("hasAuthority('users:delete')")
   public ApiResponse<Void> delete(@PathVariable Long id) {
     if (!userRepository.existsById(id)) {
       return ApiResponse.fail(404, "用户不存在");

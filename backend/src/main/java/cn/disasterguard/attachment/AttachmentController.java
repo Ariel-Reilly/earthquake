@@ -6,6 +6,7 @@ import cn.disasterguard.common.api.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import java.util.Map;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -29,11 +30,13 @@ public class AttachmentController {
   }
 
   @GetMapping
+  @PreAuthorize("hasAuthority('hazards:view')")
   public ApiResponse<List<AttachmentDto>> list(@RequestParam String businessType, @RequestParam String businessCode) {
     return ApiResponse.success(attachmentService.list(businessType, businessCode));
   }
 
   @PostMapping(consumes = "multipart/form-data")
+  @PreAuthorize("hasAuthority('hazards:edit')")
   public ApiResponse<AttachmentDto> upload(
       @RequestParam String businessType,
       @RequestParam String businessCode,
@@ -50,6 +53,7 @@ public class AttachmentController {
   }
 
   @GetMapping("/{id}")
+  @PreAuthorize("hasAuthority('hazards:view')")
   public ApiResponse<Map<String, Object>> detail(@PathVariable Long id) {
     return ApiResponse.success(Map.of("item", attachmentService.getById(id)));
   }
@@ -59,13 +63,14 @@ public class AttachmentController {
    * 返回新的 URL，替换 DB 中存储的过期 URL。
    */
   @PostMapping("/{id}/refresh-url")
+  @PreAuthorize("hasAuthority('hazards:edit')")
   public ApiResponse<Map<String, String>> refreshUrl(@PathVariable Long id) {
     String url = attachmentService.refreshUrl(id);
     return ApiResponse.success(Map.of("url", url));
   }
 
   @DeleteMapping("/{id}")
-  @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+  @PreAuthorize("hasAuthority('hazards:delete') or hasRole('ADMIN')")
   public ApiResponse<Void> delete(@PathVariable Long id) {
     attachmentService.delete(id);
     return ApiResponse.success("删除成功", null);

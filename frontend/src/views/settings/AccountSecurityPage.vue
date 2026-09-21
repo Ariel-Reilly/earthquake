@@ -47,7 +47,7 @@ const lastDevice = computed(() => profile.value?.lastDevice || '—')
 const accountName = computed(() => profile.value?.name || operator.value?.name || '—')
 const accountRole = computed(() => getRoleLabel(profile.value?.role || operator.value?.role || 'admin'))
 
-// ===================== Tab 1: 2FA =====================
+// Tab 1: 2FA
 const twofa = reactive({
   enabled: false,
   methods: ['totp'],
@@ -58,7 +58,7 @@ const twofa = reactive({
 })
 const twofaLoading = ref(false)
 const twofaSaving = ref(false)
-const twofaCode = ref('') // 启用时输入验证码以验证
+const twofaCode = ref('')
 
 const METHOD_META = {
   totp:  { label: 'TOTP 验证器', icon: KeyRound,  desc: 'Google Authenticator / Microsoft Authenticator / 1Password' },
@@ -144,7 +144,7 @@ async function regenerateCodes() {
   }
 }
 
-// ===================== Tab 2: 登录历史 =====================
+// Tab 2: 登录历史
 const loginHistory = ref({ items: [], total: 0 })
 const loginHistoryFilter = reactive({ status: '' })
 const loginHistoryLoading = ref(false)
@@ -182,7 +182,7 @@ async function kickSessionFromHistory(id) {
   }
 }
 
-// ===================== Tab 3: 活跃会话 =====================
+// Tab 3: 活跃会话
 const sessions = ref({ items: [], total: 0 })
 const sessionsLoading = ref(false)
 
@@ -221,7 +221,7 @@ async function revokeAllOthers() {
   await loadActiveSessions()
 }
 
-// ===================== Tab 4: 操作审计 =====================
+// Tab 4: 操作审计
 const audit = ref({ items: [], total: 0 })
 const auditFilter = reactive({ type: '' })
 const auditLoading = ref(false)
@@ -272,7 +272,7 @@ async function loadAccountAudit() {
   }
 }
 
-// ===================== Tab 切换 =====================
+// Tab 切换
 const activeTab = ref('twofa')
 const TABS = [
   { id: 'twofa',     label: '双因子认证', icon: Shield },
@@ -305,7 +305,7 @@ async function refreshAll() {
   }
 }
 
-// ===================== 显示辅助 =====================
+// 显示辅助
 function timeText(iso) {
   if (!iso) return '—'
   try {

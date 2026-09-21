@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 /**
  * 预案管理（Plan）REST API。
@@ -43,7 +44,6 @@ public class PlanController {
   private final List<Map<String, Object>> launchHistory = new ArrayList<>();
 
   public PlanController() {
-    // 初始化示例数据
     initSampleData();
   }
 
@@ -73,6 +73,7 @@ public class PlanController {
   }
 
   @GetMapping
+  @PreAuthorize("hasAuthority('plans:view')")
   public ApiResponse<Map<String, Object>> list(
       @RequestParam(defaultValue = "1") int page,
       @RequestParam(defaultValue = "20") int size,
@@ -128,6 +129,7 @@ public class PlanController {
   }
 
   @GetMapping("/{planId}")
+  @PreAuthorize("hasAuthority('plans:view')")
   public ApiResponse<Map<String, Object>> get(@PathVariable Long planId) {
     Map<String, Object> plan = plans.get(planId);
     if (plan == null) {
@@ -137,6 +139,7 @@ public class PlanController {
   }
 
   @PostMapping
+  @PreAuthorize("hasAuthority('plans:edit')")
   public ApiResponse<Map<String, Object>> create(@RequestBody Map<String, Object> body) {
     long id = ID_GEN.incrementAndGet();
     Map<String, Object> plan = new LinkedHashMap<>();
@@ -155,6 +158,7 @@ public class PlanController {
   }
 
   @PutMapping("/{planId}")
+  @PreAuthorize("hasAuthority('plans:edit')")
   public ApiResponse<Map<String, Object>> update(@PathVariable Long planId,
                                                  @RequestBody Map<String, Object> body) {
     Map<String, Object> existing = plans.get(planId);
@@ -172,6 +176,7 @@ public class PlanController {
   }
 
   @DeleteMapping("/{planId}")
+  @PreAuthorize("hasAuthority('plans:edit')")
   public ApiResponse<Map<String, Object>> delete(@PathVariable Long planId) {
     Map<String, Object> plan = plans.get(planId);
     if (plan == null) {
@@ -185,6 +190,7 @@ public class PlanController {
   }
 
   @PostMapping("/{planId}/simulate-launch")
+  @PreAuthorize("hasAuthority('plans:edit')")
   public ApiResponse<Map<String, Object>> simulateLaunch(@PathVariable Long planId) {
     Map<String, Object> plan = plans.get(planId);
     if (plan == null) {
@@ -207,6 +213,7 @@ public class PlanController {
   }
 
   @GetMapping("/launches")
+  @PreAuthorize("hasAuthority('plans:view')")
   public ApiResponse<List<Map<String, Object>>> listLaunches() {
     return ApiResponse.success(launchHistory);
   }

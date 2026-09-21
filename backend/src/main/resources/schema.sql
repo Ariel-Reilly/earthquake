@@ -975,6 +975,13 @@ CREATE INDEX IF NOT EXISTS idx_template_disaster ON notice_template(disaster_typ
 CREATE INDEX IF NOT EXISTS idx_template_channel ON notice_template(channel);
 CREATE INDEX IF NOT EXISTS idx_template_enabled ON notice_template(enabled);
 
+-- 8.9.1 多渠道正文：原表设计为一个模板绑定单个渠道（channel + content_template），
+--       而通知模板管理页（NoticeTemplatePage.vue）以「渠道 → 正文」映射编辑多渠
+--       道内容。这里追加 JSONB 列承载该映射，形如 {"sms":"...","email":"..."}。
+--       旧行（如种子数据 NT-001..NT-005）channel_contents 为 NULL，由
+--       NoticeTemplateController 回退为 {channel: content_template}，无需数据迁移。
+ALTER TABLE notice_template ADD COLUMN IF NOT EXISTS channel_contents JSONB;
+
 -- ---------------------------------------------------------------------
 -- 8.10 会签/确认工作台任务（独立表，便于多用户并发认领）
 -- ---------------------------------------------------------------------

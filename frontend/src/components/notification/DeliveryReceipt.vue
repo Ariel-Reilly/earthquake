@@ -42,7 +42,7 @@ const statusMeta = {
 async function load() {
   loading.value = true
   try {
-    const { getNotificationReceipts } = await import("../../services/notificationService")
+    const { getNotificationReceipts } = await import("../../services/_architecture/domain/notificationService.js")
     receipts.value = await getNotificationReceipts(props.recordId)
   } catch (e) {
     emit("notify", "加载回执失败: " + e.message)

@@ -1,0 +1,13 @@
+title: IFC → RVT
+tooltip: |
+  一键把 hardware-sandbox 输出的 IFC4 模型转成 Revit 项目文件。
+  - Sandbox 沙盘(1.2 × 0.8 m,1:2421)
+  - Real 真实地形(1:1,GIS 对齐)
+  - Terrain 仅地形
+  或浏览任意其它 IFC 文件。
+author: DisasterGuard Team
+version: 0.1.0
+revit_version: 2024.0.0
+engine_version: 4.8.0
+no_translation: true
+context: zero_doc

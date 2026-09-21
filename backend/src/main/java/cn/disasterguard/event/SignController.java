@@ -45,6 +45,7 @@ public class SignController {
 
   /** 列出该事件的所有会签。 */
   @GetMapping("/sign")
+  @PreAuthorize("hasAuthority('confirmation:view')")
   public ApiResponse<List<EventSign>> list(@PathVariable String eventId) {
     return ApiResponse.success(signService.listByEvent(eventId));
   }
@@ -75,6 +76,7 @@ public class SignController {
 
   /** 转派。 */
   @PostMapping("/transfer")
+  @PreAuthorize("hasAuthority('confirmation:view')")
   public ApiResponse<Map<String, Object>> transfer(@PathVariable String eventId,
                                                    @RequestBody Map<String, String> body,
                                                    Authentication auth) {

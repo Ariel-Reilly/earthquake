@@ -1,0 +1,9 @@
+title: GL-Sandbox
+tooltip: DisasterGuard 硬件沙盘 BIM 工具集
+author: DisasterGuard Team <dev@disasterguard.local>
+version: 0.1.0
+revit_version: 2024.0.0
+engine_version: 4.8.0
+keep_on_load: false
+load_when_plugin_loaded: []
+no_translation: true

@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 /**
  * 备份管理（Backup）REST API。
@@ -50,7 +51,6 @@ public class BackupController {
   }
 
   private void initSampleData() {
-    // 初始化备份记录
     String[] types = {"FULL", "INCREMENTAL", "FULL", "INCREMENTAL"};
     for (int i = 0; i < 4; i++) {
       long id = BACKUP_ID_GEN.incrementAndGet();
@@ -65,7 +65,6 @@ public class BackupController {
       backups.put(id, backup);
     }
 
-    // 初始化恢复记录
     for (int i = 0; i < 2; i++) {
       long id = RESTORE_ID_GEN.incrementAndGet();
       Map<String, Object> restore = new LinkedHashMap<>();
@@ -78,7 +77,6 @@ public class BackupController {
       restores.put(id, restore);
     }
 
-    // 初始化备份策略
     String[] strategyTypes = {"每日全量", "每日增量", "每周全量"};
     for (int i = 0; i < 3; i++) {
       long id = STRATEGY_ID_GEN.incrementAndGet();
@@ -95,6 +93,7 @@ public class BackupController {
   }
 
   @GetMapping("/records")
+  @PreAuthorize("hasAuthority('backup:view')")
   public ApiResponse<Map<String, Object>> listRecords(
       @RequestParam(defaultValue = "1") int page,
       @RequestParam(defaultValue = "20") int size,
@@ -123,6 +122,7 @@ public class BackupController {
   }
 
   @PostMapping("/records")
+  @PreAuthorize("hasAuthority('backup:manage')")
   public ApiResponse<Map<String, Object>> createBackup(@RequestBody Map<String, Object> body) {
     long id = BACKUP_ID_GEN.incrementAndGet();
     String type = String.valueOf(body.getOrDefault("type", "FULL"));
@@ -145,6 +145,7 @@ public class BackupController {
   }
 
   @PostMapping("/records/{id}/restore")
+  @PreAuthorize("hasAuthority('backup:manage')")
   public ApiResponse<Map<String, Object>> restoreBackup(@PathVariable Long id,
                                                        @RequestBody Map<String, Object> body) {
     Map<String, Object> backup = backups.get(id);
@@ -168,7 +169,27 @@ public class BackupController {
     ));
   }
 
+  /**
+   * 校验备份完整性。
+   *
+   * <p>前端 BackupRecoveryPage 的「校验」按钮调用此接口，此前后端完全没有映射，
+   * 点击直接 404。这里补上映射，但<b>不返回"校验通过"</b>：备份记录目前保存在
+   * ConcurrentHashMap 中（即 CODE_REVIEW 中的 M6 内存 mock 问题），没有真实的
+   * 备份文件可供校验。在灾难恢复场景下返回一个假的"通过"比直接报错更危险，
+   * 因此明确返回 501；待备份落库后再实现真实校验（文件存在性 + size + checksum）。
+   */
+  @PostMapping("/records/{id}/verify")
+  @PreAuthorize("hasAuthority('backup:view')")
+  public ApiResponse<Map<String, Object>> verifyBackup(@PathVariable Long id) {
+    if (!backups.containsKey(id)) {
+      return ApiResponse.fail(404, "备份记录不存在: " + id);
+    }
+    return ApiResponse.fail(501,
+        "备份校验尚未实现：当前备份记录为内存模拟数据，未落库，无法执行真实完整性校验");
+  }
+
   @DeleteMapping("/records/{id}")
+  @PreAuthorize("hasAuthority('backup:manage')")
   public ApiResponse<Map<String, Object>> deleteBackup(@PathVariable Long id) {
     if (!backups.containsKey(id)) {
       return ApiResponse.fail(404, "备份记录不存在: " + id);
@@ -178,6 +199,7 @@ public class BackupController {
   }
 
   @GetMapping("/restores")
+  @PreAuthorize("hasAuthority('backup:view')")
   public ApiResponse<Map<String, Object>> listRestores() {
     var all = restores.values().stream()
         .sorted((a, b) -> {
@@ -193,11 +215,13 @@ public class BackupController {
   }
 
   @GetMapping("/strategies")
+  @PreAuthorize("hasAuthority('backup:view')")
   public ApiResponse<List<Map<String, Object>>> listStrategies() {
     return ApiResponse.success(new ArrayList<>(strategies.values()));
   }
 
   @PostMapping("/strategies")
+  @PreAuthorize("hasAuthority('backup:manage')")
   public ApiResponse<Map<String, Object>> saveStrategy(@RequestBody Map<String, Object> body) {
     Long id = body.containsKey("id") ? ((Number) body.get("id")).longValue() : null;
     Map<String, Object> strategy;
@@ -218,6 +242,7 @@ public class BackupController {
   }
 
   @DeleteMapping("/strategies/{id}")
+  @PreAuthorize("hasAuthority('backup:manage')")
   public ApiResponse<Map<String, Object>> deleteStrategy(@PathVariable Long id) {
     if (!strategies.containsKey(id)) {
       return ApiResponse.fail(404, "策略不存在: " + id);
@@ -227,6 +252,7 @@ public class BackupController {
   }
 
   @PostMapping("/strategies/{id}/run")
+  @PreAuthorize("hasAuthority('backup:manage')")
   public ApiResponse<Map<String, Object>> runStrategy(@PathVariable Long id) {
     Map<String, Object> strategy = strategies.get(id);
     if (strategy == null) {

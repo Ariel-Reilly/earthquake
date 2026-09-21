@@ -18,13 +18,13 @@ export const NAV_GROUPS = [
 ]
 
 export const dashboardMenu = [
-  // ===X= 监测与态势 ===X=
+  // 监测与态势
   { path: '/dashboard',                  label: '综合态势大屏', icon: 'LayoutDashboard', group: 'monitor', order: 1 },
   { path: '/dashboard/real-time-map',    label: '实时监测地图', icon: 'Map',              group: 'monitor', order: 2 },
   { path: '/dashboard/satellite-compare', label: '时相对比', icon: 'Camera', group: 'monitor', order: 3, badge: 'NEW' },
   { path: '/dashboard/zone',            label: '区域专项', icon: 'Landmark', group: 'monitor', order: 4 },
 
-  // ===X= AI 与事件 ===X=
+  // AI 与事件
   { path: '/dashboard/ai-tasks',                  label: 'AI 巡检任务',          icon: 'Bot',            group: 'ai', order: 1 },
   { path: '/dashboard/ai-results',                label: 'AI 推理结果',          icon: 'Cpu',            group: 'ai', order: 2 },
   { path: '/dashboard/hazards',                   label: '灾害事件列表',          icon: 'MountainSnow',   group: 'ai', order: 3, badge: 'NEW' },
@@ -39,7 +39,7 @@ export const dashboardMenu = [
   { path: '/dashboard/reports',                   label: '报表中心',             icon: 'FileBarChart',     group: 'ai', order: 6 },
   { path: '/dashboard/data-catalog',              label: '数据资产目录',         icon: 'Database',         group: 'ai', order: 8 },
 
-  // ===X= 预警与处置 ===X=
+  // 预警与处置
   { path: '/dashboard/warnings',          label: '预警中心',     icon: 'Siren',          group: 'action', order: 1 },
   { path: '/dashboard/notice-templates',  label: '通知模板',     icon: 'BellRing',       group: 'action', order: 4 },
   { path: '/dashboard/plans',             label: '预案管理',     icon: 'ScrollText',     group: 'action', order: 5 },
@@ -47,7 +47,7 @@ export const dashboardMenu = [
   { path: '/dashboard/resource-dispatch', label: '资源调度指挥', icon: 'Boxes',         group: 'action', order: 3 },
   { path: '/dashboard/route-planning',     label: '路径规划',     icon: 'Route',          group: 'action', order: 2.5, badge: 'P0' },
 
-  // ===X= 数据与模型 ===X=
+  // 数据与模型
   { path: '/dashboard/devices',           label: '设备管理',     icon: 'Radio',        group: 'data', order: 1 },
   { path: '/dashboard/devices/ota',       label: 'OTA 升级',     icon: 'Package',        group: 'data', order: 2 },
   { path: '/dashboard/device-map',        label: '设备地图',     icon: 'MapPin',         group: 'data', order: 3, badge: 'NEW' },
@@ -55,11 +55,11 @@ export const dashboardMenu = [
   { path: '/dashboard/data-sync',         label: '数据同步监控', icon: 'Radar',          group: 'data', order: 5, badge: 'NEW', danger: true },
   { path: '/dashboard/weather',           label: '气象分析',     icon: 'CloudRain',      group: 'data', order: 6 },
 
-  // ===X= 系统与底座 ===X=
+  // 系统与底座
   { path: '/dashboard/backup-recovery',   label: '备份恢复',     icon: 'HardDrive',      group: 'system', order: 10 },
   { path: '/dashboard/account-security',  label: '账号安全',     icon: 'ShieldCheck',    group: 'system', order: 11 },
 
-  // ===X= 系统与统计 ===X=
+  // 系统与统计
   { path: '/dashboard/analytics',         label: '统计分析',     icon: 'BarChart3',      group: 'system', order: 1 },
   { path: '/dashboard/history-hazards',   label: '历史灾害库',   icon: 'History',        group: 'system', order: 2 },
   { path: '/dashboard/user-management',   label: '用户与权限',   icon: 'Users',          group: 'system', order: 3 },

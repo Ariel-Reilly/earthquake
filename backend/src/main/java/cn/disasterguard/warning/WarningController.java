@@ -43,6 +43,7 @@ public class WarningController {
   }
 
   @GetMapping
+  @PreAuthorize("hasAuthority('warnings:view')")
   public ApiResponse<PageResponse<WarningDto>> list(
       @RequestParam(defaultValue = "1") int page,
       @RequestParam(defaultValue = "10") int size,
@@ -58,6 +59,7 @@ public class WarningController {
    *  必须在 /{id} 之上单独声明，避免被 Spring 解析成 id="stats" → 400 Long 转换错误。
    */
   @GetMapping("/stats")
+  @PreAuthorize("hasAuthority('warnings:view')")
   public ApiResponse<Map<String, Object>> stats() {
     // 状态集合参考 WarningService.create() 默认 "待确认"，
     // 以及 dispatch/close/dismiss/resolve 后流转出的 "处理中" / "已发布" / "已解除" / "已忽略" / "已关闭" / "已确认"。
@@ -80,6 +82,7 @@ public class WarningController {
   }
 
   @GetMapping("/viewport")
+  @PreAuthorize("hasAuthority('warnings:view')")
   public ApiResponse<List<WarningDto>> viewport(
       @RequestParam(required = false) String bbox,
       @RequestParam(required = false) String keyword,
@@ -90,11 +93,13 @@ public class WarningController {
   }
 
   @GetMapping("/preview")
+  @PreAuthorize("hasAuthority('warnings:view')")
   public ApiResponse<List<WarningDto>> preview() {
     return ApiResponse.success(warningService.preview());
   }
 
   @GetMapping("/{id}")
+  @PreAuthorize("hasAuthority('warnings:view')")
   public ApiResponse<Map<String, Object>> detail(@PathVariable Long id) {
     return ApiResponse.success(Map.of("item", warningService.getById(id)));
   }

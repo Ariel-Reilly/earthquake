@@ -7,7 +7,11 @@ import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import org.springframework.security.access.prepost.PreAuthorize;
 
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 @RestController
 @RequestMapping("/api/notification")
 public class NotificationController {
@@ -22,6 +26,7 @@ public class NotificationController {
    * 发送通知（内部调用）
    */
   @PostMapping("/send")
+  @PreAuthorize("hasAuthority('notice:edit')")
   public ApiResponse<SendResultDto> send(@Valid @RequestBody NotificationRequestDto request) {
     String operator = currentOperator();
     SendResultDto result = service.send(request, operator);
@@ -38,6 +43,7 @@ public class NotificationController {
    * </ul>
    */
   @GetMapping("/records")
+  @PreAuthorize("hasAuthority('notice:view')")
   public ApiResponse<PageResponse<NotificationRecordDto>> records(
       @RequestParam(required = false) String bizType,
       @RequestParam(required = false) String disasterType,
@@ -52,28 +58,22 @@ public class NotificationController {
     return ApiResponse.success(result);
   }
 
-  /**
-   * 查询回执详情
-   */
   @GetMapping("/receipts/{recordId}")
+  @PreAuthorize("hasAuthority('notice:view')")
   public ApiResponse<List<NotificationReceiptDto>> receipts(@PathVariable Long recordId) {
     List<NotificationReceiptDto> result = service.receipts(recordId);
     return ApiResponse.success(result);
   }
 
-  /**
-   * 测试发送
-   */
   @PostMapping("/test")
+  @PreAuthorize("hasAuthority('notice:edit')")
   public ApiResponse<SendResultDto> test(@RequestBody TestSendRequest request) {
     SendResultDto result = service.testSend(request);
     return ApiResponse.success(result);
   }
 
-  /**
-   * 获取渠道配置
-   */
   @GetMapping("/channel-config")
+  @PreAuthorize("hasAuthority('notice:view')")
   public ApiResponse<List<ChannelConfigDto>> getChannelConfigs(
       @RequestParam(required = false) String disasterType,
       @RequestParam(required = false) String level) {
@@ -81,19 +81,15 @@ public class NotificationController {
     return ApiResponse.success(result);
   }
 
-  /**
-   * 更新渠道配置
-   */
   @PutMapping("/channel-config")
+  @PreAuthorize("hasAuthority('notice:edit')")
   public ApiResponse<ChannelConfigDto> updateChannelConfig(@RequestBody ChannelConfigDto config) {
     ChannelConfigDto result = service.updateChannelConfig(config);
     return ApiResponse.success(result);
   }
 
-  /**
-   * 失败重发
-   */
   @PostMapping("/retry/{recordId}")
+  @PreAuthorize("hasAuthority('notice:edit')")
   public ApiResponse<SendResultDto> retry(@PathVariable Long recordId) {
     SendResultDto result = service.retry(recordId);
     return ApiResponse.success(result);
@@ -106,7 +102,9 @@ public class NotificationController {
       if (auth != null && auth.getName() != null && !auth.getName().isBlank()) {
         return auth.getName();
       }
-    } catch (Exception ignored) {}
+    } catch (Exception e) {
+      log.debug("无法从 SecurityContext 获取当前用户名: {}", e.getMessage());
+    }
     return "system";
   }
 }

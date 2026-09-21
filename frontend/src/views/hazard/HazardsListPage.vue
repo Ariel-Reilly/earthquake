@@ -41,7 +41,7 @@ const {
 } = useHazardList(props)
 
 const sourceFilter = ref('all')  // 'all' | 'AI_MONITOR' | 'MANUAL'
-const aiMonitorCount = ref(0)     // AI 实时监测发现的灾害总数（用于"AI 实时监测"徽标）
+const aiMonitorCount = ref(0)
 const lastAiDetectedAt = ref(null)
 
 const filteredBySource = computed(() => {
@@ -178,7 +178,6 @@ function fmtRelTime(iso) {
           </div>
         </div>
 
-        <!-- v1.6.0：AI 实时监测状态条 -->
         <div v-if="aiMonitorCount > 0 || sourceFilter === 'AI_MONITOR'" class="ai-monitor-bar">
           <Cpu :size="14" />
           <span class="ai-monitor-text">
@@ -195,7 +194,6 @@ function fmtRelTime(iso) {
               <div class="warning-title">
                 <strong>{{ point.name }}</strong>
                 <span :class="point.level === '高风险' ? 'orange' : point.level === '关注' ? 'yellow' : 'blue'">{{ point.level }}</span>
-                <!-- v1.6.0：AI 实时监测徽标 -->
                 <span
                   v-if="point.source === 'AI_MONITOR'"
                   class="source-badge source-ai"

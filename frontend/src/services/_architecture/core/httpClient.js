@@ -42,6 +42,9 @@ export async function request(path, options = {}) {
     ...(extraHeaders ?? {}),
   };
   const init = {
+    // 统一禁用浏览器/HTTP 缓存,确保每次进入页面或参数变化时拿到最新数据。
+    // 否则用户在各页面间跳转时,会因为 fetch 默认缓存导致"需要手动刷新"。
+    cache: "no-store",
     headers,
     credentials: "include",
     ...rest,
