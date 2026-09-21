@@ -1,13 +1,14 @@
 package cn.disasterguard.warning;
 
 import cn.disasterguard.common.api.ApiResponse;
+import cn.disasterguard.warning.entity.WarningDeliveryRecord;
+import cn.disasterguard.warning.repository.WarningDeliveryRecordRepository;
 import cn.disasterguard.warning.repository.WarningEventRepository;
-import java.util.ArrayList;
+import jakarta.annotation.PostConstruct;
+import java.time.OffsetDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicLong;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -26,17 +27,33 @@ import org.springframework.security.access.prepost.PreAuthorize;
  *   <li>{@code GET /api/warnings/{id}/delivery/records} — 送达记录</li>
  *   <li>{@code POST /api/warnings/{id}/delivery/redeliver} — 重新发送失败通知</li>
  * </ul>
+ *
+ * <p>数据持久化：原内存 {@code Map<预警id, List<记录>>} 已改为行表
+ * {@code warning_delivery_record}（record_id = 预警 id，payload = 单条记录），
+ * 端点路径与响应结构保持不变。
  */
 @RestController
 @RequestMapping("/api/warnings")
 public class WarningDeliveryController {
 
-  private final WarningEventRepository warningRepository;
-  private final Map<Long, List<Map<String, Object>>> deliveryRecords = new ConcurrentHashMap<>();
-  private final AtomicLong recordIdGen = new AtomicLong(1000);
+  /** 种子记录起始 id，与原内存版 AtomicLong(1000) + incrementAndGet 的首值一致。 */
+  private static final long SEED_ID_BASE = 1000;
 
-  public WarningDeliveryController(WarningEventRepository warningRepository) {
+  private final WarningEventRepository warningRepository;
+  private final WarningDeliveryRecordRepository deliveryRecordRepository;
+
+  private long recordIdGen;
+
+  public WarningDeliveryController(
+      WarningEventRepository warningRepository,
+      WarningDeliveryRecordRepository deliveryRecordRepository) {
     this.warningRepository = warningRepository;
+    this.deliveryRecordRepository = deliveryRecordRepository;
+  }
+
+  @PostConstruct
+  void init() {
+    recordIdGen = deliveryRecordRepository.findMaxId();
   }
 
   @GetMapping("/{id}/delivery/summary")
@@ -74,30 +91,39 @@ public class WarningDeliveryController {
       @RequestParam(defaultValue = "20") int size,
       @RequestParam(required = false) String channel) {
 
-    List<Map<String, Object>> allRecords = deliveryRecords.computeIfAbsent(id, k -> {
-      List<Map<String, Object>> records = new ArrayList<>();
+    List<WarningDeliveryRecord> stored = deliveryRecordRepository.findByRecordIdOrderByIdAsc(id);
+    if (stored.isEmpty()) {
+      // 首次访问该预警时生成模拟送达记录（与原 computeIfAbsent 懒生成行为一致）
+      List<WarningDeliveryRecord> records = new java.util.ArrayList<>();
       String[] channels = {"app", "sms", "email", "webhook"};
       String[] statuses = {"DELIVERED", "DELIVERED", "FAILED", "PENDING"};
       String[] recipients = {"张三", "李四", "王五", "应急指挥中心", "值班员A"};
       for (int i = 0; i < 15; i++) {
+        long recordId = ++recordIdGen;
         Map<String, Object> record = new LinkedHashMap<>();
-        record.put("id", recordIdGen.incrementAndGet());
+        record.put("id", recordId);
         record.put("channel", channels[i % 4]);
         record.put("recipient", recipients[i % 5]);
         record.put("status", statuses[i % 4]);
-        record.put("sentAt", java.time.OffsetDateTime.now().minusMinutes(i * 5));
+        record.put("sentAt", OffsetDateTime.now().minusMinutes(i * 5).toString());
         if ("DELIVERED".equals(statuses[i % 4])) {
-          record.put("deliveredAt", java.time.OffsetDateTime.now().minusMinutes(i * 5 - 1));
+          record.put("deliveredAt", OffsetDateTime.now().minusMinutes(i * 5 - 1).toString());
         }
         if ("FAILED".equals(statuses[i % 4])) {
           record.put("error", "网络超时，发送失败");
         }
-        records.add(record);
+        WarningDeliveryRecord entity = new WarningDeliveryRecord();
+        entity.setId(recordId);
+        entity.setRecordId(id);
+        entity.setPayload(record);
+        records.add(entity);
       }
-      return records;
-    });
+      deliveryRecordRepository.saveAll(records);
+      stored = deliveryRecordRepository.findByRecordIdOrderByIdAsc(id);
+    }
 
-    var filtered = allRecords.stream()
+    var filtered = stored.stream()
+        .map(WarningDeliveryRecord::getPayload)
         .filter(r -> channel == null || channel.isBlank()
             || channel.equals(r.get("channel")))
         .toList();

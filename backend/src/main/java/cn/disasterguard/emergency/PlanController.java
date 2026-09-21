@@ -1,12 +1,15 @@
 package cn.disasterguard.emergency;
 
 import cn.disasterguard.common.api.ApiResponse;
+import cn.disasterguard.emergency.entity.EmergencyPlan;
+import cn.disasterguard.emergency.repository.EmergencyPlanRepository;
+import jakarta.annotation.PostConstruct;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -32,24 +35,37 @@ import org.springframework.security.access.prepost.PreAuthorize;
  *   <li>{@code POST /api/plans/{planId}/simulate-launch} — 模拟启动</li>
  *   <li>{@code GET /api/plans/launches} — 启动历史</li>
  * </ul>
+ *
+ * <p>M6 技术债改造：预案由内存 ConcurrentHashMap 改为
+ * {@code emergency_plan} JSONB 落库，端点、路径与请求/响应结构保持不变。
  */
 @RestController
 @RequestMapping("/api/plans")
 public class PlanController {
 
-  private static final AtomicLong ID_GEN = new AtomicLong(1000);
-  private static final AtomicLong LAUNCH_ID_GEN = new AtomicLong(1000);
+  private final EmergencyPlanRepository planRepo;
 
-  private final Map<Long, Map<String, Object>> plans = new ConcurrentHashMap<>();
+  /** id 计数器：启动时以库内最大 id 初始化，新增记录用 incrementAndGet。 */
+  private final AtomicLong idGen = new AtomicLong();
+
+  /** 模拟启动历史（原内存实现，原样保留）。 */
   private final List<Map<String, Object>> launchHistory = new ArrayList<>();
 
-  public PlanController() {
-    initSampleData();
+  public PlanController(EmergencyPlanRepository planRepo) {
+    this.planRepo = planRepo;
   }
 
-  private void initSampleData() {
+  @PostConstruct
+  void init() {
+    idGen.set(planRepo.findMaxId());
+    if (planRepo.count() == 0) {
+      seedPlans();
+    }
+  }
+
+  private void seedPlans() {
     for (int i = 1; i <= 5; i++) {
-      long id = ID_GEN.incrementAndGet();
+      long id = idGen.incrementAndGet();
       Map<String, Object> plan = new LinkedHashMap<>();
       plan.put("planId", id);
       plan.put("name", "地震应急响应预案 " + i);
@@ -67,9 +83,16 @@ public class PlanController {
           Map.of("name", "应急指挥中心", "phone", "010-12345678"),
           Map.of("name", "救援队伍", "phone", "010-87654321")
       ));
-      plan.put("updatedAt", OffsetDateTime.now().minusDays(i));
-      plans.put(id, plan);
+      plan.put("updatedAt", OffsetDateTime.now().minusDays(i).toString());
+      savePlan(id, plan);
     }
+  }
+
+  private EmergencyPlan savePlan(Long id, Map<String, Object> payload) {
+    EmergencyPlan entity = new EmergencyPlan();
+    entity.setId(id);
+    entity.setPayload(payload);
+    return planRepo.save(entity);
   }
 
   @GetMapping
@@ -81,7 +104,11 @@ public class PlanController {
       @RequestParam(required = false) String level,
       @RequestParam(required = false) String status,
       @RequestParam(required = false) String keyword) {
-    var filtered = plans.values().stream()
+    List<Map<String, Object>> all = planRepo.findAll().stream()
+        .sorted(Comparator.comparing(EmergencyPlan::getId))
+        .map(EmergencyPlan::getPayload)
+        .toList();
+    var filtered = all.stream()
         .filter(p -> hazardType == null || hazardType.isBlank()
             || hazardType.equals(p.get("hazardType")))
         .filter(p -> level == null || level.isBlank()
@@ -95,8 +122,9 @@ public class PlanController {
           return name.contains(k);
         })
         .sorted((a, b) -> {
-          var ta = (OffsetDateTime) b.get("updatedAt");
-          var tb = (OffsetDateTime) a.get("updatedAt");
+          // updatedAt 已统一为 ISO 字符串，字典序即时间序
+          var ta = String.valueOf(b.get("updatedAt"));
+          var tb = String.valueOf(a.get("updatedAt"));
           return ta.compareTo(tb);
         })
         .toList();
@@ -131,7 +159,8 @@ public class PlanController {
   @GetMapping("/{planId}")
   @PreAuthorize("hasAuthority('plans:view')")
   public ApiResponse<Map<String, Object>> get(@PathVariable Long planId) {
-    Map<String, Object> plan = plans.get(planId);
+    Map<String, Object> plan = planRepo.findById(planId)
+        .map(EmergencyPlan::getPayload).orElse(null);
     if (plan == null) {
       return ApiResponse.fail(404, "预案不存在: " + planId);
     }
@@ -141,7 +170,7 @@ public class PlanController {
   @PostMapping
   @PreAuthorize("hasAuthority('plans:edit')")
   public ApiResponse<Map<String, Object>> create(@RequestBody Map<String, Object> body) {
-    long id = ID_GEN.incrementAndGet();
+    long id = idGen.incrementAndGet();
     Map<String, Object> plan = new LinkedHashMap<>();
     plan.put("planId", id);
     plan.put("name", body.getOrDefault("name", "新预案"));
@@ -152,8 +181,8 @@ public class PlanController {
     plan.put("content", body.getOrDefault("content", ""));
     plan.put("steps", body.getOrDefault("steps", new ArrayList<>()));
     plan.put("contacts", body.getOrDefault("contacts", new ArrayList<>()));
-    plan.put("updatedAt", OffsetDateTime.now());
-    plans.put(id, plan);
+    plan.put("updatedAt", OffsetDateTime.now().toString());
+    savePlan(id, plan);
     return ApiResponse.success(plan);
   }
 
@@ -161,38 +190,43 @@ public class PlanController {
   @PreAuthorize("hasAuthority('plans:edit')")
   public ApiResponse<Map<String, Object>> update(@PathVariable Long planId,
                                                  @RequestBody Map<String, Object> body) {
-    Map<String, Object> existing = plans.get(planId);
-    if (existing == null) {
+    EmergencyPlan entity = planRepo.findById(planId).orElse(null);
+    if (entity == null) {
       return ApiResponse.fail(404, "预案不存在: " + planId);
     }
+    Map<String, Object> existing = entity.getPayload();
     if (body.containsKey("name")) existing.put("name", body.get("name"));
     if (body.containsKey("hazardType")) existing.put("hazardType", body.get("hazardType"));
     if (body.containsKey("level")) existing.put("level", body.get("level"));
     if (body.containsKey("content")) existing.put("content", body.get("content"));
     if (body.containsKey("steps")) existing.put("steps", body.get("steps"));
     if (body.containsKey("contacts")) existing.put("contacts", body.get("contacts"));
-    existing.put("updatedAt", OffsetDateTime.now());
+    existing.put("updatedAt", OffsetDateTime.now().toString());
+    entity.setPayload(existing);
+    planRepo.save(entity);
     return ApiResponse.success(existing);
   }
 
   @DeleteMapping("/{planId}")
   @PreAuthorize("hasAuthority('plans:edit')")
   public ApiResponse<Map<String, Object>> delete(@PathVariable Long planId) {
-    Map<String, Object> plan = plans.get(planId);
-    if (plan == null) {
+    EmergencyPlan entity = planRepo.findById(planId).orElse(null);
+    if (entity == null) {
       return ApiResponse.fail(404, "预案不存在: " + planId);
     }
+    Map<String, Object> plan = entity.getPayload();
     if (!"草稿".equals(plan.get("status"))) {
       return ApiResponse.fail(400, "仅草稿状态的预案可删除");
     }
-    plans.remove(planId);
+    planRepo.deleteById(planId);
     return ApiResponse.success(Map.of("deleted", planId));
   }
 
   @PostMapping("/{planId}/simulate-launch")
   @PreAuthorize("hasAuthority('plans:edit')")
   public ApiResponse<Map<String, Object>> simulateLaunch(@PathVariable Long planId) {
-    Map<String, Object> plan = plans.get(planId);
+    Map<String, Object> plan = planRepo.findById(planId)
+        .map(EmergencyPlan::getPayload).orElse(null);
     if (plan == null) {
       return ApiResponse.fail(404, "预案不存在: " + planId);
     }

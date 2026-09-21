@@ -80,6 +80,21 @@
 > - **工作区不干净加剧**：268 个已修改 + 多个安全关键新文件未入库
 >   （`RateLimitFilter.java`、`SecurityConfigProd.java`、`NoStoreCacheInterceptor.java`、
 >   `ai-service/app/config.py`），丢失或被误清理将直接回退安全加固，建议尽快提交。
+>
+> **[第六轮更新：2026-09-21 遗留项清理（同日续）]**
+> 1. **全部改动已提交**（`7d54430`，含安全组件与 268 个文件）。
+> 2. **M4 清零**：ESLint 10 errors 全部修复（prefer-const / no-unused-vars / curly /
+>    queueMicrotask 全局声明），`npm run lint` 与 `vite build` 实测通过。
+> 3. **假 lock 文件已删除**：`requirements.lock` 含假哈希无法安装，
+>    依赖以 `requirements.txt`（已锁版本）为准。
+> 4. **M6 落库完成**：7 个内存 mock Controller（Backup / Sync / Plan / OTA /
+>    WarningDelivery / Report / AccountSecurity）全部改为 JPA + JSONB 落库。
+>    统一方案：每类 `Map<K, Map<String,Object>>` → `{id, payload JSONB, created_at}`
+>    实体表（13 张新表已追加至 `schema.sql`），id 计数器启动时从 DB max 恢复，
+>    种子数据 `@PostConstruct` 空表幂等写入，端点 / 响应结构 / `@PreAuthorize` /
+>    刻意 501 的行为全部保持不变。`mvn clean compile` + 三审计脚本实测通过。
+>    ⚠️ 注意：payload 内时间值统一为 ISO 字符串（JSONB 无法直接存 OffsetDateTime）。
+> 5. 仍遗留：孤儿死代码 2 处、`setInterval` 清理不完整（M5）、lint 门禁未接 CI。
 
 
 

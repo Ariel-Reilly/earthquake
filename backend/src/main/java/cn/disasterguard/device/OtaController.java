@@ -2,13 +2,18 @@ package cn.disasterguard.device;
 
 import cn.disasterguard.common.api.ApiResponse;
 import cn.disasterguard.common.api.PageResponse;
+import cn.disasterguard.device.entity.Firmware;
+import cn.disasterguard.device.entity.OtaTask;
+import cn.disasterguard.device.repository.FirmwareRepository;
+import cn.disasterguard.device.repository.OtaTaskRepository;
+import jakarta.annotation.PostConstruct;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -24,66 +29,64 @@ import org.springframework.security.access.prepost.PreAuthorize;
 @RequestMapping("/api/ota")
 public class OtaController {
 
-  // ── Mock firmware store ─────────────────────────────────────────────────────
-  private static final Map<String, Map<String, Object>> FIRMWARES = new ConcurrentHashMap<>();
-  private static long fwSeq = 1;
+  private final FirmwareRepository firmwareRepository;
+  private final OtaTaskRepository otaTaskRepository;
 
-  static {
-    Map<String, Object> fw1 = new HashMap<>();
-    fw1.put("firmwareId", "FW-001");
-    fw1.put("version", "1.2.3");
-    fw1.put("deviceType", "SEISMOMETER");
-    fw1.put("size", 4194304);
-    fw1.put("uploadedAt", LocalDateTime.now().minusDays(5));
-    fw1.put("uploadedBy", "admin");
-    fw1.put("status", "ACTIVE");
-    FIRMWARES.put("FW-001", fw1);
-
-    Map<String, Object> fw2 = new HashMap<>();
-    fw2.put("firmwareId", "FW-002");
-    fw2.put("version", "2.0.0");
-    fw2.put("deviceType", "WEATHER_STATION");
-    fw2.put("size", 2097152);
-    fw2.put("uploadedAt", LocalDateTime.now().minusDays(2));
-    fw2.put("uploadedBy", "admin");
-    fw2.put("status", "ACTIVE");
-    FIRMWARES.put("FW-002", fw2);
-
-    Map<String, Object> fw3 = new HashMap<>();
-    fw3.put("firmwareId", "FW-003");
-    fw3.put("version", "1.0.5");
-    fw3.put("deviceType", "GPS_RECEIVER");
-    fw3.put("size", 3145728);
-    fw3.put("uploadedAt", LocalDateTime.now().minusDays(10));
-    fw3.put("uploadedBy", "operator");
-    fw3.put("status", "DEPRECATED");
-    FIRMWARES.put("FW-003", fw3);
+  public OtaController(FirmwareRepository firmwareRepository, OtaTaskRepository otaTaskRepository) {
+    this.firmwareRepository = firmwareRepository;
+    this.otaTaskRepository = otaTaskRepository;
   }
 
-  // ── Mock OTA task store ─────────────────────────────────────────────────────
-  private static final Map<String, Map<String, Object>> TASKS = new ConcurrentHashMap<>();
-  private static long taskSeq = 1;
+  /** 种子数据（幂等：仅当表为空时写入；payload 内时间为 ISO 字符串）。 */
+  @PostConstruct
+  void seed() {
+    if (firmwareRepository.count() == 0) {
+      firmwareRepository.save(buildFirmware("FW-001", "1.2.3", "SEISMOMETER", 4194304L,
+          LocalDateTime.now().minusDays(5).toString(), "admin", "ACTIVE"));
+      firmwareRepository.save(buildFirmware("FW-002", "2.0.0", "WEATHER_STATION", 2097152L,
+          LocalDateTime.now().minusDays(2).toString(), "admin", "ACTIVE"));
+      firmwareRepository.save(buildFirmware("FW-003", "1.0.5", "GPS_RECEIVER", 3145728L,
+          LocalDateTime.now().minusDays(10).toString(), "operator", "DEPRECATED"));
+    }
+    if (otaTaskRepository.count() == 0) {
+      otaTaskRepository.save(buildOtaTask("TASK-001", "FW-001", "DEV-001", "COMPLETED", 100,
+          LocalDateTime.now().minusDays(3).toString(),
+          LocalDateTime.now().minusDays(3).plusMinutes(5).toString()));
+      otaTaskRepository.save(buildOtaTask("TASK-002", "FW-002", "DEV-002", "IN_PROGRESS", 65,
+          LocalDateTime.now().minusHours(2).toString(), null));
+    }
+  }
 
-  static {
-    Map<String, Object> t1 = new HashMap<>();
-    t1.put("taskId", "TASK-001");
-    t1.put("firmwareId", "FW-001");
-    t1.put("deviceId", "DEV-001");
-    t1.put("status", "COMPLETED");
-    t1.put("progress", 100);
-    t1.put("startedAt", LocalDateTime.now().minusDays(3));
-    t1.put("finishedAt", LocalDateTime.now().minusDays(3).plusMinutes(5));
-    TASKS.put("TASK-001", t1);
+  private Firmware buildFirmware(String id, String version, String deviceType, long size,
+                                 String uploadedAt, String uploadedBy, String status) {
+    Map<String, Object> fw = new HashMap<>();
+    fw.put("firmwareId", id);
+    fw.put("version", version);
+    fw.put("deviceType", deviceType);
+    fw.put("size", size);
+    fw.put("uploadedAt", uploadedAt);
+    fw.put("uploadedBy", uploadedBy);
+    fw.put("status", status);
+    Firmware entity = new Firmware();
+    entity.setId(id);
+    entity.setPayload(fw);
+    return entity;
+  }
 
-    Map<String, Object> t2 = new HashMap<>();
-    t2.put("taskId", "TASK-002");
-    t2.put("firmwareId", "FW-002");
-    t2.put("deviceId", "DEV-002");
-    t2.put("status", "IN_PROGRESS");
-    t2.put("progress", 65);
-    t2.put("startedAt", LocalDateTime.now().minusHours(2));
-    t2.put("finishedAt", null);
-    TASKS.put("TASK-002", t2);
+  private OtaTask buildOtaTask(String id, String firmwareId, String deviceId, String status,
+                               int progress, String startedAt, String finishedAt) {
+    Map<String, Object> task = new HashMap<>();
+    task.put("taskId", id);
+    task.put("firmwareId", firmwareId);
+    task.put("deviceId", deviceId);
+    task.put("status", status);
+    task.put("progress", progress);
+    task.put("startedAt", startedAt);
+    task.put("finishedAt", finishedAt);
+    OtaTask entity = new OtaTask();
+    entity.setId(id);
+    entity.setPayload(task);
+    return entity;
   }
 
   // ── Firmware endpoints ─────────────────────────────────────────────────────
@@ -96,7 +99,10 @@ public class OtaController {
       @RequestParam(required = false) String deviceType,
       @RequestParam(required = false) String keyword
   ) {
-    List<Map<String, Object>> all = new ArrayList<>(FIRMWARES.values());
+    List<Map<String, Object>> all = firmwareRepository.findAll().stream()
+        .sorted(Comparator.comparing(Firmware::getId))
+        .map(Firmware::getPayload)
+        .collect(Collectors.toCollection(ArrayList::new));
     if (deviceType != null && !deviceType.isBlank()) {
       all.removeIf(fw -> !fw.get("deviceType").equals(deviceType));
     }
@@ -119,23 +125,26 @@ public class OtaController {
       @RequestParam("version") String version,
       @RequestParam("deviceType") String deviceType
   ) {
-    String id = "FW-" + String.format("%03d", fwSeq++);
+    String id = nextFirmwareId();
     Map<String, Object> fw = new HashMap<>();
     fw.put("firmwareId", id);
     fw.put("version", version);
     fw.put("deviceType", deviceType);
     fw.put("size", file.getSize());
-    fw.put("uploadedAt", LocalDateTime.now());
+    fw.put("uploadedAt", LocalDateTime.now().toString());
     fw.put("uploadedBy", "admin");
     fw.put("status", "ACTIVE");
-    FIRMWARES.put(id, fw);
+    Firmware entity = new Firmware();
+    entity.setId(id);
+    entity.setPayload(fw);
+    firmwareRepository.save(entity);
     return ApiResponse.success("固件上传成功", fw);
   }
 
   @DeleteMapping("/firmwares/{firmwareId}")
   @PreAuthorize("hasAuthority('devices:delete')")
   public ApiResponse<Void> deleteFirmware(@PathVariable String firmwareId) {
-    FIRMWARES.remove(firmwareId);
+    firmwareRepository.deleteById(firmwareId);
     return ApiResponse.success("删除成功", null);
   }
 
@@ -149,7 +158,10 @@ public class OtaController {
       @RequestParam(required = false) String status,
       @RequestParam(required = false) String deviceId
   ) {
-    List<Map<String, Object>> all = new ArrayList<>(TASKS.values());
+    List<Map<String, Object>> all = otaTaskRepository.findAll().stream()
+        .sorted(Comparator.comparing(OtaTask::getId))
+        .map(OtaTask::getPayload)
+        .collect(Collectors.toCollection(ArrayList::new));
     if (status != null && !status.isBlank()) {
       all.removeIf(t -> !t.get("status").equals(status));
     }
@@ -165,7 +177,7 @@ public class OtaController {
     String firmwareId = (String) body.get("firmwareId");
     @SuppressWarnings("unchecked")
     List<String> deviceIds = (List<String>) body.get("deviceIds");
-    String taskId = "TASK-" + String.format("%03d", taskSeq++);
+    String taskId = nextTaskId();
     Map<String, Object> task = new HashMap<>();
     task.put("taskId", taskId);
     task.put("firmwareId", firmwareId);
@@ -174,18 +186,22 @@ public class OtaController {
     task.put("progress", 0);
     task.put("startedAt", null);
     task.put("finishedAt", null);
-    task.put("createdAt", LocalDateTime.now());
-    TASKS.put(taskId, task);
+    task.put("createdAt", LocalDateTime.now().toString());
+    OtaTask entity = new OtaTask();
+    entity.setId(taskId);
+    entity.setPayload(task);
+    otaTaskRepository.save(entity);
     return ApiResponse.success(Map.of("taskId", taskId, "status", "PENDING", "createdAt", LocalDateTime.now()));
   }
 
   @GetMapping("/tasks/{taskId}")
   @PreAuthorize("hasAuthority('devices:view')")
   public ApiResponse<Map<String, Object>> taskDetail(@PathVariable String taskId) {
-    Map<String, Object> task = TASKS.get(taskId);
-    if (task == null) {
+    OtaTask entity = otaTaskRepository.findById(taskId).orElse(null);
+    if (entity == null) {
       return ApiResponse.fail(404, "Task not found");
     }
+    Map<String, Object> task = entity.getPayload();
     // Build timeline mock
     List<Map<String, Object>> timeline = new ArrayList<>();
     timeline.add(Map.of("event", "CREATED", "timestamp", task.get("createdAt")));
@@ -206,30 +222,61 @@ public class OtaController {
   @PostMapping("/tasks/{taskId}/cancel")
   @PreAuthorize("hasAuthority('devices:edit')")
   public ApiResponse<Map<String, Object>> cancelTask(@PathVariable String taskId) {
-    Map<String, Object> task = TASKS.get(taskId);
-    if (task == null) {
+    OtaTask entity = otaTaskRepository.findById(taskId).orElse(null);
+    if (entity == null) {
       return ApiResponse.fail(404, "Task not found");
     }
-    task.put("status", "CANCELLED");
-    task.put("finishedAt", LocalDateTime.now());
+    entity.getPayload().put("status", "CANCELLED");
+    entity.getPayload().put("finishedAt", LocalDateTime.now().toString());
+    otaTaskRepository.save(entity);
     return ApiResponse.success("任务已取消", Map.of("taskId", taskId, "status", "CANCELLED"));
   }
 
   @PostMapping("/tasks/{taskId}/retry")
   @PreAuthorize("hasAuthority('devices:edit')")
   public ApiResponse<Map<String, Object>> retryTask(@PathVariable String taskId) {
-    Map<String, Object> task = TASKS.get(taskId);
-    if (task == null) {
+    OtaTask entity = otaTaskRepository.findById(taskId).orElse(null);
+    if (entity == null) {
       return ApiResponse.fail(404, "Task not found");
     }
-    task.put("status", "PENDING");
-    task.put("progress", 0);
-    task.put("startedAt", null);
-    task.put("finishedAt", null);
+    entity.getPayload().put("status", "PENDING");
+    entity.getPayload().put("progress", 0);
+    entity.getPayload().put("startedAt", null);
+    entity.getPayload().put("finishedAt", null);
+    otaTaskRepository.save(entity);
     return ApiResponse.success("任务已重置", Map.of("taskId", taskId, "status", "PENDING"));
   }
 
   // ── Helpers ─────────────────────────────────────────────────────────────────
+
+  /** 基于 DB 中现有 id 的数字后缀生成下一个固件 id（替代原内存自增序列）。 */
+  private String nextFirmwareId() {
+    int max = firmwareRepository.findAll().stream()
+        .map(Firmware::getId)
+        .filter(id -> id != null && id.startsWith("FW-"))
+        .mapToInt(id -> parseSuffix(id, "FW-"))
+        .max()
+        .orElse(0);
+    return "FW-" + String.format("%03d", max + 1);
+  }
+
+  private String nextTaskId() {
+    int max = otaTaskRepository.findAll().stream()
+        .map(OtaTask::getId)
+        .filter(id -> id != null && id.startsWith("TASK-"))
+        .mapToInt(id -> parseSuffix(id, "TASK-"))
+        .max()
+        .orElse(0);
+    return "TASK-" + String.format("%03d", max + 1);
+  }
+
+  private static int parseSuffix(String id, String prefix) {
+    try {
+      return Integer.parseInt(id.substring(prefix.length()));
+    } catch (NumberFormatException e) {
+      return 0;
+    }
+  }
 
   private static <T> PageResponse<T> paginate(List<T> list, int page, int size) {
     int total = list.size();

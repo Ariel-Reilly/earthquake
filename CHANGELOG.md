@@ -7,6 +7,18 @@
 
 ## [Unreleased]
 
+### ✨ 重构（2026-09-21 遗留项清理 — M6 落库与 lint 清零）
+
+- **M6 内存 mock 落库**：Backup / Sync / Plan / OTA / WarningDelivery / Report /
+  AccountSecurity 共 7 个 Controller 的 `ConcurrentHashMap` 业务数据全部改为
+  JPA + JSONB 落库（13 张新表追加至 `schema.sql`，`{id, payload JSONB, created_at}`
+  统一结构）。端点、响应结构、`@PreAuthorize`、刻意 501 行为均保持不变；
+  id 计数器启动时从 DB max 恢复，种子数据空表幂等写入，重启不再丢数据。
+- **ESLint 清零**：修复剩余 10 errors（prefer-const / no-unused-vars / curly /
+  `queueMicrotask` 加入 eslint globals），`npm run lint` 现为 0 error。
+- 删除含假哈希的 `ai-service/requirements.lock`（依赖以 `requirements.txt` 为准）。
+- 上轮复审修复与安全组件已提交（`7d54430`）。
+
 ### 🐛 修复（2026-09-21 结构重组后复审 — 编译阻断与配置）
 
 - **后端编译阻断 ×3（均被 target 陈旧 class 掩盖，clean 编译才暴露）**：

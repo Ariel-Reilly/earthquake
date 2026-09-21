@@ -1410,3 +1410,227 @@ ALTER TABLE ai_comprehensive_score ADD CONSTRAINT fk_ai_comprehensive_score_haza
   FOREIGN KEY (hazard_code) REFERENCES unified_event(hazard_key) ON DELETE CASCADE
   DEFERRABLE INITIALLY DEFERRED;
 
+
+-- =====================================================================
+-- M6 落库：原内存 mock（ConcurrentHashMap）业务数据表
+-- payload 统一 JSONB 承载原 Map<String,Object> 结构，响应字段不变
+-- =====================================================================
+-- =====================================================================
+-- M6 技术债改造：BackupController 内存 mock 落库（backup 模块）
+-- 结构统一为 {id, payload JSONB, created_at}，业务字段全部在 payload 内。
+-- id 由 Controller 侧计数器手动分配，非自增主键。
+-- =====================================================================
+
+CREATE TABLE IF NOT EXISTS backup_record (
+  id BIGINT PRIMARY KEY,
+  payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS restore_record (
+  id BIGINT PRIMARY KEY,
+  payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS backup_strategy (
+  id BIGINT PRIMARY KEY,
+  payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+-- =====================================================================
+-- M6 技术债：Controller 内存 mock（ConcurrentHashMap）→ JPA + JSONB 落库
+-- 涉及：OtaController（firmware / ota_task）、SyncController（sync_task_record）
+-- 实体结构统一为 {id VARCHAR 主键, payload JSONB, created_at TIMESTAMPTZ}
+-- 说明：backend/ 根目录迁移脚本，不并入 schema.sql（spring.sql.init 不自动执行）
+-- =====================================================================
+
+CREATE TABLE IF NOT EXISTS firmware (
+  id VARCHAR(64) PRIMARY KEY,
+  payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS ota_task (
+  id VARCHAR(64) PRIMARY KEY,
+  payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS sync_task_record (
+  id VARCHAR(64) PRIMARY KEY,
+  payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+-- =====================================================================
+-- M6 技术债改造 DDL：报告模板 / 报告历史 / 应急预案 JSONB 落库
+-- 幂等：可安全重跑。id 由应用层计数器分配，故不使用 BIGSERIAL。
+-- =====================================================================
+
+CREATE TABLE IF NOT EXISTS report_template (
+  id BIGINT PRIMARY KEY,
+  payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS report_history (
+  id BIGINT PRIMARY KEY,
+  payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS emergency_plan (
+  id BIGINT PRIMARY KEY,
+  payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+-- =====================================================================
+-- M6 技术债改造：Controller 内存 Map 落库（JSONB）
+-- 涉及：AccountSecurityController、WarningDeliveryController
+-- 说明：{id, payload JSONB, created_at} 通用结构；payload 存原 Map 的
+--       value（业务字段整体），时间值均为 ISO-8601 字符串。
+-- =====================================================================
+
+-- 会话（原 sessions: Map<token字符串, Map>），主键为会话 token 字符串
+CREATE TABLE IF NOT EXISTS login_session (
+  id VARCHAR(128) PRIMARY KEY,
+  payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- 登录历史（原 loginHistory: Map<自增id, Map>）
+CREATE TABLE IF NOT EXISTS login_history_entry (
+  id BIGINT PRIMARY KEY,
+  payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- 账户审计日志（原 auditLog: Map<自增id, Map>）
+CREATE TABLE IF NOT EXISTS account_audit_entry (
+  id BIGINT PRIMARY KEY,
+  payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- 预警送达记录（原 deliveryRecords: Map<预警id, List<Map>> 拆为行表，
+-- record_id 即预警 id，另有自增记录 id 主键）
+CREATE TABLE IF NOT EXISTS warning_delivery_record (
+  id BIGINT PRIMARY KEY,
+  record_id BIGINT NOT NULL,
+  payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_wdr_record_id ON warning_delivery_record(record_id);
+
+-- =====================================================================
+-- M6 落库：原内存 mock（ConcurrentHashMap）业务数据表
+-- payload 统一 JSONB 承载原 Map<String,Object> 结构，响应字段不变
+-- =====================================================================
+-- =====================================================================
+-- M6 技术债改造：BackupController 内存 mock 落库（backup 模块）
+-- 结构统一为 {id, payload JSONB, created_at}，业务字段全部在 payload 内。
+-- id 由 Controller 侧计数器手动分配，非自增主键。
+-- =====================================================================
+
+CREATE TABLE IF NOT EXISTS backup_record (
+  id BIGINT PRIMARY KEY,
+  payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS restore_record (
+  id BIGINT PRIMARY KEY,
+  payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS backup_strategy (
+  id BIGINT PRIMARY KEY,
+  payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+-- =====================================================================
+-- M6 技术债：Controller 内存 mock（ConcurrentHashMap）→ JPA + JSONB 落库
+-- 涉及：OtaController（firmware / ota_task）、SyncController（sync_task_record）
+-- 实体结构统一为 {id VARCHAR 主键, payload JSONB, created_at TIMESTAMPTZ}
+-- 说明：backend/ 根目录迁移脚本，不并入 schema.sql（spring.sql.init 不自动执行）
+-- =====================================================================
+
+CREATE TABLE IF NOT EXISTS firmware (
+  id VARCHAR(64) PRIMARY KEY,
+  payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS ota_task (
+  id VARCHAR(64) PRIMARY KEY,
+  payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS sync_task_record (
+  id VARCHAR(64) PRIMARY KEY,
+  payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+-- =====================================================================
+-- M6 技术债改造 DDL：报告模板 / 报告历史 / 应急预案 JSONB 落库
+-- 幂等：可安全重跑。id 由应用层计数器分配，故不使用 BIGSERIAL。
+-- =====================================================================
+
+CREATE TABLE IF NOT EXISTS report_template (
+  id BIGINT PRIMARY KEY,
+  payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS report_history (
+  id BIGINT PRIMARY KEY,
+  payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS emergency_plan (
+  id BIGINT PRIMARY KEY,
+  payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+-- =====================================================================
+-- M6 技术债改造：Controller 内存 Map 落库（JSONB）
+-- 涉及：AccountSecurityController、WarningDeliveryController
+-- 说明：{id, payload JSONB, created_at} 通用结构；payload 存原 Map 的
+--       value（业务字段整体），时间值均为 ISO-8601 字符串。
+-- =====================================================================
+
+-- 会话（原 sessions: Map<token字符串, Map>），主键为会话 token 字符串
+CREATE TABLE IF NOT EXISTS login_session (
+  id VARCHAR(128) PRIMARY KEY,
+  payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- 登录历史（原 loginHistory: Map<自增id, Map>）
+CREATE TABLE IF NOT EXISTS login_history_entry (
+  id BIGINT PRIMARY KEY,
+  payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- 账户审计日志（原 auditLog: Map<自增id, Map>）
+CREATE TABLE IF NOT EXISTS account_audit_entry (
+  id BIGINT PRIMARY KEY,
+  payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- 预警送达记录（原 deliveryRecords: Map<预警id, List<Map>> 拆为行表，
+-- record_id 即预警 id，另有自增记录 id 主键）
+CREATE TABLE IF NOT EXISTS warning_delivery_record (
+  id BIGINT PRIMARY KEY,
+  record_id BIGINT NOT NULL,
+  payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_wdr_record_id ON warning_delivery_record(record_id);
