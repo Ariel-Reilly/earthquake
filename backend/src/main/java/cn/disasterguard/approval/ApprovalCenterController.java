@@ -7,6 +7,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -158,11 +161,16 @@ public class ApprovalCenterController {
    * 审批决策：当前仅做状态流转占位。
    * decision=approve → "已确认"；decision=reject → "已忽略"。
    * 真实工作流会写入独立审批表 + 审计日志，本接口保留作向后兼容骨架。
+   *
+   * <p><b>安全约束（R3 P0-1 修复）</b>：审批人一律取自当前登录用户，
+   * <b>不接受</b>请求体中的 {@code operator} 字段——否则审批记录可被任意伪造，
+   * 审计日志失去追责意义。审批意见 {@code comment} 仍由调用方填写（属业务内容）。
    */
-  @org.springframework.web.bind.annotation.PostMapping("/{id}/decide")
+  @PostMapping("/{id}/decide")
+  @PreAuthorize("hasAuthority('approval:approve')")
   public ApiResponse<Map<String, Object>> decide(
-      @org.springframework.web.bind.annotation.PathVariable Long id,
-      @org.springframework.web.bind.annotation.RequestBody java.util.Map<String, Object> body) {
+      @PathVariable Long id,
+      @RequestBody java.util.Map<String, Object> body) {
     String decision = String.valueOf(body.getOrDefault("decision", "approve"));
     var warning = warningRepository.findById(id).orElse(null);
     if (warning == null) {
@@ -170,7 +178,7 @@ public class ApprovalCenterController {
     }
     warning.setStatus("approve".equals(decision) ? "已确认" : "已忽略");
     warning.setClosedAt(java.time.OffsetDateTime.now());
-    warning.setClosedBy(String.valueOf(body.getOrDefault("operator", "system")));
+    warning.setClosedBy(currentUsername());
     warning.setCloseReason(String.valueOf(body.getOrDefault("comment", "")));
     warningRepository.save(warning);
     Map<String, Object> result = new LinkedHashMap<>();
@@ -178,5 +186,18 @@ public class ApprovalCenterController {
     result.put("decision", decision);
     result.put("status", warning.getStatus());
     return ApiResponse.success(result);
+  }
+
+  /**
+   * 当前登录用户名。取不到时回退 {@code "unknown"}，
+   * 绝不回退到请求体传入的值（否则审批人可伪造）。
+   */
+  private String currentUsername() {
+    var auth = org.springframework.security.core.context.SecurityContextHolder.getContext()
+        .getAuthentication();
+    if (auth == null || auth.getName() == null || auth.getName().isBlank()) {
+      return "unknown";
+    }
+    return auth.getName();
   }
 }

@@ -77,6 +77,12 @@ services:
       MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-disasterguard}
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:?生产环境必须设置 MINIO_ROOT_PASSWORD}
       # EMQX MQTT（prod 必须显式设置）
+      # ⚠ R3 发现：本文件仅定义 postgres/redis/minio/backend/frontend 五个服务，
+      #   **没有 emqx 也没有 ai-service**，但下面却引用了 tcp://emqx:1883 与
+      #   http://ai-service:8001/api/ai —— 两个悬空主机名，Docker 网络内无法解析，
+      #   生产环境 MQTT 与全部 AI 能力不可用。
+      #   部署前必须：① 在本文件补 emqx / ai-service 服务定义，
+      #   ② 或把 EMQX_ENABLED / AI_ENABLED 置为 false 显式关闭。
       EMQX_USERNAME: ${EMQX_USERNAME}
       EMQX_PASSWORD: ${EMQX_PASSWORD}
       EMQX_ENABLED: ${EMQX_ENABLED:-true}

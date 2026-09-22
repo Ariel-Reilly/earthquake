@@ -16,6 +16,7 @@ import org.springframework.statemachine.config.builders.StateMachineTransitionCo
  * 流转规则：
  *
  *   DETECTED ─AI_DETECT/MANUAL_REPORT─> CONFIRMING
+ *   DETECTED ─START_CONFIRM───────────> CONFIRMING（人工认领）
  *   DETECTED ─DISMISS──────────────────> CLOSED
  *   CONFIRMING ─CONFIRM──────────────> CONFIRMED
  *   CONFIRMING ─REJECT───────────────> REJECTED
@@ -27,6 +28,7 @@ import org.springframework.statemachine.config.builders.StateMachineTransitionCo
  *   WARNING_ISSUED ─CLOSE────────────> CLOSED
  *   EMERGENCY_ACTIVE ─CLOSE──────────> CLOSED
  *   CLOSED ─REOPEN────────────────────> WARNING_ISSUED（重开回到发布后）
+ *   REJECTED ─REOPEN──────────────────> CONFIRMING（驳回后重新进入确认）
  *
  * 终态（CLOSED / REJECTED）除 REOPEN 外不再接受其他 event。
  *
@@ -61,6 +63,13 @@ public class EventStateMachineConfig
       .withExternal()
         .source(EventState.DETECTED).target(EventState.CONFIRMING)
         .event(EventTrigger.MANUAL_REPORT)
+        .and()
+      // R3 P0-4：认领（DETECTED → CONFIRMING）。此前缺失该转换，
+      // ConfirmationQueueController 的认领接口使用 START_CONFIRM 恒被拒绝，
+      // 永远返回 400 "认领失败：状态流转被拒绝"。
+      .withExternal()
+        .source(EventState.DETECTED).target(EventState.CONFIRMING)
+        .event(EventTrigger.START_CONFIRM)
         .and()
       .withExternal()
         .source(EventState.DETECTED).target(EventState.CLOSED)
@@ -114,6 +123,12 @@ public class EventStateMachineConfig
       // 关闭 → 重开
       .withExternal()
         .source(EventState.CLOSED).target(EventState.WARNING_ISSUED)
+        .event(EventTrigger.REOPEN)
+        .and()
+      // 驳回 → 重开（R3 P1-17 修复：此前 REJECTED 被声明为终态却无任何出口，
+      // 驳回的事件永久死锁无法重新处理。文档 §终态 亦要求 REOPEN 为其出口。）
+      .withExternal()
+        .source(EventState.REJECTED).target(EventState.CONFIRMING)
         .event(EventTrigger.REOPEN);
   }
 }

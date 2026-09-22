@@ -156,8 +156,10 @@ function normalizeWarning(item) {
     title: item.title ?? item.name,
     desc: item.desc ?? item.message ?? "",
     level: item.level ?? item.riskLevel ?? "预警",
-    class:
-      item.class ?? (String(item.level).includes("橙") ? "orange" : "blue"),
+    // R3 P1-12：后端 WarningDto 的字段名是 cssClass，不是 class。
+    // 保留 ?? item.class 以兼容旧 mock 数据，并在两者都缺失时按等级兜底。
+    cssClass:
+      item.cssClass ?? item.class ?? (String(item.level).includes("橙") ? "orange" : "blue"),
     point: item.point ?? item.owner ?? "",
     time: item.time ?? item.updatedAt ?? new Date().toISOString(),
     lon: item.lon,
@@ -742,6 +744,17 @@ function demotePollingToFallback() {
  */
 function resumePolling() {
   if (pollingTimer) {return;}
+  // R3 P1-24：此前只判断 pollingTimer 就无条件重建下面两个定时器，
+  // 若它们仍存活，旧句柄会被新句柄覆盖丢失、再也无法 clearInterval。
+  // 重建前先清理，避免产生孤儿定时器。
+  if (warningTimer) {
+    window.clearInterval(warningTimer);
+    warningTimer = null;
+  }
+  if (personnelTimer) {
+    window.clearInterval(personnelTimer);
+    personnelTimer = null;
+  }
   pollingTimer = window.setInterval(
     () => {
       pollSnapshot().catch(() => {});
@@ -786,10 +799,22 @@ export function stopRealtimeSync({ keepListeners = false } = {}) {
   stopWsSilenceWatchdog();
   wsActive = false;
   lastWsMessageAt = 0;
-  try {
-    socket?.close();
-  } catch {
-    // ignore close failure
+  // R3 P0-5：必须先解绑全部事件再 close()。
+  // close() 是异步的，若只 close() 而不解绑，onclose 仍会被异步派发 →
+  // 调 resumePolling() 重建三个轮询定时器，并 5s 后 connectSocket() 重连。
+  // 登出时（DashboardLayout 调用本函数）表现为：退出登录后仍在轮询鉴权接口
+  // → 401 → httpClient 的 redirectToLogin 与 router.replace('/login') 打架，
+  // 登录页反复抖动/重定向。
+  if (socket) {
+    try {
+      socket.onopen = null;
+      socket.onmessage = null;
+      socket.onerror = null;
+      socket.onclose = null;
+      socket.close();
+    } catch {
+      // ignore close failure
+    }
   }
   socket = null;
   if (!keepListeners) {listeners.clear();}

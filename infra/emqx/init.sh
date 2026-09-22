@@ -5,8 +5,11 @@
 
 set -e
 
+# R3 P0-3：回退值必须与 docker-compose.yml 中「emqx 服务」和「backend 服务」
+# 使用的默认值完全一致。此前本脚本回退 CHANGE_ME_EMQX_PASSWORD，与后端持有的
+# CHANGE_ME_emqx_secure_password_2024 不等 → MQTT 鉴权必然失败。
 USERNAME="${EMQX_USERNAME:-disasterguard_backend}"
-PASSWORD="${EMQX_PASSWORD:-CHANGE_ME_EMQX_PASSWORD}"
+PASSWORD="${EMQX_PASSWORD:-CHANGE_ME_emqx_secure_password_2024}"
 MAX_RETRIES=3
 RETRY_INTERVAL=5
 

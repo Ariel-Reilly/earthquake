@@ -86,6 +86,12 @@ services:
       # 启用内置数据库鉴权，并预置 disasterguard_backend 用户
       # EMQX 5.x 使用 Built-in Database 认证插件（auth.mnesia）
       EMQX_AUTH__MNESIA__PASSWORD_HASH: bcrypt
+      # R3 P0-3：broker 侧凭据必须与 backend 服务（本文件下方）完全一致。
+      # 此前本服务未传这两个变量，infra/emqx/init.sh 回退到自己的默认值
+      # CHANGE_ME_EMQX_PASSWORD，与后端持有的密码不等 → MQTT 鉴权必然失败。
+      # 两处必须引用同一个 ${EMQX_PASSWORD}，用户在 .env 设一次即可同步。
+      EMQX_USERNAME: ${EMQX_USERNAME:-disasterguard_backend}
+      EMQX_PASSWORD: ${EMQX_PASSWORD:-CHANGE_ME_emqx_secure_password_2024}
       TZ: ${TZ:-Asia/Shanghai}
     command: ["bash", "/opt/emqx/data/config/init.sh"]
     ports:
