@@ -75,13 +75,59 @@ public class EventStateService {
   }
 
   private String create(String hazardCode, String title, String source, EventState initialState) {
+    OffsetDateTime now = OffsetDateTime.now();
+
+    // R4 P0-5 修复：hazard_point 是投影自 unified_event 的**自动可写视图**，
+    // HazardService 先 repository.save(point) 就已经在 unified_event 落了一行
+    // kind='HAZARD' 的隐患点记录（event_code 由列默认值生成、state 默认 DETECTED）。
+    //
+    // 修复前这里无条件再插一行，会造成两个后果（后者是硬错误）：
+    //   1. 同一隐患点在确认队列 / 待办中心出现两条 —— 那些查询按 state 过滤、
+    //      完全不看 kind（见 ConfirmationQueueController:104、TodoCenterController:52）；
+    //   2. **直接失败**：hazard_key 是 GENERATED 列（kind='HAZARD' 时取 hazard_code），
+    //      而 uq_unified_hazard_key 是唯一索引，第二行必然抛
+    //      `duplicate key value violates unique constraint`（已在本机库实测）。
+    //
+    // 种子数据是"一隐患点一行"的模型（unified_event 中 5 行均为 kind='HAZARD'
+    // 且同时带 event_code 与 hazard_code），故此处改为复用已有行、只补齐事件字段。
+    UnifiedEventEntity existing = null;
+    if (hazardCode != null && !hazardCode.isBlank()) {
+      for (UnifiedEventEntity e : repository.findByHazardCode(hazardCode)) {
+        if ("HAZARD".equals(e.getKind())) {
+          existing = e;
+          break;
+        }
+      }
+    }
+
+    if (existing != null) {
+      if (existing.getEventCode() == null || existing.getEventCode().isBlank()) {
+        existing.setEventCode(generateEventCode());
+      }
+      existing.setState(initialState);
+      if (existing.getTitle() == null || existing.getTitle().isBlank()) {
+        existing.setTitle(title);
+      }
+      existing.setSource(source);
+      existing.setCurrentStateSince(now);
+      existing.setLastTransitionAt(now);
+      existing.setLastTrigger("CREATE");
+      existing.setUpdatedAt(now);
+      repository.save(existing);
+      log.info("UnifiedEvent 复用隐患点已有行: code={}, state={}, hazard={}",
+          existing.getEventCode(), existing.getState(), hazardCode);
+      return existing.getEventCode();
+    }
+
     UnifiedEventEntity entity = new UnifiedEventEntity();
     entity.setEventCode(generateEventCode());
     entity.setState(initialState);
+    // 本方法只服务于隐患点事件（参数即 hazardCode），显式声明判别列，
+    // 不再依赖 unified_event.kind 的列默认值。
+    entity.setKind("HAZARD");
     entity.setHazardCode(hazardCode);
     entity.setTitle(title);
     entity.setSource(source);
-    OffsetDateTime now = OffsetDateTime.now();
     entity.setCreatedAt(now);
     entity.setUpdatedAt(now);
     entity.setCurrentStateSince(now);

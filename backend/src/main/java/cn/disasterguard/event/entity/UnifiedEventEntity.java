@@ -58,6 +58,16 @@ public class UnifiedEventEntity {
   @Column(name = "emergency_code", length = 64)
   private String emergencyCode;
 
+  /**
+   * 判别列：HAZARD / WARNING / EMERGENCY（schema.sql 中 NOT NULL DEFAULT 'HAZARD'）。
+   *
+   * <p>R4 P0-5 修复引入：hazard_point 是可写视图，隐患点记录的写入会走本表，
+   * 而 {@code EventStateService} 需要区分"这一行是否已由 hazard 视图落库"，
+   * 以避免对同一 hazard_code 重复插入（hazard_key 上有唯一索引，重复必冲突）。
+   */
+  @Column(name = "kind", length = 16)
+  private String kind;
+
   /** 事件标题（取自最早被触发实体的 title） */
   @Column(length = 256)
   private String title;
@@ -66,7 +76,7 @@ public class UnifiedEventEntity {
   @Column(length = 32)
   private String source;
 
-  /** 当前状态已停留时长（毫秒） */
+  /** 当前状态自何时起（时间戳，不是时长） */
   @Column(name = "current_state_since")
   private OffsetDateTime currentStateSince;
 
@@ -106,6 +116,8 @@ public class UnifiedEventEntity {
   public void setWarningCode(String warningCode) { this.warningCode = warningCode; }
   public String getEmergencyCode() { return emergencyCode; }
   public void setEmergencyCode(String emergencyCode) { this.emergencyCode = emergencyCode; }
+  public String getKind() { return kind; }
+  public void setKind(String kind) { this.kind = kind; }
   public String getTitle() { return title; }
   public void setTitle(String title) { this.title = title; }
   public String getSource() { return source; }

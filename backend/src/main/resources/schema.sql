@@ -1298,6 +1298,18 @@ ALTER TABLE unified_event ALTER COLUMN kind SET NOT NULL;
 ALTER TABLE unified_event ALTER COLUMN kind SET DEFAULT 'HAZARD';
 -- state 列允许视图写入时不显式提供（避免 data.sql / 视图重写时 NOT NULL 失败）
 ALTER TABLE unified_event ALTER COLUMN state SET DEFAULT 'DETECTED';
+-- R4 P0-5 修复：event_code 是 NOT NULL UNIQUE 且原先**没有默认值**，但
+-- hazard_point 视图并不投影这一列 —— 于是"往视图插隐患点"必然以
+-- `null value in column "event_code" violates not-null constraint` 失败，
+-- 人工新增隐患点与 AI 落库两条写路径全部 500（已在本机库实测）。
+-- 这里给出与 EventStateService#generateEventCode() **同格式**的默认值
+-- （UFE-yyyyMMdd-XXXX，后 4 位十六进制取自随机 UUID），
+-- 让视图重写后的 INSERT 能自动获得事件号，无需把该列暴露给历史消费者
+-- （视图注释明确要求不暴露 event_code）。
+-- 幂等：ALTER COLUMN ... SET DEFAULT 可重复执行。
+ALTER TABLE unified_event ALTER COLUMN event_code
+  SET DEFAULT ('UFE-' || to_char(NOW(), 'YYYYMMDD') || '-' ||
+               upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 4)));
 -- unified_event 的 CHECK 约束：ScriptUtils 无法解析 PL/pgSQL DO 块，改用 DROP+ADD 幂等
 ALTER TABLE unified_event DROP CONSTRAINT IF EXISTS ck_unified_kind;
 ALTER TABLE unified_event ADD CONSTRAINT ck_unified_kind
