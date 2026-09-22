@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,7 +24,9 @@ import org.springframework.transaction.annotation.Transactional;
  * P0-3：个人中心服务（profile / preference）。
  * - 资料：user_profile 副表，未填写时回退到 sys_user.real_name / phone。
  * - 偏好：user_preference 独立表，channels / levels 存为 JSON 字符串。
- * - 密码：仅返回 true（实际校验由 AuthController.ChangePassword 流程持有，由调用方把 BCrypt 校验结果传入）。
+ * - 密码：R4 P0-1 修复 —— 此前是空实现（只 return true），旧密码不校验、
+ *   sys_user.password_hash 永不更新，接口却回"修改成功"，属安全语义失效。
+ *   现由本类自行校验旧密码并落库，强度规则与 AuthController#changePassword 保持一致。
  */
 @Service
 public class UserProfileService {
@@ -33,15 +36,18 @@ public class UserProfileService {
   private final UserProfileRepository profileRepository;
   private final UserPreferenceRepository preferenceRepository;
   private final ObjectMapper objectMapper;
+  private final PasswordEncoder passwordEncoder;
 
   public UserProfileService(SysUserRepository sysUserRepository,
                             UserProfileRepository profileRepository,
                             UserPreferenceRepository preferenceRepository,
-                            ObjectMapper objectMapper) {
+                            ObjectMapper objectMapper,
+                            PasswordEncoder passwordEncoder) {
     this.sysUserRepository = sysUserRepository;
     this.profileRepository = profileRepository;
     this.preferenceRepository = preferenceRepository;
     this.objectMapper = objectMapper;
+    this.passwordEncoder = passwordEncoder;
   }
 
   public UserProfileDto getProfile(String username) {
@@ -82,11 +88,51 @@ public class UserProfileService {
     return getProfile(username);
   }
 
-  /** 仅占位，返回 true；真实校验由调用方（AuthController.ChangePassword）执行。 */
+  /**
+   * 修改当前用户密码（R4 P0-1 修复）。
+   *
+   * <p>修复前这里只有一个 {@code return true}：既不校验旧密码，也不写
+   * {@code sys_user.password_hash}，但控制器照样返回"密码修改成功"。
+   * 结果是用户以为换了密码、实际旧密码继续可用，属于**安全语义失效**。
+   *
+   * <p>强度与校验规则刻意与 {@code AuthController#changePassword} 对齐
+   * （≥ 8 位、必须含字母与数字、不得与旧密码相同），避免两个改密入口标准不一。
+   *
+   * <p>与 AuthController 的**有意差异**：本入口不吊销当前 JWT。
+   * 个人中心的交互是"改完继续用当前会话"（前端提示"下次登录请使用新密码"），
+   * 若在此吊销会让用户莫名其妙掉线；安全敏感场景应改用
+   * {@code POST /api/auth/change-password}，那条路径会吊销当前 token。
+   */
+  @Transactional
   public boolean changePassword(String username, String currentPwd, String nextPwd) {
-    if (currentPwd == null || nextPwd == null || nextPwd.length() < 6) {
-      throw new AppException(400, "新密码至少 6 位");
+    if (currentPwd == null || currentPwd.isBlank() || nextPwd == null || nextPwd.isBlank()) {
+      throw new AppException(400, "当前密码与新密码均不能为空");
     }
+    SysUser u = loadSysUser(username);
+
+    // 校验旧密码。dev fallback 用户（密码哈希不是 BCrypt）跳过校验，
+    // 与 AuthController#changePassword 的处理保持一致。
+    String hash = u.getPasswordHash();
+    boolean dbUser = hash != null && (hash.startsWith("$2b$") || hash.startsWith("$2a$"));
+    if (dbUser && !passwordEncoder.matches(currentPwd, hash)) {
+      log.warn("修改密码失败：当前密码错误 user={}", username);
+      throw new AppException(401, "当前密码错误");
+    }
+
+    if (nextPwd.length() < 8) {
+      throw new AppException(400, "新密码至少 8 个字符");
+    }
+    if (!nextPwd.matches(".*[A-Za-z].*") || !nextPwd.matches(".*\\d.*")) {
+      throw new AppException(400, "新密码必须同时包含字母和数字");
+    }
+    if (nextPwd.equals(currentPwd)) {
+      throw new AppException(400, "新密码不能与当前密码相同");
+    }
+
+    u.setPasswordHash(passwordEncoder.encode(nextPwd));
+    u.setUpdatedAt(OffsetDateTime.now());
+    sysUserRepository.save(u);
+    log.info("用户 {} 修改密码成功，password_hash 已更新", username);
     return true;
   }
 
