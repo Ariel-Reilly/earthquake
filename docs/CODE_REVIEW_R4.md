@@ -285,6 +285,63 @@ void validate() {
 或把注释改成"dev 需自行 export JWT_SECRET"并同步 `docs/DEVELOPER.md`（该文档 §1268 也写着
 "回落到 application.yml 开发默认值"，同样是错的）。
 
+#### P0-3 修复过程中的二次发现（2026-09-22，已修）
+
+实际有**三层**叠在一起，且第三层比报告初判更严重：
+
+**第三层（新）：`.env` 里的占位值本身就在弱密钥黑名单里。**
+`.env:12` 是 `CHANGE_ME__dev_only_minimum_32_character_secret_key_2026`，
+而 `JwtService.EXACT_BLACKLIST` 里**明确收录了这个字符串**（注释写着"确保生产启动时被拒绝"）。
+运行期比较是 `secret.trim().toLowerCase()`，与黑名单小写项完全相等 → 抛异常。
+
+⇒ 所以这不只是"compose 起不来"：**宿主直跑路径（`start-dev.ps1/.sh` 用
+`mvn spring-boot:run` 跑后端）同样起不来**。报告初判为"dev compose 起不来"是低估了。
+
+**第四点（新）：`start-dev.ps1/.sh` 是在宿主机上跑后端，不走 compose 的 backend 服务。**
+这解释了为什么服务坏了没人发现 —— compose 里的 `backend` 服务在实践路径上是死代码。
+因此只修 compose 只能解决一半，必须同时修 `.env` 与启动脚本。
+
+**第五点（新）：`JWT_EXPIRE_MINUTES` 是死配置。** 两份 compose 都设了它，
+但 Java 侧与 yml 侧**零引用**（已 grep 确认），真正生效的键是
+`JWT_EXPIRE`（ISO 8601 Duration，`application.yml` 默认 `PT2H`）。一并清理。
+
+**本轮修复（已落地并验证）**
+
+| 文件 | 改动 |
+| --- | --- |
+| `docker-compose.yml` | 补 `JWT_SECRET: ${JWT_SECRET:?...}`（`:?` 让缺失在**解析阶段**就失败并给出生成命令）；删掉误导性注释；`JWT_EXPIRE_MINUTES` → `JWT_EXPIRE` |
+| `docker-compose.prod.yml` | `JWT_SECRET: ${JWT_SECRET}` → `${JWT_SECRET:?...}`（原来空串会一路传到 Java 才报错）；`JWT_EXPIRE_MINUTES` → `JWT_EXPIRE` |
+| `.env` | 占位值换成 64 字符强随机密钥（本机文件，已被 `.gitignore` 忽略） |
+| `start-dev.sh` / `start-dev.ps1` | 新增 `ensure_jwt_secret` / `Initialize-JwtSecret`：`.env` 缺失则从 `.env.example` 复制；`JWT_SECRET` 为空或以 `CHANGE_ME` 开头则生成强随机值并**写回 `.env`**（PS 版用 `[System.IO.File]::ReadAllText/WriteAllText` + `UTF8Encoding($false)`，避免 PS 5.1 的 `Get-Content` 按 ANSI 读乱中文注释、以及 `Set-Content -Encoding UTF8` 加 BOM） |
+| `JwtService.java` | 把 `docs/DEVELOPER.md` 里的两个示例密钥加进黑名单 —— 它们长度合法、也不纯字母，**原来的校验拦不住**，却恰恰是最容易被照抄进生产的字符串 |
+| `docs/DEVELOPER.md` | 修正 §1268 / §1365 两处"回落到 application.yml 开发默认值"的错误说法；三处示例命令改为现场生成密钥（原示例值已进黑名单，不改就变成"文档教人用被拒的值"） |
+
+验证：
+
+```
+$ JWT_SECRET= docker compose config
+退出码 1
+error while interpolating services.backend.environment.JWT_SECRET: required variable
+JWT_SECRET is missing a value: dev 环境需要在 .env 中设置 JWT_SECRET（生成：openssl rand -base64 48）…
+
+$ JWT_SECRET=... docker compose config | grep JWT
+      JWT_EXPIRE: PT24H
+      JWT_SECRET: test-secret-at-least-32-chars-long-abcdefgh
+```
+
+启动脚本的自动生成在隔离目录实测（新建 `.env` → 替换占位值 → 幂等）：
+
+```
+[!] .env 不存在，已从 .env.example 生成
+[!] JWT_SECRET 为空或仍为占位值，已自动生成强随机密钥并写回 .env
+JWT_SECRET 行值长度: 64      env:JWT_SECRET 长度: 64
+前 3 字节(应为非 BOM): 56-49-54     中文注释是否完好: True
+其它键是否保留: True                 两次生成是否一致(应 True): True
+```
+
+> ⚠️ 遗留：`docs/DEVELOPER.md:1363` 写"生产模式 `mode=never`"，而 `application-prod.yml`
+> 在**未提交的 P1 批次**里已改为 `always`。这两者当前不一致，等该批次落地时需同改文档。
+
 ### P0-4 prod 下 MinIO 端点回落到 `localhost:19000`，生产附件功能不可用
 
 | 位置 | 值 |
@@ -301,6 +358,57 @@ void validate() {
 **建议**：把 `minio.endpoint` 与 `file-base-url` 显式写入 `application-prod.yml`
 （`http://minio:9000`），或在 prod compose 注入 `MINIO_ENDPOINT`。
 **这类"只在某个 profile 里正确的默认值"应作为一条通用规则排查**，见 §四。
+
+#### P0-4 修复过程中的二次发现（2026-09-22，已修）
+
+**发现 1：`minio.endpoint` 不只是"后端连 MinIO 的地址"，它还是浏览器要访问的地址。**
+`AttachmentService.presignedUrl()` 用 `minioClient.getPresignedObjectUrl(...)`，
+而 `minioClient` 是用 `minio.endpoint` 构建的 → **presigned URL 的主机名就是这个值**。
+因此把 prod 默认值简单改成 `http://minio:9000` 会制造一个新问题：
+上传能通，但浏览器拿到 `http://minio:9000/bucket/key?...` 根本无法解析。
+正确的生产值必须是**客户端也能解析的公开地址**（如 `https://minio.example.com`）。
+`file-base-url` 只是拼接地址时的回退，并非主要路径。
+
+**发现 2：compose 的 `:?` 拦不住这个坑 —— `.env` 里有一个"合法但只对宿主机正确"的值。**
+`.env:37` 是 `MINIO_ENDPOINT=http://127.0.0.1:19000`（宿主机直跑后端时用），
+它会**满足** `${MINIO_ENDPOINT:?}` 并被原样注入 prod。实测确认：
+即使不给环境变量、走 prod 叠加，`docker compose config` 也照样通过（退出码 0）。
+⇒ 真正能兜住的只有**启动期校验**。
+
+**发现 3：`ProductionConfigValidator` 当时校验了 `FILE_BASE_URL` 却没有校验 `MINIO_ENDPOINT`。**
+两个值同类（都是给客户端用的地址），守卫却只有一半 —— 这正是 P0-4 能悄悄存在的原因。
+
+**发现 4（顺带）：文档里的示例密钥能被 validator 接受。**
+`docs/DEVELOPER.md` 出现的 `disasterguard-dev-secret-key-at-least-32-chars-long-xyz`
+与 `your-strong-secret-min-32-chars-long-xyz` 长度合法、也不纯字母，
+`JwtService` 与 `ProductionConfigValidator` 都不会拒绝 —— 而它们恰恰是最容易被照抄进生产的。
+已加入黑名单，并同步改掉文档中的三处示例命令。
+
+**本轮修复（已落地并验证）**
+
+| 文件 | 改动 |
+| --- | --- |
+| `application-prod.yml` | 显式声明容器网络地址（datasource / redis / minio / emqx / ai / tdengine / file-base-url），**堵住"prod 继承宿主机 localhost 兜底值"这条通用漏洞**；`minio.endpoint` 默认 `http://minio:9000` 并注明它是 presigned URL 主机、生产须覆盖为公开地址 |
+| `docker-compose.prod.yml` | 补 `MINIO_ENDPOINT: ${MINIO_ENDPOINT:?生产环境必须设置…}`（原来**只**传了 ACCESS/SECRET KEY，endpoint 从未注入） |
+| `ProductionConfigValidator.java` | 新增第 9 项校验：`MINIO_ENDPOINT` 为空 / 指向本机 → **阻断启动**；只是内网单标签名（`minio`）→ **仅告警**，因为那是"上传可用、附件需配反向代理"的可补救形态，不该判死 |
+| `ProductionConfigValidatorTest.java` | **新增单测（5 个用例）**：空值拒、`127.0.0.1`/`localhost` 拒、公开域名过、`http://minio:9000` 只告警不阻断、私有 IP 过。测试类数 5 → 6 |
+
+验证：
+
+```
+$ docker compose -f docker-compose.yml -f docker-compose.prod.yml config | grep MINIO_ENDPOINT
+      MINIO_ENDPOINT: https://minio.example.com
+
+$ mvn test -Dtest=ProductionConfigValidatorTest
+Tests run: 5, Failures: 0, Errors: 0, Skipped: 0
+BUILD SUCCESS
+```
+
+> 遗留（属通用规则，未在本轮改）：`application.yml` 里另有 8 处 `localhost` 兜底值
+> （`POSTGRES_HOST` / `REDIS_HOST` / `FRONTEND_ORIGIN` / `FILE_BASE_URL` / `AI_SERVICE_BASE_URL` /
+> `MINIO_ENDPOINT` / `EMQX_MQTT_URL` / `TDENGINE_URL`）。它们为"宿主机直跑"而存在，
+> 本身没错，但**每个新 profile 都必须自己声明一遍**，否则就会重演 P0-4。
+> 长期做法是把这些兜底值从 base 配置移出、改为分 profile 提供，或引入配置校验的快照测试。
 
 ### P0-5 隐患点创建 100% 失败：`hazard_point` 是视图，但不暴露 `event_code`
 
