@@ -13,12 +13,30 @@
  */
 
 import { readFileSync, existsSync } from 'fs';
-import { join } from 'path';
-import { execSync } from 'child_process';
+import fs from 'node:fs';
+import path from 'node:path';
 
 const ROOT = process.cwd();
-const BACKEND_SRC = join(ROOT, 'backend/src/main/java');
-const FRONTEND_SRC = join(ROOT, 'frontend/src');
+const BACKEND_SRC = path.join(ROOT, 'backend/src/main/java');
+const FRONTEND_SRC = path.join(ROOT, 'frontend/src');
+
+/**
+ * 递归遍历目录，返回所有普通文件绝对路径。
+ *
+ * 用 Node 原生 readdirSync 而不是 `execSync('find ...')` —— 后者在 Windows
+ * 上会调到 Windows 自带的 find.exe（字符串搜索工具），执行必失败；
+ * 在 WSL / Ubuntu CI 上能跑也只是侥幸。统一用跨平台的纯 JS 实现。
+ */
+function walkFiles(dir) {
+  const out = [];
+  if (!fs.existsSync(dir)) return out;
+  for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+    const p = path.join(dir, e.name);
+    if (e.isDirectory()) out.push(...walkFiles(p));
+    else out.push(p);
+  }
+  return out;
+}
 
 /** 把路径变量统一成占位符，便于前后端比对：{id} / {deviceCode} -> {x} */
 function normalizePath(p) {
@@ -32,21 +50,15 @@ function normalizePath(p) {
 // ---------------------------------------------------------------- 后端映射
 
 function collectBackendMappings() {
-  let files = [];
-  try {
-    files = execSync(
-      'find backend/src/main/java -name "*.java"',
-      { cwd: ROOT, maxBuffer: 1e9 }
-    ).toString().trim().split('\n').filter(Boolean);
-  } catch {
-    return new Map();
-  }
+  // 跨平台遍历：以前用 execSync('find ...')，在 Windows 上调到的是
+  // Windows 自带的 find.exe（字符串搜索工具），没有任何 .java 输出，
+  // 后续自检必失败。现在改为 Node 原生 walkFiles。
+  let files = walkFiles(BACKEND_SRC).filter(p => p.endsWith('.java'));
 
   const mappings = new Map(); // "METHOD PATH" -> file
 
-  for (const rel of files) {
-    const abs = join(ROOT, rel);
-    if (!existsSync(abs)) continue;
+  for (const abs of files) {
+    const rel = path.relative(ROOT, abs);
     const lines = readFileSync(abs, 'utf8').split('\n');
 
     // 类级 basePath：找到 class 声明后向前回溯最近的类级 @RequestMapping
@@ -92,22 +104,17 @@ function collectBackendMappings() {
 // ---------------------------------------------------------------- 前端调用
 
 function collectFrontendCalls() {
-  let files = [];
-  try {
-    files = execSync(
-      'find frontend/src -name "*.js" -o -name "*.vue" -o -name "*.ts"',
-      { cwd: ROOT, maxBuffer: 1e9 }
-    ).toString().trim().split('\n').filter(Boolean);
-  } catch {
-    return [];
-  }
+  // 同样的跨平台修复：不再调用 `find`。
+  const files = walkFiles(FRONTEND_SRC).filter(
+    p => /\.(js|vue|ts)$/.test(p)
+  );
 
   const calls = [];
   // 匹配 request(...) 形式的第一参数（字符串或模板字符串）
   const callRe = /request\(\s*[`'"]([^`'"]*)[`'"]/g;
 
-  for (const rel of files) {
-    const abs = join(ROOT, rel);
+  for (const abs of files) {
+    const rel = path.relative(ROOT, abs);
     if (!existsSync(abs)) continue;
     const src = readFileSync(abs, 'utf8');
     let m;

@@ -154,9 +154,7 @@ result.put("closed", byLevel.getOrDefault("已关闭", 0L) + ...); // 同上
 4. ~~**补充反向契约门禁**~~ ✅ 已完成：新增 `scripts/audit/check-frontend-endpoints.mjs`
    并接入 CI。它内置**解析自检**（5 条已知映射）+ **已知缺口基线**，
    存量缺口不阻断、新增缺口立即失败。详见第七节。
-5. **彻底统一灾害类型与等级编码**：后端已做入库归一化兜底，
-   但前端 `WarningCreatePage` / `HistoryHazardsPage` 仍直接提交中文，
-   建议改为英文码 + 中文标签展示（参考 `NoticeTemplatePage.vue` 的 `hazardOptions`）。
+5. ~~**彻底统一灾害类型与等级编码**~~ ✅ 已完成（前端侧）：`WarningCreatePage` / `HistoryHazardsPage` 灾种字段统一改为英文码 + 中文标签展示（与 `NoticeTemplatePage` 一致）；`selectHazard` 增加中文归一化兜底；后端 `normalizeHazardType()` 退化为防御性保留。
 
 ---
 
@@ -178,6 +176,20 @@ result.put("closed", byLevel.getOrDefault("已关闭", 0L) + ...); // 同上
 
 **部署注意**：本次含 `schema.sql` 变更，已有库需执行新增的两条
 `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`（幂等，可随迁移脚本重复执行）。
+
+---
+
+## 六（续）、修复记录（2026-09-22）
+
+| 问题 | 处理 |
+|---|---|
+| P1-2 灾害类型双轨（前端侧） | 前端 `form.hazardType` 默认值改为英文码 `"landslide"`；`WarningCreatePage` 灾种下拉改为 `hazardOptions`（`:value="opt.value"` 绑定英文码，展示中文 label）；`selectHazard()` 增加 `normalizeHazardType()` 中文→英文码兜底；`submit()` payload 提交英文码；摘要/模板卡展示改为中文标签（`hazardTypeToLabel` / `hazardTypeLabel`）；`templates` 数组 `disasterType` 改为英文码，`filteredTemplates` 匹配逻辑保持不变 |
+| P1-2 灾害类型双轨（历史页侧） | `HistoryHazardsPage` 灾种筛选下拉改为 `hazardOptions`；`typeChart` 图表分组展示中文标签（`hazardTypeToLabel[h.type]`）；列表 `h.type` 展示改为中文标签；CSV 导出保持英文码以维护数据一致性 |
+| P3-1 构建产物残留 | 删除 `frontend/dist.bak`（`dist.prev` 本不存在） |
+
+**验证结果**：前端 ESLint 0 问题、`vite build` PASS（6.37s）。仅 1 条 OL chunk 重复导入警告（既有代码问题，与本次修改无关）。
+
+**前端 API 约定**：灾种字段 `hazardType` 在整个应用中统一为英文码（landslide / collapse / debris_flow / subsidence / earthquake / flood / fire）；用户界面展示时通过 `hazardTypeToLabel` 映射为中文标签。后端 `WarningService.createManual()` 中的 `normalizeHazardType()` 同时承担「前端未归一化的中文兜底」与「AI 侧中文展示值兜底」双重职责，本次前端归一化后，该兜底路径退化为防御性保留。
 
 ---
 
