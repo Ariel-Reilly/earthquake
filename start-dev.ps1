@@ -72,6 +72,48 @@ function Write-Ok($msg)   { Write-Host "  [OK] $msg" -ForegroundColor Green }
 function Write-Warn($msg) { Write-Host "  [!] $msg" -ForegroundColor Yellow }
 function Write-Err($msg)  { Write-Host "  [X] $msg" -ForegroundColor Red }
 function Write-Info($msg){ Write-Host "      $msg" -ForegroundColor DarkGray }
+# ─── JWT_SECRET 兜底：缺失 / 占位 / 弱值时自动生成并落盘 ───
+# R4 P0-3：`.env.example` 里的 CHANGE_ME 占位字符串被 JwtService 的弱密钥黑名单
+# 明确收录，照抄它必然启动失败（实测）。本函数保证「全新克隆 + 直接跑脚本」可用：
+#   1) 没有 .env      → 从 .env.example 复制一份
+#   2) JWT_SECRET 为空或以 CHANGE_ME 开头 → 生成强随机值并写回 .env
+# 注意：用 .NET 的 ReadAllText/WriteAllText 而非 Get-Content/Set-Content，
+#      因为 PS 5.1 的 Get-Content 默认按 ANSI 读取无 BOM 的 UTF-8 文件，
+#      会把 .env 里的中文注释读成乱码再写回；且 Set-Content -Encoding UTF8 会加 BOM。
+function Initialize-JwtSecret {
+  $envFile = Join-Path $PROJECT_ROOT ".env"
+  $example = Join-Path $PROJECT_ROOT ".env.example"
+
+  if ((-not (Test-Path $envFile)) -and (Test-Path $example)) {
+    Copy-Item $example $envFile
+    Write-Warn ".env 不存在，已从 .env.example 生成"
+  }
+
+  $cur = $env:JWT_SECRET
+  if ((-not [string]::IsNullOrEmpty($cur)) -and (-not $cur.StartsWith("CHANGE_ME"))) {
+    return
+  }
+
+  $bytes = New-Object 'System.Byte[]' 48
+  $rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+  $rng.GetBytes($bytes)
+  $rng.Dispose()
+  $gen = [System.Convert]::ToBase64String($bytes)
+
+  $noBom = New-Object System.Text.UTF8Encoding($false)
+  if ((Test-Path $envFile) -and (Select-String -Path $envFile -Pattern '^JWT_SECRET=' -Quiet)) {
+    $text = [System.IO.File]::ReadAllText($envFile, $noBom)
+    # 只替换 JWT_SECRET 那一行；base64 字符集不含 '$'，无需转义
+    $text = [System.Text.RegularExpressions.Regex]::Replace($text, '(?m)^JWT_SECRET=.*$', "JWT_SECRET=$gen")
+    [System.IO.File]::WriteAllText($envFile, $text, $noBom)
+  } else {
+    [System.IO.File]::AppendAllText($envFile, "`r`nJWT_SECRET=$gen`r`n", $noBom)
+  }
+
+  $env:JWT_SECRET = $gen
+  Write-Warn "JWT_SECRET 为空或仍为占位值，已自动生成强随机密钥并写回 .env"
+}
+Initialize-JwtSecret
 
 # ─── 端口工具 ───
 function Test-PortListening([int]$Port) {

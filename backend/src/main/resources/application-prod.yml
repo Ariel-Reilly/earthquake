@@ -1,10 +1,25 @@
 spring:
   jpa:
     show-sql: false
+#
+# ⚠️ R4 P0-4：prod **只**加载 application.yml + application-prod.yml，**不会**加载
+#   application-docker.yml（application.yml 里没有 spring.profiles.include）。
+#   于是 application.yml 中为「宿主机直跑」准备的 localhost 兜底值会直接漏进容器，
+#   全部指向容器自己 → 连接被拒。下面把容器网络内的服务地址显式列出，
+#   保证 prod 不依赖 docker profile 也能拿到正确主机名（环境变量仍可覆盖）。
+  datasource:
+    url: jdbc:postgresql://${POSTGRES_HOST:postgres}:${POSTGRES_PORT:5432}/${POSTGRES_DB:disasterguard}
+    username: ${POSTGRES_USER:disasterguard}
+    # 空值会被 ProductionConfigValidator 拦截（prod 下必须显式提供）
+    password: ${POSTGRES_PASSWORD:}
+  data:
+    redis:
+      host: ${REDIS_HOST:redis}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
   sql:
     init:
       mode: never
-
 # prod profile：覆盖所有安全敏感配置为严格模式（防止用户忘记在环境变量中设置）
 disasterguard:
   security:
@@ -13,16 +28,34 @@ disasterguard:
     auth-strict-mode: true
   ws:
     require-ticket: true
+  # 返回给前端的附件地址前缀，必须是浏览器可达的公开地址。
+  # ProductionConfigValidator 会拦截仍含 localhost:9000 的值。
+  file-base-url: ${FILE_BASE_URL:http://minio:9000}
+
+ai:
+  service-base-url: ${AI_SERVICE_BASE_URL:http://ai-service:8001/api/ai}
 
 emqx:
   # prod 下强制显式设置凭据（空值会被 ProductionConfigValidator 拦截）
   username: ${EMQX_USERNAME:}
   password: ${EMQX_PASSWORD:}
+  mqtt-url: ${EMQX_MQTT_URL:tcp://emqx:1883}
 
 minio:
   # prod 下强制显式设置密钥（弱值会被 MinioCredentialValidator 拦截）
   access-key: ${MINIO_ACCESS_KEY:}
   secret-key: ${MINIO_SECRET_KEY:}
+  # ⚠️ 该 endpoint 同时用于 AttachmentService 生成 **presigned URL**，
+  # 也就是**浏览器要直接访问**的地址。生产应覆盖为客户端可达的公开地址
+  # （如 https://minio.example.com），否则会出现「上传正常、点开附件打不开」。
+  # 这里给容器网络内的服务名作为默认：保证后端 → MinIO 的上传链路可用，
+  # 同时由 ProductionConfigValidator 对非公开地址发出告警。
+  endpoint: ${MINIO_ENDPOINT:http://minio:9000}
+
+tdengine:
+  url: ${TDENGINE_URL:jdbc:TAOS-RS://tdengine:6041/disasterguard}
+  username: ${TDENGINE_USERNAME:root}
+  password: ${TDENGINE_PASSWORD:taosdata}
 
 logging:
   level:

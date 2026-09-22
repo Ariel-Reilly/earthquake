@@ -54,6 +54,48 @@ warn()  { printf "  ${C_YELLOW}[!]${C_RESET} %s\n" "$1"; }
 err()   { printf "  ${C_RED}[X]${C_RESET} %s\n" "$1"; }
 info()  { printf "      %s\n" "$1"; }
 
+# ─── JWT_SECRET 兜底：缺失 / 占位 / 弱值时自动生成并落盘 ───
+# R4 P0-3：`.env.example` 里的 CHANGE_ME 占位字符串被 JwtService 的弱密钥黑名单
+# 明确收录，照抄它必然启动失败（实测）。本函数保证「全新克隆 + 直接跑脚本」可用：
+#   1) 没有 .env      → 从 .env.example 复制一份
+#   2) JWT_SECRET 为空或以 CHANGE_ME 开头 → 生成强随机值并写回 .env
+ensure_jwt_secret() {
+  local envfile="$PROJECT_ROOT/.env"
+  local example="$PROJECT_ROOT/.env.example"
+
+  if [[ ! -f "$envfile" && -f "$example" ]]; then
+    cp "$example" "$envfile"
+    warn ".env 不存在，已从 .env.example 生成"
+  fi
+
+  local cur="${JWT_SECRET:-}"
+  if [[ -n "$cur" && ! "$cur" =~ ^CHANGE_ME ]]; then
+    return 0
+  fi
+
+  local gen
+  if command -v openssl >/dev/null 2>&1; then
+    gen="$(openssl rand -base64 48 | tr -d '\n')"
+  else
+    gen="$(head -c 48 /dev/urandom | base64 | tr -d '\n')"
+  fi
+
+  if [[ -f "$envfile" ]] && grep -q '^JWT_SECRET=' "$envfile"; then
+    # 用 awk 而非 sed：base64 里含 '/' 和 '+'，会与 sed 分隔符冲突
+    awk -v s="$gen" '
+      /^JWT_SECRET=/ { print "JWT_SECRET=" s; done=1; next }
+      { print }
+      END { if (!done) print "JWT_SECRET=" s }
+    ' "$envfile" > "$envfile.tmp" && mv "$envfile.tmp" "$envfile"
+  else
+    printf '\nJWT_SECRET=%s\n' "$gen" >> "$envfile"
+  fi
+
+  export JWT_SECRET="$gen"
+  warn "JWT_SECRET 为空或仍为占位值，已自动生成强随机密钥并写回 .env"
+}
+ensure_jwt_secret
+
 # ─── 端口检测 ───
 port_listening() {
   local port=$1

@@ -49,7 +49,12 @@ public class JwtService {
       "please-change-this-secret-key-immediately-123456",
       // .env / .env.example 中的 CHANGE_ME 占位符（确保生产启动时被拒绝）
       "change_me__dev_only_minimum_32_character_secret_key_2026",
-      "change_me_generate_with_openssl_rand_base64_48"
+      "change_me_generate_with_openssl_rand_base64_48",
+      // 文档（docs/DEVELOPER.md）里给出的示例值。它们长度合法、也不纯字母，
+      // 只靠长度/模式校验拦不住 —— 但恰恰是最容易被照抄进生产的字符串。
+      "disasterguard-dev-secret-key-at-least-32-chars-long-xyz",
+      "your-strong-secret-min-32-chars-long-xyz",
+      "your-strong-secret-min-32-chars-long-xyz!"
   );
 
   /** 模式黑名单：纯数字、纯字母、全相同字符（长度 ≥16 时才算弱）。 */

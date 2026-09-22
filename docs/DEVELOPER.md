@@ -361,7 +361,12 @@ $env:REDIS_PORT      = "16379"
 $env:REDIS_HOST      = "127.0.0.1" # Windows 上用 127.0.0.1 避免 IPv6 问题
 $env:REDIS_PASSWORD  = "redis123"
 $env:MINIO_ENDPOINT  = "http://127.0.0.1:19000"
-$env:JWT_SECRET      = "disasterguard-dev-secret-key-at-least-32-chars-long-xyz"
+# JWT_SECRET 不要照抄任何示例值 —— 本文档原先给的示例串已被 JwtService 的
+# 弱密钥黑名单收录，照抄会直接启动失败（R4 P0-3）。下面现场生成一个：
+$__jwt = New-Object 'System.Byte[]' 48
+[System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($__jwt)
+$env:JWT_SECRET      = [Convert]::ToBase64String($__jwt)
+# 更省事的做法：直接跑 .\start-dev.ps1，缺失时会自动生成并写回 .env
 $env:DEV_USERS_ENABLED  = "true"   # 启用内存 fallback 用户（无 DB 时也能登录）
 $env:DEVICE_AUTH_STRICT = "false"  # 迁移期兼容未登记 api_key 的设备
 $env:TDENGINE_ENABLED  = "false"   # 未启用 TDengine 时关闭，避免连接超时日志
@@ -377,7 +382,9 @@ mvn -DskipTests spring-boot:run
 export SPRING_PROFILES_ACTIVE=default
 export POSTGRES_PORT=15432 REDIS_PORT=16379 REDIS_HOST=127.0.0.1 REDIS_PASSWORD=redis123
 export MINIO_ENDPOINT='http://127.0.0.1:19000'
-export JWT_SECRET='disasterguard-dev-secret-key-at-least-32-chars-long-xyz'
+# JWT_SECRET 不要照抄任何示例值（示例串已被弱密钥黑名单收录，照抄必然启动失败）：
+export JWT_SECRET="$(openssl rand -base64 48)"
+# 或直接跑 ./start-dev.sh —— 缺失时会自动生成并写回 .env
 export DEV_USERS_ENABLED=true DEVICE_AUTH_STRICT=false
 export TDENGINE_ENABLED=false EMQX_ENABLED=false AI_ENABLED=false
 cd backend && mvn -DskipTests spring-boot:run
@@ -1265,7 +1272,7 @@ stopRealtimeSync({ keepListeners: false })
 | --------------------------------------- | --------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
 | `SERVER_PORT`                           | 8080                                    | 后端监听端口（容器内/宿主机）；prod 覆盖文件映射为 8081                                                    |
 | `FRONTEND_ORIGIN`                       | http://localhost:5173                   | CORS + WebSocket Origin 白名单，支持逗号分隔多域                                                          |
-| `JWT_SECRET`                            | 必须 ≥ 32 字符强随机                    | JWT 签名密钥。长度不足或匹配弱密码时应用启动失败。生成：`openssl rand -base64 48`；docker-compose dev 不再显式注入，回落到 application.yml 开发默认值 |
+| `JWT_SECRET`                            | 必须 ≥ 32 字符强随机                    | JWT 签名密钥。长度不足、为空或匹配弱密码时应用启动失败。生成：`openssl rand -base64 48`；**不存在"application.yml 开发默认值"**——那里的 `${JWT_SECRET:}` 展开是空串，dev compose 现已用 `${JWT_SECRET:?...}` 在解析阶段 fail-fast，跑 `start-dev` 脚本时会自动生成并写回 `.env` |
 | `JWT_EXPIRE`                            | PT2H                                    | 过期时长（ISO-8601 Duration）                                                                                  |
 | `JWT_ISSUER`                            | disasterguard                               | JWT 签发者                                                                                                     |
 | `DEV_USERS_ENABLED`                     | false（默认）/ 本地脚本 true            | 是否启用硬编码账号 fallback。**默认关闭**（application.yml），`start-dev.ps1 -Backend` 本地开发显式 true；prod ProductionConfigValidator 强制 false |
@@ -1362,7 +1369,7 @@ docker compose up -d              # 重新初始化（dev 模式：SQL init 自�
 
 > **dev/docker 模式的数据库初始化**：默认 `application.yml` 中 `spring.sql.init.mode=always`，docker-compose dev 使用 `SPRING_PROFILES_ACTIVE=docker` 未覆盖此项，**首次启动自动建表 + 种子数据**。已存在数据卷时 `CREATE TABLE IF NOT EXISTS` / `ON CONFLICT DO NOTHING` 保证幂等。生产模式 `mode=never`，必须手动执行（见 §14 第 43 条）。
 
-> **JWT_SECRET**：dev 编排**不显式注入**（注释掉），回落到 `application.yml` 的开发默认值（`disasterguard-dev-secret-do-not-use-in-prod-...`），避免本地重复配置；生产编排必须通过 `.env` / 环境变量覆盖为强随机密钥，否则 `ProductionConfigValidator` 会拒绝启动。
+> **JWT_SECRET**：dev 编排**现在会显式注入**（`JWT_SECRET: ${JWT_SECRET:?...}`），缺失时在 compose 解析阶段就报错并提示生成命令。**此前的说法「回落到 `application.yml` 的开发默认值」是错的** —— `application.yml` 里是 `secret: ${JWT_SECRET:}`，展开为**空串**，而 `JwtService#validate()` 会拒绝空串/长度<32/弱密钥，所以没有默认值这回事（R4 P0-3 实测）。`.env` 里也**不能**留 `CHANGE_ME__dev_only_minimum_32_character_secret_key_2026` —— 该占位串已被明确收录进弱密钥黑名单。`start-dev.ps1` / `start-dev.sh` 会在缺失或仍为占位值时自动生成强随机密钥并写回 `.env`。生产编排同样必须显式提供，否则 `ProductionConfigValidator` / `JwtService` 会拒绝启动。
 
 ### 生产模式 docker-compose 覆盖文件
 
@@ -1797,7 +1804,8 @@ $env:REDIS_PORT='16379'
 $env:REDIS_HOST='127.0.0.1'      # Windows 上用 127.0.0.1 而非 localhost
 $env:REDIS_PASSWORD='redis123'
 $env:MINIO_ENDPOINT='http://127.0.0.1:19000'
-$env:JWT_SECRET='your-strong-secret-min-32-chars-long-xyz!'
+# 不要照抄示例串 —— 现场生成：openssl rand -base64 48
+$env:JWT_SECRET='<粘贴你生成的密钥>'
 $env:DEV_USERS_ENABLED='true'
 $env:DEVICE_AUTH_STRICT='false'
 $env:TDENGINE_ENABLED='false'   # 未启用 TDengine 时关闭，避免连接超时日志

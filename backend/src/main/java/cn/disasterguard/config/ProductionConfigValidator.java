@@ -22,6 +22,9 @@ import org.springframework.stereotype.Component;
  *   <li>{@code EMQX_ENABLED=true} 但 username/password 为空或匹配默认值</li>
  *   <li>{@code FRONTEND_ORIGIN} 仍为 localhost 通配，或为 {@code *}</li>
  *   <li>{@code FILE_BASE_URL} 仍为 localhost:9000 或为空</li>
+ *   <li>{@code MINIO_ENDPOINT} 为空或指向本机（R4 P0-4 新增）；
+ *       若只是内网单标签服务名（如 {@code minio}）则仅告警，因为 presigned URL
+ *       会以它作为主机名，浏览器解析不了 —— 属「能上传、打不开附件」</li>
  *   <li>{@code JWT_SECRET} 为空 / 长度 < 32 / 命中弱密码</li>
  *   <li>种子用户密码仍为 {@code 123456}（BCrypt hash 匹配检查）</li>
  *   <li>MINIO secret 强度不足（长度 < 16 或命中常见弱密码）</li>
@@ -78,6 +81,10 @@ public class ProductionConfigValidator {
 
   @Value("${minio.secret-key:}")
   String minioSecret;
+
+  /** R4 P0-4：附件预签名 URL 的主机就是它，浏览器要直接访问，此前完全没有校验。 */
+  @Value("${minio.endpoint:}")
+  String minioEndpoint;
 
   private final SysUserRepository userRepository;
 
@@ -152,7 +159,29 @@ public class ProductionConfigValidator {
           + fileBaseUrl + "'）。附件下载链接将使用此值拼接。");
     }
 
-    // 9) 种子用户密码检查（仅在 DB 中已有用户时触发，空 DB 为首次部署场景，跳过）
+    // 9) MINIO_ENDPOINT（R4 P0-4 新增）
+    //    这个值此前没有任何校验，而它同时决定两件事：
+    //      a. 后端 → MinIO 的上传链路（必须容器内可达）
+    //      b. AttachmentService 生成的 **presigned URL 主机名**（必须浏览器可达）
+    //    最危险的是「沿用 dev 的 .env」——compose 的 ${MINIO_ENDPOINT:?} 会被
+    //    .env 里那个 127.0.0.1:19000 满足，于是原样注入 prod、悄悄失效。
+    if (isBlank(minioEndpoint)) {
+      errors.add("MINIO_ENDPOINT 为空！prod 下必须设置为客户端可达的 MinIO 地址（如 https://minio.example.com）。");
+    } else {
+      String ep = minioEndpoint.trim().toLowerCase();
+      if (ep.contains("localhost") || ep.contains("127.0.0.1") || ep.contains("0.0.0.0")) {
+        errors.add("MINIO_ENDPOINT 指向本机（当前='" + minioEndpoint + "'）。"
+            + "在容器里 localhost 指向容器自己，上传必然连接失败；且该地址会被写进附件"
+            + "预签名 URL，客户端同样访问不到。请改为客户端可达的公开地址。");
+      } else if (hostHasNoDot(ep)) {
+        log.warn("MINIO_ENDPOINT='{}' 看起来是容器网络内的单标签服务名。"
+            + "后端上传可用，但 AttachmentService 生成的 presigned URL 会以它作为主机名，"
+            + "浏览器无法解析 —— 表现为「能上传、点开附件打不开」。"
+            + "若已通过反向代理把它暴露给客户端，可忽略本告警。", minioEndpoint);
+      }
+    }
+
+    // 10) 种子用户密码检查（仅在 DB 中已有用户时触发，空 DB 为首次部署场景，跳过）
     checkSeedUserPasswords(errors);
 
     if (!errors.isEmpty()) {
@@ -203,5 +232,28 @@ public class ProductionConfigValidator {
 
   private static boolean isBlank(String s) {
     return s == null || s.isBlank();
+  }
+
+  /**
+   * 判断 endpoint 的 host 部分是否为「单标签」名（不含点），例如 {@code minio}。
+   *
+   * <p>用于区分「容器网络内的服务名」与「可被外部解析的域名」。
+   * 只做提示性判断，不阻断启动 —— 反向代理场景下服务名也可能被外部正确解析。
+   */
+  private static boolean hostHasNoDot(String endpoint) {
+    String s = endpoint;
+    int schemeIdx = s.indexOf("://");
+    if (schemeIdx >= 0) {
+      s = s.substring(schemeIdx + 3);
+    }
+    int slash = s.indexOf('/');
+    if (slash >= 0) {
+      s = s.substring(0, slash);
+    }
+    int colon = s.indexOf(':');
+    if (colon >= 0) {
+      s = s.substring(0, colon);
+    }
+    return !s.isBlank() && !s.contains(".");
   }
 }

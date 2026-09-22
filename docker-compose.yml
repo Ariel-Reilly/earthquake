@@ -139,11 +139,16 @@ services:
       SPRING_PROFILES_ACTIVE: docker
       SERVER_PORT: ${SERVER_PORT:-8080}
       FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:5173}
-      # ⚠️ 生产环境必须通过 .env 或环境变量覆盖为强随机密钥（>=32 字符）。
-      # 生成方式：openssl rand -base64 48
-      # 未覆盖时使用 application.yml 的 dev 默认值（仅限本地开发）
-      # JWT_SECRET is intentionally NOT set here to let application.yml default apply
-      JWT_EXPIRE_MINUTES: ${JWT_EXPIRE_MINUTES:-120}
+      # ⚠️ JWT_SECRET 必须显式提供，**不存在**"application.yml 的 dev 默认值"——
+      # application.yml 里是 `secret: ${JWT_SECRET:}`（空串兜底），而
+      # JwtService#validate() 会拒绝空串/长度<32/弱密钥黑名单值，直接抛异常导致后端起不来。
+      # compose 会自动读取根目录 .env 做 ${} 插值，因此本地开发只需在 .env 里放一个真密钥：
+      #   openssl rand -base64 48
+      # 这里用 :? 让缺失时在 compose 解析阶段就失败并给出这句提示，而不是等到容器里抛栈。
+      JWT_SECRET: ${JWT_SECRET:?dev 环境需要在 .env 中设置 JWT_SECRET（生成：openssl rand -base64 48）；直接跑 start-dev 脚本会自动生成}
+      # 过期时间用 ISO 8601 Duration（application.yml 读的是 JWT_EXPIRE）。
+      # 原先这里写的是 JWT_EXPIRE_MINUTES，Java 侧无任何引用，是死配置（R4 顺带清理）。
+      JWT_EXPIRE: ${JWT_EXPIRE:-PT2H}
       FILE_BASE_URL: ${FILE_BASE_URL:-http://localhost:19000}
       DEV_USERS_ENABLED: ${DEV_USERS_ENABLED:-false}
       DEVICE_AUTH_STRICT: ${DEVICE_AUTH_STRICT:-false}

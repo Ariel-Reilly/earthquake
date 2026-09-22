@@ -54,9 +54,13 @@ services:
       SPRING_PROFILES_ACTIVE: prod
       SERVER_PORT: ${SERVER_PORT:-8080}
       FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-https://disasterguard.example.com}
-      # JWT_SECRET 必须通过环境变量注入；默认值仅用于本地快速启动校验
-      JWT_SECRET: ${JWT_SECRET}
-      JWT_EXPIRE_MINUTES: ${JWT_EXPIRE_MINUTES:-120}
+      # JWT_SECRET 必须通过环境变量注入。用 :? 让缺失在 compose 解析阶段就失败，
+      # 而不是等容器起来后由 JwtService 抛栈（application.yml 的 `secret: ${JWT_SECRET:}`
+      # 展开是空串，没有任何兜底默认值）。
+      JWT_SECRET: ${JWT_SECRET:?生产环境必须设置 JWT_SECRET（生成：openssl rand -base64 48）}
+      # ISO 8601 Duration 格式。原先这里写 JWT_EXPIRE_MINUTES，但 Java 侧无任何引用，
+      # 真正的键是 JWT_EXPIRE（application.yml: `${JWT_EXPIRE:PT2H}`）—— 属死配置，R4 顺带清理。
+      JWT_EXPIRE: ${JWT_EXPIRE:-PT2H}
       FILE_BASE_URL: ${FILE_BASE_URL:-http://minio:9000}
       # prod profile 已默认覆盖：DEV_USERS_ENABLED=false, DEVICE_AUTH_STRICT=true, WS_REQUIRE_TICKET=true
       DEV_USERS_ENABLED: "false"
@@ -76,6 +80,14 @@ services:
       # 若后端用一套凭证、MinIO 服务端用另一套，连接必然被 403 拒绝。
       MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-disasterguard}
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:?生产环境必须设置 MINIO_ROOT_PASSWORD}
+      # ⚠️ R4 P0-4：此处原先**没有** MINIO_ENDPOINT，于是 minio.endpoint 回落到
+      #   application.yml 的 `http://localhost:19000` —— 容器内指向自己，上传直接连接被拒。
+      #   （application-prod.yml 是独立加载的，不含 application-docker.yml 的 minio:9000。）
+      # 该值同时被 AttachmentService 用于生成 **presigned URL**，即浏览器要直接访问的地址，
+      # 所以生产必须填「客户端也能解析」的公开地址（如 https://minio.example.com），
+      # 而不是内网服务名 minio:9000 —— 否则上传能通、点开附件却打不开。
+      # ProductionConfigValidator 会在 prod 启动时校验这一点。
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:?生产环境必须设置 MINIO_ENDPOINT（须为客户端可达地址，如 https://minio.example.com）}
       # EMQX MQTT（prod 必须显式设置）
       # ⚠ R3 发现：本文件仅定义 postgres/redis/minio/backend/frontend 五个服务，
       #   **没有 emqx 也没有 ai-service**，但下面却引用了 tcp://emqx:1883 与
