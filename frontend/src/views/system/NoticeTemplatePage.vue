@@ -23,6 +23,7 @@ import {
 } from "lucide-vue-next"
 import { dashboardApi } from "../../services/dashboardApi"
 import { getAuthUser, hasPermission } from "../../stores/auth"
+import { HAZARD_TYPES, hazardTypeLabel } from "../../utils/hazardTypes"
 
 const props = defineProps({
   searchTerm: { type: String, default: "" },
@@ -63,13 +64,10 @@ const placeholderDocs = Object.keys(placeholderSamples)
 // 取值必须与后端 unified_event.hazard_type 一致（landslide / collapse / ...），
 // 后端 notice_template.disaster_type 存的同样是英文码；这里原先直接写中文标签，
 // 导致筛选参数永远匹配不到库里的记录。
-const hazardOptions = [
-  { value: "landslide", label: "滑坡" },
-  { value: "collapse", label: "崩塌" },
-  { value: "debris_flow", label: "泥石流" },
-  { value: "subsidence", label: "地面沉降" },
-  { value: "earthquake", label: "地震" },
-]
+//
+// R3：不再在本页各写一份（原为 5 项，缺 typhoon/drought/waterlogging/
+// ground_fissure/flood/fire），统一引用与 sys_dict.disaster_type 对齐的单一数据源。
+const hazardOptions = HAZARD_TYPES
 const levelOptions = [
   { value: "red", label: "红色" },
   { value: "orange", label: "橙色" },
@@ -189,7 +187,7 @@ function levelLabel(lv) {
   return levelOptions.find((o) => o.value === lv)?.label ?? lv
 }
 function hazardLabel(hz) {
-  return hazardOptions.find((o) => o.value === hz)?.label ?? hz
+  return hazardTypeLabel(hz)
 }
 function levelColorOf(lv) {
   return levelColor[lv] ?? "#7a8d89"

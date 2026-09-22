@@ -24,6 +24,10 @@ INSERT INTO sys_dict (type, label, value, sort_order, description) VALUES
 ('disaster_type', '内涝',         'waterlogging',  8, '城市内涝'),
 ('disaster_type', '崩塌',         'collapse',      9, '崩塌'),
 ('disaster_type', '地裂缝',       'ground_fissure',10,'地裂缝'),
+-- R3：地面沉降在其他各端（前端三个页面、后端 WarningService#HAZARD_TYPE_CODES）
+-- 均作为一等灾种使用，但字典里缺失，导致"前端有、字典无"的漂移。此处补齐，
+-- 使 sys_dict.disaster_type 成为完整的 11 项权威集合（与 utils/hazardTypes.js 一致）。
+('disaster_type', '地面沉降',     'subsidence',    11,'地面沉降'),
 
 -- 预警等级
 ('alert_level', '红色',  'red',    1, 'Ⅰ级（特别重大）'),

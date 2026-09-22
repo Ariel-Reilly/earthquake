@@ -269,13 +269,28 @@ public class WarningService {
     return dto;
   }
 
-  /** 灾害类型中文标签 → 英文码（与 unified_event.hazard_type / 前端 NoticeTemplatePage 保持同一套）。 */
-  private static final Map<String, String> HAZARD_TYPE_CODES = Map.of(
-      "滑坡", "landslide",
-      "崩塌", "collapse",
-      "泥石流", "debris_flow",
-      "地面沉降", "subsidence",
-      "地震", "earthquake"
+  /**
+   * 灾害类型中文标签 → 英文码。
+   *
+   * <p>取值与 {@code sys_dict.disaster_type}（data.sql）及前端
+   * {@code utils/hazardTypes.js} 保持同一套。R3 前此处仅 5 条，
+   * 缺 地裂缝/洪水/火灾/台风/干旱/内涝，导致这些灾种提交后无法归一化。
+   */
+  private static final Map<String, String> HAZARD_TYPE_CODES = Map.ofEntries(
+      Map.entry("滑坡", "landslide"),
+      Map.entry("崩塌", "collapse"),
+      Map.entry("泥石流", "debris_flow"),
+      Map.entry("地面沉降", "subsidence"),
+      Map.entry("地裂缝", "ground_fissure"),
+      Map.entry("地震", "earthquake"),
+      Map.entry("洪水", "flood"),
+      Map.entry("火灾", "fire"),
+      Map.entry("台风", "typhoon"),
+      Map.entry("干旱", "drought"),
+      Map.entry("内涝", "waterlogging"),
+      // 历史混用写法
+      Map.entry("地面塌陷", "subsidence"),
+      Map.entry("城市内涝", "waterlogging")
   );
 
   /** 预警等级英文码 → 库内存值（warning_level 存中文，见 AiWarningScheduler#translateLevel）。 */

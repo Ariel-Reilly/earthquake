@@ -19,6 +19,7 @@ import {
 } from "lucide-vue-next"
 import { dashboardApi } from "../../services/dashboardApi"
 import { getAuthUser, hasPermission } from "../../stores/auth"
+import { HAZARD_TYPES, hazardTypeLabel } from "../../utils/hazardTypes"
 
 const props = defineProps({
   searchTerm: { type: String, default: "" },
@@ -39,6 +40,10 @@ const filter = reactive({
   region: "",
 })
 
+// R3：灾种不再在本页各写一份，统一引用单一数据源
+// （与后端 sys_dict.disaster_type 对齐，详见 utils/hazardTypes.js）
+const hazardOptions = HAZARD_TYPES
+
 const yearOptions = computed(() => {
   const years = new Set([...allHazards.value.map((h) => {
     if (!h.discoveredAt) return null
@@ -57,7 +62,11 @@ const filtered = computed(() => {
   })
   if (filter.region.trim()) {
     const k = filter.region.trim().toLowerCase()
-    list = list.filter((h) => (h.region ?? h.location ?? "").toLowerCase().includes(k))
+    // R3 P1-13：后端 HazardDto / HazardPoint 只有 regionCode（行政区划代码），
+    // 并没有 region 或 location 字段。修复前读 h.region ?? h.location 恒为
+    // undefined → 兜底成 "" → 任何非空关键字都匹配不上，列表被静默清空。
+    // 这里改为匹配 regionCode（占位提示已同步改为「行政区代码」）。
+    list = list.filter((h) => (h.regionCode ?? "").toLowerCase().includes(k))
   }
   if (filter.keyword.trim()) {
     const k = filter.keyword.trim().toLowerCase()
@@ -82,7 +91,8 @@ const stats = computed(() => {
 const typeChart = computed(() => {
   const map = new Map()
   for (const h of filtered.value) {
-    map.set(h.type ?? "其他", (map.get(h.type ?? "其他") ?? 0) + 1)
+    const label = hazardTypeLabel(h.type) || "其他"
+    map.set(label, (map.get(label) ?? 0) + 1)
   }
   return [...map.entries()].map(([type, count]) => ({ type, count })).sort((a, b) => b.count - a.count)
 })
@@ -160,7 +170,7 @@ onMounted(() => load())
       <input v-model="filter.keyword" placeholder="搜索编号 / 名称" class="filter-input" />
       <select v-model="filter.type">
         <option value="">全部灾种</option>
-        <option v-for="t in ['滑坡','崩塌','泥石流','地面塌陷','地震','洪水','火灾']" :key="t">{{ t }}</option>
+        <option v-for="opt in hazardOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
       </select>
       <select v-model="filter.level">
         <option value="">全部等级</option>
@@ -171,7 +181,7 @@ onMounted(() => load())
       <select v-model="filter.year">
         <option v-for="y in yearOptions" :key="y" :value="y">{{ y ? `${y} 年` : '全部年份' }}</option>
       </select>
-      <input v-model="filter.region" placeholder="行政区" class="filter-input small" />
+      <input v-model="filter.region" placeholder="行政区代码" class="filter-input small" title="按行政区划代码筛选（如 110000）；后端当前仅提供 regionCode 字段" />
       <button class="ghost-btn small" @click="resetFilters">重置</button>
     </section>
 
@@ -204,7 +214,7 @@ onMounted(() => load())
                 <code>{{ h.hazardCode }}</code>
                 <span class="level-tag" :class="h.level === '高风险' ? 'orange' : h.level === '关注' ? 'yellow' : 'blue'">{{ h.level }}</span>
               </div>
-              <p>{{ h.type }} · {{ h.status }}</p>
+              <p>{{ hazardTypeLabel(h.type) }} · {{ h.status }}</p>
               <small>
                 <Calendar :size="11" /> {{ h.discoveredAt ? new Date(h.discoveredAt).toLocaleString('zh-CN', { hour12: false }) : '—' }}
                 <span style="margin: 0 6px;">·</span>

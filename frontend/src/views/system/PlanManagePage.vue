@@ -23,6 +23,7 @@ import {
 } from "lucide-vue-next"
 import { dashboardApi } from "../../services/dashboardApi"
 import { getAuthUser, hasPermission } from "../../stores/auth"
+import { HAZARD_TYPES, hazardTypeLabel } from "../../utils/hazardTypes"
 
 const props = defineProps({
   searchTerm: { type: String, default: "" },
@@ -46,7 +47,7 @@ const samplePlans = [
   {
     id: "plan-001",
     name: "滑坡橙色预警 · 城镇撤离预案",
-    hazardType: "滑坡",
+    hazardType: "landslide",
     level: "orange",
     version: "v3.2",
     owner: "李晨曦",
@@ -64,7 +65,7 @@ const samplePlans = [
   {
     id: "plan-002",
     name: "崩塌红色预警 · 山区抢险预案",
-    hazardType: "崩塌",
+    hazardType: "collapse",
     level: "red",
     version: "v2.4",
     owner: "王皓",
@@ -81,7 +82,7 @@ const samplePlans = [
   {
     id: "plan-003",
     name: "泥石流黄色预警 · 沟谷巡查预案",
-    hazardType: "泥石流",
+    hazardType: "debris_flow",
     level: "yellow",
     version: "v1.7",
     owner: "张敏",
@@ -129,7 +130,10 @@ const sampleLaunches = [
   },
 ]
 
-const hazardOptions = ["滑坡", "崩塌", "泥石流", "地面沉降", "地震"]
+// R3：灾种统一引用单一数据源（原为 5 个中文标签，缺 typhoon/drought/
+// waterlogging/ground_fissure/flood/fire，且提交给后端的也是中文）。
+// 现在 value=英文码用于提交，label=中文用于展示。
+const hazardOptions = HAZARD_TYPES
 const levelOptions = [
   { value: "red", label: "红色" },
   { value: "orange", label: "橙色" },
@@ -190,7 +194,7 @@ function openCreate() {
   editing.value = {
     id: null,
     name: "",
-    hazardType: "滑坡",
+    hazardType: "landslide",
     level: "orange",
     version: "v1.0",
     owner: operator.name,
@@ -351,7 +355,7 @@ onMounted(load)
           <tbody>
             <tr v-for="p in plans" :key="p.id" @click="openEdit(p)">
               <td><strong>{{ p.name }}</strong></td>
-              <td>{{ p.hazardType }}</td>
+              <td>{{ hazardTypeLabel(p.hazardType) }}</td>
               <td>
                 <span class="level-pill" :style="{ background: levelColorOf(p.level) + '22', color: levelColorOf(p.level) }">
                   {{ levelLabel(p.level) }}
@@ -433,7 +437,7 @@ onMounted(load)
             <label class="span-2">预案名称<input v-model="editing.name" placeholder="如：滑坡橙色预警 · 城镇撤离预案" /></label>
             <label>灾种
               <select v-model="editing.hazardType">
-                <option v-for="t in hazardOptions" :key="t" :value="t">{{ t }}</option>
+                <option v-for="t in hazardOptions" :key="t.value" :value="t.value">{{ t.label }}</option>
               </select>
             </label>
             <label>等级

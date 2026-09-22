@@ -39,6 +39,11 @@ import {
 import { dashboardApi } from "../../services/dashboardApi";
 import { useRouter } from "vue-router";
 import { safeMax } from "../../utils/safeMinMax";
+import {
+  HAZARD_TYPES,
+  hazardTypeLabel,
+  normalizeHazardType,
+} from "../../utils/hazardTypes";
 
 const router = useRouter();
 const loading = ref(false);
@@ -63,7 +68,10 @@ const quickKeywords = [
 ];
 
 const regionOptions = ["全部地区", "成都市", "绵阳市", "德阳市", "雅安市", "阿坝州"];
-const hazardOptions = ["全部灾种", "滑坡", "泥石流", "崩塌", "地面沉降", "地震"];
+// R3：灾种统一引用单一数据源。原本这里是中文数组，而同一份 mock/接口数据里
+// hazardType 既有中文（"滑坡"/"暴雨"/"洪涝"）又有英文码（"landslide"），
+// 下拉与数据对不上，筛选形同虚设。现在 value=英文码、label=中文展示。
+const hazardOptions = HAZARD_TYPES;
 const sentimentOptions = [
   { value: "", label: "全部情感" },
   { value: "positive", label: "正面" },
@@ -115,7 +123,7 @@ const posts = ref([
     content:
       "龙泉驿区洛带镇这边雨下得太大了，山坡上感觉有滑坡风险，已经看到有石头滚下来了，希望相关部门赶紧来看看！",
     location: "龙泉驿区洛带镇",
-    hazardType: "滑坡",
+    hazardType: "landslide",
     sentiment: "negative",
     sentimentLabel: "负面",
     confidence: 0.91,
@@ -135,7 +143,7 @@ const posts = ref([
     content:
       "【成都应急提示】受强降雨影响，成都市规划和自然资源局、成都市气象局9月13日14时共同发布第9号地质灾害气象风险预警：龙泉驿区、青白江区、简阳市部分地区地质灾害气象风险等级为二级（橙色）。",
     location: "成都市",
-    hazardType: "暴雨",
+    hazardType: "flood",
     sentiment: "neutral",
     sentimentLabel: "中性",
     confidence: 0.98,
@@ -175,7 +183,7 @@ const posts = ref([
     content:
       "【防汛进行时】青白江区河道管理部门已启动三级防汛预案，出动巡查人员 56 人次，转移低洼地带群众 23 人，目前河道水位正常，城市运行平稳。",
     location: "青白江区",
-    hazardType: "洪涝",
+    hazardType: "flood",
     sentiment: "positive",
     sentimentLabel: "正面",
     confidence: 0.95,
@@ -195,7 +203,7 @@ const posts = ref([
     content:
       "都江堰景区发现路面有裂缝，疑似地震后地面沉降加剧，现场已有警示标志，请过往车辆注意安全！",
     location: "都江堰市",
-    hazardType: "地面沉降",
+    hazardType: "subsidence",
     sentiment: "negative",
     sentimentLabel: "负面",
     confidence: 0.79,
@@ -214,8 +222,9 @@ const filteredPosts = computed(() => {
     const k = filter.keyword.toLowerCase();
     list = list.filter((p) => p.content.toLowerCase().includes(k) || p.user.toLowerCase().includes(k));
   }
-  if (filter.hazardType && filter.hazardType !== "全部灾种") {
-    list = list.filter((p) => p.hazardType === filter.hazardType);
+  if (filter.hazardType) {
+    // 归一化后比对：接口/存量数据里可能仍是中文标签
+    list = list.filter((p) => normalizeHazardType(p.hazardType) === filter.hazardType);
   }
   if (filter.sentiment) {
     list = list.filter((p) => p.sentiment === filter.sentiment);
@@ -358,7 +367,8 @@ function openOriginal(post) {
               />
             </div>
             <select v-model="filter.hazardType" class="filter-select">
-              <option v-for="o in hazardOptions" :key="o" :value="o">{{ o }}</option>
+              <option value="">全部灾种</option>
+              <option v-for="o in hazardOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
             </select>
             <select v-model="filter.timeRange" class="filter-select">
               <option v-for="o in timeOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
@@ -415,7 +425,7 @@ function openOriginal(post) {
               <div class="post-content">{{ post.content }}</div>
 
               <div class="post-tags">
-                <span class="tag hazard-tag">{{ post.hazardType }}</span>
+                <span class="tag hazard-tag">{{ hazardTypeLabel(post.hazardType) }}</span>
                 <span
                   class="tag sentiment-tag"
                   :style="{ color: sentimentColor(post.sentiment) }"

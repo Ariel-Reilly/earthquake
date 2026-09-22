@@ -20,6 +20,11 @@ import {
 } from "lucide-vue-next"
 import { dashboardApi } from "../../services/dashboardApi"
 import { getAuthUser, hasPermission } from "../../stores/auth"
+import {
+  HAZARD_TYPES,
+  hazardTypeLabel as hazardTypeLabelOf,
+  normalizeHazardType,
+} from "../../utils/hazardTypes"
 
 const props = defineProps({
   searchTerm: { type: String, default: "" },
@@ -36,7 +41,7 @@ const form = reactive({
   level: "orange",
   hazardCode: "",
   hazardName: "",
-  hazardType: "滑坡",
+  hazardType: "landslide",  // 英文码（与后端 unified_event.hazard_type 一致）
   region: "",
   lon: null,
   lat: null,
@@ -55,33 +60,36 @@ const submitted = ref(null)
 const templates = [
   {
     id: "tpl-landslide-orange",
-    disasterType: "滑坡",
+    disasterType: "landslide",
     level: "orange",
     title: "【橙色预警】{region}发生滑坡险情",
     content: "【地脉智巡·橙色预警】\n险情：{hazardName}\n时间：{time}\n影响范围：以灾害点为中心 {bufferKm} 公里缓冲区\n请相关人员立即疏散至安全区域，禁止返回。\n【应急指挥中心】",
   },
   {
     id: "tpl-collapse-red",
-    disasterType: "崩塌",
+    disasterType: "collapse",
     level: "red",
     title: "【红色预警】{region}发生崩塌险情",
     content: "【地脉智巡·红色预警·最高级】\n险情：{hazardName}\n时间：{time}\n影响范围：以灾害点为中心 {bufferKm} 公里缓冲区\n请即刻启动应急预案，组织周边群众撤离。\n【应急指挥中心】",
   },
   {
     id: "tpl-debris-yellow",
-    disasterType: "泥石流",
+    disasterType: "debris_flow",
     level: "yellow",
     title: "【黄色预警】{region}可能发生泥石流",
     content: "【地脉智巡·黄色预警】\n区域：{hazardName}\n时间：{time}\n请密切监视降雨情况，避免进入沟谷。\n【应急指挥中心】",
   },
   {
     id: "tpl-custom",
-    disasterType: "通用",
+    disasterType: "custom",
     level: "blue",
     title: "",
     content: "",
   },
 ]
+
+// R3：灾种不再在本页各写一份，统一引用与 sys_dict.disaster_type 对齐的单一数据源
+const hazardOptions = HAZARD_TYPES
 
 const levelMeta = {
   red:    { label: "红色", color: "#c7553b", desc: "特别重大 / 立即撤离", weight: 4 },
@@ -98,9 +106,16 @@ const channelMeta = [
   { id: "call",   label: "电话",   icon: Smartphone, desc: "红色预警自动电话", recommend: ["red"] },
 ]
 
-const filteredTemplates = computed(() =>
-  templates.filter((t) => t.disasterType === form.hazardType || t.id === "tpl-custom"),
-)
+// R3：内置模板只覆盖 landslide / collapse / debris_flow 三个灾种。
+// 修复前选择「洪水/火灾/台风」等灾种时，这里会只剩一个空的 tpl-custom，
+// 用户点进去拿到空文案且无任何提示（静默失败）。
+// 现在无精确匹配时回退展示全部模板，保证始终有可参考的文案。
+const filteredTemplates = computed(() => {
+  const matched = templates.filter((t) => t.disasterType === form.hazardType)
+  return matched.length > 0
+    ? [...matched, ...templates.filter((t) => t.id === "tpl-custom")]
+    : templates
+})
 
 function applyTemplate(tplId) {
   const tpl = templates.find((t) => t.id === tplId)
@@ -123,11 +138,14 @@ function renderContent(tpl) {
 
 const previewContent = computed(() => renderContent(form.content))
 const previewTitle = computed(() => renderContent(form.title))
+// 灾种英文码 → 中文标签（供展示层使用）
+const hazardTypeLabel = computed(() => hazardTypeLabelOf(form.hazardType))
 
 function selectHazard(h) {
   form.hazardCode = h.hazardCode ?? ""
   form.hazardName = h.name ?? ""
-  form.hazardType = h.type ?? "滑坡"
+  // 后端 hazard_point.hazard_type 存英文码；若 API 返回中文则归一化
+  form.hazardType = normalizeHazardType(h.type ?? "landslide")
   form.lon = h.lon ?? null
   form.lat = h.lat ?? null
   form.region = (form.region || h.region) ?? ""
@@ -137,6 +155,9 @@ function selectHazard(h) {
   if (matched) applyTemplate(matched.id)
   emit("notify", `已关联灾害点：${h.name}`)
 }
+
+// 归一化与展示统一由 utils/hazardTypes 提供（与后端 sys_dict 同一套编码），
+// 本页不再维护私有映射表。
 
 async function bootstrap() {
   const hazardId = route.query.hazardId
@@ -244,7 +265,7 @@ onMounted(() => bootstrap())
         <div class="row-2">
           <label>灾种
             <select v-model="form.hazardType" @change="form.templateId = 'tpl-custom'">
-              <option v-for="t in ['滑坡','崩塌','泥石流','地面塌陷','地震','洪水','火灾']" :key="t">{{ t }}</option>
+              <option v-for="opt in hazardOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
             </select>
           </label>
           <label>关联灾害点编号
@@ -287,7 +308,7 @@ onMounted(() => bootstrap())
               :class="{ active: form.templateId === tpl.id }"
               @click="applyTemplate(tpl.id)"
             >
-              <strong>{{ tpl.disasterType }} · {{ levelMeta[tpl.level]?.label || '自定义' }}</strong>
+              <strong>{{ hazardTypeLabelOf(tpl.disasterType) }} · {{ levelMeta[tpl.level]?.label || '自定义' }}</strong>
               <small>{{ tpl.title || '自定义文案' }}</small>
             </button>
           </div>
@@ -313,7 +334,7 @@ onMounted(() => bootstrap())
         <ul class="summary">
           <li><strong>标题：</strong>{{ form.title }}</li>
           <li><strong>级别：</strong><span :style="{ color: levelMeta[form.level].color }">{{ levelMeta[form.level].label }} · {{ levelMeta[form.level].desc }}</span></li>
-          <li><strong>灾种 / 灾害点：</strong>{{ form.hazardType }} · {{ form.hazardName || '—' }}</li>
+          <li><strong>灾种 / 灾害点：</strong>{{ hazardTypeLabel }} · {{ form.hazardName || '—' }}</li>
           <li><strong>影响区域：</strong>{{ form.region }}（{{ form.bufferKm }} km 缓冲区）</li>
           <li><strong>渠道：</strong>{{ Object.entries(form.channels).filter(([, v]) => v).map(([k]) => channelMeta.find((c) => c.id === k)?.label).join('、') }}</li>
           <li><strong>生效至：</strong>{{ form.validUntil }}</li>
