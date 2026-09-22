@@ -97,13 +97,36 @@ public class RuleEvaluator {
     return result;
   }
 
+  /**
+   * 条件比较。
+   *
+   * <p>R3 P1-8：数值类比较要求 actual 与 threshold <b>都能</b>解析为数字，
+   * 任一解析失败则记 warn 并判定为<b>不成立</b>（不触发）。
+   *
+   * <p>修复前 {@code toDouble} 解析失败静默返回 0.0，危害是双向的：
+   * 实测值损坏时 {@code rainfall_24h > 50} 变成 {@code 0 > 50} → <b>漏报</b>；
+   * 阈值配错时 {@code 100 > 0} → <b>误报</b>。两者在灾情场景都不可接受。
+   */
   private boolean compare(Object actual, String op, Object threshold) {
     if (actual == null) {
       return "==".equals(op) && threshold == null;
     }
 
-    double actualNum = toDouble(actual);
-    double thresholdNum = toDouble(threshold);
+    // 非数值运算符不要求解析为数字，保持原有语义
+    if ("contains".equals(op)) {
+      return threshold != null && actual.toString().contains(threshold.toString());
+    }
+    if ("in".equals(op)) {
+      return threshold instanceof List && ((List<?>) threshold).contains(actual);
+    }
+
+    Double actualNum = toDoubleOrNull(actual);
+    Double thresholdNum = toDoubleOrNull(threshold);
+    if (actualNum == null || thresholdNum == null) {
+      log.warn("规则条件数值无法解析，判定为不成立（不触发）：actual={}, op={}, threshold={}",
+          actual, op, threshold);
+      return false;
+    }
 
     return switch (op) {
       case ">" -> actualNum > thresholdNum;
@@ -112,19 +135,22 @@ public class RuleEvaluator {
       case "<=" -> actualNum <= thresholdNum;
       case "==" -> Math.abs(actualNum - thresholdNum) < 0.0001;
       case "!=" -> Math.abs(actualNum - thresholdNum) >= 0.0001;
-      case "contains" -> actual.toString().contains(threshold.toString());
-      case "in" -> threshold instanceof List && ((List<?>) threshold).contains(actual);
       default -> false;
     };
   }
 
-  private double toDouble(Object value) {
-    if (value == null) return 0.0;
+  /**
+   * 解析为 double；无法解析时返回 {@code null}。
+   * <b>不要</b>返回 0.0 —— 0.0 是合法业务值，会把"数据缺失/格式损坏"
+   * 伪装成"数值为 0"并参与阈值比较。
+   */
+  private Double toDoubleOrNull(Object value) {
+    if (value == null) return null;
     if (value instanceof Number) return ((Number) value).doubleValue();
     try {
-      return Double.parseDouble(value.toString());
+      return Double.parseDouble(value.toString().trim());
     } catch (NumberFormatException e) {
-      return 0.0;
+      return null;
     }
   }
 

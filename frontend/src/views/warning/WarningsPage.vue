@@ -368,11 +368,11 @@ onMounted(loadData)
           </div>
           <div v-else class="warning-list">
             <article v-for="warning in visibleWarnings" :key="warning.id" class="warning-item" :class="{ archived: isArchived(warning) }" @click="openDetail(warning)">
-              <div class="warning-symbol" :class="warning.class">{{ isArchived(warning) ? '✓' : '!' }}</div>
+              <div class="warning-symbol" :class="warning.cssClass ?? warning.class ?? 'orange'">{{ isArchived(warning) ? '✓' : '!' }}</div>
               <div class="warning-body">
                 <div class="warning-title">
                   <strong>{{ warning.title }}</strong>
-                  <span :class="warning.class">{{ warning.level }}</span>
+                  <span :class="warning.cssClass ?? warning.class ?? 'orange'">{{ warning.level }}</span>
                   <span v-if="warning.aiScore != null" class="ai-priority-tag" :title="`AI 综合分 ${warning.aiScore.toFixed(1)}（${warning.aiLevel}）`">
                     <ShieldAlert :size="11" /> {{ Math.round(warning.aiScore) }}
                   </span>

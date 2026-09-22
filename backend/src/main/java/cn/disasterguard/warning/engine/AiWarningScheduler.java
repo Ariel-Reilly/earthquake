@@ -2,7 +2,6 @@ package cn.disasterguard.warning.engine;
 
 import cn.disasterguard.ai.entity.AiComprehensiveScore;
 import cn.disasterguard.ai.repository.AiComprehensiveScoreRepository;
-import cn.disasterguard.common.exception.AppException;
 import cn.disasterguard.warning.entity.WarningEvent;
 import cn.disasterguard.warning.repository.WarningEventRepository;
 import java.time.OffsetDateTime;
@@ -15,6 +14,7 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -78,24 +78,37 @@ public class AiWarningScheduler {
 
     int created = 0;
     int skipped = 0;
+    int failed = 0;
     for (AiComprehensiveScore s : elevated) {
       if (openHazards.contains(s.getHazardCode())) {
         skipped++;
         continue;
       }
       try {
-        createAiWarning(s);
-        created++;
+        // R3 P1-7：只有真正写库成功才计入 created
+        if (createAiWarning(s)) {
+          created++;
+        } else {
+          skipped++;
+        }
       } catch (Exception ex) {
+        failed++;
         log.warn("AI 预警创建失败 hazard={}: {}", s.getHazardCode(), ex.getMessage());
       }
     }
-    if (created > 0 || skipped > 0) {
-      log.info("AI 综合评分联动预警：触发 {} 条，去重跳过 {} 条", created, skipped);
+    if (created > 0 || skipped > 0 || failed > 0) {
+      log.info("AI 综合评分联动预警：触发 {} 条，跳过 {} 条，失败 {} 条", created, skipped, failed);
     }
   }
 
-  private void createAiWarning(AiComprehensiveScore s) {
+  /**
+   * 生成一条 AI 联动预警。
+   *
+   * @return true 表示确实写库成功；false 表示因并发去重（唯一约束冲突）未写入。
+   *         调用方<b>不得</b>把 false 计入"已触发"，否则日志会谎报预警数量。
+   * @throws RuntimeException 其他写入失败原样抛出，由调用方计入失败数
+   */
+  private boolean createAiWarning(AiComprehensiveScore s) {
     WarningEvent event = new WarningEvent();
     event.setWarningCode("WG-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
     event.setRuleCode(RULE_CODE_AI);
@@ -108,15 +121,18 @@ public class AiWarningScheduler {
     event.setTriggeredAt(OffsetDateTime.now(ZoneOffset.UTC));
     try {
       warningRepository.save(event);
-    } catch (Exception ex) {
-      // 唯一约束冲突说明已被并发另一条路径写入，继续
-      log.debug("AI 预警 DB 写入失败，可能并发触发 hazard={}: {}", s.getHazardCode(), ex.getMessage());
-      if (!(ex instanceof AppException)) {
-        throw ex;
-      }
+    } catch (DataIntegrityViolationException ex) {
+      // R3 P1-7：唯一约束冲突说明已被并发的另一条路径写入，属预期内去重。
+      // 但<b>必须返回 false</b>——没有写进去就不能算"已触发"。
+      // 修复前此处吞掉所有 AppException 后仍继续执行下面的 log.info，
+      // 并让外层 created++，造成"预警已生成"的假象。
+      // 在灾情场景里，这种静默的假通过远比直接报错危险。
+      log.debug("AI 预警并发去重，未写入 hazard={}: {}", s.getHazardCode(), ex.getMessage());
+      return false;
     }
     log.info("AI 联动预警 -> 生成待确认事件 hazard={}, level={}, score={}",
         s.getHazardCode(), s.getRiskLevel(), s.getRiskScore());
+    return true;
   }
 
   private static String translateLevel(String aiLevel) {

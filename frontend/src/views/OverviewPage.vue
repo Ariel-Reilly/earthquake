@@ -1971,11 +1971,11 @@ function toggleCompareLegend(which) {
                 class="warning-item"
                 @click="router.push(`/dashboard/warnings/${warning.id}`)"
               >
-                <div class="warning-symbol" :class="warning.class">!</div>
+                <div class="warning-symbol" :class="warning.cssClass ?? warning.class ?? 'orange'">!</div>
                 <div class="warning-body">
                   <div class="warning-title">
                     <strong>{{ warning.title }}</strong
-                    ><span :class="warning.class">{{ warning.level }}</span>
+                    ><span :class="warning.cssClass ?? warning.class ?? 'orange'">{{ warning.level }}</span>
                   </div>
                   <p>{{ warning.desc }}</p>
                   <small

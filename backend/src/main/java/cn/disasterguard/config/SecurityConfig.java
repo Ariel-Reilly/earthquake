@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -40,9 +41,14 @@ public class SecurityConfig {
             // WebSocket 握手由 JwtHandshakeInterceptor 在握手层鉴权，Spring Security 放行
             .requestMatchers("/ws").permitAll()
             // 国家气象数据接入：公开资源（NSMC / NMC 不需要鉴权），CORS 由 CorsConfig 接管，限流由 RateLimitFilter 保护
-            .requestMatchers("/api/weather/**").permitAll()
+            // R3 P1-6：仅 GET 放行。此前整个 /api/weather/** 对匿名开放，
+            // 导致 POST /api/weather/products/refresh 可被匿名触发回源拉取外部资源
+            // （无频控的上游放大 + SSRF 面）。该前缀下当前只有 GET 与这一个 POST。
+            .requestMatchers(HttpMethod.GET, "/api/weather/**").permitAll()
             // 卫星覆盖数据：公开资源（CDSE / Sentinel-2 / Landsat 等），限流由 RateLimitFilter 保护
-            .requestMatchers("/api/sentinel/**").permitAll()
+            // 该前缀下当前仅 GET /coverage，同步收紧为仅 GET，
+            // 防止后续新增写接口时再次对匿名裸奔。
+            .requestMatchers(HttpMethod.GET, "/api/sentinel/**").permitAll()
             .requestMatchers("/api/devices/{deviceCode}/data").hasRole("DEVICE")
             .anyRequest().authenticated())
         // 限流过滤器最先执行，保护公开端点

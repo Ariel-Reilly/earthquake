@@ -564,11 +564,11 @@ watch(
           </div>
           <ul v-else class="warning-list">
             <li v-for="w in warnings" :key="w.id" class="warning-item" @click="viewWarning(w)">
-              <span class="warning-symbol" :class="w.class ?? 'orange'">!</span>
+              <span class="warning-symbol" :class="w.cssClass ?? w.class ?? 'orange'">!</span>
               <div class="warning-body">
                 <div class="warning-title">
                   <strong>{{ w.title }}</strong>
-                  <span :class="w.class ?? 'orange'">{{ w.level }}</span>
+                  <span :class="w.cssClass ?? w.class ?? 'orange'">{{ w.level }}</span>
                 </div>
                 <p>{{ w.desc }}</p>
                 <small><MapPin :size="11" />{{ w.point }}<time>{{ w.time }}</time></small>

@@ -95,7 +95,9 @@ public class EventStateController {
    * </pre>
    */
   @PostMapping("/{code}/transition")
-  @PreAuthorize("hasAuthority('events:view')")
+  // R3 P1-16：写操作必须用写权限。修复前与只读端点共用 events:view，
+  // 导致"能看事件就能改状态"。events:transition 已在 PermissionRegistry 注册。
+  @PreAuthorize("hasAuthority('events:transition')")
   public Map<String, Object> transition(
       @PathVariable String code,
       @RequestBody TransitionRequest body
@@ -110,7 +112,10 @@ public class EventStateController {
 
   /** 兼容旧用法：通过 query 触发，便于快速调试 */
   @PostMapping("/{code}/transition/query")
-  @PreAuthorize("hasAuthority('events:view')")
+  // R3 P1-16：同上，写操作用写权限。
+  // 注：本端点同时是"operator 由调用方传入"的调试入口，审计可追溯性弱于
+  // /{code}/transition，建议后续下线或强制改用当前登录用户（与 P0-1 同类问题）。
+  @PreAuthorize("hasAuthority('events:transition')")
   public Map<String, Object> transitionQuery(
       @PathVariable String code,
       @RequestParam String trigger,
