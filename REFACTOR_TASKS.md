@@ -295,6 +295,36 @@ PowerShell 硬编码 `\r\n` 在 LF 文件里造成混合行尾，本次已修正
 
 ---
 
+### [x] P2-11 评估为 5 个无薄层服务建薄层 → ❌ **已取消（2026-10-15）**
+
+**只读验证结果**：
+
+| 服务 | 引用数 | 引用形式 |
+|------|-------|---------|
+| `notificationService` | 4（3+1） | 动态 `await import()` |
+| `healthService` | 2（1+1） | 静态 import |
+| `geocodeService` | 1 | 静态 import |
+
+**总计 7 处引用**，对比现有薄层 33 处引用，差距显著。
+
+**取消原因**：
+1. 引用面太小，建薄层收益微弱
+2. `_architecture/` 深路径是**有意设计**——`_architecture` 前缀表示"内部实现"
+3. `notificationService` 使用动态 import，薄层路径长度无差别
+4. 与 P1-3 决策一致（薄层只在多引用时才有价值）
+
+**结论**：现有 6 处深路径引用**合理保留**。未来如 `notificationService`
+被更多组件引用，可重新评估建薄层。
+
+### [x] P2-13 dashboard.py 路径 bug 修复 → ✅ **已完成（2026-10-15）**
+
+**背景**：`ai-service/app/routers/dashboard.py:346` 的 `models_dir` 计算有 bug：
+
+```python
+# 修复前
+models_dir = fusion.model_path.parent.parent if fusion.model_path else _Path("./models")
+
+
 ### [ ] P2-14 CRLF 规范化（延后）
 
 **背景**：部分 Java 文件索引里保留 CRLF，`git diff --check` 反复警告。
@@ -308,6 +338,8 @@ PowerShell 硬编码 `\r\n` 在 LF 文件里造成混合行尾，本次已修正
 **前提**：在独立分支执行 + 全量构建验证 + 单独 commit。
 
 **暂不做**：属于噪音级问题，不影响功能。
+
+
 
 ## 执行记录
 
