@@ -32,3 +32,19 @@
 *.stl   binary
 *.rvt   binary
 *.class binary
+
+# ===== 核心代码文件强制 LF（新文件自动生效，存量不重写）=====
+# 目的：避免未来新增的 Java/JS/Vue/Python 代码以 CRLF 入库
+# 注意：不追溯已有文件（避免大规模 diff，见 P2-14 决策）
+*.java   text eol=lf
+*.js     text eol=lf
+*.mjs    text eol=lf
+*.cjs    text eol=lf
+*.vue    text eol=lf
+*.py     text eol=lf
+*.ts     text eol=lf
+*.json   text eol=lf
+*.yml    text eol=lf
+*.yaml   text eol=lf
+*.md     text eol=lf
+*.sql    text eol=lf
