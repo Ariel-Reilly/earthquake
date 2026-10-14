@@ -91,7 +91,7 @@ def main():
     parser.add_argument("--project", default="runs/crack")
     parser.add_argument("--name", default="yolov8n")
     parser.add_argument("--export-onnx", action="store_true", help="训练完成后导出 ONNX")
-    parser.add_argument("--models-dir", default=str(Path(__file__).resolve().parent.parent / "models"))
+    parser.add_argument("--models-dir", default=str(Path(__file__).resolve().parent.parent.parent / "models"))
     args = parser.parse_args()
 
     data_root = Path(args.data)

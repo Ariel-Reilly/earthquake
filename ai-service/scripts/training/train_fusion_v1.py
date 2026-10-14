@@ -10,7 +10,7 @@ CSV 列示例:
 目标: risk_score >= 60 → 1 (预警), 否则 0
 
 用法:
-    python train_xgboost_fusion.py --data ./fusion_factors.csv --output-dir ./models
+    python train_fusion_v1.py --data ./fusion_factors.csv --output-dir ../../models
 """
 from __future__ import annotations
 
@@ -131,7 +131,7 @@ def train(X: np.ndarray, y: np.ndarray, output_path: Path):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--data", required=True)
-    parser.add_argument("--output-dir", default=str(Path(__file__).resolve().parent.parent / "models"))
+    parser.add_argument("--output-dir", default=str(Path(__file__).resolve().parent.parent.parent / "models"))
     args = parser.parse_args()
 
     X, y = load_csv(Path(args.data))

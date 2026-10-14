@@ -1,7 +1,7 @@
 package cn.disasterguard.auth.service;
 
-import cn.disasterguard.auth.NotificationPreferenceDto;
-import cn.disasterguard.auth.UserProfileDto;
+import cn.disasterguard.auth.dto.NotificationPreferenceDto;
+import cn.disasterguard.auth.dto.UserProfileDto;
 import cn.disasterguard.auth.entity.SysUser;
 import cn.disasterguard.auth.entity.UserPreference;
 import cn.disasterguard.auth.entity.UserProfile;

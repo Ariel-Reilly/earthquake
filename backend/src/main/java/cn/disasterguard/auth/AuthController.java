@@ -21,6 +21,10 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import cn.disasterguard.auth.dto.LoginRequest;
+import cn.disasterguard.auth.dto.LoginResponse;
+import cn.disasterguard.auth.dto.ChangePasswordRequest;
+import cn.disasterguard.auth.dto.ChangePasswordResponse;
 
 @RestController
 @RequestMapping("/api/auth")

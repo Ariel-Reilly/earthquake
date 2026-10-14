@@ -645,7 +645,7 @@ class ComprehensiveRiskModel:
     def _run_xgboost(self, factors: Dict[str, float]) -> Tuple[float, float, str, bool]:
         """XGBoost 模型推理（支持七类全部特征）。
 
-        模型训练时标签已归一化到 [0, 100]（见 train_comprehensive_xgboost_v2.py 的
+        模型训练时标签已归一化到 [0, 100]（见 train_comprehensive_v2.py（scripts/training/）的
         compute_risk_score_regression），因此模型原生输出即为 0-100 风险评分，
         不需要再乘以 100。
         """

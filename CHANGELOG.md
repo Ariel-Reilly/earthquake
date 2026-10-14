@@ -52,7 +52,7 @@
   旧的 `CHANGE_ME_redis_secure_password_2024`，与 redis 服务端
   `CHANGE_ME__dev_redis_password_2026` 不匹配，未设 `REDIS_PASSWORD` 时后端
   NOAUTH 连接失败。已统一并加注释约束，`docker compose config` 双文件验证通过。
-- 复审详情见 `docs/CODE_REVIEW.md` 第五轮更新。
+- 复审详情见 `docs/reviews/CODE_REVIEW.md` 第五轮更新。
 
 ### 🐛 修复（2026-09-19 全项目审查 — 可运行性与安全）
 

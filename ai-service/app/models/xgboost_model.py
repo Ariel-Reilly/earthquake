@@ -90,7 +90,7 @@ class FusionRiskModel:
     def _run_xgboost(self, factors: Dict[str, float]) -> Dict[str, Any]:
         """XGBoost 推理。
 
-        v3 模型（train_xgboost_fusion_v3.py）已改为回归输出（reg:squarederror），
+        v3 模型（train_fusion_v3.py（scripts/training/））已改为回归输出（reg:squarederror），
         输出值即为 [0, 100] 连续风险评分，不需要再 * 100。
         """
         import xgboost as xgb

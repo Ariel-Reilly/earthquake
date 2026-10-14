@@ -6,7 +6,7 @@ LSTM 位移趋势预测模型训练脚本。
 训练轻量 LSTM 做未来 N 步预测。
 
 用法:
-    python train_lstm_displacement.py --data ./device_metric.csv --output-dir ./models
+    python train_lstm_displacement.py --data ./device_metric.csv --output-dir ../../models
     python train_lstm_displacement.py --data ./device_metric.csv --epochs 200 --lr 0.001
 """
 from __future__ import annotations
@@ -157,7 +157,7 @@ def main():
     parser.add_argument("--epochs", type=int, default=100)
     parser.add_argument("--lr", type=float, default=0.001)
     parser.add_argument("--hidden-size", type=int, default=64)
-    parser.add_argument("--output-dir", default=str(Path(__file__).resolve().parent.parent / "models"))
+    parser.add_argument("--output-dir", default=str(Path(__file__).resolve().parent.parent.parent / "models"))
     args = parser.parse_args()
 
     data = load_csv(Path(args.data), args.metric)

@@ -1,11 +1,11 @@
 package cn.disasterguard.dashboard;
 
 import cn.disasterguard.common.api.ApiResponse;
-import cn.disasterguard.dashboard.dao.ZoneDashboardDto;
-import cn.disasterguard.dashboard.dao.ZoneDashboardDto.RelatedEmergency;
-import cn.disasterguard.dashboard.dao.ZoneDashboardDto.RelatedWarning;
-import cn.disasterguard.dashboard.dao.ZoneDashboardDto.TopHazard;
-import cn.disasterguard.dashboard.dao.ZoneDashboardDto.TrendPoint;
+import cn.disasterguard.dashboard.dto.ZoneDashboardDto;
+import cn.disasterguard.dashboard.dto.ZoneDashboardDto.RelatedEmergency;
+import cn.disasterguard.dashboard.dto.ZoneDashboardDto.RelatedWarning;
+import cn.disasterguard.dashboard.dto.ZoneDashboardDto.TopHazard;
+import cn.disasterguard.dashboard.dto.ZoneDashboardDto.TrendPoint;
 import cn.disasterguard.dashboard.service.ZoneDashboardService;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;

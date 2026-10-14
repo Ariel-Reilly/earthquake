@@ -12,6 +12,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
+import cn.disasterguard.auth.dto.UserProfileDto;
+import cn.disasterguard.auth.dto.NotificationPreferenceDto;
 
 /**
  * P0-3：个人中心接口。
