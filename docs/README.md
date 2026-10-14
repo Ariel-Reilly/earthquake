@@ -1,7 +1,9 @@
 # 御灾智巡 · 项目文档
 
 > DisasterGuard 开发者文档索引
-> 最后更新：2026-09-16
+> 最后更新：2026-10-15
+>
+> 🆕 **第一次接触项目？** 从 [ONBOARDING/README.md](./ONBOARDING/README.md) 开始（5 分钟入门 + 导航）
 
 本目录是面向开发者的核心文档集合，按"了解系统 → 开发 → 运维 → 接口"的阅读路径组织。
 
@@ -11,6 +13,7 @@
 
 | 文档 | 用途 | 何时读 |
 |------|------|--------|
+| [ONBOARDING/](./ONBOARDING/README.md) | 新人入门：模块职责 + 数据流 + 决策记录 | **必读** — 第一次接触项目时 |
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | 系统分层、数据流、模块依赖、关键时序图 | **必读** — 第一次接触项目时 |
 | [DEVELOPER.md](./DEVELOPER.md) | 开发环境、技术栈、API、数据库、权限、部署、二次开发 | **必读** — 准备动手改代码前 |
 | [FRONTEND_API.md](./FRONTEND_API.md) | 前端功能 ↔ 后端 REST 接口对照表 | 写前端或调试接口时 |
@@ -21,9 +24,13 @@
 
 ## 🗂️ 阅读顺序建议
 
-### 🆕 新人入职
-1. [ARCHITECTURE.md](./ARCHITECTURE.md) — 30 分钟建立全局视图
-2. [DEVELOPER.md](./DEVELOPER.md) §1–§6（简介、技术栈、目录、环境、前后端开发指南）
+### 🆕 新人入职（30 分钟路径）
+1. [ONBOARDING/README.md](./ONBOARDING/README.md) — 5 分钟速览 + 导航
+2. [ONBOARDING/MODULES.md](./ONBOARDING/MODULES.md) — 模块职责一览
+3. [ONBOARDING/DATA_FLOW.md](./ONBOARDING/DATA_FLOW.md) — 端到端数据流
+4. [ONBOARDING/DECISIONS.md](./ONBOARDING/DECISIONS.md) — 关键决策 + 已知坑
+5. [ARCHITECTURE.md](./ARCHITECTURE.md) — 深度架构
+6. [DEVELOPER.md](./DEVELOPER.md) §1–§6 — 环境 + 开发指南
 
 ### 🔧 改前端代码
 1. [DEVELOPER.md](./DEVELOPER.md) §5（前端开发指南）

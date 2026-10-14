@@ -1,6 +1,8 @@
 # 御灾智巡 · 基于多源数据融合与AI智能研判的自然灾害监测预警与应急指挥平台
 
 > DisasterGuard · v1.7.0
+>
+> 🆕 **新加入项目？** 5 分钟入门 → [docs/ONBOARDING/README.md](docs/ONBOARDING/README.md)
 
 基于 **Spring Boot 3 + Vue 3 + FastAPI** 的一体化自然灾害监测、巡检、预警与应急响应平台。
 
