@@ -214,10 +214,10 @@ AI_SERVICE_ROOT=/custom/path python /anywhere/verify_models.py
 
 ```bash
 # Comprehensive v2（8800 样本，MAE=0.80）
-python scripts/train_comprehensive_xgboost_v2.py
+python scripts/training/train_comprehensive_v2.py
 
 # XGBoost Fusion v3（8000 样本，MAE=0.74）
-python scripts/train_xgboost_fusion_v3.py
+python scripts/training/train_fusion_v3.py
 
 # 其他模型
 python scripts/download_models.py --all  # 下载/训练所有模型

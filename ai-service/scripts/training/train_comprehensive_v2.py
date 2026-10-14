@@ -26,7 +26,7 @@
 标签: risk_score (连续 [0, 100])
 
 用法:
-    python train_comprehensive_xgboost_v2.py --output-dir ../models
+    python train_comprehensive_v2.py --output-dir ../../models
 """
 from __future__ import annotations
 

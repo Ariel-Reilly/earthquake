@@ -9,7 +9,7 @@
 |------|---------|------|
 | 服务管理 | `run_service.py` | 启动/检查 FastAPI |
 | 模型工具 | `download_models.py`、`verify_models.py`、`build_yolo_onnx.py` | 模型下载/校验/转换 |
-| 训练脚本 | `train_*.py` | 模型训练（版本化） |
+| 训练脚本 | `training/train_*.py` | 模型训练（版本化，详见 `training/README.md`） |
 | 手动测试 | `test_*.py` | 打印人类可读输出，非 pytest |
 
 ## test_*.py 文件说明

@@ -5,7 +5,7 @@ Isolation Forest 异常检测模型训练脚本。
 从 device_metric CSV 导出正常数据（异常点已剔除），训练 Isolation Forest。
 
 用法:
-    python train_isolation_forest.py --data ./device_metric.csv --output-dir ./models
+    python train_isolation_forest.py --data ./device_metric.csv --output-dir ../../models
 """
 from __future__ import annotations
 
@@ -77,7 +77,7 @@ def main():
     parser.add_argument("--data", required=True)
     parser.add_argument("--metric", default="displacement")
     parser.add_argument("--contamination", type=float, default=0.1)
-    parser.add_argument("--output-dir", default=str(Path(__file__).resolve().parent.parent / "models"))
+    parser.add_argument("--output-dir", default=str(Path(__file__).resolve().parent.parent.parent / "models"))
     args = parser.parse_args()
 
     X = load_csv(Path(args.data), args.metric)

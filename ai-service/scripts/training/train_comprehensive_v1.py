@@ -18,7 +18,7 @@
 标签: risk_score >= 60 → 1 (HIGH/CRITICAL 预警), 否则 0
 
 用法:
-    python train_comprehensive_xgboost.py --output-dir ../models
+    python train_comprehensive_v1.py --output-dir ../../models
 """
 from __future__ import annotations
 
@@ -278,7 +278,7 @@ def synthesize_sample(rng: random.Random) -> tuple:
 def main():
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument("--output-dir", default=str(Path(__file__).resolve().parent.parent / "models"))
+    parser.add_argument("--output-dir", default=str(Path(__file__).resolve().parent.parent.parent / "models"))
     parser.add_argument("--samples", type=int, default=5000)
     args = parser.parse_args()
 
