@@ -64,7 +64,7 @@
 - 备份校验进度模拟 → 接入真实校验接口
 - 帮助中心反馈模拟提交 → 接入反馈接口
 
-> 详细清单见：[前端综合审查报告](computer://d:\Projects\DisasterGuard\frontend-comprehensive-audit-report.md)
+> 详细清单见：[前端综合审查报告](./comprehensive-audit-report.md)
 
 ---
 
@@ -95,7 +95,7 @@
 - 跨页面跳转减少 60%
 - 代码复用率提升 35%
 
-> 详细方案见：[界面合并优化方案](computer://d:\Projects\DisasterGuard\docs\界面合并优化方案.md)
+> 详细方案见：[界面合并优化方案](./ui-merge-plan.md)
 
 ---
 
@@ -540,11 +540,11 @@ export const env = {
 
 ## 九、相关报告链接
 
-- [功能质量综合审查报告](computer://d:\Projects\DisasterGuard\frontend-comprehensive-audit-report.md)
-- [界面合并优化方案](computer://d:\Projects\DisasterGuard\docs\界面合并优化方案.md)
-- [性能审查报告](computer://d:\Projects\DisasterGuard\frontend\性能审查报告.md)
-- [架构审查报告](computer://d:\Projects\DisasterGuard\frontend-architecture-review.md)
-- [UX 审查报告](computer://d:\Projects\DisasterGuard\frontend\UX_Audit_Report.md)
+- [功能质量综合审查报告](./comprehensive-audit-report.md)
+- [界面合并优化方案](./ui-merge-plan.md)
+- [性能审查报告](./performance-audit-report.md)
+- [架构审查报告](./architecture-review.md)
+- [UX 审查报告](./UX_Audit_Report.md)
 
 ---
 
