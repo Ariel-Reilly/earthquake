@@ -172,3 +172,6 @@ frontend/scripts/_shots/
 # ===== 模型回退目录（ai-service/config.py 兼容旧部署，新副本应放 ai-service/models/）=====
 # 注：保留回退指向但禁止持续堆积；CI 会在 PR 中提示迁移到 ai-service/models/。
 /models/
+
+# AI 工作记忆（Cursor 等）
+.workbuddy/

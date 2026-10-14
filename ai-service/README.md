@@ -248,5 +248,5 @@ AI_CORS_ORIGINS="http://localhost:5173,http://localhost:3000" python scripts/run
 
 ## 更多信息
 
-- 改进总结：`docs/AI_MODULE_IMPROVEMENT_20260929.md`
-- 代码评审：`docs/CODE_REVIEW_R5.md`
+- 改进总结：`docs/guides/AI_MODULE_IMPROVEMENT_20260929.md`
+- 代码评审：`docs/reviews/CODE_REVIEW_R5.md`
