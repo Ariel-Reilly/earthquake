@@ -122,14 +122,45 @@
 已 `git restore` 完全回滚后改用手动脚本。脚本化流程更可控，
 将作为后续同类任务的默认方式。
 
-### [ ] P1-3 frontend services 薄层 re-export 清理
+### [x] P1-3 frontend services 薄层清理 → ❌ **已取消（2026-10-14）**
 
-目标：
-1. 删除 services/ 根下薄层 re-export 文件
-2. 调用方改为引用 services/_architecture/domain/xxx.js
-3. 只做这一步，_architecture/ 重命名单独任务
+**只读验证结果**：
 
-警告：必须单独 Cursor 会话，先 git checkout -b refactor/p1-3-frontend-services
+**薄层统计**：9 个薄层文件（50-68 B），转发到 `_architecture/domain/` 或 `_architecture/core/`
+
+**引用面**：
+| 类型 | 数量 |
+|------|------|
+| 通过薄层 import（`@/services/xxx`） | 33 处 |
+| 直接 import `_architecture/` 的外部文件 | 6 个 |
+
+**6 个直接引用文件的真相**：
+| 文件 | 引用目标 | 有薄层？ |
+|------|---------|---------|
+| `ChannelMatrix.vue` | `_architecture/domain/notificationService.js` | ❌ |
+| `DeliveryReceipt.vue` | 同上 | ❌ |
+| `ServiceHealthBanner.vue` | `_architecture/core/healthService.js` | ❌ |
+| `useOverviewSearch.js` | `_architecture/core/geocodeService.js` | ❌ |
+| `DashboardLayout.vue` | `_architecture/core/healthService` | ❌ |
+| `SocialMediaPage.vue` | `_architecture/domain/aiApi` | ✅ 有 |
+
+**结论**：5 个文件引用的服务**从未建过薄层**，不是"绕过"；只有 1 个真正绕路。
+
+**取消原因**：
+1. 薄层在起作用（33 vs 6，薄层是主要入口）
+2. `realtimeService.js` 有注释明示"刻意保留兼容性"
+3. 删薄层后路径变长（`@/services/_architecture/domain/aiApi`），降低可读性
+4. "反向整理"只有 1 个文件可改，收益 < 成本
+5. `_architecture/` 重命名影响 17 个文件，属于 P2 范畴
+
+**替代方案**：
+- 新增 `frontend/src/services/README.md` 说明架构分层
+- 未来新增服务时决定是否建薄层
+
+**新增 P2 任务**：
+- P2-11：评估是否为 `notificationService`、`healthService`、`geocodeService` 建薄层
+- P2-12：`SocialMediaPage.vue` 的 `aiApi` 引用改为走薄层（微调）
+
 
 ### [x] P1-4 docs 归档整理 → ✅ **已完成（2026-10-14）**
 
@@ -192,6 +223,8 @@
 - [ ] P2-8 scheduler 归位（`JwtBlacklistCleanupScheduler` 从 `auth/jwt/` 移到 `auth/scheduler/`）
 - [ ] P2-9 Properties 归位（`AiProperties`、`JwtProperties` 移到 `config/`）
 - [ ] P2-10 `WsTicketRepository` 的 `@Scheduled` 抽取
+- [ ] P2-11 评估为 notificationService / healthService / geocodeService 建薄层
+- [ ] P2-12 SocialMediaPage.vue 的 aiApi 引用改为走 `@/services/aiApi` 薄层
 ---
 
 ## 执行记录
