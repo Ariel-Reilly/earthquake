@@ -24,9 +24,9 @@ import org.springframework.stereotype.Component;
  * 即使泄露也无法重放。生产环境可替换为 Redis 存储。
  */
 @Component
-public class WsTicketRepository {
+public class WsTicketStore {
 
-  private static final Logger log = LoggerFactory.getLogger(WsTicketRepository.class);
+  private static final Logger log = LoggerFactory.getLogger(WsTicketStore.class);
   private static final long TTL_SECONDS = 60;
   private static final SecureRandom RNG = new SecureRandom();
 

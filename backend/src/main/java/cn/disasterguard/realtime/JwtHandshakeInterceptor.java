@@ -36,10 +36,10 @@ public class JwtHandshakeInterceptor implements HandshakeInterceptor {
   private static final Logger log = LoggerFactory.getLogger(JwtHandshakeInterceptor.class);
 
   private final JwtService jwtService;
-  private final WsTicketRepository ticketRepository;
+  private final WsTicketStore ticketRepository;
   private final boolean requireTicketOnly;
 
-  public JwtHandshakeInterceptor(JwtService jwtService, WsTicketRepository ticketRepository,
+  public JwtHandshakeInterceptor(JwtService jwtService, WsTicketStore ticketRepository,
                                  @Value("${disasterguard.ws.require-ticket:false}") boolean requireTicketOnly) {
     this.jwtService = jwtService;
     this.ticketRepository = ticketRepository;

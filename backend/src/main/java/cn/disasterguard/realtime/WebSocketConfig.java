@@ -31,7 +31,7 @@ public class WebSocketConfig implements WebSocketConfigurer {
 
   private final RealtimeBroadcastService broadcastService;
   private final JwtService jwtService;
-  private final WsTicketRepository ticketRepository;
+  private final WsTicketStore ticketRepository;
   private final boolean requireTicketOnly;
   private final String frontendOrigin;
 
@@ -39,7 +39,7 @@ public class WebSocketConfig implements WebSocketConfigurer {
   private boolean enabled;
 
   public WebSocketConfig(RealtimeBroadcastService broadcastService, JwtService jwtService,
-                         WsTicketRepository ticketRepository,
+                         WsTicketStore ticketRepository,
                          @Value("${disasterguard.ws.require-ticket:false}") boolean requireTicketOnly,
                          @Value("${disasterguard.frontend-origin:http://localhost:5173}") String frontendOrigin) {
     this.broadcastService = broadcastService;

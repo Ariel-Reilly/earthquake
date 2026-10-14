@@ -5,7 +5,7 @@ import cn.disasterguard.auth.jwt.JwtService;
 import cn.disasterguard.auth.security.DbUserDetailsService;
 import cn.disasterguard.common.api.ApiResponse;
 import cn.disasterguard.common.security.JwtAuthenticationFilter;
-import cn.disasterguard.realtime.WsTicketRepository;
+import cn.disasterguard.realtime.WsTicketStore;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -36,13 +36,13 @@ public class AuthController {
   private final DbUserDetailsService userDetailsService;
   private final PasswordEncoder passwordEncoder;
   private final cn.disasterguard.auth.repository.SysUserRepository userRepository;
-  private final WsTicketRepository ticketRepository;
+  private final WsTicketStore ticketRepository;
 
   public AuthController(JwtService jwtService,
                         DbUserDetailsService userDetailsService,
                         PasswordEncoder passwordEncoder,
                         cn.disasterguard.auth.repository.SysUserRepository userRepository,
-                        WsTicketRepository ticketRepository) {
+                        WsTicketStore ticketRepository) {
     this.jwtService = jwtService;
     this.userDetailsService = userDetailsService;
     this.passwordEncoder = passwordEncoder;
