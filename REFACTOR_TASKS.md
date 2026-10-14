@@ -279,6 +279,36 @@
 PowerShell 硬编码 `\r\n` 在 LF 文件里造成混合行尾，本次已修正。
 未来脚本应检测 EOL：`$eol = if ($raw.Contains("`r`n")) { "`r`n" } else { "`n" }`。
 
+### [x] P2-10 WsTicketRepository 命名修正 → ✅ **已完成（2026-10-15）**
+
+**执行结果**：`WsTicketRepository` → `WsTicketStore`
+
+**理由**：该类不是 Spring Data Repository（无 `@Repository`、无接口继承），
+而是内存票据存储。原命名误导。`@Scheduled` 内嵌合理（资源生命周期管理），
+**不抽取 Scheduler**（抽了要暴露 public 方法，弱化封装）。
+
+**改动范围**：
+- `WsTicketRepository.java` → `WsTicketStore.java`（类名同步）
+- 3 个引用者改 import：`AuthController`、`JwtHandshakeInterceptor`、`WebSocketConfig`
+
+**未做**：抽取独立 Scheduler —— 参考 P0-2/P2-8 经验，此改动收益低、成本高。
+
+---
+
+### [ ] P2-14 CRLF 规范化（延后）
+
+**背景**：部分 Java 文件索引里保留 CRLF，`git diff --check` 反复警告。
+`.gitattributes` 里 `* text=auto` 对**首次加入索引**的文件生效，
+已存在 CRLF 快照的文件不会被自动重写。
+
+**方案**：`git add --renormalize .` 一次性规范所有文件行尾。
+
+**风险**：可能产生数百文件的 diff。
+
+**前提**：在独立分支执行 + 全量构建验证 + 单独 commit。
+
+**暂不做**：属于噪音级问题，不影响功能。
+
 ## 执行记录
 
 | 日期 | 任务 | 提交 | 结果 |
