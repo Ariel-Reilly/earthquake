@@ -22,24 +22,18 @@
 
 ---
 
-### [ ] P0-2 ai-service/scripts/ 下测试工具整理
+### [x] P0-2 ai-service/scripts/ 测试文件归位 → ❌ **已取消（2026-10-14）**
 
-**背景**：`scripts/` 根下散落 5 个 `test_*.py`：
-- `test_api_endpoints.py`（集成测试工具，被 ai.py 调用）
-- `test_comprehensive_v2.py`
-- `test_disaster_scenarios.py`
-- `test_models.py`
-- `test_yolo.py`
+**验证结果**：5 个 `test_*.py` **全部** `from _bootstrap import setup_path`。
+移动到 `scripts/testing/` 会导致 import 失效，必须在每个文件补 sys.path 修正，
+**代价大于收益**。
 
-**先只读验证每个文件的用途与引用，再决定组织方案。**
-**不删除任何文件，只做归位。**
+**替代方案**：保持物理位置不变，已新建 `ai-service/scripts/README.md`，
+在其中说明 5 个文件的用途和与 `tests/` 的区别。
 
-**候选方案**（待验证后确定）：
-- 可 pytest 化的单元测试 → 移入 `tests/`
-- 手动集成测试工具 → 移入 `scripts/testing/`
-- 保留在 `scripts/` → 写明理由
-
-**执行前**：更新 `ai.py`、`README.md`、`docs/AI_MODULE_IMPROVEMENT_20260929.md` 中的路径引用。
+**教训**：文件"看起来可以整理" ≠ "值得整理"。移动前必须验证
+运行依赖（`_bootstrap` / `sys.path` / 相对路径），移动成本高于组织收益时
+应保留现状。
 
 ## P1 - 本周内完成
 

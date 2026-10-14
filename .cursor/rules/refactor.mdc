@@ -44,3 +44,9 @@ alwaysApply: true
 - 参考文件：@REFACTOR_TASKS.md、@docs/refactor-plan.md
 - 严格只做当前指定的模块，不要跨模块重构。
 - 注释使用中文，遵循 .cursorrules 规范。
+
+19. 移动任何 Python 脚本前，必须检查它是否 `from _bootstrap import ...`
+    或对 `sys.path` 有依赖。如果依赖同目录模块，移动后必须：
+    (a) 在文件顶部补 `sys.path.insert(0, str(Path(__file__).parent.parent))`，或
+    (b) 放弃移动。
+    优先选 (b)，除非组织收益明确高于代码复杂度增加。
