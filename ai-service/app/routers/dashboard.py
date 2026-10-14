@@ -331,6 +331,7 @@ async def dashboard_summary() -> JSONResponse:
         )
         import json as _json
         from pathlib import Path as _Path
+        from app.config import MODELS_DIR
 
         fusion = get_fusion_model()
         comprehensive = get_comprehensive_model()
@@ -343,7 +344,7 @@ async def dashboard_summary() -> JSONResponse:
             except Exception:  # noqa: BLE001
                 return {}
 
-        models_dir = fusion.model_path.parent.parent if fusion.model_path else _Path("./models")
+        models_dir = MODELS_DIR
         all_models = []
         for fname, label, meta_p in [
             ("yolo_crack.onnx", "YOLO 裂缝/落石检测", None),
