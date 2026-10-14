@@ -227,6 +227,36 @@
 - [ ] P2-12 SocialMediaPage.vue 的 aiApi 引用改为走 `@/services/aiApi` 薄层
 ---
 
+### [x] P2-8 Scheduler 归位 → ✅ **部分完成（2026-10-14）**
+
+**执行结果**：2 个 Scheduler 移动到 `scheduler/` 子包。
+
+| 文件 | 从 | 到 |
+|------|----|----|
+| `AiForecastScheduler.java` | `ai/service/` | `ai/scheduler/` |
+| `DeviceMetricCleanupScheduler.java` | `device/service/` | `device/scheduler/` |
+
+**引用更新**：
+- `AiAnalysisController.java`（import 改为 `.ai.scheduler`）
+- `AiForecastScheduler.java` 自身补 `import cn.disasterguard.ai.service.AiAnalysisService;`
+
+**保留未移动的 3 个**：
+- `auth/jwt/JwtBlacklistCleanupScheduler.java` —— 与 `JwtBlacklist` 语义邻近
+- `warning/engine/AiWarningScheduler.java` —— engine 是功能单元
+- `warning/engine/RuleEngineScheduler.java` —— 同上
+
+**全项目 `@Scheduled` 分布**（15 处）：
+- 已在 `scheduler/`：5 个
+- 配置类：1 个
+- Service 内嵌：2 个（非独立 scheduler）
+- Repository 内嵌：1 个（P2-10 处理）
+- 本次移动：2 个
+- 保留：3 个
+
+**教训**：移动 Java 类时，**同包引用会断**。移前先扫引用同包其他类，
+移动后补 import。本次 `AiForecastScheduler` 遗漏补
+`import ...AiAnalysisService;` 导致首次编译失败。
+
 ## 执行记录
 
 | 日期 | 任务 | 提交 | 结果 |
