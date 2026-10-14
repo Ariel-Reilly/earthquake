@@ -1,7 +1,5 @@
 package cn.disasterguard.config;
 
-import cn.disasterguard.ai.AiProperties;
-import cn.disasterguard.auth.jwt.JwtProperties;
 import io.minio.MinioClient;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;

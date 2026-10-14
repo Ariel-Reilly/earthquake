@@ -1,4 +1,4 @@
-package cn.disasterguard.auth.jwt;
+package cn.disasterguard.config;
 
 import java.time.Duration;
 import org.springframework.boot.context.properties.ConfigurationProperties;

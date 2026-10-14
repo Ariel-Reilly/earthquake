@@ -1,5 +1,6 @@
 package cn.disasterguard.auth.jwt;
 
+import cn.disasterguard.config.JwtProperties;
 import cn.disasterguard.common.exception.AppException;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;

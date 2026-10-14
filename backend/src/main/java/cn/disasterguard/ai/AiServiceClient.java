@@ -1,5 +1,6 @@
 package cn.disasterguard.ai;
 
+import cn.disasterguard.config.AiProperties;
 import cn.disasterguard.ai.dto.AnomalyResult;
 import cn.disasterguard.ai.dto.ComprehensiveAnalysisResult;
 import cn.disasterguard.ai.dto.DeviceHealthRequestDto;

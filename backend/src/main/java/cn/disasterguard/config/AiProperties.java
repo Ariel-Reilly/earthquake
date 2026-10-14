@@ -1,4 +1,4 @@
-package cn.disasterguard.ai;
+package cn.disasterguard.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
