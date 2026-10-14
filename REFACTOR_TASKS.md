@@ -9,20 +9,37 @@
 
 ## P0 - 立即执行
 
-### [ ] P0-1 删除 ai-service 重复测试文件
+### [x] P0-1 删除 ai-service 重复测试文件 → ❌ **已取消（2026-10-14）**
 
-**前提已验证**：ai-service/tests/test_api_endpoints.py 存在（9900 字节）
+**验证结果**：两文件**非重复**，用途互补。
 
-**目标**：删除 ai-service/scripts/test_api_endpoints.py（与 tests/ 下疑似重复）
+| 文件 | 框架 | 需要服务 | 用途 | 大小 |
+|------|------|---------|------|------|
+| `tests/test_api_endpoints.py` | pytest + TestClient | 否 | CI 单元测试（17 类） | 225 行 |
+| `scripts/test_api_endpoints.py` | urllib | 是 | 现场诊断，被 `ai.py api` 调用 | 80 行 |
 
-**验证步骤**：
-1. 对比两文件内容
-2. 如有差异 → 停下报告，不删
-3. 如无差异 → 执行删除
-
-**执行**：git rm ai-service/scripts/test_api_endpoints.py
+**结论**：两者均保留。原"重复"判断错误。
 
 ---
+
+### [ ] P0-2 ai-service/scripts/ 下测试工具整理
+
+**背景**：`scripts/` 根下散落 5 个 `test_*.py`：
+- `test_api_endpoints.py`（集成测试工具，被 ai.py 调用）
+- `test_comprehensive_v2.py`
+- `test_disaster_scenarios.py`
+- `test_models.py`
+- `test_yolo.py`
+
+**先只读验证每个文件的用途与引用，再决定组织方案。**
+**不删除任何文件，只做归位。**
+
+**候选方案**（待验证后确定）：
+- 可 pytest 化的单元测试 → 移入 `tests/`
+- 手动集成测试工具 → 移入 `scripts/testing/`
+- 保留在 `scripts/` → 写明理由
+
+**执行前**：更新 `ai.py`、`README.md`、`docs/AI_MODULE_IMPROVEMENT_20260929.md` 中的路径引用。
 
 ## P1 - 本周内完成
 
