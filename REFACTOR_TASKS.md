@@ -80,23 +80,33 @@ ai-service/scripts/training/
 
 警告：必须单独 Cursor 会话，先 git checkout -b refactor/p1-3-frontend-services
 
-### [ ] P1-4 docs 归档整理
+### [x] P1-4 docs 归档整理 → ✅ **已完成（2026-10-14）**
 
-现状根级散装：
-- docs/前端全面优化方案.md
-- docs/前端功能真实性核查报告_20261003.md
-- docs/界面合并优化方案.md
-- docs/页面合并可行性分析报告.md
-- docs/CODE_REVIEW_R5.md
-- docs/AI_MODULE_IMPROVEMENT_20260929.md
+**执行结果**：11 个文件移动，4 处引用同步更新。
 
-目标：
-docs/audits/frontend/*.md（新建）
-docs/reviews/CODE_REVIEW_R5.md
-docs/guides/AI_MODULE_IMPROVEMENT.md
+**移动清单**：
+| 原路径 | 新路径 |
+|--------|--------|
+| `docs/前端全面优化方案.md` | `docs/audit/frontend/frontend-optimization-plan.md` |
+| `docs/前端功能真实性核查报告_20261003.md` | `docs/audit/frontend/feature-reality-check-20261003.md` |
+| `docs/界面合并优化方案.md` | `docs/audit/frontend/ui-merge-plan.md` |
+| `docs/页面合并可行性分析报告.md` | `docs/audit/frontend/page-merge-analysis.md` |
+| `docs/audit/frontend/性能审查报告.md` | `docs/audit/frontend/performance-audit-report.md` |
+| `docs/CODE_REVIEW.md` | `docs/reviews/CODE_REVIEW.md` |
+| `docs/CODE_REVIEW_R2.md` | `docs/reviews/CODE_REVIEW_R2.md` |
+| `docs/CODE_REVIEW_R3.md` | `docs/reviews/CODE_REVIEW_R3.md` |
+| `docs/CODE_REVIEW_R4.md` | `docs/reviews/CODE_REVIEW_R4.md` |
+| `docs/CODE_REVIEW_R5.md` | `docs/reviews/CODE_REVIEW_R5.md` |
+| `docs/AI_MODULE_IMPROVEMENT_20260929.md` | `docs/guides/AI_MODULE_IMPROVEMENT_20260929.md` |
 
-执行：git mv 重命名，不改文件内容。
+**引用更新**：
+- `backend/src/main/resources/application-prod.yml:30`
+- `ai-service/README.md:251-252`
+- `CHANGELOG.md:55`
 
+**遗留问题**（转 P2-6）：
+- `docs/audit/frontend/frontend-optimization-plan.md` 第 99/544 行有 6 处
+  `computer://` 绝对路径链接，历史遗留，本次未修
 ---
 
 ## P2 - 迭代优化（暂缓）
@@ -106,7 +116,7 @@ docs/guides/AI_MODULE_IMPROVEMENT.md
 - [ ] P2-3 frontend 拆分 system 视图
 - [ ] P2-4 补测试覆盖率
 - [ ] P2-5 清理 CSS rgba 注释噪音
-
+- [ ] P2-6 修复 `frontend-optimization-plan.md` 中 6 处 `computer://` 坏链接
 ---
 
 ## 执行记录
