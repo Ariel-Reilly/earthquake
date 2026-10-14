@@ -295,6 +295,39 @@ public class AiServiceClient {
     }
   }
 
+  /**
+   * 社交媒体文本分析：情感极性 / 告警等级 / 灾害关键词 / 位置聚类 / 时间线。
+   *
+   * <p>调用 ai-service 的 {@code POST /api/ai/social-media/analyze}。入参为待分析文本列表，
+   * 返回结构中带 {@code mock} 标志位，前端据此展示「演示数据」标识。
+   */
+  @SuppressWarnings("unchecked")
+  public Map<String, Object> analyzeSocialMedia(List<Map<String, Object>> texts,
+                                                List<Double> bbox,
+                                                Integer timeRangeHours) {
+    requireEnabled();
+    Map<String, Object> payload = new HashMap<>();
+    payload.put("texts", texts);
+    if (bbox != null && !bbox.isEmpty()) {
+      payload.put("bbox", bbox);
+    }
+    if (timeRangeHours != null) {
+      payload.put("time_range_hours", timeRangeHours);
+    }
+    try {
+      Map<String, Object> resp = restClient.post()
+          .uri("/social-media/analyze")
+          .contentType(MediaType.APPLICATION_JSON)
+          .body(payload)
+          .retrieve()
+          .body(Map.class);
+      return resp;
+    } catch (Exception e) {
+      log.warn("AI /social-media/analyze 调用失败: {}", e.getMessage());
+      throw new AiUnavailableException("AI 社交媒体分析不可用: " + e.getMessage());
+    }
+  }
+
   // ============================================================ //
   // ============================================================ //
 

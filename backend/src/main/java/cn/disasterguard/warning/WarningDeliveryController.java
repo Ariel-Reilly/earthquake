@@ -9,6 +9,7 @@ import java.time.OffsetDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -16,21 +17,27 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.security.access.prepost.PreAuthorize;
 
 /**
  * 预警送达（Warning Delivery）REST API。
  *
  * <p>端点：
  * <ul>
- *   <li>{@code GET /api/warnings/{id}/delivery/summary} — 送达汇总</li>
- *   <li>{@code GET /api/warnings/{id}/delivery/records} — 送达记录</li>
+ *   <li>{@code GET /api/warnings/{id}/delivery/summary} — 送达汇总（真实聚合）</li>
+ *   <li>{@code GET /api/warnings/{id}/delivery/records} — 送达记录（真实行表）</li>
  *   <li>{@code POST /api/warnings/{id}/delivery/redeliver} — 重新发送失败通知</li>
  * </ul>
  *
- * <p>数据持久化：原内存 {@code Map<预警id, List<记录>>} 已改为行表
- * {@code warning_delivery_record}（record_id = 预警 id，payload = 单条记录），
- * 端点路径与响应结构保持不变。
+ * <p>v1.8.0 起去掉两处造假：
+ * <ol>
+ *   <li>summary 原写死 {@code totalRecipients=156 / sent=150 / delivered=142} 及各渠道常量，
+ *       与真实记录无关；现改为按 {@code payload} 里的 status 字段真实聚合，库空则全 0。</li>
+ *   <li>records 原在首次访问时"懒生成" 15 条虚构送达记录（张三/李四/网络超时等）并落库，
+ *       属于凭空造数据；现只返回真实存在的记录，库空即如实返回空列表。</li>
+ * </ol>
+ *
+ * <p>数据持久化：行表 {@code warning_delivery_record}
+ * （record_id = 预警 id，payload = 单条记录）。
  */
 @RestController
 @RequestMapping("/api/warnings")
@@ -53,9 +60,15 @@ public class WarningDeliveryController {
 
   @PostConstruct
   void init() {
-    recordIdGen = deliveryRecordRepository.findMaxId();
+    recordIdGen = Math.max(deliveryRecordRepository.findMaxId(), SEED_ID_BASE);
   }
 
+  /**
+   * 送达汇总：按真实记录的 status 字段聚合，不再写死常量。
+   *
+   * <p>status 取值口径：{@code DELIVERED}（已送达）/ {@code SENT}（已发送未确认）/
+   * {@code FAILED}（失败）/ {@code PENDING}（待发送）。
+   */
   @GetMapping("/{id}/delivery/summary")
   @PreAuthorize("hasAuthority('warnings:view')")
   public ApiResponse<Map<String, Object>> getSummary(@PathVariable Long id) {
@@ -64,25 +77,53 @@ public class WarningDeliveryController {
       return ApiResponse.fail(404, "预警不存在: " + id);
     }
 
-    // 模拟送达数据
+    List<Map<String, Object>> records = deliveryRecordRepository
+        .findByRecordIdOrderByIdAsc(id).stream()
+        .map(WarningDeliveryRecord::getPayload)
+        .toList();
+
+    int total = records.size();
+    int delivered = countByStatus(records, "DELIVERED");
+    int sent = countByStatus(records, "SENT") + delivered;
+    int failed = countByStatus(records, "FAILED");
+    int pending = countByStatus(records, "PENDING");
+
     Map<String, Object> summary = new LinkedHashMap<>();
     summary.put("warningId", id);
-    summary.put("totalRecipients", 156);
-    summary.put("sent", 150);
-    summary.put("delivered", 142);
-    summary.put("failed", 8);
-    summary.put("pending", 6);
+    summary.put("totalRecipients", total);
+    summary.put("sent", sent);
+    summary.put("delivered", delivered);
+    summary.put("failed", failed);
+    summary.put("pending", pending);
 
-    Map<String, Object> channels = new LinkedHashMap<>();
-    channels.put("app", Map.of("sent", 100, "delivered", 95, "failed", 5));
-    channels.put("sms", Map.of("sent", 30, "delivered", 28, "failed", 2));
-    channels.put("email", Map.of("sent", 15, "delivered", 12, "failed", 3));
-    channels.put("webhook", Map.of("sent", 5, "delivered", 5, "failed", 0));
+    // 按渠道聚合
+    Map<String, Map<String, Object>> channels = new LinkedHashMap<>();
+    for (Map<String, Object> r : records) {
+      Object chObj = r.get("channel");
+      String ch = chObj == null ? "unknown" : String.valueOf(chObj);
+      Map<String, Object> agg = channels.computeIfAbsent(ch, k -> {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("sent", 0);
+        m.put("delivered", 0);
+        m.put("failed", 0);
+        return m;
+      });
+      String status = String.valueOf(r.get("status"));
+      if ("DELIVERED".equals(status)) {
+        agg.put("delivered", (Integer) agg.get("delivered") + 1);
+        agg.put("sent", (Integer) agg.get("sent") + 1);
+      } else if ("SENT".equals(status)) {
+        agg.put("sent", (Integer) agg.get("sent") + 1);
+      } else if ("FAILED".equals(status)) {
+        agg.put("failed", (Integer) agg.get("failed") + 1);
+      }
+    }
     summary.put("channels", channels);
-
+    summary.put("dataSource", "warning_delivery_record（真实库聚合）");
     return ApiResponse.success(summary);
   }
 
+  /** 送达记录列表：只返回真实存在的记录，不再懒生成假数据。 */
   @GetMapping("/{id}/delivery/records")
   @PreAuthorize("hasAuthority('warnings:view')")
   public ApiResponse<Map<String, Object>> getRecords(
@@ -91,41 +132,15 @@ public class WarningDeliveryController {
       @RequestParam(defaultValue = "20") int size,
       @RequestParam(required = false) String channel) {
 
-    List<WarningDeliveryRecord> stored = deliveryRecordRepository.findByRecordIdOrderByIdAsc(id);
-    if (stored.isEmpty()) {
-      // 首次访问该预警时生成模拟送达记录（与原 computeIfAbsent 懒生成行为一致）
-      List<WarningDeliveryRecord> records = new java.util.ArrayList<>();
-      String[] channels = {"app", "sms", "email", "webhook"};
-      String[] statuses = {"DELIVERED", "DELIVERED", "FAILED", "PENDING"};
-      String[] recipients = {"张三", "李四", "王五", "应急指挥中心", "值班员A"};
-      for (int i = 0; i < 15; i++) {
-        long recordId = ++recordIdGen;
-        Map<String, Object> record = new LinkedHashMap<>();
-        record.put("id", recordId);
-        record.put("channel", channels[i % 4]);
-        record.put("recipient", recipients[i % 5]);
-        record.put("status", statuses[i % 4]);
-        record.put("sentAt", OffsetDateTime.now().minusMinutes(i * 5).toString());
-        if ("DELIVERED".equals(statuses[i % 4])) {
-          record.put("deliveredAt", OffsetDateTime.now().minusMinutes(i * 5 - 1).toString());
-        }
-        if ("FAILED".equals(statuses[i % 4])) {
-          record.put("error", "网络超时，发送失败");
-        }
-        WarningDeliveryRecord entity = new WarningDeliveryRecord();
-        entity.setId(recordId);
-        entity.setRecordId(id);
-        entity.setPayload(record);
-        records.add(entity);
-      }
-      deliveryRecordRepository.saveAll(records);
-      stored = deliveryRecordRepository.findByRecordIdOrderByIdAsc(id);
+    var warning = warningRepository.findById(id).orElse(null);
+    if (warning == null) {
+      return ApiResponse.fail(404, "预警不存在: " + id);
     }
 
-    var filtered = stored.stream()
+    List<Map<String, Object>> filtered = deliveryRecordRepository
+        .findByRecordIdOrderByIdAsc(id).stream()
         .map(WarningDeliveryRecord::getPayload)
-        .filter(r -> channel == null || channel.isBlank()
-            || channel.equals(r.get("channel")))
+        .filter(r -> channel == null || channel.isBlank() || channel.equals(r.get("channel")))
         .toList();
 
     int safeSize = Math.min(Math.max(size, 1), 200);
@@ -138,34 +153,58 @@ public class WarningDeliveryController {
     Map<String, Object> result = new LinkedHashMap<>();
     result.put("items", items);
     result.put("total", total);
+    // 库中无记录时明确告知前端（前端据此显示空态而非"数据加载中"）
+    result.put("empty", total == 0);
     return ApiResponse.success(result);
   }
 
+  /**
+   * 重新发送失败通知。
+   *
+   * <p><b>诚实说明</b>：本端点当前不具备真实短信/邮件/推送网关下发能力，
+   * 因此仅将本次重发请求中的失败记录重新置为 {@code PENDING}（等待真实网关消费），
+   * 不返回伪造的"成功/失败条数"。
+   * 原实现的 {@code resent = channels × recipients} 与 {@code failed = 10%} 是纯编造。
+   */
   @PostMapping("/{id}/delivery/redeliver")
   @PreAuthorize("hasAuthority('warnings:create')")
   public ApiResponse<Map<String, Object>> redeliver(
-      @PathVariable Long id,
-      @RequestBody Map<String, Object> body) {
+      @PathVariable Long id, @RequestBody Map<String, Object> body) {
     var warning = warningRepository.findById(id).orElse(null);
     if (warning == null) {
       return ApiResponse.fail(404, "预警不存在: " + id);
     }
 
-    @SuppressWarnings("unchecked")
-    List<String> channels = (List<String>) body.getOrDefault("channels",
-        List.of("app", "sms", "email"));
-    @SuppressWarnings("unchecked")
-    List<String> recipients = (List<String>) body.getOrDefault("recipients",
-        List.of());
+    List<WarningDeliveryRecord> all =
+        deliveryRecordRepository.findByRecordIdOrderByIdAsc(id);
+    List<WarningDeliveryRecord> failedOnes = all.stream()
+        .filter(r -> "FAILED".equals(String.valueOf(r.getPayload().get("status"))))
+        .toList();
 
-    // 模拟重新发送
-    int resent = channels.size() * (recipients.isEmpty() ? 1 : recipients.size());
-    int failed = (int) (resent * 0.1); // 10% 失败率
+    for (WarningDeliveryRecord rec : failedOnes) {
+      Map<String, Object> payload = new LinkedHashMap<>(rec.getPayload());
+      payload.put("status", "PENDING");
+      payload.put("requeuedAt", OffsetDateTime.now().toString());
+      rec.setPayload(payload);
+    }
+    if (!failedOnes.isEmpty()) {
+      deliveryRecordRepository.saveAll(failedOnes);
+    }
 
     Map<String, Object> result = new LinkedHashMap<>();
-    result.put("resent", resent);
-    result.put("failed", failed);
-    result.put("message", failed == 0 ? "全部重发成功" : "部分重发失败，请检查网络连接");
+    result.put("requeued", failedOnes.size());
+    result.put("gatewayConnected", false);
+    result.put(
+        "message",
+        failedOnes.isEmpty()
+            ? "无失败记录，无需重发"
+            : "已将 " + failedOnes.size() + " 条失败记录置为待发送；当前未接入真实下发网关，不会真正送达");
     return ApiResponse.success(result);
+  }
+
+  private int countByStatus(List<Map<String, Object>> records, String status) {
+    return (int) records.stream()
+        .filter(r -> status.equals(String.valueOf(r.get("status"))))
+        .count();
   }
 }

@@ -25,12 +25,28 @@ public class OperationLogAspect {
 
   private static final Logger log = LoggerFactory.getLogger(OperationLogAspect.class);
 
+  /** 项目根包前缀（含结尾的点）。 */
+  private static final String ROOT_PACKAGE = "cn.disasterguard.";
+
+  /** 请求体记录上限。 */
+  private static final int BODY_MAX_LEN = 500;
+
+  /** 敏感字段：命中即整段脱敏，避免明文落库。 */
+  private static final java.util.regex.Pattern SENSITIVE_KEY =
+      java.util.regex.Pattern.compile(
+          "(?i)\"(password|passwd|pwd|secret|token|accessKey|secretKey|access_key|secret_key)\"\\s*:\\s*\"[^\"]*\"");
+
   private final OperationLogRepository repository;
   private final JwtService jwtService;
+  private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
-  public OperationLogAspect(OperationLogRepository repository, JwtService jwtService) {
+  public OperationLogAspect(
+      OperationLogRepository repository,
+      JwtService jwtService,
+      com.fasterxml.jackson.databind.ObjectMapper objectMapper) {
     this.repository = repository;
     this.jwtService = jwtService;
+    this.objectMapper = objectMapper;
   }
 
   /**
@@ -58,6 +74,7 @@ public class OperationLogAspect {
       op.setModuleName(extractModule(pjp));
       op.setActionName(pjp.getSignature().getName());
       op.setOperator(resolveOperator(req));
+      op.setRequestBody(extractRequestBody(pjp));
       op.setCreatedAt(OffsetDateTime.now());
       try {
         Object result = pjp.proceed();
@@ -103,12 +120,65 @@ public class OperationLogAspect {
     return "anonymous";
   }
 
+  /**
+   * 提取并序列化请求体，用于审计留痕。
+   *
+   * <p>约束：
+   * <ul>
+   *   <li>只记录第一个参数的序列化结果（@RequestBody 参数通常为唯一参数）；</li>
+   *   <li>基本类型 / 字符串 / Map / 自定义 DTO 走 JSON 序列化，Servlet 对象（HttpServletRequest 等）直接跳过；</li>
+   *   <li>序列化失败（循环引用等）降级为 {@code toString()}；再失败则记为 {@code String.valueOf} 简写；</li>
+   *   <li>命中敏感字段正则的 JSON 键值被替换为 {@code ***}；</li>
+   *   <li>超过 {@link #BODY_MAX_LEN} 字符截断加省略号。</li>
+   * </ul>
+   *
+   * @return 可落库的请求体字符串；无可序列化参数时返回 {@code null}
+   */
+  private String extractRequestBody(ProceedingJoinPoint pjp) {
+    Object[] args = pjp.getArgs();
+    if (args == null || args.length == 0 || args[0] == null) {
+      return null;
+    }
+    Object arg = args[0];
+    // Servlet 容器对象不参与落库（无法且无需序列化）
+    if (arg instanceof jakarta.servlet.ServletRequest
+        || arg instanceof jakarta.servlet.ServletResponse
+        || arg instanceof org.springframework.web.multipart.MultipartFile) {
+      return null;
+    }
+
+    String text;
+    try {
+      text = objectMapper.writeValueAsString(arg);
+    } catch (Exception ex) {
+      try {
+        text = String.valueOf(arg);
+      } catch (Exception inner) {
+        return null;
+      }
+    }
+    if (text == null) {
+      return null;
+    }
+
+    // 敏感字段脱敏
+    text = SENSITIVE_KEY.matcher(text).replaceAll("\"$1\":\"***\"");
+
+    // 截断
+    if (text.length() > BODY_MAX_LEN) {
+      text = text.substring(0, BODY_MAX_LEN) + "...(truncated)";
+    }
+    return text;
+  }
+
   private String extractModule(ProceedingJoinPoint pjp) {
     String fqcn = pjp.getTarget().getClass().getName();
-    // cn.disasterguard.warning.controller.WarningController -> warning
-    int start = fqcn.indexOf("cn.disasterguard.") + 13;
+    // cn.disasterguard.warning.WarningController -> warning
+    int idx = fqcn.indexOf(ROOT_PACKAGE);
+    if (idx < 0) return "unknown";
+    int start = idx + ROOT_PACKAGE.length();
     int end = fqcn.indexOf('.', start);
-    if (start < 0 || end < 0) return "unknown";
+    if (end < 0) return "unknown";
     return fqcn.substring(start, end);
   }
 }

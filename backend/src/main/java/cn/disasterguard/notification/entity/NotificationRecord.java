@@ -1,6 +1,8 @@
 package cn.disasterguard.notification.entity;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import java.time.OffsetDateTime;
 
 @Entity
@@ -29,7 +31,23 @@ public class NotificationRecord {
   @Column(columnDefinition = "TEXT")
   private String content;
 
-  @Column(columnDefinition = "JSON")
+  /**
+   * 渠道列表（JSON 数组字符串）。
+   *
+   * <p>DB 列类型为 {@code jsonb}，需 {@code @JdbcTypeCode(SqlTypes.JSON)} +
+   * {@code columnDefinition = "jsonb"} 双重声明：
+   * <ul>
+   *   <li>{@code @JdbcTypeCode(SqlTypes.JSON)} — 决定 JDBC 参数绑定类型。缺少它时
+   *       Hibernate 会以 {@code varchar} 下发参数，PostgreSQL 拒绝隐式转换并抛出
+   *       {@code column "channels" is of type jsonb but expression is of type character varying}；</li>
+   *   <li>{@code columnDefinition} — 决定 DDL 生成类型。</li>
+   * </ul>
+   * 二者缺一，通知记录的所有写入（发送、单条标已读、全部已读）都会 500
+   * （对外表现为"系统繁忙，请稍后重试"），红点因此永远消不掉。
+   * 写法与项目内 {@code AiModel} / {@code AiComprehensiveScore} 等 jsonb 实体一致。
+   */
+  @JdbcTypeCode(SqlTypes.JSON)
+  @Column(columnDefinition = "jsonb")
   private String channels;
 
   @Column(length = 20)

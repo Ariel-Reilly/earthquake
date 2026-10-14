@@ -3,6 +3,8 @@ package cn.disasterguard.emergency;
 import cn.disasterguard.common.api.ApiResponse;
 import cn.disasterguard.common.api.PageResponse;
 import cn.disasterguard.common.exception.AppException;
+import cn.disasterguard.emergency.entity.Resource;
+import cn.disasterguard.emergency.repository.ResourceRepository;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
@@ -22,6 +24,12 @@ import org.springframework.security.access.prepost.PreAuthorize;
 @RestController
 @RequestMapping("/api/resources")
 public class ResourceController {
+
+  private final ResourceRepository resourceRepository;
+
+  public ResourceController(ResourceRepository resourceRepository) {
+    this.resourceRepository = resourceRepository;
+  }
 
   /**
    * 与 {@link Map#of(Object, Object)} 等价的工厂，但允许值为 {@code null}。
@@ -94,6 +102,13 @@ public class ResourceController {
       )
   );
 
+  /**
+   * 资源列表。
+   *
+   * <p>数据源为 {@code resource} 表（真实数据）。此前直接返回内存 mock（南昌/赣州基地），
+   * 与库中真实资源不符且无经纬度；现改为查库，库为空时回退到 {@code MOCK_RESOURCES}
+   * 以保证演示可用（回退数据带 {@code _fallback: true} 标记，便于前端区分）。
+   */
   @GetMapping
   @PreAuthorize("hasAuthority('resource:view')")
   public ApiResponse<PageResponse<Map<String, Object>>> list(
@@ -103,25 +118,89 @@ public class ResourceController {
       @RequestParam(required = false) String status,
       @RequestParam(required = false) String keyword
   ) {
-    List<Map<String, Object>> filtered = MOCK_RESOURCES.stream()
+    List<Map<String, Object>> source = loadFromDatabase(type, status, keyword);
+    boolean fallback = false;
+    if (source.isEmpty()) {
+      // 库中无数据（或查询无命中）时才回退到演示数据
+      source = filterMock(type, status, keyword);
+      fallback = true;
+    }
+
+    int total = source.size();
+    int pages = (int) Math.ceil((double) total / size);
+    int fromIndex = (page - 1) * size;
+    int toIndex = Math.min(fromIndex + size, total);
+
+    List<Map<String, Object>> items = fromIndex < total
+        ? new ArrayList<>(source.subList(fromIndex, toIndex))
+        : new ArrayList<>();
+
+    if (fallback && !items.isEmpty()) {
+      items.replaceAll(m -> {
+        Map<String, Object> copy = new LinkedHashMap<>(m);
+        copy.put("_fallback", true);
+        return copy;
+      });
+    }
+
+    PageResponse<Map<String, Object>> response = new PageResponse<>(items, total, page, size, pages);
+    return ApiResponse.success(response);
+  }
+
+  /**
+   * 从 {@code resource} 表读取并按条件过滤。
+   *
+   * <p>字段名沿用前端既有契约（name/type/status/…），同时补充 resCode 与经纬度，
+   * 以便地图与调度页面直接使用。
+   */
+  private List<Map<String, Object>> loadFromDatabase(String type, String status, String keyword) {
+    List<Resource> all = resourceRepository.findAll();
+    String kw = keyword == null ? null : keyword.trim();
+    return all.stream()
+        .filter(r -> type == null || type.isBlank() || type.equalsIgnoreCase(r.getResType()))
+        .filter(r -> status == null || status.isBlank() || status.equalsIgnoreCase(r.getStatus()))
+        .filter(r -> kw == null || kw.isEmpty()
+            || (r.getResName() != null && r.getResName().contains(kw))
+            || (r.getResCode() != null && r.getResCode().contains(kw))
+            || (r.getRegionCode() != null && r.getRegionCode().contains(kw)))
+        .map(this::toDto)
+        .toList();
+  }
+
+  /** 实体 → 前端契约 Map。 */
+  private Map<String, Object> toDto(Resource r) {
+    Map<String, Object> m = new LinkedHashMap<>();
+    m.put("resourceId", r.getId());
+    m.put("id", r.getId());
+    m.put("resCode", r.getResCode());
+    m.put("name", r.getResName());
+    m.put("type", r.getResType());
+    m.put("status", r.getStatus());
+    m.put("regionCode", r.getRegionCode());
+    m.put("longitude", r.getLongitude());
+    m.put("latitude", r.getLatitude());
+    m.put("capacity", r.getCapacity());
+    m.put("contact", joinContact(r.getContactPerson(), r.getContactPhone()));
+    m.put("description", r.getDescription());
+    return m;
+  }
+
+  private String joinContact(String person, String phone) {
+    if (person == null || person.isBlank()) {
+      return phone == null ? "" : phone;
+    }
+    return phone == null || phone.isBlank() ? person : person + " " + phone;
+  }
+
+  /** mock 数据的过滤逻辑（保留原行为，供库空时兜底）。 */
+  private List<Map<String, Object>> filterMock(String type, String status, String keyword) {
+    return MOCK_RESOURCES.stream()
         .filter(r -> type == null || type.isBlank() || r.get("type").equals(type))
         .filter(r -> status == null || status.isBlank() || r.get("status").equals(status))
         .filter(r -> keyword == null || keyword.isBlank() ||
             ((String) r.get("name")).contains(keyword) ||
             ((String) r.get("location")).contains(keyword))
         .toList();
-
-    int total = filtered.size();
-    int pages = (int) Math.ceil((double) total / size);
-    int fromIndex = (page - 1) * size;
-    int toIndex = Math.min(fromIndex + size, total);
-
-    List<Map<String, Object>> items = fromIndex < total
-        ? filtered.subList(fromIndex, toIndex)
-        : new ArrayList<>();
-
-    PageResponse<Map<String, Object>> response = new PageResponse<>(items, total, page, size, pages);
-    return ApiResponse.success(response);
   }
 
   /**
@@ -148,9 +227,10 @@ public class ResourceController {
     Long resourceId = ((Number) rawId).longValue();
     String taskCode = (String) rawTask;
 
-    // 可选：校验资源是否真实存在
-    boolean exists = MOCK_RESOURCES.stream()
-        .anyMatch(r -> ((Number) r.get("resourceId")).longValue() == resourceId);
+    // 校验资源是否真实存在（优先查库；库空时接受 mock 兜底数据以保持演示可用）
+    boolean exists = resourceRepository.existsById(resourceId)
+        || MOCK_RESOURCES.stream()
+            .anyMatch(r -> ((Number) r.get("resourceId")).longValue() == resourceId);
     if (!exists) {
       throw new AppException(404, "资源不存在: " + resourceId);
     }

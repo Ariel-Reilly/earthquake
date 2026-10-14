@@ -52,9 +52,21 @@ public class RuleEngineScheduler {
     this.enabled = enabled;
   }
 
+  /**
+   * 重入保护（R3 P1-11）：cron 默认每 30 秒触发，而一轮求值涉及规则遍历
+   * + 指标查询 + 预警落库，耗时可能超过间隔。修复前没有任何并发保护，
+   * 上一轮未结束时下一轮会并发进入，导致重复求值、重复计数与重复写库。
+   */
+  private final java.util.concurrent.atomic.AtomicBoolean running =
+      new java.util.concurrent.atomic.AtomicBoolean(false);
+
   @Scheduled(cron = "${disasterguard.warning.rule-engine-cron:*/30 * * * * *}")
   public void evaluate() {
     if (!enabled) {
+      return;
+    }
+    if (!running.compareAndSet(false, true)) {
+      log.warn("规则引擎上一轮尚未结束，本轮跳过（cron 间隔可能小于单轮耗时）");
       return;
     }
     try {
@@ -62,6 +74,8 @@ public class RuleEngineScheduler {
     } catch (Exception ex) {
       // 调度器顶层兜底：任何未捕获异常都不应终止下一轮调度
       log.error("规则引擎调度异常，本轮跳过: {}", ex.getMessage(), ex);
+    } finally {
+      running.set(false);
     }
   }
 

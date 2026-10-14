@@ -19,7 +19,17 @@ spring:
       password: ${REDIS_PASSWORD:}
   sql:
     init:
+      # ⚠️ R5 P0-1：必须保持 never，绝不能改成 always。
+      # schema.sql 虽然全部是 CREATE TABLE IF NOT EXISTS（不报错），
+      # 但其升级路径依赖 schema.sql:97 的 DROP VIEW hazard_point +
+      # :1352 的 DROP TABLE hazard_point CASCADE —— 表已存在时，CASCADE
+      # 连同基础表一起删掉再重建为视图，等于每次启动清空全库。
+      # 「可重复执行不报错」≠「无副作用」，R4 已实测过该配对机制。
+      #
+      # 首次部署建表：CI 或发布流程中手工执行一次 schema.sql + data.sql。
+      # 长期方案：引入 Flyway / Liquibase 做版本化迁移（见 docs/CODE_REVIEW_R5.md P0-1）。
       mode: never
+
 # prod profile：覆盖所有安全敏感配置为严格模式（防止用户忘记在环境变量中设置）
 disasterguard:
   security:

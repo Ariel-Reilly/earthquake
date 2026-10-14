@@ -140,4 +140,31 @@ public final class PermissionRegistry {
   public static List<String> permissionsListOf(String role) {
     return List.copyOf(permissionsOf(role));
   }
+
+  /** 全部已注册角色（下划线形式）。用于前端权限矩阵渲染。 */
+  public static Set<String> roles() {
+    return ROLE_PERMISSIONS.keySet();
+  }
+
+  /**
+   * 角色 → 权限码 的完整只读视图。
+   *
+   * <p>返回顺序稳定（LinkedHashMap + 已排序权限集），便于前端与 diff 工具比对。
+   */
+  public static Map<String, List<String>> snapshot() {
+    Map<String, List<String>> result = new java.util.LinkedHashMap<>();
+    ROLE_PERMISSIONS.keySet().stream()
+        .sorted()
+        .forEach(role -> result.put(role, ROLE_PERMISSIONS.get(role).stream().sorted().toList()));
+    return result;
+  }
+
+  /** 所有已注册权限码的并集（已排序）。 */
+  public static List<String> allPermissions() {
+    return ROLE_PERMISSIONS.values().stream()
+        .flatMap(Set::stream)
+        .distinct()
+        .sorted()
+        .toList();
+  }
 }
