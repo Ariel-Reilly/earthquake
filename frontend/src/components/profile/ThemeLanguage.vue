@@ -1,15 +1,19 @@
 <script setup>
 /**
  * 个人中心-主题与语言。
- * 主题：浅色 / 深色 / 跟随系统
+ * 主题：浅色 / 深色 / 跟随系统 —— 统一交给 useTheme() 写入，
+ *   由它同时设置 .theme-dark/.theme-light 与 data-theme，并持久化。
+ *   （此前这里只写 data-theme，而全局 CSS 只认 .theme-dark，选深色无效果）
  * 语言：简体中文 / English（实验性）
- * 与 /api/profile/theme-language 联动；同时立即应用主题到 <html data-theme>。
+ * 与 /api/profile/theme-language 联动。
  */
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { Languages, Moon, Save, Sun, Monitor } from 'lucide-vue-next'
 import { dashboardApi } from '../../services/dashboardApi'
+import { useTheme } from '../../composables/useTheme'
 
 const emit = defineEmits(['notify'])
+const { setTheme } = useTheme()
 
 const THEMES = [
   { value: 'light', label: '浅色', icon: Sun, desc: '白天办公，眼睛不易疲劳' },
@@ -32,10 +36,8 @@ const dirty = ref(false)
 watch(choice, () => { dirty.value = true }, { deep: true })
 
 function applyTheme() {
-  const html = document.documentElement
-  if (choice.theme === 'dark') html.dataset.theme = 'dark'
-  else if (choice.theme === 'light') html.dataset.theme = 'light'
-  else html.removeAttribute('data-theme')
+  // 统一写入方：同时打 class 与 data-theme，并写 localStorage
+  setTheme(choice.theme === 'auto' ? 'system' : choice.theme)
 }
 
 function applyDensity() {
@@ -155,12 +157,12 @@ const langDesc = computed(() => LANGS.find((l) => l.value === choice.language)?.
 
 <style scoped>
 .theme-lang { display: flex; flex-direction: column; gap: 18px; }
-.head { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid var(--dashboard-border, #eef2f7); padding-bottom: 14px; }
+.head { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid var(--dashboard-border, var(--c-brand-mist)); padding-bottom: 14px; }
 .head h3 { display: inline-flex; align-items: center; gap: 6px; margin: 0; font-size: 18px; }
-.head p { margin: 4px 0 0; color: var(--dashboard-muted, #6b7280); font-size: 13px; }
+.head p { margin: 4px 0 0; color: var(--dashboard-muted, var(--c-text-2)); font-size: 13px; }
 .primary {
-  background: linear-gradient(135deg, #5b8ef9, #3b82f6); color: white;
-  border: none; padding: 6px 14px; border-radius: 8px;
+  background: linear-gradient(135deg, var(--c-brand-tint), var(--c-brand-hover)); color: white;
+  border: none; padding: 6px 14px; border-radius: var(--r-sm);
   display: inline-flex; align-items: center; gap: 6px;
   cursor: pointer; font-size: 13px;
 }
@@ -172,14 +174,14 @@ const langDesc = computed(() => LANGS.find((l) => l.value === choice.language)?.
 @media (max-width: 720px) { .cards { grid-template-columns: 1fr 1fr; } }
 .card {
   display: flex; gap: 10px; align-items: center;
-  background: var(--dashboard-muted-bg, #f8fafc);
-  border: 1px solid var(--dashboard-border, #e2e8f0);
-  border-radius: 10px; padding: 12px 14px; cursor: pointer;
+  background: var(--dashboard-muted-bg, var(--c-brand-mist));
+  border: 1px solid var(--dashboard-border, var(--c-brand-soft));
+  border-radius: var(--r-md); padding: 12px 14px; cursor: pointer;
   text-align: left;
-  color: var(--dashboard-text, #1e293b);
+  color: var(--dashboard-text, var(--c-scrim));
 }
-.card.active { border-color: #5b8ef9; background: linear-gradient(135deg, #eff6ff, #e0e7ff); }
+.card.active { border-color: var(--c-brand-tint); background: linear-gradient(135deg, var(--sys-blue-soft), var(--sys-indigo-soft)); }
 .card strong { display: block; font-size: 14px; }
-.card small { display: block; font-size: 12px; color: var(--dashboard-muted, #64748b); }
-.hint { font-size: 12px; color: var(--dashboard-muted, #6b7280); margin: 0; }
+.card small { display: block; font-size: 12px; color: var(--dashboard-muted, var(--c-text-3)); }
+.hint { font-size: 12px; color: var(--dashboard-muted, var(--c-text-2)); margin: 0; }
 </style>

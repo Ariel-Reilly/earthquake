@@ -225,10 +225,10 @@ defineExpose({
   max-height: calc(100% - 36px);
   display: flex;
   flex-direction: column;
-  color: #1f3e44;
+  color: var(--c-text);
   background: rgba(255, 255, 255, 0.96);
-  border: 1px solid #d9e8e2;
-  border-radius: 14px;
+  border: 1px solid var(--c-separator);
+  border-radius: var(--r-lg);
   box-shadow: 0 14px 36px rgba(31, 75, 69, 0.16);
   backdrop-filter: blur(12px);
   overflow: hidden;
@@ -246,8 +246,8 @@ defineExpose({
   justify-content: space-between;
   gap: 8px;
   padding: 11px 14px;
-  color: #24494d;
-  border-bottom: 1px solid #ecf2ef;
+  color: var(--c-text);
+  border-bottom: 1px solid var(--c-brand-mist);
   cursor: pointer;
   user-select: none;
 }
@@ -262,14 +262,14 @@ defineExpose({
   font-weight: 700;
 }
 .wx-overlay-title svg {
-  color: #2f7f80;
+  color: var(--c-brand);
 }
 .wx-overlay-hint {
   margin-left: 6px;
   padding: 2px 7px;
-  color: #4f7972;
-  background: #e6f5ee;
-  border-radius: 999px;
+  color: var(--c-ink-2);
+  background: var(--c-success-bg);
+  border-radius: var(--r-pill);
   font-size: 10px;
   font-weight: 500;
 }
@@ -279,14 +279,14 @@ defineExpose({
   width: 24px;
   height: 24px;
   border: 0;
-  border-radius: 7px;
+  border-radius: var(--r-sm);
   background: #f3f7f5;
-  color: #4f7972;
+  color: var(--c-ink-2);
   cursor: pointer;
 }
 .wx-icon-btn:hover {
-  background: #e8f2ee;
-  color: #2f7f80;
+  background: var(--c-brand-mist);
+  color: var(--c-brand);
 }
 .wx-overlay-body {
   display: flex;
@@ -301,7 +301,7 @@ defineExpose({
   flex: 1;
 }
 .wx-overlay-list li {
-  border-radius: 10px;
+  border-radius: var(--r-md);
   margin: 3px 0;
   transition: background 0.18s;
 }
@@ -320,22 +320,22 @@ defineExpose({
   place-items: center;
   width: 30px;
   height: 30px;
-  border: 1px solid #dbe7e2;
-  border-radius: 9px;
-  background: #fff;
-  color: #4f7972;
+  border: 1px solid var(--c-separator);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+  color: var(--c-ink-2);
   cursor: pointer;
   transition: all 0.18s;
 }
 .wx-overlay-icon:hover {
-  border-color: #2f7f80;
-  color: #2f7f80;
+  border-color: var(--c-brand);
+  color: var(--c-brand);
 }
 .wx-overlay-icon.is-on {
-  border-color: #2f7f80;
-  background: #eff9f6;
-  color: #1f4f4a;
-  box-shadow: inset 0 0 0 1px rgba(47,127,128,.32);
+  border-color: var(--c-brand);
+  background: rgba(111,158,127,.08);
+  color: var(--c-brand-hover);
+  box-shadow: inset 0 0 0 1px rgba(111,158,127,.32);
 }
 .wx-overlay-icon .spin {
   animation: spin 1.1s linear infinite;
@@ -348,12 +348,12 @@ defineExpose({
   cursor: pointer;
 }
 .wx-overlay-meta strong {
-  color: #1f3e44;
+  color: var(--c-text);
   font-size: 12px;
   font-weight: 600;
 }
 .wx-overlay-meta small {
-  color: #93a39e;
+  color: var(--c-text-3);
   font-size: 10px;
 }
 .wx-overlay-state {
@@ -366,22 +366,22 @@ defineExpose({
   align-items: center;
   gap: 3px;
   padding: 2px 6px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 0.02em;
 }
 .badge.ok {
-  color: #2b6c4d;
-  background: #e6f5ee;
+  color: var(--c-brand-ink);
+  background: var(--c-success-bg);
 }
 .badge.loading {
   color: #6c4ad6;
   background: #efe9fb;
 }
 .badge.error {
-  color: #b04a3a;
-  background: #fbe9e4;
+  color: var(--c-danger-strong);
+  background: var(--c-warning-bg);
 }
 .wx-mini-btn {
   display: grid;
@@ -390,27 +390,27 @@ defineExpose({
   height: 18px;
   padding: 0;
   border: 0;
-  border-radius: 5px;
+  border-radius: var(--r-sm);
   background: transparent;
-  color: #7a8d89;
+  color: var(--c-text-2);
   cursor: pointer;
 }
 .wx-mini-btn:hover {
-  background: #ecf2ef;
-  color: #2f7f80;
+  background: var(--c-brand-mist);
+  color: var(--c-brand);
 }
 .wx-overlay-legend {
   margin: 0 6px 6px;
   padding: 8px 10px 10px;
-  background: #fff;
-  border: 1px solid #ecf2ef;
-  border-radius: 9px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-brand-mist);
+  border-radius: var(--r-md);
 }
 .wx-legend-title {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  color: #2c5357;
+  color: var(--c-ink-1);
   font-size: 10px;
   font-weight: 700;
   margin-bottom: 6px;
@@ -427,7 +427,7 @@ defineExpose({
   display: flex;
   align-items: center;
   gap: 7px;
-  color: #4f6769;
+  color: var(--c-ink-2);
   font-size: 10px;
 }
 .wx-legend-grades i {
@@ -443,29 +443,29 @@ defineExpose({
   align-items: center;
   gap: 8px;
   margin-top: 10px;
-  color: #6e7f7c;
+  color: var(--c-text-3);
   font-size: 10px;
 }
 .wx-opacity-row label {
-  color: #4f6769;
+  color: var(--c-ink-2);
   font-weight: 600;
 }
 .wx-opacity-row input[type="range"] {
   width: 100%;
-  accent-color: #2f7f80;
+  accent-color: var(--c-brand);
 }
 .wx-opacity-row em {
   font-style: normal;
   font-variant-numeric: tabular-nums;
-  color: #2c5357;
+  color: var(--c-ink-1);
 }
 .wx-overlay-foot {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 8px 14px;
-  border-top: 1px solid #ecf2ef;
-  color: #93a39e;
+  border-top: 1px solid var(--c-brand-mist);
+  color: var(--c-text-3);
   font-size: 10px;
 }
 .wx-refresh-all {
@@ -473,18 +473,18 @@ defineExpose({
   align-items: center;
   gap: 5px;
   padding: 4px 10px;
-  border: 1px solid #dbe7e2;
-  border-radius: 8px;
-  background: #fff;
-  color: #2c5357;
+  border: 1px solid var(--c-separator);
+  border-radius: var(--r-sm);
+  background: var(--c-surface);
+  color: var(--c-ink-1);
   font-size: 11px;
   cursor: pointer;
   transition: all 0.18s;
 }
 .wx-refresh-all:hover:not(:disabled) {
-  border-color: #2f7f80;
-  color: #2f7f80;
-  background: #eff9f6;
+  border-color: var(--c-brand);
+  color: var(--c-brand);
+  background: rgba(111,158,127,.08);
 }
 .wx-refresh-all:disabled {
   cursor: not-allowed;

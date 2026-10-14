@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 /**
  * 规则测试面板组件
  */
@@ -188,9 +188,9 @@ function close() {
 
 <style scoped>
 .test-panel {
-  background: #fff;
-  border: 1px solid #e9eee9;
-  border-radius: 12px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-brand-soft);
+  border-radius: var(--r-lg);
   overflow: hidden;
 }
 
@@ -199,18 +199,18 @@ function close() {
   justify-content: space-between;
   align-items: center;
   padding: 14px 18px;
-  border-bottom: 1px solid #e9eee9;
-  background: #fafdfc;
+  border-bottom: 1px solid var(--c-brand-soft);
+  background: var(--c-surface-2);
 }
 
 .panel-header h4 {
   margin: 0;
   font-size: 14px;
-  color: #1f3e44;
+  color: var(--c-text);
 }
 
 .panel-header small {
-  color: #7a8d89;
+  color: var(--c-text-2);
   font-size: 12px;
 }
 
@@ -222,13 +222,13 @@ function close() {
   height: 28px;
   border: none;
   background: transparent;
-  color: #56716e;
-  border-radius: 6px;
+  color: var(--c-brand-deep);
+  border-radius: var(--r-sm);
   cursor: pointer;
 }
 
 .close-btn:hover {
-  background: #f0f5f4;
+  background: var(--c-brand-mist);
 }
 
 .panel-body {
@@ -239,7 +239,7 @@ function close() {
 .test-result h5 {
   margin: 0 0 12px;
   font-size: 13px;
-  color: #37555a;
+  color: var(--c-text);
   font-weight: 600;
 }
 
@@ -257,7 +257,7 @@ function close() {
 
 .data-item span {
   font-size: 11px;
-  color: #7a8d89;
+  color: var(--c-text-2);
 }
 
 .input-with-unit {
@@ -269,22 +269,22 @@ function close() {
 .input-with-unit input {
   flex: 1;
   padding: 6px 8px;
-  border: 1px solid #d9e6e1;
-  border-radius: 4px;
+  border: 1px solid rgba(60,60,67,.10);
+  border-radius: var(--r-xs);
   font-size: 13px;
-  background: #fafdfc;
+  background: var(--c-surface-2);
 }
 
 .input-with-unit .unit {
   font-size: 11px;
-  color: #7a8d89;
+  color: var(--c-text-2);
   min-width: 24px;
 }
 
 .test-actions {
   margin: 16px 0;
   padding-top: 16px;
-  border-top: 1px dashed #e9eee9;
+  border-top: 1px dashed var(--c-brand-soft);
 }
 
 .run-btn {
@@ -293,9 +293,9 @@ function close() {
   gap: 6px;
   padding: 10px 20px;
   border: none;
-  background: #2b6cb0;
-  color: #fff;
-  border-radius: 6px;
+  background: var(--c-brand);
+  color: var(--c-on-brand);
+  border-radius: var(--r-sm);
   font-size: 13px;
   cursor: pointer;
 }
@@ -313,18 +313,18 @@ function close() {
   align-items: center;
   gap: 12px;
   padding: 14px;
-  border-radius: 8px;
+  border-radius: var(--r-sm);
   margin-bottom: 16px;
 }
 
 .result-summary.passed {
-  background: #ecf8f2;
-  color: #38a169;
+  background: var(--c-brand-mist);
+  color: var(--c-success);
 }
 
 .result-summary.failed {
-  background: #fff5f5;
-  color: #c7553b;
+  background: var(--c-danger-bg);
+  color: var(--c-danger-strong);
 }
 
 .result-icon {
@@ -369,7 +369,7 @@ function close() {
 .action-list h6 {
   margin: 0 0 8px;
   font-size: 12px;
-  color: #56716e;
+  color: var(--c-brand-deep);
   font-weight: 600;
 }
 
@@ -381,20 +381,20 @@ function close() {
 
 .condition-list li {
   padding: 6px 10px;
-  border-radius: 4px;
+  border-radius: var(--r-xs);
   font-size: 12px;
   font-family: monospace;
   margin-bottom: 4px;
 }
 
 .condition-list li.passed {
-  background: #ecf8f2;
-  color: #38a169;
+  background: var(--c-brand-mist);
+  color: var(--c-success);
 }
 
 .condition-list li.failed {
-  background: #fff5f5;
-  color: #c7553b;
+  background: var(--c-danger-bg);
+  color: var(--c-danger-strong);
 }
 
 .action-item {
@@ -402,30 +402,30 @@ function close() {
   justify-content: space-between;
   align-items: center;
   padding: 8px 10px;
-  background: #fafdfc;
-  border-radius: 6px;
+  background: var(--c-surface-2);
+  border-radius: var(--r-sm);
   margin-bottom: 6px;
 }
 
 .action-type {
   font-size: 12px;
-  color: #37555a;
+  color: var(--c-text);
 }
 
 .action-result {
   font-size: 11px;
   padding: 2px 8px;
-  border-radius: 4px;
+  border-radius: var(--r-xs);
 }
 
 .action-result.success {
-  background: #ecf8f2;
-  color: #38a169;
+  background: var(--c-brand-mist);
+  color: var(--c-success);
 }
 
 .action-result.error {
-  background: #fff5f5;
-  color: #c7553b;
+  background: var(--c-danger-bg);
+  color: var(--c-danger-strong);
 }
 
 .spin {

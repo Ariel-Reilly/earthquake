@@ -1,17 +1,12 @@
 <script setup>
 /**
- * 服务健康告警横幅 (ServiceHealthBanner.vue)。
+ * ServiceHealthBanner  ── AI 服务健康告警横幅 (iOS 18 Liquid Glass)
  *
- * 用途：当 AI 微服务降级（degraded）或完全不可用（down）时，
- *       在 DashboardLayout 顶部显示常驻横幅，告知用户当前为"人工巡检模式"。
- *
- * 三态显示：
- *   - ok（正常）：完全隐藏
- *   - degraded（轻微降级）：橙色提示"AI 推理延迟增加，自动重试中"
- *   - down（不可用）：红色强提示"AI 服务不可用，当前为人工巡检模式" + "重新检查"按钮
+ * 用途: AI 微服务降级 / 不可用时, 在主内容区顶部显示横幅
+ * 风格: iOS 18 染色背景 + Liquid Glass 内容
  */
 import { computed, onBeforeUnmount, ref } from 'vue'
-import { AlertTriangle, AlertOctagon, CheckCircle2, RefreshCw, X } from 'lucide-vue-next'
+import { AlertTriangle, AlertOctagon, RefreshCw, X } from 'lucide-vue-next'
 import { useRealtimeStore } from '../stores/realtime.js'
 import { checkAiHealthNow } from '../services/_architecture/core/healthService.js'
 
@@ -22,9 +17,8 @@ let autoRestoreTimer = null
 
 const health = computed(() => store.aiHealth ?? { state: 'ok' })
 const visible = computed(() => !dismissed.value && health.value.state !== 'ok')
-const severity = computed(() =>
-  health.value.state === 'down' ? 'critical' : 'warning'
-)
+const severity = computed(() => (health.value.state === 'down' ? 'critical' : 'warning'))
+
 const titleText = computed(() =>
   health.value.state === 'down'
     ? 'AI 服务不可用 · 当前为人工巡检模式'
@@ -43,13 +37,10 @@ async function handleRefresh() {
   checking.value = true
   try {
     await checkAiHealthNow()
-    // 若恢复成功，3s 后自动收起横幅
     if (store.aiHealth?.state === 'ok') {
       dismissed.value = false
       window.clearTimeout(autoRestoreTimer)
-      autoRestoreTimer = window.setTimeout(() => {
-        dismissed.value = true
-      }, 3000)
+      autoRestoreTimer = window.setTimeout(() => { dismissed.value = true }, 3000)
     }
   } finally {
     checking.value = false
@@ -60,79 +51,80 @@ function handleDismiss() {
   dismissed.value = true
 }
 
-onBeforeUnmount(() => {
-  window.clearTimeout(autoRestoreTimer)
-})
+onBeforeUnmount(() => window.clearTimeout(autoRestoreTimer))
 </script>
 
 <template>
-  <transition name="health-slide">
+  <Transition name="health-slide" appear>
     <div
       v-if="visible"
-      class="health-banner"
-      :class="[`sev-${severity}`]"
+      :class="['health-banner', `sev-${severity}`]"
       role="status"
       aria-live="polite"
     >
-      <div class="health-icon">
-        <AlertOctagon v-if="severity === 'critical'" :size="18" />
-        <AlertTriangle v-else :size="18" />
+      <div class="banner-tint">
+        <component
+          :is="severity === 'critical' ? AlertOctagon : AlertTriangle"
+          :size="20"
+        />
       </div>
-      <div class="health-content">
+      <div class="banner-content">
         <strong>{{ titleText }}</strong>
         <small>{{ detailText }}</small>
       </div>
-      <div class="health-actions">
-        <button
-          class="health-btn"
-          :disabled="checking"
-          @click="handleRefresh"
-        >
+      <div class="banner-actions">
+        <button class="banner-btn" :disabled="checking" @click="handleRefresh">
           <RefreshCw :size="14" :class="{ spinning: checking }" />
           重新检查
         </button>
-        <button
-          class="health-btn icon-only"
-          title="本会话内不再提示"
-          @click="handleDismiss"
-        >
+        <button class="banner-btn icon-only" title="本会话内不再提示" @click="handleDismiss">
           <X :size="14" />
         </button>
       </div>
     </div>
-  </transition>
+  </Transition>
 </template>
 
 <style scoped>
 .health-banner {
   display: flex;
   align-items: center;
-  gap: var(--sp-3, 12px);
+  gap: 12px;
   padding: 10px 16px;
   font-size: 13px;
-  color: #fff;
+  color: var(--c-on-brand);
   width: 100%;
+  border-bottom: .5px solid rgba(0, 0, 0, .12);
+  position: relative;
+  overflow: hidden;
 }
+
+/* 背景渐变 + 玻璃内容 */
 .health-banner.sev-warning {
-  background: linear-gradient(135deg, #d97706, #ea580c);
-  border-bottom: 1px solid #c2410c;
+  background: linear-gradient(135deg, var(--c-warning-strong), #ff7a00);
 }
 .health-banner.sev-critical {
-  background: linear-gradient(135deg, #dc2626, #b91c1c);
-  border-bottom: 1px solid #991b1b;
-  animation: pulse-bg 2.4s ease-in-out infinite;
+  background: linear-gradient(135deg, var(--c-danger-strong), #c8261e);
+  animation: health-pulse 2.4s ease-in-out infinite;
 }
-@keyframes pulse-bg {
-  0%, 100% { box-shadow: inset 0 -2px 0 rgba(0,0,0,0.1); }
-  50% { box-shadow: inset 0 -2px 0 rgba(255,255,255,0.18); }
+@keyframes health-pulse {
+  0%, 100% { box-shadow: inset 0 -1px 0 rgba(0, 0, 0, .15); }
+  50% { box-shadow: inset 0 -1px 0 rgba(255, 255, 255, .25); }
 }
-.health-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+
+/* iOS 18 tinted 图标方块 */
+.banner-tint {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--r-sm);
+  background: rgba(255, 255, 255, .22);
+  color: var(--c-on-brand);
   flex-shrink: 0;
 }
-.health-content {
+
+.banner-content {
   flex: 1;
   min-width: 0;
   display: flex;
@@ -140,58 +132,34 @@ onBeforeUnmount(() => {
   gap: 10px;
   flex-wrap: wrap;
 }
-.health-content strong {
-  font-weight: 600;
-  white-space: nowrap;
-}
-.health-content small {
-  font-size: 12px;
-  opacity: 0.85;
-  white-space: nowrap;
-}
-.health-actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-}
-.health-btn {
+.banner-content strong { font-weight: 600; }
+.banner-content small { font-size: 12px; opacity: .9; }
+
+.banner-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.banner-btn {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 4px 10px;
-  border-radius: 6px;
-  border: 1px solid rgba(255,255,255,0.4);
-  background: rgba(255,255,255,0.15);
-  color: #fff;
+  padding: 5px 11px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, .22);
+  color: var(--c-on-brand);
   font-size: 12px;
+  font-weight: 500;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+  transition: background .15s ease;
 }
-.health-btn:hover:not(:disabled) {
-  background: rgba(255,255,255,0.25);
-  border-color: rgba(255,255,255,0.55);
-}
-.health-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-.health-btn.icon-only {
-  padding: 4px 7px;
-}
-.spinning {
-  animation: spin 1s linear infinite;
-}
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
+.banner-btn:hover:not(:disabled) { background: rgba(255, 255, 255, .32); }
+.banner-btn:disabled { opacity: .5; cursor: not-allowed; }
+.banner-btn.icon-only { padding: 5px 8px; }
+.spinning { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
 
-/* 过渡动画 */
 .health-slide-enter-active, .health-slide-leave-active {
-  transition: transform 0.3s cubic-bezier(0.3, 1.2, 0.4, 1),
-              opacity 0.3s ease,
-              max-height 0.3s ease;
+  transition: transform .36s cubic-bezier(.32, .72, 0, 1),
+              opacity .26s ease,
+              max-height .32s ease;
   overflow: hidden;
 }
 .health-slide-enter-from, .health-slide-leave-to {
@@ -199,7 +167,5 @@ onBeforeUnmount(() => {
   opacity: 0;
   max-height: 0;
 }
-.health-slide-enter-to, .health-slide-leave-from {
-  max-height: 80px;
-}
+.health-slide-enter-to, .health-slide-leave-from { max-height: 80px; }
 </style>

@@ -63,13 +63,13 @@ const route = useRoute();
 const router = useRouter();
 
 const STATE_META = {
-  DETECTED:         { label: "已发现",      color: "#4f8f99", icon: Eye,                tone: "blue" },
-  CONFIRMING:       { label: "确认中",      color: "#e0a050", icon: ClipboardCheck,     tone: "yellow" },
+  DETECTED:         { label: "已发现",      color: "#6f9e7f", icon: Eye,                tone: "blue" },
+  CONFIRMING:       { label: "确认中",      color: "#cbaa76", icon: ClipboardCheck,     tone: "yellow" },
   CONFIRMED:        { label: "已确认",      color: "#638fc2", icon: CheckCircle2,       tone: "blue" },
   WARNING_ISSUED:   { label: "预警发布",    color: "#d88561", icon: Bell,                tone: "orange" },
   EMERGENCY_ACTIVE: { label: "应急处置",    color: "#e06060", icon: Truck,               tone: "red" },
-  CLOSED:           { label: "已关闭",      color: "#9baead", icon: Archive,             tone: "gray" },
-  REJECTED:         { label: "已驳回",      color: "#7a8d89", icon: XCircle,             tone: "gray" },
+  CLOSED:           { label: "已关闭",      color: "#9aab9f", icon: Archive,             tone: "gray" },
+  REJECTED:         { label: "已驳回",      color: "#76847a", icon: XCircle,             tone: "gray" },
 };
 
 const SOURCE_LABEL = {
@@ -80,7 +80,7 @@ const SOURCE_LABEL = {
 const SOURCE_COLOR = {
   AI_AUTO: "#638fc2",
   RULE_ENGINE: "#9b761e",
-  MANUAL: "#2a8154",
+  MANUAL: "#4a7a5e",
 };
 
 const loading = ref(false);
@@ -274,7 +274,7 @@ watch(
 );
 
 function stateMeta(id) {
-  return STATE_META[id] ?? { label: id, color: "#4f8f99", icon: GitBranch, tone: "blue" };
+  return STATE_META[id] ?? { label: id, color: "#6f9e7f", icon: GitBranch, tone: "blue" };
 }
 </script>
 
@@ -416,8 +416,8 @@ function stateMeta(id) {
             </div>
 
             <footer class="ec-foot">
-              <span class="ec-source" :style="{ color: SOURCE_COLOR[item.source] ?? '#638fc2' }">
-                <span class="src-dot" :style="{ background: SOURCE_COLOR[item.source] ?? '#638fc2' }"></span>
+              <span class="ec-source" :style="{ color: SOURCE_COLOR[item.source] ?? 'var(--c-info)' }">
+                <span class="src-dot" :style="{ background: SOURCE_COLOR[item.source] ?? 'var(--c-info)' }"></span>
                 {{ SOURCE_LABEL[item.source] ?? item.source }}
               </span>
               <span class="ec-time">
@@ -455,9 +455,9 @@ function stateMeta(id) {
   align-items: center;
   gap: 8px;
   padding: 12px 14px;
-  background: #ffffff;
-  border: 1.5px solid rgba(125, 145, 165, 0.2);
-  border-radius: 10px;
+  background: var(--c-surface);
+  border: 1.5px solid var(--c-border);
+  border-radius: var(--r-md);
   cursor: pointer;
   transition: all 0.16s;
   text-align: left;
@@ -473,25 +473,25 @@ function stateMeta(id) {
   top: 0;
   bottom: 0;
   width: 3px;
-  background: var(--tone-color, #4f8f99);
+  background: var(--tone-color, var(--c-brand));
   opacity: 0;
   transition: opacity 0.18s;
 }
 .kpi-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 16px rgba(46, 67, 93, 0.1);
-  border-color: var(--tone-color, #4f8f99);
+  border-color: var(--tone-color, var(--c-brand));
 }
 .kpi-card:hover::before { opacity: 1; }
 .kpi-card.active {
-  border-color: var(--tone-color, #4f8f99);
-  background: rgba(255, 255, 255, 1);
-  box-shadow: 0 6px 16px rgba(43, 108, 176, 0.15);
+  border-color: var(--tone-color, var(--c-brand));
+  background: var(--c-surface);
+  box-shadow: 0 6px 16px rgba(111, 158, 127, 0.15);
 }
 .kpi-card.active::before { opacity: 1; }
 .kpi-card.summary {
   grid-column: span 1;
-  background: linear-gradient(135deg, rgba(43, 108, 176, 0.06), rgba(99, 143, 194, 0.04));
+  background: linear-gradient(135deg, var(--c-brand-mist), var(--c-info-bg));
 }
 .kpi-icon {
   display: flex;
@@ -499,11 +499,11 @@ function stateMeta(id) {
   justify-content: center;
   width: 32px;
   height: 32px;
-  background: rgba(255, 255, 255, 0.7);
-  border-radius: 8px;
-  color: var(--tone-color, #4f8f99);
+  background: var(--glass-regular);
+  border-radius: var(--r-sm);
+  color: var(--tone-color, var(--c-brand));
   flex-shrink: 0;
-  border: 1px solid rgba(125, 145, 165, 0.18);
+  border: 1px solid var(--c-border);
 }
 .kpi-body {
   display: flex;
@@ -513,18 +513,18 @@ function stateMeta(id) {
 }
 .kpi-label {
   font-size: 11px;
-  color: #7a8d89;
+  color: var(--c-text-2);
   letter-spacing: 0.3px;
 }
 .kpi-value {
   font-size: 18px;
   font-weight: 800;
-  color: #2d3748;
+  color: var(--c-ink-1);
   font-feature-settings: "tnum";
 }
 .kpi-sub {
   font-size: 10.5px;
-  color: #94a3b8;
+  color: var(--c-text-3);
   margin-top: 1px;
 }
 
@@ -547,38 +547,38 @@ function stateMeta(id) {
   align-items: center;
   gap: 6px;
   font-size: 12px;
-  color: #5a6a68;
-  background: rgba(43, 108, 176, 0.06);
-  border: 1px dashed rgba(43, 108, 176, 0.3);
+  color: var(--c-ink-2);
+  background: var(--c-brand-mist);
+  border: 1px dashed var(--c-brand-tint);
   padding: 8px 10px;
-  border-radius: 6px;
+  border-radius: var(--r-sm);
 }
 .active-filter span { flex: 1; }
 .clear-filter {
   background: transparent;
   border: none;
   cursor: pointer;
-  color: #2b6cb0;
+  color: var(--c-brand);
   font-size: 11px;
   display: inline-flex;
   align-items: center;
   gap: 2px;
   padding: 2px 4px;
 }
-.clear-filter:hover { color: #c7553b; }
+.clear-filter:hover { color: var(--c-danger-strong); }
 
 .help-card {
-  background: rgba(99, 143, 194, 0.05);
-  border: 1px solid rgba(99, 143, 194, 0.18);
-  border-radius: 8px;
+  background: var(--c-info-bg);
+  border: 1px solid var(--c-info-bg);
+  border-radius: var(--r-sm);
   padding: 12px 14px;
   font-size: 12px;
-  color: #5a6a68;
+  color: var(--c-ink-2);
 }
 .help-card h4 {
   margin: 0 0 8px;
   font-size: 12px;
-  color: #2b6cb0;
+  color: var(--c-brand);
   display: flex;
   align-items: center;
   gap: 4px;
@@ -591,13 +591,13 @@ function stateMeta(id) {
   padding-left: 18px;
   line-height: 1.7;
 }
-.help-card strong { color: #2d3748; font-weight: 600; }
+.help-card strong { color: var(--c-ink-1); font-weight: 600; }
 
 /* 列表 */
 .ec-list {
-  background: #ffffff;
-  border: 1px solid rgba(125, 145, 165, 0.18);
-  border-radius: 10px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-md);
   overflow: hidden;
 }
 .list-toolbar {
@@ -605,10 +605,10 @@ function stateMeta(id) {
   justify-content: space-between;
   align-items: center;
   padding: 12px 16px;
-  border-bottom: 1px solid rgba(125, 145, 165, 0.15);
+  border-bottom: 1px solid var(--c-border);
   flex-wrap: wrap;
   gap: 10px;
-  background: rgba(247, 250, 253, 0.5);
+  background: var(--glass-thin);
 }
 .filter-group {
   display: flex;
@@ -618,11 +618,11 @@ function stateMeta(id) {
 }
 .filter-group select {
   padding: 6px 10px;
-  border: 1px solid #cbd5e0;
-  border-radius: 6px;
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-sm);
   font-size: 12px;
-  background: #ffffff;
-  color: #2d3748;
+  background: var(--c-surface);
+  color: var(--c-ink-1);
   cursor: pointer;
 }
 .search-input {
@@ -630,23 +630,23 @@ function stateMeta(id) {
   align-items: center;
   gap: 6px;
   padding: 4px 10px;
-  border: 1px solid #cbd5e0;
-  border-radius: 6px;
-  background: #ffffff;
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-sm);
+  background: var(--c-surface);
   flex: 1;
   max-width: 320px;
-  color: #94a3b8;
+  color: var(--c-text-3);
 }
 .search-input:focus-within {
-  border-color: #2b6cb0;
-  box-shadow: 0 0 0 3px rgba(43, 108, 176, 0.08);
+  border-color: var(--c-brand);
+  box-shadow: 0 0 0 3px rgba(111, 158, 127, 0.08);
 }
 .search-input input {
   border: none;
   outline: none;
   background: transparent;
   font-size: 12px;
-  color: #2d3748;
+  color: var(--c-ink-1);
   flex: 1;
   font-family: inherit;
 }
@@ -654,7 +654,7 @@ function stateMeta(id) {
   background: transparent;
   border: none;
   cursor: pointer;
-  color: #94a3b8;
+  color: var(--c-text-3);
   padding: 0;
   display: inline-flex;
 }
@@ -665,10 +665,10 @@ function stateMeta(id) {
 }
 .total-label {
   font-size: 12px;
-  color: #7a8d89;
+  color: var(--c-text-2);
 }
 .total-label strong {
-  color: #2d3748;
+  color: var(--c-ink-1);
   font-size: 14px;
 }
 .refresh-btn {
@@ -676,18 +676,18 @@ function stateMeta(id) {
   align-items: center;
   gap: 4px;
   padding: 6px 12px;
-  border: 1px solid #cbd5e0;
-  background: #ffffff;
-  border-radius: 6px;
+  border: 1px solid var(--c-border);
+  background: var(--c-surface);
+  border-radius: var(--r-sm);
   cursor: pointer;
   font-size: 12px;
-  color: #5a6a68;
+  color: var(--c-ink-2);
   font-family: inherit;
   transition: all 0.15s;
 }
 .refresh-btn:hover:not(:disabled) {
-  border-color: #2b6cb0;
-  color: #2b6cb0;
+  border-color: var(--c-brand);
+  color: var(--c-brand);
 }
 .refresh-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
@@ -699,9 +699,9 @@ function stateMeta(id) {
   padding: 12px 14px;
 }
 .event-card {
-  background: #ffffff;
-  border: 1px solid rgba(125, 145, 165, 0.22);
-  border-radius: 8px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-sm);
   padding: 12px 14px;
   cursor: pointer;
   transition: all 0.16s;
@@ -719,15 +719,15 @@ function stateMeta(id) {
   width: 3px;
   border-radius: 0 2px 2px 0;
 }
-.event-card.tone-blue::before { background: #638fc2; }
-.event-card.tone-yellow::before { background: #e0a050; }
-.event-card.tone-orange::before { background: #d88561; }
-.event-card.tone-red::before { background: #e06060; }
-.event-card.tone-gray::before { background: #9baead; }
+.event-card.tone-blue::before { background: var(--sys-blue); }
+.event-card.tone-yellow::before { background: var(--c-warning); }
+.event-card.tone-orange::before { background: var(--c-warning-strong); }
+.event-card.tone-red::before { background: var(--c-danger); }
+.event-card.tone-gray::before { background: var(--c-text-4); }
 .event-card:hover {
-  border-color: #2b6cb0;
+  border-color: var(--c-brand);
   transform: translateY(-2px);
-  box-shadow: 0 6px 14px rgba(43, 108, 176, 0.12);
+  box-shadow: 0 6px 14px rgba(111, 158, 127, 0.12);
 }
 .ec-head {
   display: flex;
@@ -739,7 +739,7 @@ function stateMeta(id) {
   align-items: center;
   gap: 6px;
   font-size: 12px;
-  color: #2d3748;
+  color: var(--c-ink-1);
 }
 .state-dot {
   width: 8px;
@@ -748,9 +748,9 @@ function stateMeta(id) {
 }
 .ec-code {
   font-size: 10.5px;
-  color: #7a8d89;
+  color: var(--c-text-2);
   font-family: ui-monospace, monospace;
-  background: rgba(125, 145, 165, 0.08);
+  background: var(--c-border-2);
   padding: 2px 6px;
   border-radius: 3px;
   letter-spacing: 0.3px;
@@ -759,7 +759,7 @@ function stateMeta(id) {
   margin: 0;
   font-size: 13.5px;
   font-weight: 700;
-  color: #2d3748;
+  color: var(--c-ink-1);
   line-height: 1.4;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -777,25 +777,25 @@ function stateMeta(id) {
   gap: 3px;
   padding: 2px 7px;
   font-size: 11px;
-  background: rgba(125, 145, 165, 0.1);
-  color: #5a6a68;
-  border-radius: 4px;
+  background: var(--c-border-2);
+  color: var(--c-ink-2);
+  border-radius: var(--r-xs);
   font-family: ui-monospace, monospace;
 }
 .meta-tag.warning {
-  background: rgba(216, 133, 97, 0.12);
-  color: #9b5a3e;
+  background: var(--c-warning-bg);
+  color: var(--c-warning-ink);
 }
 .meta-tag.emergency {
-  background: rgba(224, 96, 96, 0.12);
-  color: #c7553b;
+  background: var(--c-danger-bg);
+  color: var(--c-danger-strong);
 }
 .ec-foot {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding-top: 6px;
-  border-top: 1px dashed rgba(125, 145, 165, 0.18);
+  border-top: 1px dashed var(--c-border);
 }
 .ec-source {
   display: inline-flex;
@@ -811,7 +811,7 @@ function stateMeta(id) {
 }
 .ec-time {
   font-size: 11px;
-  color: #94a3b8;
+  color: var(--c-text-3);
 }
 
 /* Loading / Empty */
@@ -819,7 +819,7 @@ function stateMeta(id) {
 .empty-block {
   padding: 48px 16px;
   text-align: center;
-  color: #94a3b8;
+  color: var(--c-text-3);
   font-size: 13px;
   display: flex;
   flex-direction: column;
@@ -827,14 +827,14 @@ function stateMeta(id) {
   gap: 8px;
 }
 .empty-block svg {
-  color: #cbd5e0;
+  color: var(--c-border);
 }
 .empty-block .link {
   background: transparent;
-  border: 1px solid #2b6cb0;
-  color: #2b6cb0;
+  border: 1px solid var(--c-brand);
+  color: var(--c-brand);
   padding: 4px 12px;
-  border-radius: 4px;
+  border-radius: var(--r-xs);
   cursor: pointer;
   font-size: 12px;
 }

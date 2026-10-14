@@ -49,7 +49,22 @@ function normalizePaged(payload, fallback = []) {
       size: fallback.length,
       pages: 1,
     };}
-  if (Array.isArray(payload.records)) {return payload;}
+  // 后端分页响应存在两种字段形态：records（PageResponse）与 items（部分 Controller）。
+  // 只认 records 会把 items 形态的响应误判为空，故此处两者都兼容。
+  const list = Array.isArray(payload.records)
+    ? payload.records
+    : Array.isArray(payload.items)
+      ? payload.items
+      : null;
+  if (list) {
+    return {
+      records: list,
+      total: payload.total ?? list.length,
+      page: payload.page ?? 1,
+      size: payload.size ?? list.length,
+      pages: payload.pages ?? 1,
+    };
+  }
   return {
     records: fallback,
     total: fallback.length,
@@ -220,6 +235,13 @@ export const dashboardApi = {
     requireBackend("设备详情");
     return request(`/devices/${id}`);
   },
+  createDevice: async (device) => {
+    requireBackend("创建设备");
+    return request("/devices", {
+      method: "POST",
+      body: JSON.stringify(device),
+    });
+  },
   updateDevice: async (id, payload) => {
     requireBackend("更新设备");
     return request(`/devices/${id}`, {
@@ -331,6 +353,10 @@ export const dashboardApi = {
       method: "POST",
       body: JSON.stringify({ summary: "应急处置已完成" }),
     });
+  },
+  dispatchIncident: async (id) => {
+    requireBackend("派发应急事件");
+    return request(`/emergency/${id}/dispatch`, { method: "POST" });
   },
   exportOverviewReport: async () => {
     return downloadFile("/dashboard/overview/export", "综合态势报表.xlsx");
@@ -717,6 +743,22 @@ export const dashboardApi = {
     });
   },
 
+  createDataSource: async (source) => {
+    requireBackend("新增数据源");
+    return request("/datasources", {
+      method: "POST",
+      body: JSON.stringify(source),
+    });
+  },
+
+  updateDataSource: async (code, source) => {
+    requireBackend("更新数据源");
+    return request(`/datasources/${encodeURIComponent(code)}`, {
+      method: "PUT",
+      body: JSON.stringify(source),
+    });
+  },
+
   getUsers: async (params = {}) => {
     if (USE_BACKEND) {
       const data = await request(`/users${withQuery(params)}`);
@@ -746,9 +788,40 @@ export const dashboardApi = {
     return request(`/users/${id}`, { method: "DELETE" });
   },
 
+  resetUserPassword: async (id, newPassword) => {
+    requireBackend("重置密码");
+    return request(`/users/${id}/reset-password`, {
+      method: "POST",
+      body: JSON.stringify({ newPassword }),
+    });
+  },
+
+  /**
+   * 提交帮助中心用户反馈。
+   * 后端落库到统一操作审计（operation_log，module=support），返回受理号 ticketId。
+   * 无后端时直接报错，不伪造"提交成功"。
+   */
+  submitSupportFeedback: async (payload) => {
+    requireBackend("提交反馈");
+    return request("/support/feedback", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+
   getRoles: async () => {
     if (USE_BACKEND) {return request("/roles");}
     return response(mock.system.getRolesMock());
+  },
+
+  /**
+   * 权限矩阵（角色 → 权限码），数据源为后端 PermissionRegistry。
+   * 返回 { roles: string[], permissions: string[], matrix: Record<string, string[]> }。
+   * 无后端时返回空矩阵，由页面展示错误态（不造假的权限表）。
+   */
+  getPermissionMatrix: async () => {
+    requireBackend("权限矩阵");
+    return request("/roles/permission-matrix");
   },
 
   getAuditLogs: async (params = {}) => {
@@ -1237,6 +1310,47 @@ export const dashboardApi = {
   },
 
   /**
+   * @param {string|number} id
+   * @param {{channel?: string, target?: string}} payload
+   */
+  testNoticeTemplate: async (id, payload = {}) => {
+    if (USE_BACKEND) {
+      return request(`/notice-templates/${id}/test`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+    }
+    return response(mock.empty.ok);
+  },
+
+  /**
+   * @param {{name: string, hazardType: string, level: string, channels: Record<string, string>, enabled?: boolean}} template
+   */
+  createNoticeTemplate: async (template) => {
+    if (USE_BACKEND) {
+      return request("/notice-templates", {
+        method: "POST",
+        body: JSON.stringify(template),
+      });
+    }
+    return response(mock.empty.ok);
+  },
+
+  /**
+   * @param {string|number} id
+   * @param {object} template
+   */
+  updateNoticeTemplate: async (id, template) => {
+    if (USE_BACKEND) {
+      return request(`/notice-templates/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(template),
+      });
+    }
+    return response(mock.empty.ok);
+  },
+
+  /**
    * @param {{hazardType?: string, level?: string, status?: string}} filters
    */
   listPlans: async (filters = {}) => {
@@ -1271,11 +1385,45 @@ export const dashboardApi = {
   },
 
   /**
+   * @param {{name: string, hazardType: string, level: string, steps: Array, attachments?: Array, owner?: string, version?: string, enabled?: boolean}} plan
+   */
+  createPlan: async (plan) => {
+    if (USE_BACKEND) {
+      return request("/plans", { method: "POST", body: JSON.stringify(plan) });
+    }
+    return response({ ...mock.empty.ok, id: `plan-${Date.now()}` });
+  },
+
+  /**
+   * @param {string|number} id
+   * @param {{name?: string, hazardType?: string, level?: string, steps?: Array, attachments?: Array, owner?: string, version?: string, enabled?: boolean}} plan
+   */
+  updatePlan: async (id, plan) => {
+    if (USE_BACKEND) {
+      return request(`/plans/${id}`, { method: "PUT", body: JSON.stringify(plan) });
+    }
+    return response(mock.empty.ok);
+  },
+
+  /**
    * @param {string|number} planId
    */
   deletePlan: async (planId) => {
     if (USE_BACKEND) {
       return request(`/plans/${planId}`, { method: "DELETE" });
+    }
+    return response(mock.empty.ok);
+  },
+
+  /**
+   * @param {string|number} planId
+   */
+  launchPlan: async (planId, params = {}) => {
+    if (USE_BACKEND) {
+      return request(`/plans/${planId}/launch`, {
+        method: "POST",
+        body: JSON.stringify(params),
+      });
     }
     return response(mock.empty.ok);
   },
@@ -1581,6 +1729,14 @@ export const dashboardApi = {
   listDataAssets: async (filters = {}) => {
     requireBackend("listDataAssets");
     return request(`/catalog/assets${withQuery(filters)}`);
+  },
+
+  createCatalogAsset: async (asset) => {
+    requireBackend("新增数据资产");
+    return request("/catalog/assets", {
+      method: "POST",
+      body: JSON.stringify(asset),
+    });
   },
 
   /**
@@ -1903,12 +2059,12 @@ export const dashboardApi = {
   getStateMachineGraph: () => ({
     states: [
       { id: "DETECTED",          label: "已发现",      color: "#4f8f99", icon: "Eye" },
-      { id: "CONFIRMING",        label: "确认中",      color: "#e0a050", icon: "ClipboardCheck" },
+      { id: "CONFIRMING",        label: "确认中",      color: "#cbaa76", icon: "ClipboardCheck" },
       { id: "CONFIRMED",         label: "已确认",      color: "#638fc2", icon: "CheckCircle2" },
       { id: "WARNING_ISSUED",    label: "预警发布",    color: "#d88561", icon: "Bell" },
       { id: "EMERGENCY_ACTIVE",  label: "应急处置",    color: "#e06060", icon: "Truck" },
       { id: "CLOSED",            label: "已关闭",      color: "#9baead", icon: "Archive" },
-      { id: "REJECTED",          label: "已驳回",      color: "#7a8d89", icon: "XCircle" },
+      { id: "REJECTED",          label: "已驳回",      color: "#8a968d", icon: "XCircle" },
     ],
     transitions: [
       { from: "DETECTED",         to: "CONFIRMING",       trigger: "AI_DETECT/MANUAL_REPORT" },

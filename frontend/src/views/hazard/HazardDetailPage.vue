@@ -26,7 +26,7 @@ import PermissionButton from "../../components/PermissionButton.vue";
 import EventStatusTimeline from "../../components/EventStatusTimeline.vue";
 import { dashboardApi } from "../../services/dashboardApi";
 import { aiApi } from "../../services/aiApi";
-import { hasPermission } from "../../stores/auth";
+import { hasPermission, getAuthUser } from "../../stores/auth";
 import { safeMax } from "../../utils/safeMinMax";
 
 const emit = defineEmits(['notify'])
@@ -58,16 +58,52 @@ const confirmationState = ref({
   transferReason: '',
 })
 
+/**
+ * 人工确认的操作对象是「统一事件」（unified_event）的数字 ID，
+ * 后端四个动作均在 /api/confirmation/queue/{id}/... 下，id 必须是事件主键。
+ *
+ * <p>确认模式下的路由参数是 hazardCode（工作台跳转时传的是业务码），
+ * 详情接口返回的 item 里也没有事件 ID，因此这里在进入确认模式时
+ * 拉一次确认队列，按 hazardCode 反查事件 ID，避免用错 ID 或伪造本地状态。
+ */
+const confirmationEventId = ref(null)
+
+async function resolveEventId() {
+  if (!isConfirmationMode.value) return
+  // 1) item 若直接带事件 ID 字段，优先使用
+  const direct = point.value?.eventId ?? point.value?.unifiedEventId ?? point.value?.confirmationId
+  if (direct != null) {
+    confirmationEventId.value = direct
+    return
+  }
+  // 2) 否则按 hazardCode 从确认队列反查
+  const code = route.params.id ?? point.value?.hazardCode
+  if (!code) return
+  try {
+    const queue = await dashboardApi.getConfirmationQueue({})
+    const hit = (queue?.items ?? []).find((it) => it.hazardCode === code || String(it.id) === String(code))
+    confirmationEventId.value = hit?.id ?? null
+    if (hit?.status) confirmationState.value.status = hit.status
+    if (hit?.assignee) confirmationState.value.assignee = hit.assignee
+  } catch {
+    confirmationEventId.value = null
+  }
+}
+
+const operatorName = computed(() => getAuthUser()?.name ?? 'system')
+
 async function claimItem() {
   if (!isConfirmationMode.value) return
+  const id = confirmationEventId.value
+  if (id == null) return emit('notify', '缺少事件 ID，无法认领')
   confirmationState.value.loadingClaim = true
   try {
-    // TODO: 后端实现 POST /api/confirmation/{id}/claim 后替换此处
-    confirmationState.value.assignee = '当前用户'
+    const res = await dashboardApi.claimConfirmation(id, operatorName.value)
+    confirmationState.value.assignee = res?.assignedTo ?? operatorName.value
     confirmationState.value.status = '已认领'
     emit('notify', '已认领该事件')
-  } catch {
-    emit('notify', '认领失败')
+  } catch (e) {
+    emit('notify', `认领失败：${e.message ?? e}`)
   } finally {
     confirmationState.value.loadingClaim = false
   }
@@ -75,13 +111,16 @@ async function claimItem() {
 
 async function confirmItem() {
   if (!isConfirmationMode.value) return
+  const id = confirmationEventId.value
+  if (id == null) return emit('notify', '缺少事件 ID，无法确认')
   if (!window.confirm(`确认将"${point.value?.name}"纳入正式灾害档案？确认后将进入预警创建环节。`)) return
   confirmationState.value.loadingConfirm = true
   try {
+    await dashboardApi.confirmHazard(id, { operator: operatorName.value })
     confirmationState.value.status = '已确认'
     emit('notify', `已确认 ${point.value?.name}，可创建预警`)
-  } catch {
-    emit('notify', '确认失败')
+  } catch (e) {
+    emit('notify', `确认失败：${e.message ?? e}`)
   } finally {
     confirmationState.value.loadingConfirm = false
   }
@@ -89,14 +128,20 @@ async function confirmItem() {
 
 async function rejectItem() {
   if (!isConfirmationMode.value) return
+  const id = confirmationEventId.value
+  if (id == null) return emit('notify', '缺少事件 ID，无法驳回')
   if (!confirmationState.value.rejectReason.trim()) return emit('notify', '请填写驳回原因')
   confirmationState.value.loadingReject = true
   try {
+    await dashboardApi.rejectHazard(id, {
+      operator: operatorName.value,
+      reason: confirmationState.value.rejectReason,
+    })
     confirmationState.value.status = '已驳回'
     confirmationState.value.rejectDialog = false
     emit('notify', '已驳回该推断')
-  } catch {
-    emit('notify', '驳回失败')
+  } catch (e) {
+    emit('notify', `驳回失败：${e.message ?? e}`)
   } finally {
     confirmationState.value.loadingReject = false
   }
@@ -104,15 +149,22 @@ async function rejectItem() {
 
 async function transferItem() {
   if (!isConfirmationMode.value) return
+  const id = confirmationEventId.value
+  if (id == null) return emit('notify', '缺少事件 ID，无法转派')
   if (!confirmationState.value.transferTo.trim()) return emit('notify', '请选择转派对象')
   confirmationState.value.loadingTransfer = true
   try {
+    await dashboardApi.transferConfirmation(
+      id,
+      confirmationState.value.transferTo,
+      confirmationState.value.transferReason,
+    )
     confirmationState.value.assignee = confirmationState.value.transferTo
     confirmationState.value.status = '已转派'
     confirmationState.value.transferDialog = false
     emit('notify', `已转派给 ${confirmationState.value.transferTo}`)
-  } catch {
-    emit('notify', '转派失败')
+  } catch (e) {
+    emit('notify', `转派失败：${e.message ?? e}`)
   } finally {
     confirmationState.value.loadingTransfer = false
   }
@@ -212,6 +264,7 @@ async function loadData() {
     lat: data.item.lat,
   };
   loading.value = false;
+  if (isConfirmationMode.value) await resolveEventId();
   loadAiForecast();
   loadAiComprehensive();
 }
@@ -464,7 +517,7 @@ onBeforeUnmount(() => {
             </button>
           </div>
         </div>
-        <div v-if="loading" style="padding: 0 20px 18px; color: #7a8d89">
+        <div v-if="loading" class="u-hint-block">
           加载中...
         </div>
         <template v-else-if="point">
@@ -504,7 +557,7 @@ onBeforeUnmount(() => {
               <span v-if="latestForecast != null"
                 >{{ latestForecast.toFixed(1) }}<small>mm</small></span
               >
-              <span v-else style="color: #a4b3b0">--</span>
+              <span v-else class="u-text-3">--</span>
             </div>
             <div class="task-overview">
               <strong v-if="!editMode">{{ point.level }}</strong>
@@ -523,17 +576,17 @@ onBeforeUnmount(() => {
                       latestForecast > 15
                         ? '#e06060'
                         : latestForecast > 12
-                          ? '#e0a050'
-                          : '#6dbfa5',
+                          ? '#cbaa76'
+                          : '#87b096',
                   }"
                 ></i>
                 <i v-else style="width: 0%"></i>
               </div>
-              <p v-if="latestForecast != null" style="color: #57817d">
+              <p v-if="latestForecast != null" class="u-text-2">
                 AI 预测未来 {{ aiForecast.horizon }} 天位移
                 {{ latestForecast.toFixed(1) }} mm
               </p>
-              <p v-else style="color: #d88a6a">
+              <p v-else class="u-text-clay">
                 AI 识别服务不可用，不提供虚拟监测数据
               </p>
             </div>
@@ -553,25 +606,25 @@ onBeforeUnmount(() => {
             <div v-if="aiComprehensive.dimensions" class="ai-hazard-dims">
               <div class="ai-dim-cell">
                 <small>图像现况</small>
-                <strong :style="{ color: aiLevelClass(aiComprehensive.dimensions.image?.level) === 'orange' ? '#d57252' : aiLevelClass(aiComprehensive.dimensions.image?.level) === 'yellow' ? '#c69132' : '#34575a' }">
+                <strong :style="{ color: aiLevelClass(aiComprehensive.dimensions.image?.level) === 'orange' ? 'var(--c-warning-strong)' : aiLevelClass(aiComprehensive.dimensions.image?.level) === 'yellow' ? '#bda06a' : '#1c1c1e' }">
                   {{ aiLevelLabel(aiComprehensive.dimensions.image?.level) }} {{ Number(aiComprehensive.dimensions.image?.score ?? 0).toFixed(0) }}
                 </strong>
               </div>
               <div class="ai-dim-cell">
                 <small>当地降水量</small>
-                <strong :style="{ color: aiLevelClass(aiComprehensive.dimensions.precipitation?.level) === 'orange' ? '#d57252' : aiLevelClass(aiComprehensive.dimensions.precipitation?.level) === 'yellow' ? '#c69132' : '#34575a' }">
+                <strong :style="{ color: aiLevelClass(aiComprehensive.dimensions.precipitation?.level) === 'orange' ? 'var(--c-warning-strong)' : aiLevelClass(aiComprehensive.dimensions.precipitation?.level) === 'yellow' ? '#bda06a' : '#1c1c1e' }">
                   {{ aiLevelLabel(aiComprehensive.dimensions.precipitation?.level) }} {{ Number(aiComprehensive.dimensions.precipitation?.score ?? 0).toFixed(0) }}
                 </strong>
               </div>
               <div class="ai-dim-cell">
                 <small>当地地理情况</small>
-                <strong :style="{ color: aiLevelClass(aiComprehensive.dimensions.geographic?.level) === 'orange' ? '#d57252' : aiLevelClass(aiComprehensive.dimensions.geographic?.level) === 'yellow' ? '#c69132' : '#34575a' }">
+                <strong :style="{ color: aiLevelClass(aiComprehensive.dimensions.geographic?.level) === 'orange' ? 'var(--c-warning-strong)' : aiLevelClass(aiComprehensive.dimensions.geographic?.level) === 'yellow' ? '#bda06a' : '#1c1c1e' }">
                   {{ aiLevelLabel(aiComprehensive.dimensions.geographic?.level) }} {{ Number(aiComprehensive.dimensions.geographic?.score ?? 0).toFixed(0) }}
                 </strong>
               </div>
               <div class="ai-dim-cell">
                 <small>设备指标</small>
-                <strong :style="{ color: aiLevelClass(aiComprehensive.dimensions.device?.level) === 'orange' ? '#d57252' : aiLevelClass(aiComprehensive.dimensions.device?.level) === 'yellow' ? '#c69132' : '#34575a' }">
+                <strong :style="{ color: aiLevelClass(aiComprehensive.dimensions.device?.level) === 'orange' ? 'var(--c-warning-strong)' : aiLevelClass(aiComprehensive.dimensions.device?.level) === 'yellow' ? '#bda06a' : '#1c1c1e' }">
                   {{ aiLevelLabel(aiComprehensive.dimensions.device?.level) }} {{ Number(aiComprehensive.dimensions.device?.score ?? 0).toFixed(0) }}
                 </strong>
               </div>
@@ -587,16 +640,16 @@ onBeforeUnmount(() => {
               <span v-for="(a, i) in aiComprehensive.suggestedActions.slice(0, 4)" :key="i" class="ai-action-pill">{{ a }}</span>
             </div>
             <div class="heading-actions" style="padding: 6px 0 0; justify-content: flex-end; gap: 6px;">
-              <span v-if="aiComprehensive.model" style="font-size: 10px; color: #99a7a1;">模型：{{ aiComprehensive.model }} · 置信度 {{ ((aiComprehensive.confidence ?? 0) * 100).toFixed(0) }}%</span>
+              <span v-if="aiComprehensive.model" class="u-meta">模型：{{ aiComprehensive.model }} · 置信度 {{ ((aiComprehensive.confidence ?? 0) * 100).toFixed(0) }}%</span>
               <PermissionButton permission="ai:insight:refresh" :icon="BrainCircuit" @click="async ({ allowed, reason }) => {
                 if (!allowed) return
                 await refreshAiComprehensive()
               }">立即重算</PermissionButton>
             </div>
           </div>
-          <div v-else-if="aiComprehensiveLoading" class="ai-hazard-card" style="text-align: center; color: #7a8d89; font-size: 12px;">AI 综合研判加载中...</div>
-          <div v-else class="ai-hazard-card" style="text-align: center; color: #99a7a1; font-size: 11px;">
-            等待 AI 综合研判（5 分钟内自动更新，<a href="javascript:void(0)" @click="refreshAiComprehensive" style="color: #4c8b87; text-decoration: underline;">立即重算</a>）
+          <div v-else-if="aiComprehensiveLoading" class="ai-hazard-card ai-hazard-card--hint">AI 综合研判加载中...</div>
+          <div v-else class="ai-hazard-card ai-hazard-card--hint-3">
+            等待 AI 综合研判（5 分钟内自动更新，<a href="javascript:void(0)" @click="refreshAiComprehensive" class="u-link-inline">立即重算</a>）
           </div>
 
           <!-- AI 预测趋势 -->
@@ -605,14 +658,14 @@ onBeforeUnmount(() => {
               <strong
                 ><TrendingUp :size="16" />AI 位移趋势预测（未来 7 天）</strong
               >
-              <span v-if="aiForecast?.mock" style="color: #e0a050"
+              <span v-if="aiForecast?.mock" class="u-text-warn"
                 >启发式降级</span
               >
-              <span v-else-if="aiForecast" style="color: #6dbfa5">{{
+              <span v-else-if="aiForecast" class="u-text-brand">{{
                 aiForecast.model
               }}</span>
             </div>
-            <div v-if="aiForecastLoading" style="padding: 12px; color: #7a8d89">
+            <div v-if="aiForecastLoading" class="u-hint-box">
               AI 预测中...
             </div>
             <div v-else-if="aiForecast" style="padding: 8px 12px">
@@ -635,13 +688,13 @@ onBeforeUnmount(() => {
                     gap: 2px;
                   "
                 >
-                  <span style="font-size: 10px; color: #7a8d89">{{
+                  <span class="u-hint-10">{{
                     val.toFixed(1)
                   }}</span>
                   <div
                     style="
                       width: 100%;
-                      background: #6dbfa5;
+                      background: #87b096;
                       border-radius: 3px 3px 0 0;
                       min-height: 3px;
                     "
@@ -649,10 +702,10 @@ onBeforeUnmount(() => {
                       height:
                         (val / forecastMax) * 70 + 'px',
                       background:
-                        val > 15 ? '#e06060' : val > 12 ? '#e0a050' : '#6dbfa5',
+                        val > 15 ? '#e06060' : val > 12 ? '#cbaa76' : '#87b096',
                     }"
                   ></div>
-                  <span style="font-size: 9px; color: #7a8d89"
+                  <span class="u-hint-9"
                     >D{{ i + 1 }}</span
                   >
                 </div>
@@ -663,7 +716,7 @@ onBeforeUnmount(() => {
                   justify-content: space-between;
                   margin-top: 6px;
                   font-size: 11px;
-                  color: #7a8d89;
+                  color: #76847a;
                 "
               >
                 <span
@@ -676,7 +729,7 @@ onBeforeUnmount(() => {
                 >
               </div>
             </div>
-            <div v-else style="padding: 12px; color: #7a8d89">
+            <div v-else class="u-hint-box">
               AI 服务不可用，已跳过预测
             </div>
           </div>
@@ -697,7 +750,7 @@ onBeforeUnmount(() => {
                   try {
                     await saveDetail();
                   } catch (error) {
-                    alert(error instanceof Error ? error.message : reason);
+                    emit('notify', error instanceof Error ? error.message : (reason ?? '保存失败'));
                   }
                 }
               "
@@ -743,7 +796,7 @@ onBeforeUnmount(() => {
             >
               <span>{{ file.name }}</span>
               <div class="pie-track">
-                <i style="width: 100%; background: #4f8f99"></i>
+                <i class="u-bar-brand"></i>
               </div>
               <strong>{{ file.size }}</strong>
             </div>
@@ -764,7 +817,7 @@ onBeforeUnmount(() => {
               <span class="link-type">{{ item.type }}</span>
               <span class="link-label">{{ item.label }}</span>
               <div class="pie-track">
-                <i style="width: 100%; background: #6dbfa5"></i>
+                <i class="u-bar-brand-hover"></i>
               </div>
               <strong class="link-go">查看 ›</strong>
             </RouterLink>
@@ -785,9 +838,9 @@ onBeforeUnmount(() => {
   flex-wrap: wrap;
   gap: 10px;
   padding: 10px 16px;
-  background: linear-gradient(135deg, #f0fdf4, #dcfce7);
-  border: 1px solid #86efac;
-  border-radius: 8px;
+  background: linear-gradient(135deg, var(--c-success-bg), var(--c-success-bg));
+  border: 1px solid color-mix(in srgb, var(--c-success) 45%, transparent);
+  border-radius: var(--r-sm);
   margin-bottom: 12px;
   font-size: 13px;
 }
@@ -797,22 +850,22 @@ onBeforeUnmount(() => {
   gap: 10px;
   flex-wrap: wrap;
 }
-.confirmation-ops-left strong { color: #15803d; font-size: 14px; }
-.assignment-badge { color: #166534; }
-.assignee-tag { font-size: 12px; color: #4ade80; background: rgba(22,101,52,0.1); padding: 2px 8px; border-radius: 4px; }
-.ops-hint { font-size: 11.5px; color: #6b7280; }
+.confirmation-ops-left strong { color: var(--c-success-strong); font-size: 14px; }
+.assignment-badge { color: var(--c-success-strong); }
+.assignee-tag { font-size: 12px; color: var(--c-success); background: color-mix(in srgb, var(--c-success-strong) 10%, transparent); padding: 2px 8px; border-radius: var(--r-xs); }
+.ops-hint { font-size: 11.5px; color: var(--c-text-2); }
 
 .confirmation-badge {
   padding: 2px 10px;
-  border-radius: 12px;
+  border-radius: var(--r-lg);
   font-size: 11.5px;
   font-weight: 700;
   border: 1px solid;
 }
-.confirmation-badge.待确认 { color: #c2410c; border-color: #fed7aa; background: #fff7ed; }
-.confirmation-badge.已认领   { color: #1d4ed8; border-color: #bfdbfe; background: #eff6ff; }
-.confirmation-badge.已确认   { color: #15803d; border-color: #bbf7d0; background: #f0fdf4; }
-.confirmation-badge.已驳回   { color: #6b7280; border-color: #e5e7eb; background: #f9fafb; }
+.confirmation-badge.待确认 { color: var(--c-warning-ink); border-color: color-mix(in srgb, var(--c-warning) 40%, transparent); background: var(--c-warning-bg); }
+.confirmation-badge.已认领   { color: var(--c-brand-deeper); border-color: color-mix(in srgb, var(--sys-blue) 35%, transparent); background: var(--sys-blue-soft); }
+.confirmation-badge.已确认   { color: var(--c-success-strong); border-color: color-mix(in srgb, var(--c-success) 40%, transparent); background: var(--c-success-bg); }
+.confirmation-badge.已驳回   { color: var(--c-text-2); border-color: var(--c-separator); background: var(--c-surface-2); }
 .confirmation-badge.已转派   { color: #7c3aed; border-color: #ddd6fe; background: #f5f3ff; }
 
 .confirmation-ops-right {
@@ -826,44 +879,44 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 5px;
   padding: 5px 12px;
-  border-radius: 6px;
-  border: 1px solid #d1d5db;
-  background: #fff;
-  color: #374151;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--c-border);
+  background: var(--c-surface);
+  color: var(--c-ink-1);
   font-size: 12.5px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.15s;
 }
-.ops-btn:hover { background: #f9fafb; border-color: #9ca3af; }
+.ops-btn:hover { background: var(--c-surface-2); border-color: var(--c-text-3); }
 .ops-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.ops-btn.primary { background: #1d4ed8; color: #fff; border-color: #1d4ed8; }
-.ops-btn.primary:hover { background: #1e40af; }
-.ops-btn.success { background: #15803d; color: #fff; border-color: #15803d; }
-.ops-btn.success:hover { background: #166534; }
-.ops-btn.danger { background: #dc2626; color: #fff; border-color: #dc2626; }
-.ops-btn.danger:hover { background: #b91c1c; }
+.ops-btn.primary { background: var(--c-brand-deeper); color: var(--c-on-brand); border-color: var(--c-brand-deeper); }
+.ops-btn.primary:hover { background: var(--sys-blue-deep); }
+.ops-btn.success { background: var(--c-success-strong); color: var(--c-on-brand); border-color: var(--c-success-strong); }
+.ops-btn.success:hover { background: var(--c-success-strong); }
+.ops-btn.danger { background: var(--c-danger-strong); color: var(--c-on-brand); border-color: var(--c-danger-strong); }
+.ops-btn.danger:hover { background: var(--c-danger-strong); }
 
 /* 弹窗遮罩 */
 .mask {
   position: fixed; inset: 0;
-  background: rgba(0,0,0,0.4);
+  background: var(--c-scrim); /* 原 rgba(0,0,0,.4) 遮罩 */
   display: flex; align-items: center; justify-content: center;
   z-index: 9999;
 }
 .modal {
-  background: #fff;
-  border-radius: 12px;
+  background: var(--c-surface);
+  border-radius: var(--r-lg);
   padding: 24px;
   width: min(480px, 92vw);
   box-shadow: 0 20px 60px rgba(0,0,0,0.2);
 }
-.modal h3 { margin: 0 0 8px; font-size: 16px; color: #1f2937; }
-.modal-hint { font-size: 12.5px; color: #6b7280; margin-bottom: 12px; }
+.modal h3 { margin: 0 0 8px; font-size: 16px; color: var(--c-ink-1); }
+.modal-hint { font-size: 12.5px; color: var(--c-text-2); margin-bottom: 12px; }
 .modal label {
   display: block;
   font-size: 12.5px;
-  color: #374151;
+  color: var(--c-ink-1);
   font-weight: 500;
   margin-bottom: 10px;
 }
@@ -871,8 +924,8 @@ onBeforeUnmount(() => {
   width: 100%;
   margin-top: 4px;
   padding: 7px 10px;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-sm);
   font-size: 13px;
   box-sizing: border-box;
 }
@@ -888,7 +941,7 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   margin: 12px 0 0;
   padding: 10px 16px;
-  border-radius: 10px;
+  border-radius: var(--r-md);
   background: linear-gradient(135deg, rgba(79, 143, 153, 0.08), rgba(99, 143, 194, 0.05));
   border: 1px solid rgba(79, 143, 153, 0.25);
   gap: 12px;
@@ -902,15 +955,15 @@ onBeforeUnmount(() => {
 }
 .event-overview-label {
   font-size: 12px;
-  color: #4a5568;
+  color: var(--c-ink-2);
   font-weight: 600;
 }
 .event-overview-code {
   font-family: ui-monospace, monospace;
-  background: rgba(43, 108, 176, 0.1);
-  color: #2b6cb0;
+  background: rgba(111, 158, 127, 0.1);
+  color: var(--c-brand);
   padding: 3px 8px;
-  border-radius: 4px;
+  border-radius: var(--r-xs);
   font-size: 12px;
   font-weight: 700;
 }
@@ -918,24 +971,24 @@ onBeforeUnmount(() => {
   font-size: 11px;
   font-weight: 600;
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: rgba(155, 174, 173, 0.18);
-  color: #5a6a68;
+  color: var(--c-ink-2);
   letter-spacing: 0.3px;
 }
-.event-overview-state[data-state="DETECTED"]          { background: rgba(79, 143, 153, 0.18); color: #4f8f99; }
-.event-overview-state[data-state="CONFIRMING"]        { background: rgba(224, 160, 80, 0.20); color: #9b761e; }
-.event-overview-state[data-state="CONFIRMED"]         { background: rgba(99, 143, 194, 0.18); color: #2b6cb0; }
-.event-overview-state[data-state="WARNING_ISSUED"]    { background: rgba(216, 133, 97, 0.20); color: #c7553b; }
-.event-overview-state[data-state="EMERGENCY_ACTIVE"]  { background: rgba(224, 96, 96, 0.18); color: #e06060; }
-.event-overview-state[data-state="CLOSED"]            { background: rgba(155, 174, 173, 0.25); color: #5a6a68; }
-.event-overview-state[data-state="REJECTED"]          { background: rgba(122, 141, 137, 0.22); color: #7a8d89; }
+.event-overview-state[data-state="DETECTED"]          { background: rgba(79, 143, 153, 0.18); color: var(--c-brand); }
+.event-overview-state[data-state="CONFIRMING"]        { background: rgba(224, 160, 80, 0.20); color: var(--c-warning-ink); }
+.event-overview-state[data-state="CONFIRMED"]         { background: rgba(99, 143, 194, 0.18); color: var(--c-brand); }
+.event-overview-state[data-state="WARNING_ISSUED"]    { background: rgba(216, 133, 97, 0.20); color: var(--c-danger-strong); }
+.event-overview-state[data-state="EMERGENCY_ACTIVE"]  { background: rgba(224, 96, 96, 0.18); color: var(--c-danger); }
+.event-overview-state[data-state="CLOSED"]            { background: rgba(155, 174, 173, 0.25); color: var(--c-ink-2); }
+.event-overview-state[data-state="REJECTED"]          { background: rgba(122, 141, 137, 0.22); color: var(--c-text-2); }
 .event-overview-btn {
-  background: #ffffff;
-  border: 1px solid rgba(43, 108, 176, 0.4);
-  color: #2b6cb0;
+  background: var(--c-surface);
+  border: 1px solid rgba(111, 158, 127, 0.4);
+  color: var(--c-brand);
   padding: 6px 14px;
-  border-radius: 6px;
+  border-radius: var(--r-sm);
   cursor: pointer;
   font-size: 12px;
   font-weight: 600;
@@ -945,8 +998,26 @@ onBeforeUnmount(() => {
   transition: all 0.15s;
 }
 .event-overview-btn:hover {
-  background: #2b6cb0;
-  color: #ffffff;
-  border-color: #2b6cb0;
+  background: var(--c-brand);
+  color: var(--c-on-brand);
+  border-color: var(--c-brand);
 }
+/* ── 静态内联色收敛后的工具类（等价于原先的 inline style） ── */
+.u-hint-block { padding: 0 20px 18px; color: var(--c-text-2); }
+.u-hint-box { padding: 12px; color: var(--c-text-2); }
+.u-hint-10 { font-size: 10px; color: var(--c-text-2); }
+.u-hint-9 { font-size: 9px; color: var(--c-text-2); }
+.u-meta { font-size: 10px; color: var(--c-text-3); }
+.u-text-2 { color: var(--c-text-2); }
+.u-text-3 { color: var(--c-text-3); }
+.u-text-brand { color: var(--c-brand-hover); }
+.u-text-warn { color: var(--c-warning); }
+.u-text-clay { color: var(--c-warning-strong); }
+.u-link-inline { color: var(--c-brand-deep); text-decoration: underline; }
+.u-bar-brand { width: 100%; background: var(--c-brand); }
+.u-bar-brand-hover { width: 100%; background: var(--c-brand-hover); }
+.u-flex-hint { display: flex; justify-content: space-between; margin-top: 6px; font-size: 11px; color: var(--c-text-2); }
+.ai-hazard-card--hint { text-align: center; color: var(--c-text-2); font-size: 12px; }
+.ai-hazard-card--hint-3 { text-align: center; color: var(--c-text-3); font-size: 11px; }
+
 </style>

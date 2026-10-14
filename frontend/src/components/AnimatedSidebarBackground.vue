@@ -250,7 +250,7 @@ onBeforeUnmount(() => {
   height: 320px;
   left: -140px;
   top: -100px;
-  background: radial-gradient(circle at 34% 34%, #2f8f7a, #12383e 68%);
+  background: radial-gradient(circle at 34% 34%, var(--c-brand), var(--c-brand-deeper) 68%);
   animation: sidebar-blob-float 22s ease-in-out infinite;
 }
 
@@ -259,7 +259,7 @@ onBeforeUnmount(() => {
   height: 380px;
   right: -180px;
   top: 30%;
-  background: radial-gradient(circle at 58% 42%, #3a7d8f, #12383e 70%);
+  background: radial-gradient(circle at 58% 42%, var(--c-brand-deep), var(--c-brand-deeper) 70%);
   animation: sidebar-blob-float 28s ease-in-out infinite reverse;
 }
 
@@ -268,7 +268,7 @@ onBeforeUnmount(() => {
   height: 300px;
   left: 18%;
   bottom: -160px;
-  background: radial-gradient(circle at 50% 50%, #9a6f3e, #12383e 72%);
+  background: radial-gradient(circle at 50% 50%, var(--c-brand), var(--c-brand-deeper) 72%);
   animation: sidebar-blob-float 34s ease-in-out infinite;
 }
 

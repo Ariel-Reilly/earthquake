@@ -20,9 +20,9 @@ export function getAnalyticsMock() {
       riskTrend: [62, 68, 66, 71, 74, 79, 78],
       monthlyInspection: [54, 62, 67, 73, 81, 85, 88, 91, 93, 92, 94, 96],
       warningType: [
-        { label: "位移异常", value: 42, color: "#e27d5b" },
-        { label: "裂缝扩展", value: 27, color: "#d7a546" },
-        { label: "雨量阈值", value: 18, color: "#5db486" },
+        { label: "位移异常", value: 42, color: "#cd927e" },
+        { label: "裂缝扩展", value: 27, color: "#c4a86e" },
+        { label: "雨量阈值", value: 18, color: "#87b096" },
         { label: "设备离线", value: 13, color: "#658fc1" },
       ],
       deviceTrend: [88, 89, 90, 92, 91, 93, 95, 94, 96, 97, 98, 98],
@@ -41,7 +41,7 @@ export function getAnalyticsMock() {
           y: 22,
           width: 28,
           height: 20,
-          color: "#e27d5b",
+          color: "#cd927e",
         },
         {
           name: "石桥中片区",
@@ -51,7 +51,7 @@ export function getAnalyticsMock() {
           y: 38,
           width: 24,
           height: 18,
-          color: "#d7a546",
+          color: "#c4a86e",
         },
         {
           name: "清河南片区",
@@ -61,7 +61,7 @@ export function getAnalyticsMock() {
           y: 18,
           width: 20,
           height: 24,
-          color: "#5db486",
+          color: "#87b096",
         },
         {
           name: "白石北片区",

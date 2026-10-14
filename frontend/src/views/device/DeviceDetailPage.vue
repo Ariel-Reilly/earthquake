@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ArrowLeft, Database, Gauge, GitBranch, History, Layers3, MapPin, MessageSquareText, PencilLine, Save, Radio, Paperclip, Cpu, Stethoscope } from 'lucide-vue-next'
@@ -96,7 +96,7 @@ onMounted(loadData)
             <button class="primary-btn" @click="editMode = !editMode"><PencilLine :size="15" />{{ editMode ? '取消编辑' : '编辑详情' }}</button>
           </div>
         </div>
-        <div v-if="loading" style="padding: 0 20px 18px; color: #7a8d89;">加载中...</div>
+        <div v-if="loading" style="padding: 0 20px 18px; color: #76847a;">加载中...</div>
         <template v-else-if="device">
           <div class="system-list">
             <div><span><Radio :size="16" />设备编号</span><strong v-if="!editMode">{{ device.name }}</strong><input v-else v-model="form.name" /></div>
@@ -126,19 +126,19 @@ onMounted(loadData)
                 <strong v-if="aiHealth" :class="`ai-tag ai-tag-${(aiHealth.healthLevel || '').toLowerCase()}`">
                   {{ aiHealthLabel }} · {{ Number(aiHealth.healthScore || 0).toFixed(1) }} / 100
                 </strong>
-                <strong v-else style="color:#7a8d89">AI 暂未评分（5 分钟内自动更新）</strong>
+                <strong v-else style="color:#76847a">AI 暂未评分（5 分钟内自动更新）</strong>
               </div>
               <span v-if="aiHealth?.analyzedAt" class="ai-card-time">{{ new Date(aiHealth.analyzedAt).toLocaleString('zh-CN', { hour12: false }) }}</span>
             </div>
             <div v-if="aiHealth" class="ai-health-meters">
               <div class="ai-meter">
                 <small>异常分</small>
-                <div class="ai-bar-track"><i :style="{ width: (aiHealth.anomalyScore ?? 0) + '%', background: (aiHealth.anomalyScore ?? 0) > 50 ? '#d57252' : (aiHealth.anomalyScore ?? 0) > 20 ? '#c69132' : '#4c8b87' }"></i></div>
+                <div class="ai-bar-track"><i :style="{ width: (aiHealth.anomalyScore ?? 0) + '%', background: (aiHealth.anomalyScore ?? 0) > 50 ? '#c4836f' : (aiHealth.anomalyScore ?? 0) > 20 ? '#bda06a' : '#4c8b87' }"></i></div>
                 <strong>{{ Number(aiHealth.anomalyScore ?? 0).toFixed(1) }}</strong>
               </div>
               <div class="ai-meter">
                 <small>预测风险</small>
-                <div class="ai-bar-track"><i :style="{ width: (aiHealth.forecastRisk ?? 0) + '%', background: (aiHealth.forecastRisk ?? 0) > 50 ? '#d57252' : (aiHealth.forecastRisk ?? 0) > 20 ? '#c69132' : '#4c8b87' }"></i></div>
+                <div class="ai-bar-track"><i :style="{ width: (aiHealth.forecastRisk ?? 0) + '%', background: (aiHealth.forecastRisk ?? 0) > 50 ? '#c4836f' : (aiHealth.forecastRisk ?? 0) > 20 ? '#bda06a' : '#4c8b87' }"></i></div>
                 <strong>{{ Number(aiHealth.forecastRisk ?? 0).toFixed(1) }}</strong>
               </div>
               <div class="ai-meter">
@@ -155,7 +155,7 @@ onMounted(loadData)
               <span v-for="(a, i) in aiHealth.suggestedActions.slice(0, 3)" :key="i" class="ai-action-pill">{{ a }}</span>
             </div>
             <div class="heading-actions" style="padding: 8px 0 0; justify-content: flex-end; gap: 6px;">
-              <span v-if="aiHealth?.model" style="font-size: 10px; color: #99a7a1;">模型：{{ aiHealth.model }} · 置信度 {{ ((aiHealth.confidence ?? 0) * 100).toFixed(0) }}%</span>
+              <span v-if="aiHealth?.model" style="font-size: 10px; color: rgba(60,60,67,.52);">模型：{{ aiHealth.model }} · 置信度 {{ ((aiHealth.confidence ?? 0) * 100).toFixed(0) }}%</span>
               <PermissionButton permission="ai:insight:refresh" :icon="Stethoscope" @click="async ({ allowed, reason }) => {
                 if (!allowed) return
                 await refreshAi()
@@ -195,7 +195,7 @@ onMounted(loadData)
           <div class="pie-list">
             <div v-for="file in device.attachments" :key="file.name" class="pie-item">
               <span>{{ file.name }}</span>
-              <div class="pie-track"><i style="width: 100%; background: #4f8f99"></i></div>
+              <div class="pie-track"><i style="width: 100%; background: #6f9e7f"></i></div>
               <strong>{{ file.size }}</strong>
             </div>
           </div>
@@ -209,7 +209,7 @@ onMounted(loadData)
             <RouterLink v-for="item in device.linked" :key="`${item.type}-${item.label}`" :to="item.path" class="pie-item link-item">
               <span class="link-type">{{ item.type }}</span>
               <span class="link-label">{{ item.label }}</span>
-              <div class="pie-track"><i style="width: 100%; background: #6dbfa5"></i></div>
+              <div class="pie-track"><i style="width: 100%; background: #87b096"></i></div>
               <strong class="link-go">查看 ›</strong>
             </RouterLink>
           </div>

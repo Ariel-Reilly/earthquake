@@ -42,8 +42,16 @@ import {
   Webhook,
   XCircle,
 } from "lucide-vue-next";
-import { dashboardApi } from "../../services/dashboardApi";
+import {
+  getChannelConfigs,
+  updateChannelConfig,
+  testSend,
+  getNotificationRecords,
+} from "../../services/_architecture/domain/notificationService";
+import { USE_BACKEND } from "../../services/dashboardApi";
 import { hasPermission, getAuthUser } from "../../stores/auth";
+
+const emit = defineEmits(["notify"]);
 
 const operator = getAuthUser() ?? { name: "李晨曦", role: "admin" };
 const has = (perm) => hasPermission(operator.role, perm);
@@ -51,6 +59,24 @@ const has = (perm) => hasPermission(operator.role, perm);
 const loading = ref(false);
 const activeTab = ref("sms");
 const searchTerm = ref("");
+const backendMode = USE_BACKEND;
+
+/**
+ * 前端渠道类型 → 后端规范渠道码。
+ * 后端 NotificationRouter 只识别：SMS / APP / SCREEN / SOUND_LIGHT / EMAIL / WEBHOOK。
+ * 注意 "led" 映射到 SCREEN、"sound" 映射到 SOUND_LIGHT，不能直接取 type。
+ */
+const CHANNEL_CODE = {
+  sms: "SMS",
+  app: "APP",
+  email: "EMAIL",
+  led: "SCREEN",
+  webhook: "WEBHOOK",
+  sound: "SOUND_LIGHT",
+};
+const CODE_TO_TYPE = Object.fromEntries(
+  Object.entries(CHANNEL_CODE).map(([type, code]) => [code, type])
+);
 
 // ── 渠道类型配置 ──
 const channelTypes = [
@@ -86,7 +112,7 @@ const channelTypes = [
     id: "email",
     label: "邮件",
     icon: Mail,
-    color: "#3b82f6",
+    color: "#87b096",
     desc: "SMTP 邮件发送",
     fields: [
       { key: "smtpHost", label: "SMTP 服务器", placeholder: "smtp.example.com" },
@@ -138,93 +164,75 @@ const channelTypes = [
   },
 ];
 
-// ── 渠道列表（mock） ──
-const channels = ref([
-  {
-    id: "ch-001",
-    type: "sms",
-    name: "阿里云短信主通道",
-    enabled: true,
-    priority: 1,
-    health: "healthy",
-    healthLabel: "正常",
-    lastSend: "2 分钟前",
-    todayCount: 1234,
-    successRate: 99.2,
-    fallbackTo: "ch-003",
-    config: { endpoint: "https://dysmsapi.aliyuncs.com", signName: "【地脉智巡】" },
-  },
-  {
-    id: "ch-002",
-    type: "app",
-    name: "APP 推送通道",
-    enabled: true,
-    priority: 2,
-    health: "healthy",
-    healthLabel: "正常",
-    lastSend: "5 分钟前",
-    todayCount: 3421,
-    successRate: 98.7,
-    fallbackTo: null,
-    config: { channelId: "disasterguard_alert", importance: "HIGH" },
-  },
-  {
-    id: "ch-003",
-    type: "email",
-    name: "邮件通知通道",
-    enabled: true,
-    priority: 3,
-    health: "degraded",
-    healthLabel: "性能下降",
-    lastSend: "15 分钟前",
-    todayCount: 567,
-    successRate: 94.5,
-    fallbackTo: null,
-    config: { smtpHost: "smtp.exmail.qq.com", fromAddress: "noreply@disasterguard.cn" },
-  },
-  {
-    id: "ch-004",
-    type: "led",
-    name: "指挥大厅 LED",
-    enabled: false,
-    priority: 5,
-    health: "offline",
-    healthLabel: "已停用",
-    lastSend: "3 天前",
-    todayCount: 0,
-    successRate: 0,
-    fallbackTo: null,
-    config: { endpoint: "http://192.168.1.100:8080", screenId: "LED-01" },
-  },
-  {
-    id: "ch-005",
-    type: "webhook",
-    name: "应急指挥系统回调",
-    enabled: true,
-    priority: 4,
-    health: "healthy",
-    healthLabel: "正常",
-    lastSend: "1 小时前",
-    todayCount: 89,
-    successRate: 100,
-    fallbackTo: null,
-    config: { url: "https://emergency-api.example.com/webhook" },
-  },
-  {
-    id: "ch-006",
-    type: "sound",
-    name: "现场声光报警器",
-    enabled: true,
-    priority: 6,
-    health: "healthy",
-    healthLabel: "正常",
-    lastSend: "昨天",
-    todayCount: 3,
-    successRate: 100,
-    fallbackTo: null,
-    config: { deviceIp: "192.168.1.200", soundPattern: "urgent" },
-  },
-]);
+// ── 渠道列表（由后端 channel-config 派生） ──
+// 后端数据模型：notification_channel_config 以「灾种 × 级别」为一行，
+// 行内 channels 是 ChannelSetting[]{channel, enabled, priority, templateId} 列表。
+// 本页按渠道聚合展示，故将多行配置展开为「渠道 → 配置项」的映射再渲染。
+const channels = ref([]);
+
+// 原始配置行（保留 id / disasterType / level，保存回写时需要）
+const configRows = ref([]);
+
+/**
+ * 将后端多行渠道配置展开为按渠道聚合的展示结构。
+ * 同一渠道被多个「灾种×级别」引用时，取优先级最高的那条作为卡片主信息。
+ */
+function buildChannelsFromConfigs(rows) {
+  const byType = new Map();
+  for (const row of rows) {
+    for (const setting of row.channels ?? []) {
+      const type = CODE_TO_TYPE[setting.channel];
+      // 后端可能返回前端未定义的渠道码，跳过而不是伪造一条陌生卡片
+      if (!type) continue;
+      const existing = byType.get(type);
+      if (!existing || (setting.priority ?? 99) < (existing.priority ?? 99)) {
+        byType.set(type, {
+          id: `${row.id ?? "new"}-${type}`,
+          configRowId: row.id ?? null,
+          disasterType: row.disasterType,
+          level: row.level,
+          type,
+          name: `${channelLabel(type)}通道${row.level ? ` · ${row.level}` : ""}`,
+          enabled: setting.enabled ?? row.enabled ?? false,
+          priority: setting.priority ?? 1,
+          health: setting.enabled === false ? "offline" : "healthy",
+          healthLabel: setting.enabled === false ? "已停用" : "正常",
+          templateId: setting.templateId ?? "",
+          fallbackTo: null,
+          config: row.templateMapping ?? {},
+        });
+      }
+    }
+  }
+  return [...byType.values()].sort((a, b) => a.priority - b.priority);
+}
+
+function channelLabel(type) {
+  return channelTypes.find((t) => t.id === type)?.label ?? type;
+}
+
+/**
+ * 加载渠道配置。后端模式下走真实接口；非后端模式给出明确提示而非塞假数据。
+ */
+async function loadChannels() {
+  loading.value = true;
+  try {
+    const rows = await getChannelConfigs();
+    configRows.value = Array.isArray(rows) ? rows : [];
+    channels.value = buildChannelsFromConfigs(configRows.value);
+  } catch (e) {
+    channels.value = [];
+    configRows.value = [];
+    emit(
+      "notify",
+      backendMode
+        ? `渠道配置加载失败：${e.message ?? e}`
+        : "未连接后端，无法读取渠道配置"
+    );
+  } finally {
+    loading.value = false;
+  }
+}
 
 const filteredChannels = computed(() => {
   if (!searchTerm.value.trim()) return channels.value;
@@ -245,14 +253,34 @@ const activeChannelType = computed(() =>
   channelTypes.find((t) => t.id === activeTab.value) ?? channelTypes[0]
 );
 
-// ── 发送日志（mock） ──
-const logs = ref([
-  { id: "lg-001", channel: "短信", recipient: "138****0001", template: "橙色预警通知", status: "success", sentAt: "14:35:21", errorMsg: "" },
-  { id: "lg-002", channel: "APP推送", recipient: "李晨曦", template: "待确认提醒", status: "success", sentAt: "14:32:05", errorMsg: "" },
-  { id: "lg-003", channel: "Webhook", recipient: "emergency-api", template: "预警发布事件", status: "success", sentAt: "14:30:00", errorMsg: "" },
-  { id: "lg-004", channel: "短信", recipient: "139****5678", template: "橙色预警通知", status: "failed", sentAt: "14:29:33", errorMsg: "手机号无效" },
-  { id: "lg-005", channel: "邮件", recipient: "expert@disasterguard.cn", template: "专家会签通知", status: "success", sentAt: "14:28:10", errorMsg: "" },
-]);
+// ── 发送日志（后端 notification/records） ──
+const logs = ref([]);
+
+const STATUS_LABEL = {
+  SUCCESS: "success",
+  SENT: "success",
+  FAILED: "failed",
+  PARTIAL: "failed",
+};
+
+async function loadLogs() {
+  try {
+    const page = await getNotificationRecords({ page: 1, size: 50 });
+    const records = page?.records ?? (Array.isArray(page) ? page : []);
+    logs.value = records.map((r) => ({
+      id: r.id,
+      channel: (r.channels ?? []).map((c) => channelLabel(CODE_TO_TYPE[c] ?? c)).join("/") || "—",
+      recipient: r.createdBy ?? "—",
+      template: r.title ?? "—",
+      status: STATUS_LABEL[r.status] ?? (r.status === "FAILED" ? "failed" : "success"),
+      sentAt: r.createdAt ? new Date(r.createdAt).toLocaleTimeString("zh-CN", { hour12: false }) : "—",
+      errorMsg: r.status === "FAILED" ? "发送失败" : "",
+    }));
+  } catch {
+    // 日志是次要信息，失败就留空，不弹错也不塞假数据
+    logs.value = [];
+  }
+}
 
 // ── 状态 ──
 const editDrawer = ref(false);
@@ -264,10 +292,14 @@ const saving = ref(false);
 function openCreate() {
   editingChannel.value = {
     id: null,
+    configRowId: null,
+    disasterType: null,
+    level: null,
     type: activeTab.value,
     name: "",
     enabled: true,
     priority: channels.value.filter((c) => c.type === activeTab.value).length + 1,
+    templateId: "",
     config: {},
     fallbackTo: null,
   };
@@ -275,49 +307,104 @@ function openCreate() {
 }
 
 function openEdit(channel) {
-  editingChannel.value = { ...channel, config: { ...channel.config } };
+  editingChannel.value = { ...channel, config: { ...channel.config }, templateId: channel.templateId ?? "" };
   editDrawer.value = true;
 }
 
 async function testConnection(channel) {
   testing.value[channel.id] = true;
   try {
-    // 真实场景：await dashboardApi.testChannel(channel)
-    await new Promise((r) => setTimeout(r, 1200));
-    alert(`✓ ${channel.name} 连接测试成功`);
+    const code = CHANNEL_CODE[channel.type] ?? channel.type;
+    const result = await testSend({
+      channel: code,
+      target: "",
+      title: "渠道连通性测试",
+      content: "这是一条来自 DisasterGuard 的测试消息",
+    });
+    if (result?.success === false) {
+      emit("notify", `测试失败：${result.message ?? "通道返回失败"}`);
+    } else {
+      emit("notify", `${channel.name} 连接测试成功`);
+    }
   } catch (e) {
-    alert(`✗ 测试失败: ${e.message}`);
+    emit("notify", `测试失败：${e.message ?? e}`);
   } finally {
     testing.value[channel.id] = false;
   }
 }
 
 async function toggleChannel(channel) {
-  channel.enabled = !channel.enabled;
-  // 真实场景：await dashboardApi.updateChannel(channel)
+  const next = !channel.enabled;
+  try {
+    await persistChannel({ ...channel, enabled: next });
+    channel.enabled = next;
+    channel.health = next ? "healthy" : "offline";
+    channel.healthLabel = next ? "正常" : "已停用";
+    emit("notify", next ? "渠道已启用" : "渠道已停用");
+  } catch (e) {
+    emit("notify", `操作失败：${e.message ?? e}`);
+  }
+}
+
+/**
+ * 将前端渠道卡片回写为后端 ChannelConfigDto（灾种 × 级别 行结构）。
+ * 后端契约：{ id, disasterType, level, channels:[{channel,enabled,priority,templateId}], templateMapping, enabled }
+ */
+async function persistChannel(channel) {
+  const row = configRows.value.find((r) => r.id === channel.configRowId);
+  const code = CHANNEL_CODE[channel.type] ?? channel.type;
+
+  // 同一行内的其他渠道设置需保留，只替换当前渠道那一项
+  const others = (row?.channels ?? []).filter((s) => s.channel !== code);
+  const payload = {
+    id: channel.configRowId ?? null,
+    disasterType: row?.disasterType ?? channel.disasterType ?? null,
+    level: row?.level ?? channel.level ?? null,
+    channels: [
+      ...others,
+      {
+        channel: code,
+        enabled: channel.enabled,
+        priority: channel.priority,
+        templateId: channel.templateId ?? "",
+      },
+    ],
+    templateMapping: row?.templateMapping ?? channel.config ?? {},
+    enabled: channel.enabled,
+  };
+  return updateChannelConfig(payload);
 }
 
 async function saveChannel() {
   saving.value = true;
   try {
-    await new Promise((r) => setTimeout(r, 600));
-    const idx = channels.value.findIndex((c) => c.id === editingChannel.value.id);
-    if (idx >= 0) {
-      channels.value[idx] = { ...editingChannel.value };
-    } else {
-      editingChannel.value.id = `ch-${Date.now()}`;
-      channels.value.push({ ...editingChannel.value, health: "healthy", healthLabel: "正常", todayCount: 0, successRate: 0 });
-    }
+    await persistChannel(editingChannel.value);
     editDrawer.value = false;
+    emit("notify", "渠道配置已保存");
+    await loadChannels();
+  } catch (e) {
+    emit("notify", `保存失败：${e.message ?? e}`);
   } finally {
     saving.value = false;
   }
 }
 
 async function deleteChannel(channel) {
-  if (!confirm(`确定删除渠道 "${channel.name}"？`)) return;
-  channels.value = channels.value.filter((c) => c.id !== channel.id);
+  if (!confirm(`确定停用并移除渠道 "${channel.name}" 的配置？`)) return;
+  try {
+    // 后端无删除端点，语义上以「禁用」实现下线，避免伪造前端删除
+    await persistChannel({ ...channel, enabled: false });
+    emit("notify", "渠道已停用");
+    await loadChannels();
+  } catch (e) {
+    emit("notify", `操作失败：${e.message ?? e}`);
+  }
 }
+
+onMounted(async () => {
+  await loadChannels();
+  await loadLogs();
+});
 
 function goToTemplates() {
   window.location.href = "/dashboard/notice-templates";
@@ -327,7 +414,7 @@ function goToTemplates() {
 const healthStyle = (h) =>
   h === "healthy" ? { bg: "#dcfce7", color: "#166534" } :
   h === "degraded" ? { bg: "#fef9c3", color: "#854d0e" } :
-  { bg: "#f1f5f9", color: "#64748b" };
+  { bg: "#f1f6f2", color: "#6b7f7c" };
 
 const statusStyle = (s) =>
   s === "success" ? { bg: "#dcfce7", color: "#166534" } :
@@ -340,7 +427,7 @@ const channelIcon = (type) => {
 
 const channelColor = (type) => {
   const t = channelTypes.find((c) => c.id === type);
-  return t?.color ?? "#64748b";
+  return t?.color ?? "#6b7f7c";
 };
 </script>
 
@@ -440,18 +527,16 @@ const channelColor = (type) => {
 
           <div class="card-stats">
             <div class="stat-item">
-              <span class="stat-label">今日发送</span>
-              <span class="stat-val">{{ ch.todayCount.toLocaleString() }}</span>
+              <span class="stat-label">渠道编码</span>
+              <span class="stat-val">{{ CHANNEL_CODE[ch.type] ?? ch.type }}</span>
             </div>
             <div class="stat-item">
-              <span class="stat-label">成功率</span>
-              <span class="stat-val" :style="{ color: ch.successRate >= 98 ? '#22c55e' : ch.successRate >= 90 ? '#f59e0b' : '#ef4444' }">
-                {{ ch.successRate }}%
-              </span>
+              <span class="stat-label">适用范围</span>
+              <span class="stat-val">{{ ch.level ? `${ch.disasterType ?? "全部"} / ${ch.level}` : "全部" }}</span>
             </div>
             <div class="stat-item">
-              <span class="stat-label">上次发送</span>
-              <span class="stat-val">{{ ch.lastSend }}</span>
+              <span class="stat-label">模板</span>
+              <span class="stat-val">{{ ch.templateId || "—" }}</span>
             </div>
           </div>
 
@@ -471,9 +556,12 @@ const channelColor = (type) => {
         </div>
 
         <div v-if="!tabChannels.length" class="empty-state">
-          <Bell :size="40" />
-          <p>该类型暂无渠道配置</p>
-          <button class="btn-primary" @click="openCreate">
+          <Loader2 v-if="loading" :size="40" class="spinning" />
+          <Bell v-else :size="40" />
+          <p v-if="loading">正在加载渠道配置…</p>
+          <p v-else-if="!backendMode">未连接后端，无法读取渠道配置</p>
+          <p v-else>该类型暂无渠道配置</p>
+          <button v-if="!loading && backendMode" class="btn-primary" @click="openCreate">
             <Plus :size="15" /> 添加第一个渠道
           </button>
         </div>
@@ -606,7 +694,7 @@ const channelColor = (type) => {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: #f8fafc;
+  background: var(--c-brand-mist);
 }
 
 /* ── 头部 ── */
@@ -615,21 +703,21 @@ const channelColor = (type) => {
   align-items: flex-start;
   justify-content: space-between;
   padding: 20px 24px 14px;
-  background: #fff;
-  border-bottom: 1px solid #e2e8f0;
+  background: var(--c-surface);
+  border-bottom: 1px solid var(--c-brand-soft);
   gap: 16px;
 }
 
 .page-title {
   font-size: 20px;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--c-scrim);
   margin: 0 0 4px;
 }
 
 .page-desc {
   font-size: 13px;
-  color: #64748b;
+  color: var(--c-text-3);
   margin: 0;
 }
 
@@ -641,17 +729,17 @@ const channelColor = (type) => {
   align-items: center;
   gap: 6px;
   padding: 8px 16px;
-  background: #1d4ed8;
-  color: #fff;
+  background: var(--c-brand-deeper);
+  color: var(--c-on-brand);
   border: none;
-  border-radius: 8px;
+  border-radius: var(--r-sm);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   transition: background 0.15s;
 }
 
-.btn-primary:hover:not(:disabled) { background: #1e40af; }
+.btn-primary:hover:not(:disabled) { background: var(--sys-blue-deep); }
 .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .btn-secondary {
@@ -659,25 +747,25 @@ const channelColor = (type) => {
   align-items: center;
   gap: 6px;
   padding: 8px 16px;
-  background: #fff;
-  color: #374151;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  background: var(--c-surface);
+  color: var(--c-ink-1);
+  border: 1px solid var(--c-brand-soft);
+  border-radius: var(--r-sm);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.15s;
 }
 
-.btn-secondary:hover { background: #f8fafc; }
+.btn-secondary:hover { background: var(--c-brand-mist); }
 
 /* ── 渠道标签 ── */
 .channel-tabs {
   display: flex;
   gap: 0;
   padding: 0 24px;
-  background: #fff;
-  border-bottom: 1px solid #e2e8f0;
+  background: var(--c-surface);
+  border-bottom: 1px solid var(--c-brand-soft);
   overflow-x: auto;
 }
 
@@ -691,22 +779,22 @@ const channelColor = (type) => {
   border-bottom: 2px solid transparent;
   font-size: 13px;
   font-weight: 500;
-  color: #64748b;
+  color: var(--c-text-3);
   cursor: pointer;
   white-space: nowrap;
   transition: all 0.15s;
 }
 
-.channel-tab:hover { color: #1d4ed8; }
+.channel-tab:hover { color: var(--c-brand-deeper); }
 .channel-tab.active { font-weight: 700; }
 
 .tab-count {
-  background: #f1f5f9;
-  color: #64748b;
+  background: var(--c-brand-mist);
+  color: var(--c-text-3);
   font-size: 11px;
   font-weight: 700;
   padding: 1px 5px;
-  border-radius: 10px;
+  border-radius: var(--r-md);
 }
 
 /* ── 工具栏 ── */
@@ -715,8 +803,8 @@ const channelColor = (type) => {
   align-items: center;
   gap: 12px;
   padding: 12px 24px;
-  background: #fff;
-  border-bottom: 1px solid #e2e8f0;
+  background: var(--c-surface);
+  border-bottom: 1px solid var(--c-brand-soft);
   flex-wrap: wrap;
 }
 
@@ -730,20 +818,20 @@ const channelColor = (type) => {
   left: 10px;
   top: 50%;
   transform: translateY(-50%);
-  color: #94a3b8;
+  color: var(--c-text-3);
 }
 
 .search-input {
   width: 100%;
   padding: 7px 10px 7px 32px;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
+  border: 1px solid var(--c-brand-soft);
+  border-radius: var(--r-sm);
   font-size: 13px;
   outline: none;
   box-sizing: border-box;
 }
 
-.search-input:focus { border-color: #3b82f6; }
+.search-input:focus { border-color: var(--c-brand-hover); }
 
 .channel-summary { display: flex; gap: 8px; flex-wrap: wrap; }
 
@@ -753,7 +841,7 @@ const channelColor = (type) => {
   gap: 4px;
   padding: 3px 10px;
   border: 1px solid;
-  border-radius: 20px;
+  border-radius: var(--r-xl);
   font-size: 12px;
   font-weight: 500;
 }
@@ -770,9 +858,9 @@ const channelColor = (type) => {
 }
 
 .channel-card {
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-brand-soft);
+  border-radius: var(--r-lg);
   padding: 16px;
   transition: box-shadow 0.15s;
 }
@@ -790,7 +878,7 @@ const channelColor = (type) => {
 .card-icon {
   width: 40px;
   height: 40px;
-  border-radius: 10px;
+  border-radius: var(--r-md);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -802,7 +890,7 @@ const channelColor = (type) => {
 .card-name {
   font-size: 14px;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--c-scrim);
   margin-bottom: 5px;
 }
 
@@ -812,20 +900,20 @@ const channelColor = (type) => {
   font-size: 11px;
   font-weight: 600;
   padding: 1px 7px;
-  border-radius: 10px;
+  border-radius: var(--r-md);
 }
 
 .priority-badge {
   font-size: 11px;
-  color: #94a3b8;
+  color: var(--c-text-3);
 }
 
 /* Toggle */
 .toggle-btn {
   width: 40px;
   height: 22px;
-  border-radius: 11px;
-  background: #e2e8f0;
+  border-radius: var(--r-md);
+  background: var(--c-brand-soft);
   border: none;
   cursor: pointer;
   position: relative;
@@ -833,7 +921,7 @@ const channelColor = (type) => {
   flex-shrink: 0;
 }
 
-.toggle-btn.on { background: #22c55e; }
+.toggle-btn.on { background: var(--c-success); }
 
 .toggle-thumb {
   position: absolute;
@@ -842,7 +930,7 @@ const channelColor = (type) => {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: #fff;
+  background: var(--c-surface);
   transition: transform 0.2s;
   box-shadow: 0 1px 3px rgba(0,0,0,0.2);
 }
@@ -861,21 +949,21 @@ const channelColor = (type) => {
   display: flex;
   flex-direction: column;
   gap: 1px;
-  background: #f8fafc;
+  background: var(--c-brand-mist);
   padding: 5px 8px;
-  border-radius: 5px;
+  border-radius: var(--r-sm);
 }
 
 .config-key {
   font-size: 10px;
-  color: #94a3b8;
+  color: var(--c-text-3);
   font-weight: 600;
   text-transform: uppercase;
 }
 
 .config-val {
   font-size: 12px;
-  color: #374151;
+  color: var(--c-ink-1);
   font-family: monospace;
 }
 
@@ -883,8 +971,8 @@ const channelColor = (type) => {
 .card-stats {
   display: flex;
   gap: 0;
-  border: 1px solid #f1f5f9;
-  border-radius: 8px;
+  border: 1px solid var(--c-brand-mist);
+  border-radius: var(--r-sm);
   overflow: hidden;
   margin-bottom: 12px;
 }
@@ -895,13 +983,13 @@ const channelColor = (type) => {
   flex-direction: column;
   align-items: center;
   padding: 8px 4px;
-  border-right: 1px solid #f1f5f9;
+  border-right: 1px solid var(--c-brand-mist);
 }
 
 .stat-item:last-child { border-right: none; }
 
-.stat-label { font-size: 11px; color: #94a3b8; margin-bottom: 2px; }
-.stat-val { font-size: 14px; font-weight: 700; color: #1e293b; }
+.stat-label { font-size: 11px; color: var(--c-text-3); margin-bottom: 2px; }
+.stat-val { font-size: 14px; font-weight: 700; color: var(--c-scrim); }
 
 /* 操作按钮 */
 .card-actions {
@@ -916,33 +1004,33 @@ const channelColor = (type) => {
   justify-content: center;
   gap: 4px;
   padding: 6px 10px;
-  border-radius: 6px;
+  border-radius: var(--r-sm);
   font-size: 12px;
   font-weight: 600;
-  border: 1px solid #e2e8f0;
-  background: #fff;
-  color: #374151;
+  border: 1px solid var(--c-brand-soft);
+  background: var(--c-surface);
+  color: var(--c-ink-1);
   cursor: pointer;
   transition: all 0.15s;
 }
 
-.btn-test:hover:not(:disabled) { background: #eff6ff; border-color: #3b82f6; color: #1d4ed8; }
-.btn-edit:hover { background: #f8fafc; }
+.btn-test:hover:not(:disabled) { background: var(--sys-blue-soft); border-color: var(--c-brand-hover); color: var(--c-brand-deeper); }
+.btn-edit:hover { background: var(--c-brand-mist); }
 .btn-delete {
   width: 32px;
   height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 6px;
-  border: 1px solid #fee2e2;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--c-danger-bg);
   background: none;
-  color: #ef4444;
+  color: var(--c-danger);
   cursor: pointer;
   transition: all 0.15s;
 }
 
-.btn-delete:hover { background: #fee2e2; }
+.btn-delete:hover { background: var(--c-danger-bg); }
 
 /* ── 空状态 ── */
 .empty-state {
@@ -953,15 +1041,15 @@ const channelColor = (type) => {
   justify-content: center;
   gap: 12px;
   padding: 48px;
-  color: #94a3b8;
+  color: var(--c-text-3);
   font-size: 14px;
 }
 
 /* ── 发送日志 ── */
 .logs-section {
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-brand-soft);
+  border-radius: var(--r-lg);
   padding: 16px;
 }
 
@@ -971,7 +1059,7 @@ const channelColor = (type) => {
   gap: 6px;
   font-size: 15px;
   font-weight: 700;
-  color: #374151;
+  color: var(--c-ink-1);
   margin: 0 0 12px;
 }
 
@@ -979,7 +1067,7 @@ const channelColor = (type) => {
   margin-left: auto;
   font-size: 12px;
   font-weight: 400;
-  color: #94a3b8;
+  color: var(--c-text-3);
 }
 
 .logs-table-wrap { overflow-x: auto; }
@@ -991,40 +1079,40 @@ const channelColor = (type) => {
 }
 
 .logs-table th {
-  background: #f8fafc;
+  background: var(--c-brand-mist);
   padding: 8px 12px;
   text-align: left;
   font-size: 12px;
   font-weight: 600;
-  color: #64748b;
-  border-bottom: 1px solid #e2e8f0;
+  color: var(--c-text-3);
+  border-bottom: 1px solid var(--c-brand-soft);
 }
 
 .logs-table td {
   padding: 8px 12px;
-  color: #374151;
-  border-bottom: 1px solid #f1f5f9;
+  color: var(--c-ink-1);
+  border-bottom: 1px solid var(--c-brand-mist);
 }
 
-.log-time { color: #94a3b8; font-family: monospace; font-size: 12px; }
+.log-time { color: var(--c-text-3); font-family: monospace; font-size: 12px; }
 
 .status-badge {
   display: inline-flex;
   align-items: center;
   gap: 3px;
   padding: 2px 7px;
-  border-radius: 10px;
+  border-radius: var(--r-md);
   font-size: 12px;
   font-weight: 600;
 }
 
-.log-error { color: #ef4444; font-size: 12px; }
+.log-error { color: var(--c-danger); font-size: 12px; }
 
 /* ── 抽屉 ── */
 .drawer-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.4);
+  background: var(--c-scrim);
   z-index: 100;
   display: flex;
   justify-content: flex-end;
@@ -1033,7 +1121,7 @@ const channelColor = (type) => {
 .drawer {
   width: 440px;
   max-width: 100%;
-  background: #fff;
+  background: var(--c-surface);
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -1045,13 +1133,13 @@ const channelColor = (type) => {
   align-items: center;
   justify-content: space-between;
   padding: 16px 20px;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--c-brand-soft);
 }
 
 .drawer-header h3 {
   font-size: 16px;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--c-scrim);
   margin: 0;
 }
 
@@ -1060,16 +1148,16 @@ const channelColor = (type) => {
   height: 32px;
   border: none;
   background: none;
-  color: #94a3b8;
+  color: var(--c-text-3);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 6px;
+  border-radius: var(--r-sm);
   transition: all 0.15s;
 }
 
-.btn-close:hover { background: #f1f5f9; color: #374151; }
+.btn-close:hover { background: var(--c-brand-mist); color: var(--c-ink-1); }
 
 .drawer-body {
   flex: 1;
@@ -1081,16 +1169,16 @@ const channelColor = (type) => {
 }
 
 .config-section {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  background: var(--c-brand-mist);
+  border: 1px solid var(--c-brand-soft);
+  border-radius: var(--r-sm);
   padding: 14px;
 }
 
 .config-section-title {
   font-size: 13px;
   font-weight: 700;
-  color: #374151;
+  color: var(--c-ink-1);
   margin-bottom: 10px;
 }
 
@@ -1099,28 +1187,28 @@ const channelColor = (type) => {
 .form-field label {
   font-size: 12px;
   font-weight: 600;
-  color: #64748b;
+  color: var(--c-text-3);
 }
 
-.required { color: #ef4444; }
+.required { color: var(--c-danger); }
 
 .form-input, .form-select {
   padding: 8px 10px;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
+  border: 1px solid var(--c-brand-soft);
+  border-radius: var(--r-sm);
   font-size: 13px;
-  color: #374151;
-  background: #fff;
+  color: var(--c-ink-1);
+  background: var(--c-surface);
   outline: none;
   transition: border-color 0.15s;
   font-family: inherit;
 }
 
-.form-input:focus, .form-select:focus { border-color: #3b82f6; }
+.form-input:focus, .form-select:focus { border-color: var(--c-brand-hover); }
 
 .drawer-footer {
   padding: 14px 20px;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid var(--c-brand-soft);
   display: flex;
   justify-content: flex-end;
   gap: 8px;
@@ -1128,17 +1216,17 @@ const channelColor = (type) => {
 
 .btn-cancel {
   padding: 8px 16px;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  background: #fff;
-  color: #64748b;
+  border: 1px solid var(--c-brand-soft);
+  border-radius: var(--r-sm);
+  background: var(--c-surface);
+  color: var(--c-text-3);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.15s;
 }
 
-.btn-cancel:hover { background: #f8fafc; }
+.btn-cancel:hover { background: var(--c-brand-mist); }
 
 /* 动画 */
 @keyframes spin {

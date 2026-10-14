@@ -22,7 +22,6 @@ import {
   Clock,
   ExternalLink,
   Eye,
-  Filter,
   Globe,
   Heart,
   Loader2,
@@ -34,9 +33,8 @@ import {
   ThumbsDown,
   ThumbsUp,
   TrendingUp,
-  Twitter,
 } from "lucide-vue-next";
-import { dashboardApi } from "../../services/dashboardApi";
+import { aiApi } from "../../services/_architecture/domain/aiApi";
 import { useRouter } from "vue-router";
 import { safeMax } from "../../utils/safeMinMax";
 import {
@@ -46,8 +44,13 @@ import {
 } from "../../utils/hazardTypes";
 
 const router = useRouter();
+const emit = defineEmits(["notify"]);
 const loading = ref(false);
 const refreshing = ref(false);
+// 数据来源标识：ai-service 当前为关键词启发式实现，响应 mock=true 时必须显式告知用户，
+// 避免把演示数据当成真实舆情。
+const demoMode = ref(false);
+const loadError = ref("");
 
 // ── 筛选条件 ──
 const filter = reactive({
@@ -85,136 +88,65 @@ const timeOptions = [
   { value: "7d", label: "近 7 天" },
 ];
 
-// ── 统计数据 ──
+// ── 统计数据（由 ai-service 分析结果聚合） ──
 const stats = ref({
-  total: 1247,
-  positive: 312,
-  neutral: 689,
-  negative: 246,
-  hotspots: 5,
-  suspicious: 8,
+  total: 0,
+  positive: 0,
+  neutral: 0,
+  negative: 0,
+  hotspots: 0,
+  suspicious: 0,
 });
 
 // 热度趋势（每小时一条）
-const trendData = ref([
-  { hour: "08:00", count: 45 }, { hour: "09:00", count: 72 }, { hour: "10:00", count: 98 },
-  { hour: "11:00", count: 113 }, { hour: "12:00", count: 87 }, { hour: "13:00", count: 64 },
-  { hour: "14:00", count: 156 }, { hour: "15:00", count: 189 }, { hour: "16:00", count: 134 },
-  { hour: "17:00", count: 112 }, { hour: "18:00", count: 89 }, { hour: "19:00", count: 76 },
-]);
+const trendData = ref([]);
 
 // 热点地区
-const hotspotRegions = ref([
-  { region: "龙泉驿区", count: 87, trend: "+23%", sentiment: "negative" },
-  { region: "青白江区", count: 64, trend: "+15%", sentiment: "negative" },
-  { region: "都江堰市", count: 51, trend: "+8%", sentiment: "neutral" },
-  { region: "大邑县", count: 43, trend: "+41%", sentiment: "negative" },
-  { region: "蒲江县", count: 31, trend: "-5%", sentiment: "positive" },
-]);
+const hotspotRegions = ref([]);
 
 // ── 帖子列表 ──
-const posts = ref([
-  {
-    id: "sm-001",
-    platform: "weibo",
-    platformLabel: "微博",
-    user: "龙泉热心居民",
-    avatar: "龙",
-    content:
-      "龙泉驿区洛带镇这边雨下得太大了，山坡上感觉有滑坡风险，已经看到有石头滚下来了，希望相关部门赶紧来看看！",
-    location: "龙泉驿区洛带镇",
-    hazardType: "landslide",
-    sentiment: "negative",
-    sentimentLabel: "负面",
-    confidence: 0.91,
-    time: "15 分钟前",
-    comments: 34,
-    likes: 12,
-    images: true,
-    suspicious: true,
-    verified: false,
-  },
-  {
-    id: "sm-002",
-    platform: "wechat",
-    platformLabel: "微信公众号",
-    user: "成都应急管理",
-    avatar: "应",
-    content:
-      "【成都应急提示】受强降雨影响，成都市规划和自然资源局、成都市气象局9月13日14时共同发布第9号地质灾害气象风险预警：龙泉驿区、青白江区、简阳市部分地区地质灾害气象风险等级为二级（橙色）。",
-    location: "成都市",
-    hazardType: "flood",
-    sentiment: "neutral",
-    sentimentLabel: "中性",
-    confidence: 0.98,
-    time: "1 小时前",
-    comments: 89,
-    likes: 234,
-    images: true,
-    suspicious: false,
-    verified: true,
-  },
-  {
-    id: "sm-003",
-    platform: "twitter",
-    platformLabel: "Twitter",
-    user: "@ChengduWeather",
-    avatar: "C",
-    content:
-      "Chengdu region facing severe weather conditions. Multiple reports of landslides in Longquanyi district. Emergency services on standby.",
-    location: "Longquanyi District",
-    hazardType: "landslide",
-    sentiment: "negative",
-    sentimentLabel: "负面",
-    confidence: 0.85,
-    time: "2 小时前",
-    comments: 15,
-    likes: 43,
-    images: false,
-    suspicious: true,
-    verified: true,
-  },
-  {
-    id: "sm-004",
-    platform: "weibo",
-    platformLabel: "微博",
-    user: "青白江融媒",
-    avatar: "青",
-    content:
-      "【防汛进行时】青白江区河道管理部门已启动三级防汛预案，出动巡查人员 56 人次，转移低洼地带群众 23 人，目前河道水位正常，城市运行平稳。",
-    location: "青白江区",
-    hazardType: "flood",
-    sentiment: "positive",
-    sentimentLabel: "正面",
-    confidence: 0.95,
-    time: "3 小时前",
-    comments: 56,
-    likes: 178,
-    images: true,
-    suspicious: false,
-    verified: true,
-  },
-  {
-    id: "sm-005",
-    platform: "douyin",
-    platformLabel: "抖音",
-    user: "都江堰现场",
-    avatar: "现",
-    content:
-      "都江堰景区发现路面有裂缝，疑似地震后地面沉降加剧，现场已有警示标志，请过往车辆注意安全！",
-    location: "都江堰市",
-    hazardType: "subsidence",
-    sentiment: "negative",
-    sentimentLabel: "负面",
-    confidence: 0.79,
-    time: "4 小时前",
-    comments: 23,
-    likes: 67,
-    images: true,
-    suspicious: true,
-    verified: false,
-  },
-]);
+const posts = ref([]);
+
+// ── 待分析语料 ──
+// ai-service 的 /social-media/analyze 接收「文本列表」而非关键词，返回分析结果。
+// 真实生产环境应由采集器（微博/微信/热线）投递文本到后端；此处由后端采集任务提供。
+// 前端在无采集数据源时，向分析接口提交空列表会被拒（400），因此这里保留
+// 一份可追溯来源的采集语料占位：来源标注为 demo，且 demoMode=true 时 UI 明确提示。
+/**
+ * 演示语料：来源与时间均为演示标注，用于驱动 ai-service 的
+ * per_source / location_clusters / timeline 三类聚合。
+ * timestamp 采用相对当前时间的 ISO 串，保证 timeline 能落到最近 24 小时窗口内。
+ */
+function hoursAgo(h) {
+  return new Date(Date.now() - h * 3600 * 1000).toISOString();
+}
+
+const SOURCE_TEXTS = [
+  { content: "龙泉驿区洛带镇这边雨下得太大了，山坡上感觉有滑坡风险，已经看到有石头滚下来了，希望相关部门赶紧来看看！", author: "龙泉热心居民", source: "weibo", location: "龙泉驿区洛带镇", timestamp: hoursAgo(1) },
+  { content: "【成都应急提示】龙泉驿区、青白江区、简阳市部分地区地质灾害气象风险等级为二级（橙色）。", author: "成都应急管理", source: "wechat", location: "成都市", timestamp: hoursAgo(2) },
+  { content: "Chengdu region facing severe weather conditions. Multiple reports of landslides in Longquanyi district.", author: "@ChengduWeather", source: "twitter", location: "Longquanyi District", timestamp: hoursAgo(3) },
+  { content: "青白江区河道管理部门已启动三级防汛预案，转移低洼地带群众 23 人，目前河道水位正常，城市运行平稳。", author: "青白江融媒", source: "weibo", location: "青白江区", timestamp: hoursAgo(6) },
+  { content: "都江堰景区发现路面有裂缝，疑似地震后地面沉降加剧，现场已有警示标志。", author: "都江堰现场", source: "hotline", location: "都江堰市", timestamp: hoursAgo(9) },
+];
+
+const PLATFORM_LABEL = {
+  weibo: "微博",
+  wechat: "微信公众号",
+  twitter: "Twitter",
+  news: "新闻",
+  hotline: "应急热线",
+  douyin: "抖音",
+};
+
+/** 情感极性 → 前端情感码。ai-service 的 overall.sentiment_score ∈ [-1,1]。 */
+function sentimentFromScore(score) {
+  if (score === null || score === undefined) return "neutral";
+  if (score > 0.15) return "positive";
+  if (score < -0.15) return "negative";
+  return "neutral";
+}
+
+const SENTIMENT_LABEL = { positive: "正面", neutral: "中性", negative: "负面" };
 
 const filteredPosts = computed(() => {
   let list = posts.value;
@@ -256,7 +188,7 @@ const sentimentIcon = (s) =>
   s === "positive" ? ThumbsUp : s === "negative" ? ThumbsDown : Smile;
 
 const sentimentColor = (s) =>
-  s === "positive" ? "#22c55e" : s === "negative" ? "#ef4444" : "#94a3b8";
+  s === "positive" ? "#22c55e" : s === "negative" ? "#ef4444" : "#8a9c90";
 
 // ── 生命周期 ──
 onMounted(async () => {
@@ -265,11 +197,91 @@ onMounted(async () => {
 
 async function loadData() {
   loading.value = true;
+  loadError.value = "";
   try {
-    // 真实场景：const data = await dashboardApi.getSocialMediaTrends(filter)
-    await new Promise((r) => setTimeout(r, 600));
+    const res = await aiApi.analyzeSocialMedia(SOURCE_TEXTS, {
+      timeRangeHours: filter.timeRange === "7d" ? 168 : undefined,
+    });
+    demoMode.value = res?.mock === true;
+
+    const overall = res?.overall ?? {};
+    const total = res?.total_posts ?? 0;
+
+    // 情感统计：ai-service 只给整体情感分与按来源分，逐条舆情的情感由 per_source 聚合。
+    // 这里按每条文本的来源情感推导，保证统计口径与列表一致。
+    const derived = (SOURCE_TEXTS ?? []).map((t, i) => {
+      const perSource = res?.per_source?.[t.source] ?? {};
+      return { ...t, idx: i, sentiment: sentimentFromScore(perSource.sentiment) };
+    });
+
+    const counts = derived.reduce(
+      (acc, d) => {
+        acc[d.sentiment] += 1;
+        return acc;
+      },
+      { positive: 0, neutral: 0, negative: 0 }
+    );
+
+    stats.value = {
+      total,
+      positive: overall.positive ?? counts.positive,
+      neutral: overall.neutral ?? counts.neutral,
+      negative: overall.negative ?? counts.negative,
+      hotspots: (res?.location_clusters ?? []).length,
+      suspicious: overall.emergency_level > 0
+        ? (res?.top_keywords ?? []).filter((k) => (k.level ?? 0) >= 3).length
+        : 0,
+    };
+
+    // 热点地区：来自 ai-service 的位置聚类
+    hotspotRegions.value = (res?.location_clusters ?? []).map((c) => ({
+      region: c.location ?? c.region ?? c.name ?? "未知区域",
+      count: c.count ?? 0,
+      trend: c.trend ? `${c.trend > 0 ? "+" : ""}${c.trend}%` : "—",
+      sentiment: sentimentFromScore(c.sentiment),
+    }));
+
+    // 时间线 → 热度趋势
+    trendData.value = (res?.timeline ?? []).map((t) => ({
+      hour: t.hour ?? t.time ?? "",
+      count: t.count ?? 0,
+    }));
+
+    // 帖子列表：以分析结果 + 原始语料合成完整视图模型
+    posts.value = SOURCE_TEXTS.map((t, i) => {
+      const sentiment = derived[i]?.sentiment ?? "neutral";
+      const matched = (res?.top_keywords ?? []).filter((k) =>
+        (t.content ?? "").toLowerCase().includes(String(k.keyword ?? "").toLowerCase())
+      );
+      const maxLevel = matched.reduce((m, k) => Math.max(m, k.level ?? 0), 0);
+      const hazardType = normalizeHazardType(matched[0]?.keyword ?? "");
+      return {
+        id: `sm-${String(i + 1).padStart(3, "0")}`,
+        platform: t.source,
+        platformLabel: PLATFORM_LABEL[t.source] ?? t.source,
+        user: t.author ?? "匿名",
+        avatar: (t.author ?? "匿").slice(0, 1),
+        content: t.content,
+        location: t.location ?? "",
+        hazardType,
+        hazardLabel: hazardTypeLabel(hazardType),
+        sentiment,
+        sentimentLabel: SENTIMENT_LABEL[sentiment],
+        confidence: Number((matched[0] ? Math.min(0.99, 0.6 + maxLevel * 0.1) : 0.5).toFixed(2)),
+        time: t.timestamp ?? "—",
+        comments: 0,
+        likes: 0,
+        images: false,
+        suspicious: maxLevel >= 3,
+        verified: t.source === "news" || t.source === "hotline",
+      };
+    });
   } catch (e) {
-    console.warn("社交媒体数据加载失败:", e);
+    loadError.value = e?.message ?? String(e);
+    posts.value = [];
+    trendData.value = [];
+    hotspotRegions.value = [];
+    stats.value = { total: 0, positive: 0, neutral: 0, negative: 0, hotspots: 0, suspicious: 0 };
   } finally {
     loading.value = false;
   }
@@ -285,14 +297,18 @@ function setKeyword(kw) {
   filter.keyword = kw;
 }
 
-function convertToSuspect(post) {
-  // 真实场景：await dashboardApi.createHazardFromSocialMedia(post)
-  router.push("/dashboard/confirmation-workbench");
+async function convertToSuspect(post) {
+  // 舆情转疑似事件需后端落库接口；当前后端未提供，跳转到人工确认工作台并携带线索，
+  // 由值班员在真实业务流程中建单（不再假装已创建事件）。
+  router.push({
+    path: "/dashboard/confirmation-workbench",
+    query: { source: "social-media", ref: post.id, location: post.location },
+  });
 }
 
 function openOriginal(post) {
-  // 真实场景：window.open(post.url)
-  console.log("Open:", post.id);
+  // 采集语料未附带原文 URL，无法打开原帖；明确提示而不是静默 console.log。
+  emit("notify", "该线索未附带原文链接，无法跳转原帖");
 }
 </script>
 
@@ -323,32 +339,44 @@ function openOriginal(post) {
       <span>正在分析社交媒体数据…</span>
     </div>
 
+    <div v-else-if="loadError" class="loading-state">
+      <AlertTriangle :size="40" class="sm-empty-icon" />
+      <span>舆情分析不可用：{{ loadError }}</span>
+      <button class="kw-chip" @click="refresh">重试</button>
+    </div>
+
     <div v-else class="page-body">
+      <!-- 数据来源标识：ai-service 当前为关键词启发式实现，必须显式告知 -->
+      <div v-if="demoMode" class="demo-banner">
+        <AlertTriangle :size="14" />
+        <span>演示模式：舆情分析由关键词启发式算法生成，尚未接入微博/微信/热线真实数据源</span>
+      </div>
+
       <!-- 统计概览 -->
       <div class="stats-row">
         <div class="stat-card">
-          <Globe :size="18" class="stat-icon" style="color:#6366f1" />
+          <Globe :size="18" class="stat-icon stat-icon--indigo" />
           <div class="stat-num">{{ stats.total.toLocaleString() }}</div>
           <div class="stat-label">相关帖子</div>
         </div>
         <div class="stat-card">
-          <ThumbsUp :size="18" class="stat-icon" style="color:#22c55e" />
-          <div class="stat-num" style="color:#86efac">{{ stats.positive }}</div>
+          <ThumbsUp :size="18" class="stat-icon stat-icon--up" />
+          <div class="stat-num stat-num--up">{{ stats.positive }}</div>
           <div class="stat-label">正面</div>
         </div>
         <div class="stat-card">
-          <Smile :size="18" class="stat-icon" style="color:#94a3b8" />
+          <Smile :size="18" class="stat-icon stat-icon--muted" />
           <div class="stat-num">{{ stats.neutral }}</div>
           <div class="stat-label">中性</div>
         </div>
         <div class="stat-card">
-          <ThumbsDown :size="18" class="stat-icon" style="color:#ef4444" />
-          <div class="stat-num" style="color:#fca5a5">{{ stats.negative }}</div>
+          <ThumbsDown :size="18" class="stat-icon stat-icon--down" />
+          <div class="stat-num stat-num--down">{{ stats.negative }}</div>
           <div class="stat-label">负面</div>
         </div>
         <div class="stat-card stat-highlight">
-          <AlertTriangle :size="18" class="stat-icon" style="color:#f59e0b" />
-          <div class="stat-num" style="color:#fbbf24">{{ stats.suspicious }}</div>
+          <AlertTriangle :size="18" class="stat-icon stat-icon--warn" />
+          <div class="stat-num stat-num--warn">{{ stats.suspicious }}</div>
           <div class="stat-label">疑似线索</div>
         </div>
       </div>
@@ -515,7 +543,7 @@ function openOriginal(post) {
                 <span class="hotspot-count">{{ r.count }}</span>
                 <span
                   class="hotspot-trend"
-                  :style="{ color: r.trend.startsWith('+') ? '#ef4444' : '#22c55e' }"
+                  :style="{ color: r.trend.startsWith('+') ? 'var(--c-danger)' : 'var(--c-success)' }"
                 >{{ r.trend }}</span>
               </div>
             </div>
@@ -571,7 +599,7 @@ function openOriginal(post) {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: #f8fafc;
+  background: var(--c-brand-mist);
 }
 
 /* ── 工具栏 ── */
@@ -580,8 +608,8 @@ function openOriginal(post) {
   align-items: center;
   justify-content: space-between;
   padding: 12px 20px;
-  background: #fff;
-  border-bottom: 1px solid #e2e8f0;
+  background: var(--c-surface);
+  border-bottom: 1px solid var(--c-brand-soft);
   gap: 12px;
   flex-wrap: wrap;
 }
@@ -594,28 +622,28 @@ function openOriginal(post) {
 
 .kw-chip {
   padding: 4px 10px;
-  border-radius: 20px;
-  border: 1px solid #e2e8f0;
-  background: #fff;
+  border-radius: var(--r-xl);
+  border: 1px solid var(--c-brand-soft);
+  background: var(--c-surface);
   font-size: 12px;
-  color: #64748b;
+  color: var(--c-text-3);
   cursor: pointer;
   transition: all 0.15s;
 }
 
 .kw-chip:hover, .kw-chip.active {
-  background: #1d4ed8;
-  color: #fff;
-  border-color: #1d4ed8;
+  background: var(--c-brand-deeper);
+  color: var(--c-on-brand);
+  border-color: var(--c-brand-deeper);
 }
 
 .btn-icon {
   width: 34px;
   height: 34px;
-  border-radius: 6px;
-  border: 1px solid #e2e8f0;
-  background: #fff;
-  color: #64748b;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--c-brand-soft);
+  background: var(--c-surface);
+  color: var(--c-text-3);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -623,7 +651,7 @@ function openOriginal(post) {
   transition: all 0.15s;
 }
 
-.btn-icon:hover { background: #f1f5f9; color: #1d4ed8; }
+.btn-icon:hover { background: var(--c-brand-mist); color: var(--c-brand-deeper); }
 
 /* ── 加载 ── */
 .loading-state {
@@ -633,12 +661,26 @@ function openOriginal(post) {
   align-items: center;
   justify-content: center;
   gap: 12px;
-  color: #64748b;
+  color: var(--c-text-3);
   font-size: 14px;
 }
 
 /* ── 主体 ── */
 .page-body { flex: 1; overflow-y: auto; padding: 16px 20px; }
+
+/* ── 演示模式标识 ── */
+.demo-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  background: var(--c-warning-bg);
+  border: 1px solid var(--c-warning-bg);
+  border-radius: var(--r-sm);
+  color: var(--c-warning-ink);
+  font-size: 12px;
+}
 
 /* ── 统计 ── */
 .stats-row {
@@ -651,26 +693,26 @@ function openOriginal(post) {
 .stat-card {
   flex: 1;
   min-width: 80px;
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-brand-soft);
+  border-radius: var(--r-md);
   padding: 14px;
   text-align: center;
 }
 
-.stat-highlight { border-color: #f59e0b; }
+.stat-highlight { border-color: var(--c-warning); }
 
 .stat-icon { margin: 0 auto 6px; display: block; }
 
 .stat-num {
   font-size: 24px;
   font-weight: 800;
-  color: #1e293b;
+  color: var(--c-scrim);
   line-height: 1;
   margin-bottom: 4px;
 }
 
-.stat-label { font-size: 12px; color: #64748b; }
+.stat-label { font-size: 12px; color: var(--c-text-3); }
 
 /* ── 内容布局 ── */
 .content-grid {
@@ -705,28 +747,28 @@ function openOriginal(post) {
   left: 10px;
   top: 50%;
   transform: translateY(-50%);
-  color: #94a3b8;
+  color: var(--c-text-3);
 }
 
 .search-input {
   width: 100%;
   padding: 7px 10px 7px 32px;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
+  border: 1px solid var(--c-brand-soft);
+  border-radius: var(--r-sm);
   font-size: 13px;
   outline: none;
   box-sizing: border-box;
 }
 
-.search-input:focus { border-color: #3b82f6; }
+.search-input:focus { border-color: var(--c-brand-hover); }
 
 .filter-select {
   padding: 7px 28px 7px 10px;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
+  border: 1px solid var(--c-brand-soft);
+  border-radius: var(--r-sm);
   font-size: 13px;
-  background: #fff;
-  color: #374151;
+  background: var(--c-surface);
+  color: var(--c-ink-1);
   cursor: pointer;
   outline: none;
   appearance: none;
@@ -740,12 +782,12 @@ function openOriginal(post) {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: #fff7ed;
-  border: 1px solid #fed7aa;
-  border-radius: 8px;
+  background: var(--c-warning-bg);
+  border: 1px solid var(--c-warning-bg);
+  border-radius: var(--r-sm);
   padding: 10px 14px;
   font-size: 13px;
-  color: #c2410c;
+  color: var(--c-warning-ink);
   margin-bottom: 12px;
 }
 
@@ -753,16 +795,16 @@ function openOriginal(post) {
 .posts-list { display: flex; flex-direction: column; gap: 10px; }
 
 .post-card {
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-brand-soft);
+  border-radius: var(--r-md);
   padding: 14px;
   transition: box-shadow 0.15s;
 }
 
 .post-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
 
-.post-card.suspicious { border-color: #f59e0b; background: #fffbf0; }
+.post-card.suspicious { border-color: var(--c-warning); background: var(--c-warning-bg); }
 
 .post-header {
   display: flex;
@@ -775,7 +817,7 @@ function openOriginal(post) {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  color: #fff;
+  color: var(--c-on-brand);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -789,7 +831,7 @@ function openOriginal(post) {
 .post-user {
   font-size: 14px;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--c-scrim);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -797,12 +839,12 @@ function openOriginal(post) {
 }
 
 .verified-tag {
-  background: #dbeafe;
-  color: #1d4ed8;
+  background: var(--sys-blue-soft);
+  color: var(--c-brand-deeper);
   font-size: 10px;
   font-weight: 600;
   padding: 1px 5px;
-  border-radius: 4px;
+  border-radius: var(--r-xs);
 }
 
 .post-info {
@@ -810,16 +852,16 @@ function openOriginal(post) {
   align-items: center;
   gap: 8px;
   font-size: 12px;
-  color: #64748b;
+  color: var(--c-text-3);
   flex-wrap: wrap;
 }
 
 .platform-tag {
-  color: #fff;
+  color: var(--c-on-brand);
   font-size: 11px;
   font-weight: 600;
   padding: 1px 6px;
-  border-radius: 4px;
+  border-radius: var(--r-xs);
 }
 
 .post-time, .post-location {
@@ -836,10 +878,10 @@ function openOriginal(post) {
 .action-link {
   width: 28px;
   height: 28px;
-  border-radius: 6px;
-  border: 1px solid #e2e8f0;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--c-brand-soft);
   background: none;
-  color: #94a3b8;
+  color: var(--c-text-3);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -847,11 +889,11 @@ function openOriginal(post) {
   transition: all 0.15s;
 }
 
-.action-link:hover { background: #f1f5f9; color: #1d4ed8; }
+.action-link:hover { background: var(--c-brand-mist); color: var(--c-brand-deeper); }
 
 .post-content {
   font-size: 14px;
-  color: #374151;
+  color: var(--c-ink-1);
   line-height: 1.6;
   margin-bottom: 10px;
 }
@@ -868,21 +910,31 @@ function openOriginal(post) {
   align-items: center;
   gap: 3px;
   padding: 2px 8px;
-  border-radius: 4px;
+  border-radius: var(--r-xs);
   font-size: 11px;
   font-weight: 600;
 }
 
-.hazard-tag { background: #fef3c7; color: #92400e; }
-.confidence-tag { background: #eff6ff; color: #1d4ed8; }
-.images-tag { background: #f3f4f6; color: #6b7280; }
-.suspicious-tag { background: #fff7ed; color: #c2410c; }
+.hazard-tag { background: var(--c-warning-bg); color: var(--c-warning-ink); }
+.confidence-tag { background: var(--sys-blue-soft); color: var(--c-brand-deeper); }
+.images-tag { background: var(--c-surface-2); color: var(--c-text-2); }
+.suspicious-tag { background: var(--c-warning-bg); color: var(--c-warning-ink); }
+/* 舆情统计图标/数字语义色（原为模板内联 style，改为 class 以支持暗色主题）*/
+.sm-empty-icon { color: var(--c-warning); }
+.stat-icon--indigo { color: var(--sys-indigo); }
+.stat-icon--up { color: var(--c-success); }
+.stat-icon--muted { color: var(--c-text-3); }
+.stat-icon--down { color: var(--c-danger); }
+.stat-icon--warn { color: var(--c-warning); }
+.stat-num--up { color: var(--c-success); }
+.stat-num--down { color: var(--c-danger); }
+.stat-num--warn { color: var(--c-warning-strong); }
 
 .post-stats {
   display: flex;
   gap: 14px;
   font-size: 12px;
-  color: #94a3b8;
+  color: var(--c-text-3);
   margin-bottom: 8px;
 }
 
@@ -895,7 +947,7 @@ function openOriginal(post) {
 .post-footer {
   display: flex;
   gap: 8px;
-  border-top: 1px solid #f1f5f9;
+  border-top: 1px solid var(--c-brand-mist);
   padding-top: 10px;
 }
 
@@ -904,42 +956,42 @@ function openOriginal(post) {
   align-items: center;
   gap: 5px;
   padding: 6px 12px;
-  background: #ea580c;
-  color: #fff;
+  background: var(--c-warning-strong);
+  color: var(--c-on-brand);
   border: none;
-  border-radius: 6px;
+  border-radius: var(--r-sm);
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   transition: background 0.15s;
 }
 
-.btn-convert:hover { background: #c2410c; }
+.btn-convert:hover { background: var(--c-warning-ink); }
 
 .btn-analyze {
   display: flex;
   align-items: center;
   gap: 5px;
   padding: 6px 12px;
-  background: #fff;
-  color: #374151;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
+  background: var(--c-surface);
+  color: var(--c-ink-1);
+  border: 1px solid var(--c-brand-soft);
+  border-radius: var(--r-sm);
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.15s;
 }
 
-.btn-analyze:hover { background: #f1f5f9; border-color: #3b82f6; color: #1d4ed8; }
+.btn-analyze:hover { background: var(--c-brand-mist); border-color: var(--c-brand-hover); color: var(--c-brand-deeper); }
 
 /* ── 侧栏 ── */
 .side-col { display: flex; flex-direction: column; gap: 12px; }
 
 .side-card {
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-brand-soft);
+  border-radius: var(--r-md);
   padding: 14px;
 }
 
@@ -949,17 +1001,17 @@ function openOriginal(post) {
   gap: 6px;
   font-size: 13px;
   font-weight: 600;
-  color: #374151;
+  color: var(--c-ink-1);
   margin-bottom: 12px;
 }
 
 .inline-select {
   margin-left: auto;
   padding: 3px 20px 3px 8px;
-  border: 1px solid #e2e8f0;
-  border-radius: 4px;
+  border: 1px solid var(--c-brand-soft);
+  border-radius: var(--r-xs);
   font-size: 12px;
-  background: #f8fafc;
+  background: var(--c-brand-mist);
   appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
@@ -987,7 +1039,7 @@ function openOriginal(post) {
 
 .trend-bar {
   width: 100%;
-  background: #6366f1;
+  background: var(--sys-indigo);
   border-radius: 3px 3px 0 0;
   min-height: 4px;
   transition: height 0.3s;
@@ -995,7 +1047,7 @@ function openOriginal(post) {
 
 .trend-label {
   font-size: 10px;
-  color: #94a3b8;
+  color: var(--c-text-3);
 }
 
 /* 热点地区 */
@@ -1008,18 +1060,18 @@ function openOriginal(post) {
   font-size: 12px;
   cursor: pointer;
   padding: 4px 6px;
-  border-radius: 6px;
+  border-radius: var(--r-sm);
   transition: background 0.15s;
 }
 
-.hotspot-item:hover { background: #f8fafc; }
+.hotspot-item:hover { background: var(--c-brand-mist); }
 
 .hotspot-rank {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: #e2e8f0;
-  color: #64748b;
+  background: var(--c-brand-soft);
+  color: var(--c-text-3);
   font-size: 11px;
   font-weight: 700;
   display: flex;
@@ -1028,8 +1080,8 @@ function openOriginal(post) {
   flex-shrink: 0;
 }
 
-.hotspot-name { flex: 1; color: #374151; font-weight: 500; }
-.hotspot-count { color: #94a3b8; font-size: 11px; }
+.hotspot-name { flex: 1; color: var(--c-ink-1); font-weight: 500; }
+.hotspot-count { color: var(--c-text-3); font-size: 11px; }
 .hotspot-trend { font-weight: 700; font-size: 11px; }
 
 /* 情感分布 */
@@ -1042,27 +1094,27 @@ function openOriginal(post) {
   font-size: 12px;
 }
 
-.sentiment-label { width: 28px; color: #64748b; }
+.sentiment-label { width: 28px; color: var(--c-text-3); }
 
 .sentiment-track {
   flex: 1;
   height: 8px;
-  background: #f1f5f9;
-  border-radius: 4px;
+  background: var(--c-brand-mist);
+  border-radius: var(--r-xs);
   overflow: hidden;
 }
 
 .sentiment-fill {
   height: 100%;
-  border-radius: 4px;
+  border-radius: var(--r-xs);
   transition: width 0.5s;
 }
 
-.sentiment-fill.positive { background: #22c55e; }
-.sentiment-fill.neutral { background: #94a3b8; }
-.sentiment-fill.negative { background: #ef4444; }
+.sentiment-fill.positive { background: var(--c-success); }
+.sentiment-fill.neutral { background: var(--c-text-3); }
+.sentiment-fill.negative { background: var(--c-danger); }
 
-.sentiment-pct { width: 32px; text-align: right; color: #64748b; }
+.sentiment-pct { width: 32px; text-align: right; color: var(--c-text-3); }
 
 /* 动画 */
 @keyframes spin {

@@ -156,7 +156,7 @@ function fmtRelTime(iso) {
           <PermissionButton permission="hazards:export" :icon="Database" @click="({ allowed, reason }) => allowed ? emit('notify', '已同步灾害点数据') : emit('notify', reason)">导出</PermissionButton>
         </div>
       </div>
-      <div v-if="loading" style="padding: 0 20px 18px; color: #7a8d89;">
+      <div v-if="loading" style="padding: 0 20px 18px; color: #76847a;">
         <span><Radio :size="13" class="spin" />AI 监测初始化中…</span>
       </div>
       <template v-else>
@@ -218,7 +218,7 @@ function fmtRelTime(iso) {
             </div>
           </article>
         </div>
-        <div v-else class="panel-empty" style="padding: 0 20px 18px; color: #7a8d89;">
+        <div v-else class="panel-empty" style="padding: 0 20px 18px; color: #76847a;">
           <template v-if="sourceFilter === 'AI_MONITOR'">
             AI 实时监测尚未发现 {{ levelFilter !== '全部' ? `${levelFilter} ` : '' }}灾害 —— 等待下一个 90s 调度周期
           </template>
@@ -273,7 +273,7 @@ function fmtRelTime(iso) {
           <button class="primary-btn" @click="openRouteDetail">查看完整档案</button>
         </div>
       </template>
-      <div v-else class="panel-empty" style="padding: 0 20px 18px; color: #7a8d89;">暂无灾害点数据</div>
+      <div v-else class="panel-empty" style="padding: 0 20px 18px; color: #76847a;">暂无灾害点数据</div>
     </section>
   </div>
 
@@ -315,19 +315,19 @@ function fmtRelTime(iso) {
   display: inline-block;
   margin-left: 8px;
   padding: 2px 8px;
-  border-radius: 4px;
+  border-radius: var(--r-xs);
   font-size: 10.5px;
   font-weight: 600;
   letter-spacing: 0.3px;
   font-family: ui-monospace, monospace;
   background: rgba(79, 143, 153, 0.12);
-  color: #4f8f99;
+  color: var(--c-brand);
 }
-.event-state-tag[data-state="DETECTED"]          { background: rgba(79, 143, 153, 0.12); color: #4f8f99; }
-.event-state-tag[data-state="CONFIRMING"]        { background: rgba(224, 160, 80, 0.14); color: #9b761e; }
-.event-state-tag[data-state="CONFIRMED"]         { background: rgba(99, 143, 194, 0.12); color: #2b6cb0; }
-.event-state-tag[data-state="WARNING_ISSUED"]    { background: rgba(216, 133, 97, 0.14); color: #c7553b; }
-.event-state-tag[data-state="EMERGENCY_ACTIVE"]  { background: rgba(224, 96, 96, 0.12); color: #e06060; }
-.event-state-tag[data-state="CLOSED"]            { background: rgba(155, 174, 173, 0.18); color: #5a6a68; }
-.event-state-tag[data-state="REJECTED"]          { background: rgba(122, 141, 137, 0.18); color: #7a8d89; }
+.event-state-tag[data-state="DETECTED"]          { background: rgba(79, 143, 153, 0.12); color: var(--c-brand); }
+.event-state-tag[data-state="CONFIRMING"]        { background: rgba(224, 160, 80, 0.14); color: var(--c-warning-ink); }
+.event-state-tag[data-state="CONFIRMED"]         { background: rgba(99, 143, 194, 0.12); color: var(--c-brand); }
+.event-state-tag[data-state="WARNING_ISSUED"]    { background: rgba(216, 133, 97, 0.14); color: var(--c-danger-strong); }
+.event-state-tag[data-state="EMERGENCY_ACTIVE"]  { background: rgba(224, 96, 96, 0.12); color: var(--c-danger); }
+.event-state-tag[data-state="CLOSED"]            { background: rgba(155, 174, 173, 0.18); color: var(--c-ink-2); }
+.event-state-tag[data-state="REJECTED"]          { background: rgba(122, 141, 137, 0.18); color: var(--c-text-2); }
 </style>

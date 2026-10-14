@@ -137,7 +137,7 @@ async function loadOpenLayers() {
     { default: olMap },
     { default: olView },
     { default: Tile },
-    OSM,
+    { default: OSM },
     { default: VectorLayer },
     { default: VectorSource },
     { default: Feature },
@@ -311,11 +311,11 @@ function drawTrajectory(points) {
     geometry: new ol.Point(ol.fromLonLat([end.longitude, end.latitude])),
   })
   currentPosFeature.setStyle(new ol.Style({
-    image: new ol.CircleStyle({ radius: 9, fill: new ol.Fill({ color: '#facc15' }), stroke: new ol.Stroke({ color: '#1f2d3d', width: 2 }) }),
+    image: new ol.CircleStyle({ radius: 9, fill: new ol.Fill({ color: '#facc15' }), stroke: new ol.Stroke({ color: '#20343a', width: 2 }) }),
     text: new ol.Text({
       text: '当前',
       font: 'bold 10px sans-serif',
-      fill: new ol.Fill({ color: '#1f2d3d' }),
+      fill: new ol.Fill({ color: '#20343a' }),
       offsetY: -16,
     }),
   }))
@@ -437,7 +437,7 @@ function mobilityBadge(mobile, kind) {
   if (kind === 'drone') return { label: '无人机', icon: Plane, color: '#7c3aed' }
   if (kind === 'vehicle') return { label: '车辆', icon: Car, color: '#ea580c' }
   if (kind === 'handheld') return { label: '手持', icon: Hand, color: '#16a34a' }
-  return { label: '移动', icon: Compass, color: '#64748b' }
+  return { label: '移动', icon: Compass, color: '#6b7f7c' }
 }
 
 function fmtTime(iso) {
@@ -450,7 +450,7 @@ function fmtTime(iso) {
 }
 
 function batteryColor(level) {
-  if (level == null) return '#94a3b8'
+  if (level == null) return '#8a9c90'
   if (level >= 60) return '#16a34a'
   if (level >= 30) return '#f59e0b'
   return '#dc2626'
@@ -505,7 +505,7 @@ onBeforeUnmount(() => {
       <article class="dm-stat" v-for="card in [
         { label: '总设备数', value: stats.total,           icon: Cpu,         color: '#0ea5e9' },
         { label: '在线',     value: stats.online,          icon: Radar,        color: '#16a34a' },
-        { label: '离线',     value: stats.offline,         icon: X,           color: '#94a3b8' },
+        { label: '离线',     value: stats.offline,         icon: X,           color: '#8a9c90' },
         { label: '故障',     value: stats.fault,           icon: AlertCircle, color: '#dc2626' },
         { label: '移动设备', value: stats.mobile,          icon: Plane,       color: '#7c3aed' },
         { label: '已记录轨迹', value: stats.trajectoryDevices, icon: Compass, color: '#ea580c' },
@@ -590,11 +590,11 @@ onBeforeUnmount(() => {
       <section class="dm-canvas-section">
         <div ref="mapRef" class="dm-map"></div>
         <div class="dm-map-legend">
-          <div><span class="dm-dot" style="background:#16a34a"></span>在线</div>
-          <div><span class="dm-dot" style="background:#94a3b8"></span>离线</div>
-          <div><span class="dm-dot" style="background:#dc2626"></span>故障</div>
+          <div><span class="dm-dot dm-dot--online"></span>在线</div>
+          <div><span class="dm-dot dm-dot--offline"></span>离线</div>
+          <div><span class="dm-dot dm-dot--fault"></span>故障</div>
           <div><span class="dm-dash"></span>轨迹线</div>
-          <div><span class="dm-dot" style="background:#facc15"></span>当前位置</div>
+          <div><span class="dm-dot dm-dot--current"></span>当前位置</div>
         </div>
         <div v-if="trajectoryPoints.length && showTrajectory" class="dm-trajectory-meta">
           <Compass :size="14" />
@@ -740,7 +740,7 @@ onBeforeUnmount(() => {
   flex-direction: column;
   gap: 12px;
   padding: 16px;
-  background: #f5f7fb;
+  background: var(--c-surface-2);
   min-height: 100%;
   height: 100%;
   box-sizing: border-box;
@@ -751,14 +751,14 @@ onBeforeUnmount(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: #ffffff;
-  border-radius: 12px;
+  background: var(--c-surface);
+  border-radius: var(--r-lg);
   padding: 14px 18px;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+  box-shadow: var(--shadow-xs);
 }
-.dm-title { display: flex; align-items: center; gap: 12px; color: #1f2d3d; }
+.dm-title { display: flex; align-items: center; gap: 12px; color: var(--c-scrim); }
 .dm-title h1 { font-size: 18px; font-weight: 600; margin: 0; }
-.dm-title p { font-size: 12px; color: #94a3b8; margin: 2px 0 0; }
+.dm-title p { font-size: 12px; color: var(--c-text-3); margin: 2px 0 0; }
 .dm-actions { display: flex; gap: 8px; }
 
 .dm-btn {
@@ -766,18 +766,18 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 6px;
   padding: 6px 12px;
-  border-radius: 6px;
-  border: 1px solid #d8e0ec;
-  background: #ffffff;
-  color: #1f2d3d;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--c-separator);
+  background: var(--c-surface);
+  color: var(--c-scrim);
   font-size: 12px;
   cursor: pointer;
   transition: all 0.15s;
 }
-.dm-btn:hover:not(:disabled) { border-color: #2563eb; color: #2563eb; }
+.dm-btn:hover:not(:disabled) { border-color: var(--c-brand-deep); color: var(--c-brand-deep); }
 .dm-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.dm-btn-primary { background: #2563eb; color: #ffffff; border-color: transparent; }
-.dm-btn-primary:hover:not(:disabled) { color: #ffffff; }
+.dm-btn-primary { background: var(--c-brand-deep); color: var(--c-on-brand); border-color: transparent; }
+.dm-btn-primary:hover:not(:disabled) { color: var(--c-on-brand); }
 .dm-btn-ghost { background: transparent; }
 .dm-btn-sm { padding: 3px 8px; font-size: 11px; }
 
@@ -791,24 +791,24 @@ onBeforeUnmount(() => {
   gap: 10px;
 }
 .dm-stat {
-  background: #ffffff;
-  border-radius: 10px;
+  background: var(--c-surface);
+  border-radius: var(--r-md);
   padding: 12px 14px;
   display: flex;
   align-items: center;
   gap: 12px;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+  box-shadow: var(--shadow-xs);
 }
 .dm-stat-icon {
   width: 36px; height: 36px;
-  border-radius: 8px;
+  border-radius: var(--r-sm);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 .dm-stat-body { display: flex; flex-direction: column; }
-.dm-stat-label { font-size: 11px; color: #94a3b8; font-weight: 600; }
-.dm-stat-value { font-size: 18px; font-weight: 700; color: #1f2d3d; }
+.dm-stat-label { font-size: 11px; color: var(--c-text-3); font-weight: 600; }
+.dm-stat-value { font-size: 18px; font-weight: 700; color: var(--c-scrim); }
 
 /* ===== Main 3-column ===== */
 .dm-main {
@@ -827,21 +827,21 @@ onBeforeUnmount(() => {
 
 /* ===== 设备列表 ===== */
 .dm-device-list {
-  background: #ffffff;
-  border-radius: 12px;
+  background: var(--c-surface);
+  border-radius: var(--r-lg);
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+  box-shadow: var(--shadow-xs);
 }
 .dm-list-header {
   padding: 12px 14px;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--c-brand-mist);
 }
 .dm-list-header h2 {
   font-size: 13px;
   font-weight: 600;
-  color: #1f2d3d;
+  color: var(--c-scrim);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -849,30 +849,30 @@ onBeforeUnmount(() => {
 }
 .dm-pill {
   margin-left: auto;
-  background: #2563eb;
-  color: #ffffff;
+  background: var(--c-brand-deep);
+  color: var(--c-on-brand);
   font-size: 10px;
   padding: 2px 8px;
-  border-radius: 10px;
+  border-radius: var(--r-md);
 }
 .dm-search {
   display: flex;
   align-items: center;
   gap: 4px;
-  background: #f1f5f9;
+  background: var(--c-brand-mist);
   padding: 4px 8px;
-  border-radius: 6px;
+  border-radius: var(--r-sm);
   margin-bottom: 6px;
-  color: #94a3b8;
+  color: var(--c-text-3);
 }
 .dm-search input { background: transparent; border: none; outline: none; font-size: 12px; flex: 1; }
 .dm-filter-row { display: flex; gap: 6px; }
 .dm-select {
   flex: 1;
   padding: 4px 6px;
-  border: 1px solid #d8e0ec;
-  border-radius: 6px;
-  background: #ffffff;
+  border: 1px solid var(--c-separator);
+  border-radius: var(--r-sm);
+  background: var(--c-surface);
   font-size: 12px;
 }
 .dm-select-sm { padding: 2px 6px; font-size: 11px; }
@@ -890,39 +890,39 @@ onBeforeUnmount(() => {
   gap: 8px;
   align-items: center;
   padding: 8px;
-  border-radius: 6px;
+  border-radius: var(--r-sm);
   cursor: pointer;
   transition: background 0.15s;
 }
-.dm-device-item:hover { background: #f8fafc; }
+.dm-device-item:hover { background: var(--c-brand-mist); }
 .dm-device-item.active {
-  background: #dbeafe;
-  border-left: 3px solid #2563eb;
+  background: var(--sys-blue-soft);
+  border-left: 3px solid var(--c-brand-deep);
 }
 .dm-device-dot {
   width: 10px; height: 10px;
   border-radius: 50%;
-  box-shadow: 0 0 0 2px #ffffff;
+  box-shadow: 0 0 0 2px var(--c-surface);
 }
 .dm-device-name {
   font-size: 12px;
   font-weight: 600;
-  color: #1f2d3d;
+  color: var(--c-scrim);
   display: flex;
   align-items: center;
   gap: 6px;
 }
 .dm-device-meta {
   font-size: 10px;
-  color: #94a3b8;
+  color: var(--c-text-3);
   display: flex;
   align-items: center;
   gap: 4px;
   margin-top: 2px;
 }
 .dm-device-meta code {
-  background: #e2e8f0;
-  color: #1f2d3d;
+  background: var(--c-brand-soft);
+  color: var(--c-scrim);
   padding: 1px 4px;
   border-radius: 3px;
   font-size: 10px;
@@ -931,14 +931,14 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 4px;
-  color: #94a3b8;
+  color: var(--c-text-3);
 }
 .dm-battery { display: inline-flex; align-items: center; gap: 2px; font-size: 10px; }
 
 .dm-empty {
   padding: 30px 12px;
   text-align: center;
-  color: #94a3b8;
+  color: var(--c-text-3);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -949,10 +949,10 @@ onBeforeUnmount(() => {
 /* ===== Map ===== */
 .dm-canvas-section {
   position: relative;
-  background: #ffffff;
-  border-radius: 12px;
+  background: var(--c-surface);
+  border-radius: var(--r-lg);
   overflow: hidden;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+  box-shadow: var(--shadow-xs);
   min-height: 480px;
 }
 .dm-map { position: absolute; inset: 0; }
@@ -960,11 +960,11 @@ onBeforeUnmount(() => {
   position: absolute;
   bottom: 12px;
   left: 12px;
-  background: rgba(255, 255, 255, 0.95);
+  background: var(--c-surface);
   padding: 8px 12px;
-  border-radius: 6px;
+  border-radius: var(--r-sm);
   font-size: 11px;
-  color: #1f2d3d;
+  color: var(--c-scrim);
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
@@ -980,18 +980,18 @@ onBeforeUnmount(() => {
 .dm-dash {
   display: inline-block;
   width: 18px; height: 2px;
-  background: linear-gradient(to right, #f97316 50%, transparent 50%);
+  background: linear-gradient(to right, var(--c-warning-strong) 50%, transparent 50%);
   background-size: 6px 100%;
 }
 .dm-trajectory-meta {
   position: absolute;
   top: 12px;
   left: 12px;
-  background: rgba(255, 255, 255, 0.95);
+  background: var(--c-surface);
   padding: 6px 10px;
-  border-radius: 6px;
+  border-radius: var(--r-sm);
   font-size: 11px;
-  color: #1f2d3d;
+  color: var(--c-scrim);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -999,8 +999,8 @@ onBeforeUnmount(() => {
   box-shadow: 0 1px 3px rgba(0,0,0,0.08);
 }
 .dm-mock-tag {
-  background: #f97316;
-  color: #ffffff;
+  background: var(--c-warning-strong);
+  color: var(--c-on-brand);
   padding: 1px 6px;
   border-radius: 3px;
   font-size: 10px;
@@ -1016,27 +1016,27 @@ onBeforeUnmount(() => {
   max-height: 100%;
 }
 .dm-card {
-  background: #ffffff;
-  border-radius: 12px;
+  background: var(--c-surface);
+  border-radius: var(--r-lg);
   padding: 12px 14px;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+  box-shadow: var(--shadow-xs);
 }
 .dm-card-header {
   display: flex;
   align-items: center;
   gap: 6px;
   margin-bottom: 10px;
-  color: #1f2d3d;
+  color: var(--c-scrim);
 }
 .dm-card-header h3 { font-size: 13px; font-weight: 600; margin: 0; }
 .dm-status-chip {
   margin-left: auto;
   padding: 2px 8px;
-  border-radius: 4px;
+  border-radius: var(--r-xs);
   font-size: 11px;
   font-weight: 600;
 }
-.dm-card-tip { background: #fef3c7; }
+.dm-card-tip { background: var(--c-warning-bg); }
 
 .dm-detail-grid {
   display: grid;
@@ -1047,18 +1047,18 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   font-size: 12px;
-  color: #94a3b8;
+  color: var(--c-text-3);
 }
 .dm-detail-grid > div span { font-size: 10px; }
 .dm-detail-grid > div strong {
-  color: #1f2d3d;
+  color: var(--c-scrim);
   font-size: 12px;
   display: inline-flex;
   align-items: center;
   gap: 3px;
 }
 .dm-detail-grid > div code {
-  background: #f1f5f9;
+  background: var(--c-brand-mist);
   padding: 1px 4px;
   border-radius: 3px;
   font-size: 11px;
@@ -1071,7 +1071,7 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  color: #94a3b8;
+  color: var(--c-text-3);
   font-size: 12px;
 }
 
@@ -1081,7 +1081,7 @@ onBeforeUnmount(() => {
   height: 6px;
   appearance: none;
   -webkit-appearance: none;
-  background: #f1f5f9;
+  background: var(--c-brand-mist);
   border-radius: 3px;
   outline: none;
 }
@@ -1091,14 +1091,14 @@ onBeforeUnmount(() => {
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: #f97316;
+  background: var(--c-warning-strong);
   cursor: pointer;
 }
 .dm-progress-labels {
   display: flex;
   justify-content: space-between;
   font-size: 10px;
-  color: #94a3b8;
+  color: var(--c-text-3);
   margin-top: 4px;
 }
 
@@ -1114,17 +1114,17 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 4px;
 }
-.dm-control-label { font-size: 11px; color: #94a3b8; }
+.dm-control-label { font-size: 11px; color: var(--c-text-3); }
 
 .dm-current-point {
-  background: #fef3c7;
-  border-radius: 6px;
+  background: var(--c-warning-bg);
+  border-radius: var(--r-sm);
   padding: 8px 10px;
   margin-top: 8px;
 }
 .dm-current-point h4 {
   font-size: 11px;
-  color: #92400e;
+  color: var(--c-warning-ink);
   margin: 0 0 6px;
   font-weight: 700;
 }
@@ -1137,11 +1137,16 @@ onBeforeUnmount(() => {
 .dm-current-grid > div {
   display: flex;
   flex-direction: column;
-  color: #94a3b8;
+  color: var(--c-text-3);
 }
 .dm-current-grid > div span { font-size: 10px; }
-.dm-current-grid > div strong { color: #1f2d3d; font-size: 11px; }
-.dm-current-grid code { background: rgba(0,0,0,0.05); padding: 1px 3px; border-radius: 3px; font-size: 10px; }
+.dm-current-grid > div strong { color: var(--c-scrim); font-size: 11px; }
+.dm-current-grid code { background: var(--c-border-2); padding: 1px 3px; border-radius: 3px; font-size: 10px; }
+/* 地图图例圆点：与设备状态/当前位置语义一一对应（原为模板内联 style）*/
+.dm-dot--online { background: var(--c-success); }
+.dm-dot--offline { background: var(--c-text-3); }
+.dm-dot--fault { background: var(--c-danger-strong); }
+.dm-dot--current { background: var(--c-warning); }
 
 .dm-tips {
   list-style: none;
@@ -1156,7 +1161,7 @@ onBeforeUnmount(() => {
   align-items: flex-start;
   gap: 6px;
   font-size: 11px;
-  color: #78350f;
+  color: var(--c-warning-ink);
   line-height: 1.4;
 }
 </style>

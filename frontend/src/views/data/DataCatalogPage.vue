@@ -41,16 +41,16 @@ const SOURCE_OPTIONS = [
   { value: "外部 API", label: "外部 API" },
 ]
 const TYPE_BADGE = {
-  表: { c: "#4f8f99", bg: "rgba(79,143,153,.12)" },
-  视图: { c: "#6dbfa5", bg: "rgba(109,191,165,.12)" },
-  指标: { c: "#e0a050", bg: "rgba(224,160,80,.14)" },
-  文件: { c: "#7a8d89", bg: "rgba(122,141,137,.12)" },
+  表: { c: "#6f9e7f", bg: "rgba(79,143,153,.12)" },
+  视图: { c: "#87b096", bg: "rgba(109,191,165,.12)" },
+  指标: { c: "#cbaa76", bg: "rgba(224,160,80,.14)" },
+  文件: { c: "#76847a", bg: "rgba(122,141,137,.12)" },
   API: { c: "#b88a00", bg: "rgba(217,192,64,.16)" },
 }
 const CAT_BADGE = {
-  监测: { c: "#4f8f99", bg: "rgba(79,143,153,.12)" },
+  监测: { c: "#6f9e7f", bg: "rgba(79,143,153,.12)" },
   业务: { c: "#b06d22", bg: "rgba(224,160,80,.14)" },
-  元数据: { c: "#7a8d89", bg: "rgba(122,141,137,.12)" },
+  元数据: { c: "#76847a", bg: "rgba(122,141,137,.12)" },
 }
 
 const refreshing = ref(false)
@@ -314,23 +314,35 @@ async function submitNew() {
   if (!newForm.value.name.trim()) { emit("notify", "请填写资源名称"); return }
   newSubmitting.value = true
   try {
-    // 后端暂无 POST /catalog/assets，本地登记（kpi 同步自增）
-    const local = {
-      id: `local-${Date.now()}`,
+    const payload = {
       name: newForm.value.name.trim(),
       type: newForm.value.type,
       category: newForm.value.category,
       source: newForm.value.source,
       description: newForm.value.description,
-      fieldCount: 0, storage: "—", frequency: "—",
-      tags: newTags.value, lineageUp: [], lineageDown: [], fields: [],
-      creator: "当前用户",
-      createdAt: new Date().toISOString().slice(0, 10),
-      recent7dQueries: 0,
+      tags: newTags.value,
     }
-    assets.value = [local, ...assets.value]
-    kpi.value.total += 1
-    emit("notify", `已新增资源《${local.name}》（本地登记，待后端持久化）`)
+    try {
+      // 优先调用后端 API
+      const created = await dashboardApi.createCatalogAsset(payload)
+      assets.value = [created, ...assets.value]
+      kpi.value.total += 1
+      emit("notify", `已新增资源《${created.name ?? payload.name}》`)
+    } catch (apiErr) {
+      // 后端不可用时本地登记
+      const local = {
+        id: `local-${Date.now()}`,
+        ...payload,
+        fieldCount: 0, storage: "—", frequency: "—",
+        lineageUp: [], lineageDown: [], fields: [],
+        creator: "当前用户",
+        createdAt: new Date().toISOString().slice(0, 10),
+        recent7dQueries: 0,
+      }
+      assets.value = [local, ...assets.value]
+      kpi.value.total += 1
+      emit("notify", `已新增资源《${local.name}》（本地登记，后端连接后自动同步）`)
+    }
     newDialogOpen.value = false
   } catch (e) {
     emit("notify", e?.message ?? "新增失败")
@@ -380,17 +392,17 @@ onMounted(async () => {
       <div class="stat-card">
         <strong>{{ kpiLoading ? "—" : fmtNumber(kpi.total) }}</strong>
         <span>资源总数</span>
-        <div class="bar"><i :style="{ width: '92%', background: '#4f8f99' }"></i></div>
+        <div class="bar"><i :style="{ width: '92%', background: '#6f9e7f' }"></i></div>
       </div>
       <div class="stat-card">
         <strong>{{ kpiLoading ? "—" : fmtNumber(kpi.tables) }}</strong>
         <span>表数量</span>
-        <div class="bar"><i :style="{ width: '74%', background: '#6dbfa5' }"></i></div>
+        <div class="bar"><i :style="{ width: '74%', background: '#87b096' }"></i></div>
       </div>
       <div class="stat-card">
         <strong>{{ kpiLoading ? "—" : fmtNumber(kpi.fields) }}</strong>
         <span>总字段数</span>
-        <div class="bar"><i :style="{ width: '81%', background: '#e0a050' }"></i></div>
+        <div class="bar"><i :style="{ width: '81%', background: '#cbaa76' }"></i></div>
       </div>
       <div class="stat-card">
         <strong>{{ kpiLoading ? "—" : kpi.lastUpdated }}</strong>
@@ -452,13 +464,13 @@ onMounted(async () => {
                 </td>
                 <td>
                   <span class="badge" :style="{
-                    color: TYPE_BADGE[a.type]?.c ?? '#7a8d89',
+                    color: TYPE_BADGE[a.type]?.c ?? '#76847a',
                     background: TYPE_BADGE[a.type]?.bg ?? 'rgba(122,141,137,.12)',
                   }">{{ a.type }}</span>
                 </td>
                 <td>
                   <span class="badge" :style="{
-                    color: CAT_BADGE[a.category]?.c ?? '#7a8d89',
+                    color: CAT_BADGE[a.category]?.c ?? '#76847a',
                     background: CAT_BADGE[a.category]?.bg ?? 'rgba(122,141,137,.12)',
                   }">{{ a.category }}</span>
                 </td>
@@ -503,7 +515,7 @@ onMounted(async () => {
                     <span v-for="(v, idx) in (u.trend7d || []).slice(0, 7)" :key="idx" class="mini-bar"
                       :style="{
                         height: `${Math.max(6, (v / maxOfTrend(u.trend7d)) * 22)}px`,
-                        background: idx === (u.trend7d || []).length - 1 ? '#4f8f99' : '#6dbfa5',
+                        background: idx === (u.trend7d || []).length - 1 ? '#6f9e7f' : '#87b096',
                       }"
                     ></span>
                   </span>
@@ -566,18 +578,18 @@ onMounted(async () => {
               <h4><ArrowRight :size="14" />血缘上下游</h4>
               <div class="lineage">
                 <svg viewBox="0 0 600 200" class="lineage-svg" preserveAspectRatio="xMidYMid meet">
-                  <text x="20" y="14" font-size="9" fill="#7a8d89">上游</text>
-                  <text x="20" y="196" font-size="9" fill="#7a8d89">下游</text>
+                  <text x="20" y="14" font-size="9" fill="#76847a">上游</text>
+                  <text x="20" y="196" font-size="9" fill="#76847a">下游</text>
                   <g v-for="(n, i) in (detailData.lineageUp || []).slice(0, 3)" :key="`up-${i}`">
                     <rect :x="20 + i * 95" y="22" width="80" height="40" rx="8"
                       :fill="(CAT_BADGE[n.category] || CAT_BADGE['元数据']).bg"
                       :stroke="(CAT_BADGE[n.category] || CAT_BADGE['元数据']).c" stroke-width="1.2" />
-                    <text :x="60 + i * 95" y="40" text-anchor="middle" font-size="10" fill="#24494d">{{ trimName(n.name, 8) }}</text>
-                    <text :x="60 + i * 95" y="54" text-anchor="middle" font-size="9" fill="#7a8d89">{{ n.type ?? "—" }}</text>
+                    <text :x="60 + i * 95" y="40" text-anchor="middle" font-size="10" fill="#1c1c1e">{{ trimName(n.name, 8) }}</text>
+                    <text :x="60 + i * 95" y="54" text-anchor="middle" font-size="9" fill="#76847a">{{ n.type ?? "—" }}</text>
                     <path :d="`M${60 + i * 95}62 L${60 + i * 95}95 L300 115`"
                       :stroke="(CAT_BADGE[n.category] || CAT_BADGE['元数据']).c" stroke-width="1.2" fill="none" stroke-dasharray="3 3" />
                   </g>
-                  <rect x="240" y="100" width="120" height="50" rx="10" fill="#2f7f80" stroke="#246b6c" stroke-width="1.4" />
+                  <rect x="240" y="100" width="120" height="50" rx="10" fill="#6f9e7f" stroke="#5f8e70" stroke-width="1.4" />
                   <text x="300" y="123" text-anchor="middle" font-size="11" fill="#fff" font-weight="600">{{ trimName(detailData.name, 10) }}</text>
                   <text x="300" y="138" text-anchor="middle" font-size="9" fill="rgba(255,255,255,.85)">当前资源</text>
                   <g v-for="(n, i) in (detailData.lineageDown || []).slice(0, 3)" :key="`down-${i}`">
@@ -586,8 +598,8 @@ onMounted(async () => {
                     <rect :x="500 - i * 95" y="155" width="80" height="40" rx="8"
                       :fill="(CAT_BADGE[n.category] || CAT_BADGE['业务']).bg"
                       :stroke="(CAT_BADGE[n.category] || CAT_BADGE['业务']).c" stroke-width="1.2" />
-                    <text :x="540 - i * 95" y="173" text-anchor="middle" font-size="10" fill="#24494d">{{ trimName(n.name, 8) }}</text>
-                    <text :x="540 - i * 95" y="187" text-anchor="middle" font-size="9" fill="#7a8d89">{{ n.type ?? "—" }}</text>
+                    <text :x="540 - i * 95" y="173" text-anchor="middle" font-size="10" fill="#1c1c1e">{{ trimName(n.name, 8) }}</text>
+                    <text :x="540 - i * 95" y="187" text-anchor="middle" font-size="9" fill="#76847a">{{ n.type ?? "—" }}</text>
                   </g>
                 </svg>
                 <div v-if="!(detailData.lineageUp || []).length && !(detailData.lineageDown || []).length" class="muted small">暂无血缘信息</div>
@@ -624,7 +636,7 @@ onMounted(async () => {
               <div class="sparkline">
                 <div v-for="(v, idx) in (trendData.trend7d || [])" :key="idx" class="spark-bar" :style="{
                   height: `${Math.max(8, (v / maxOfTrend(trendData.trend7d)) * 160)}px`,
-                  background: idx === trendData.trend7d.length - 1 ? '#4f8f99' : '#6dbfa5',
+                  background: idx === trendData.trend7d.length - 1 ? '#6f9e7f' : '#87b096',
                 }"><span class="spark-tip">{{ v }}</span></div>
                 <div v-if="!(trendData.trend7d || []).length" class="muted small">无趋势数据</div>
               </div>
@@ -752,105 +764,105 @@ onMounted(async () => {
 <style scoped>
 .data-catalog-shell { padding: 24px 28px; display: flex; flex-direction: column; gap: 18px; }
 .page-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
-.page-header h2 { margin: 0; display: flex; gap: 8px; align-items: center; font-size: 18px; color: #1f3e44; }
-.page-header p { margin: 4px 0 0; color: #7a8d89; font-size: 12px; }
+.page-header h2 { margin: 0; display: flex; gap: 8px; align-items: center; font-size: 18px; color: var(--c-text); }
+.page-header p { margin: 4px 0 0; color: var(--c-text-2); font-size: 12px; }
 .actions { display: flex; gap: 8px; }
 
 .op-btn, .ghost-btn, .primary-btn {
   display: inline-flex; gap: 6px; align-items: center;
-  padding: 7px 13px; border-radius: 8px; font-size: 12px; cursor: pointer;
+  padding: 7px 13px; border-radius: var(--r-sm); font-size: 12px; cursor: pointer;
   transition: background .18s ease, box-shadow .18s ease;
 }
-.op-btn, .ghost-btn { border: 1px solid #d9e6e1; background: #fff; color: #37555a; }
-.op-btn:hover, .ghost-btn:hover { background: #f4f7f5; }
-.primary-btn { border: 0; background: #2f7f80; color: #fff; box-shadow: 0 4px 10px rgba(47,127,128,.18); }
-.primary-btn:hover { background: #246b6c; }
+.op-btn, .ghost-btn { border: 1px solid var(--c-separator); background: var(--c-surface); color: var(--c-text); }
+.op-btn:hover, .ghost-btn:hover { background: var(--c-bg); }
+.primary-btn { border: 0; background: var(--c-brand); color: var(--c-on-brand); box-shadow: 0 4px 10px rgba(111,158,127,.18); }
+.primary-btn:hover { background: var(--c-brand-hover); }
 .primary-btn:disabled, .ghost-btn:disabled, .op-btn:disabled { opacity: .55; cursor: not-allowed; }
 .small { padding: 5px 10px; font-size: 11px; }
 
 .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
-.stat-card { padding: 18px 18px 14px; background: #fff; border: 1px solid #e9eee9; border-radius: 12px; }
-.stat-card strong { display: block; font-size: 24px; color: #1f3e44; }
-.stat-card span { color: #7a8d89; font-size: 12px; margin-top: 4px; display: block; }
-.stat-card .bar { display: block; height: 5px; background: #e7f0ed; border-radius: 3px; margin-top: 14px; overflow: hidden; }
+.stat-card { padding: 18px 18px 14px; background: var(--c-surface); border: 1px solid var(--c-brand-soft); border-radius: var(--r-lg); }
+.stat-card strong { display: block; font-size: 24px; color: var(--c-text); }
+.stat-card span { color: var(--c-text-2); font-size: 12px; margin-top: 4px; display: block; }
+.stat-card .bar { display: block; height: 5px; background: var(--c-border-2); border-radius: 3px; margin-top: 14px; overflow: hidden; }
 .stat-card .bar i { display: block; height: 100%; border-radius: inherit; }
 
 .filter-panel { padding: 12px 14px; }
 .filter-bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-.search-wrap { flex: 1; min-width: 200px; display: flex; gap: 6px; align-items: center; padding: 6px 10px; border: 1px solid #d9e6e1; border-radius: 8px; background: #fafdfc; }
-.filter-input { flex: 1; border: 0; background: transparent; outline: 0; color: #24494d; font-size: 12px; }
-.filter-select { padding: 7px 10px; border: 1px solid #d9e6e1; border-radius: 8px; background: #fafdfc; color: #37555a; font-size: 12px; outline: 0; min-width: 110px; }
-.muted { color: #7a8d89; }
+.search-wrap { flex: 1; min-width: 200px; display: flex; gap: 6px; align-items: center; padding: 6px 10px; border: 1px solid var(--c-separator); border-radius: var(--r-sm); background: var(--c-surface-2); }
+.filter-input { flex: 1; border: 0; background: transparent; outline: 0; color: var(--c-text); font-size: 12px; }
+.filter-select { padding: 7px 10px; border: 1px solid var(--c-separator); border-radius: var(--r-sm); background: var(--c-surface-2); color: var(--c-text); font-size: 12px; outline: 0; min-width: 110px; }
+.muted { color: var(--c-text-2); }
 
 .tabs-panel { padding: 0; }
-.tabs { display: flex; gap: 4px; padding: 12px 14px 0; border-bottom: 1px solid #edf2f0; }
-.tab-btn { display: inline-flex; gap: 6px; align-items: center; padding: 8px 14px; border: 0; background: transparent; cursor: pointer; color: #56716e; font-size: 13px; font-weight: 500; border-radius: 8px 8px 0 0; border-bottom: 2px solid transparent; }
-.tab-btn.active { color: #1f3e44; border-bottom-color: #2f7f80; background: rgba(47,127,128,.06); }
-.tab-btn .count { display: inline-block; min-width: 22px; padding: 1px 6px; border-radius: 9px; background: rgba(47,127,128,.12); color: #2f7f80; font-size: 10px; text-align: center; }
+.tabs { display: flex; gap: 4px; padding: 12px 14px 0; border-bottom: 1px solid var(--c-border-2); }
+.tab-btn { display: inline-flex; gap: 6px; align-items: center; padding: 8px 14px; border: 0; background: transparent; cursor: pointer; color: var(--c-brand-deep); font-size: 13px; font-weight: 500; border-radius: var(--r-sm) 8px 0 0; border-bottom: 2px solid transparent; }
+.tab-btn.active { color: var(--c-text); border-bottom-color: var(--c-brand); background: var(--c-brand-mist); }
+.tab-btn .count { display: inline-block; min-width: 22px; padding: 1px 6px; border-radius: var(--r-md); background: var(--c-brand-soft); color: var(--c-brand); font-size: 10px; text-align: center; }
 .tab-body { padding: 14px; }
 
 .table-scroll { overflow-x: auto; }
-.catalog-table { width: 100%; min-width: 880px; border-collapse: collapse; background: #fff; border: 1px solid #e9eee9; border-radius: 10px; overflow: hidden; }
-.catalog-table th, .catalog-table td { padding: 12px 14px; text-align: left; font-size: 12.5px; border-bottom: 1px solid #eef3f1; vertical-align: top; }
-.catalog-table th { background: #fafdfc; color: #56716e; font-weight: 600; position: sticky; top: 0; z-index: 1; }
-.catalog-table td strong { color: #1f3e44; }
-.catalog-table .desc { margin: 4px 0 0; color: #7a8d89; font-size: 11px; max-width: 280px; }
-.badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; white-space: nowrap; }
+.catalog-table { width: 100%; min-width: 880px; border-collapse: collapse; background: var(--c-surface); border: 1px solid var(--c-brand-soft); border-radius: var(--r-md); overflow: hidden; }
+.catalog-table th, .catalog-table td { padding: 12px 14px; text-align: left; font-size: 12.5px; border-bottom: 1px solid var(--c-border-2); vertical-align: top; }
+.catalog-table th { background: var(--c-surface-2); color: var(--c-brand-deep); font-weight: 600; position: sticky; top: 0; z-index: 1; }
+.catalog-table td strong { color: var(--c-text); }
+.catalog-table .desc { margin: 4px 0 0; color: var(--c-text-2); font-size: 11px; max-width: 280px; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: var(--r-xs); font-size: 11px; font-weight: 500; white-space: nowrap; }
 .ops { display: flex; flex-wrap: wrap; gap: 6px; }
 .ops-col { min-width: 220px; }
 .mini-bars { display: inline-flex; gap: 2px; align-items: flex-end; height: 24px; margin-left: 8px; vertical-align: middle; }
 .mini-bar { display: block; width: 4px; border-radius: 1px; }
-.loading-row, .empty-row { padding: 36px 14px; text-align: center; color: #7a8d89; font-size: 12px; background: #fff; border: 1px dashed #dbe4e0; border-radius: 10px; }
+.loading-row, .empty-row { padding: 36px 14px; text-align: center; color: var(--c-text-2); font-size: 12px; background: var(--c-surface); border: 1px dashed var(--c-border-2); border-radius: var(--r-md); }
 
-.drawer-mask { position: fixed; inset: 0; background: rgba(15,32,38,.45); display: flex; justify-content: flex-end; z-index: 100; }
-.drawer-card { width: min(560px, 96vw); height: 100vh; background: #fafdfc; display: flex; flex-direction: column; box-shadow: -8px 0 24px rgba(0,0,0,.08); }
-.drawer-head { display: flex; justify-content: space-between; align-items: flex-start; padding: 18px 22px; border-bottom: 1px solid #edf2f0; }
-.drawer-head h3 { margin: 0; color: #1f3e44; font-size: 16px; display: flex; gap: 8px; align-items: center; }
-.drawer-head p { margin: 4px 0 0; color: #7a8d89; font-size: 12px; }
+.drawer-mask { position: fixed; inset: 0; background: var(--c-scrim); display: flex; justify-content: flex-end; z-index: 100; }
+.drawer-card { width: min(560px, 96vw); height: 100vh; background: var(--c-surface-2); display: flex; flex-direction: column; box-shadow: -8px 0 24px rgba(0,0,0,.08); }
+.drawer-head { display: flex; justify-content: space-between; align-items: flex-start; padding: 18px 22px; border-bottom: 1px solid var(--c-border-2); }
+.drawer-head h3 { margin: 0; color: var(--c-text); font-size: 16px; display: flex; gap: 8px; align-items: center; }
+.drawer-head p { margin: 4px 0 0; color: var(--c-text-2); font-size: 12px; }
 .drawer-body { padding: 18px 22px; overflow-y: auto; flex: 1; }
 .block { margin-bottom: 22px; }
-.block h4 { margin: 0 0 10px; color: #24494d; font-size: 13px; display: flex; gap: 6px; align-items: center; font-weight: 600; }
+.block h4 { margin: 0 0 10px; color: var(--c-text); font-size: 13px; display: flex; gap: 6px; align-items: center; font-weight: 600; }
 
 .chip-row { display: flex; flex-wrap: wrap; gap: 6px; }
-.chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; background: rgba(79,143,153,.10); color: #4f8f99; border-radius: 999px; font-size: 11px; }
-.chip.editable { background: rgba(224,160,80,.14); color: #b06d22; }
+.chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; background: var(--c-brand-soft); color: var(--c-brand); border-radius: var(--r-pill); font-size: 11px; }
+.chip.editable { background: var(--c-warning-bg); color: var(--c-warning-ink); }
 .chip-x { border: 0; background: transparent; cursor: pointer; color: inherit; padding: 0 0 0 2px; line-height: 1; }
 
-.mini-table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #e9eee9; border-radius: 8px; overflow: hidden; }
-.mini-table th, .mini-table td { padding: 8px 10px; border-bottom: 1px solid #eef3f1; font-size: 11.5px; text-align: left; }
-.mini-table th { background: #fafdfc; color: #56716e; font-weight: 600; }
-.mini-table td code { color: #24494d; background: #f4f7f5; padding: 1px 5px; border-radius: 3px; font-size: 11px; }
+.mini-table { width: 100%; border-collapse: collapse; background: var(--c-surface); border: 1px solid var(--c-brand-soft); border-radius: var(--r-sm); overflow: hidden; }
+.mini-table th, .mini-table td { padding: 8px 10px; border-bottom: 1px solid var(--c-border-2); font-size: 11.5px; text-align: left; }
+.mini-table th { background: var(--c-surface-2); color: var(--c-brand-deep); font-weight: 600; }
+.mini-table td code { color: var(--c-text); background: var(--c-bg); padding: 1px 5px; border-radius: 3px; font-size: 11px; }
 .pk-tag { padding: 1px 6px; border-radius: 3px; font-size: 10px; font-weight: 500; }
-.pk-tag.on { color: #2a8154; background: rgba(42,129,84,.12); }
-.pk-tag.off { color: #7a8d89; background: rgba(122,141,137,.10); }
-.pk-tag.sens { color: #c7553b; background: rgba(199,85,59,.12); }
-.pk-tag.safe { color: #4f8f99; background: rgba(79,143,153,.12); }
+.pk-tag.on { color: var(--c-brand-deep); background: var(--c-brand-soft); }
+.pk-tag.off { color: var(--c-text-2); background: var(--c-border-2); }
+.pk-tag.sens { color: var(--c-danger-strong); background: var(--c-danger-bg); }
+.pk-tag.safe { color: var(--c-brand); background: var(--c-brand-soft); }
 
-.lineage { background: #fff; border: 1px solid #e9eee9; border-radius: 10px; padding: 14px; }
+.lineage { background: var(--c-surface); border: 1px solid var(--c-brand-soft); border-radius: var(--r-md); padding: 14px; }
 .lineage-svg { width: 100%; height: 200px; display: block; }
 
 .meta-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
-.meta-grid > div { padding: 10px 12px; background: #fff; border: 1px solid #e9eee9; border-radius: 8px; }
-.meta-key { display: block; color: #7a8d89; font-size: 11px; margin-bottom: 4px; }
+.meta-grid > div { padding: 10px 12px; background: var(--c-surface); border: 1px solid var(--c-brand-soft); border-radius: var(--r-sm); }
+.meta-key { display: block; color: var(--c-text-2); font-size: 11px; margin-bottom: 4px; }
 
-.sparkline { display: flex; align-items: flex-end; gap: 6px; height: 180px; padding: 14px; background: #fff; border: 1px solid #e9eee9; border-radius: 10px; }
-.spark-bar { flex: 1; min-width: 14px; border-radius: 4px 4px 0 0; position: relative; transition: height .25s ease; }
-.spark-tip { position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font-size: 10px; color: #56716e; white-space: nowrap; }
+.sparkline { display: flex; align-items: flex-end; gap: 6px; height: 180px; padding: 14px; background: var(--c-surface); border: 1px solid var(--c-brand-soft); border-radius: var(--r-md); }
+.spark-bar { flex: 1; min-width: 14px; border-radius: var(--r-xs) 4px 0 0; position: relative; transition: height .25s ease; }
+.spark-tip { position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font-size: 10px; color: var(--c-brand-deep); white-space: nowrap; }
 .spark-axis { display: flex; gap: 6px; margin-top: 6px; padding: 0 14px; }
-.spark-axis span { flex: 1; text-align: center; font-size: 10px; color: #7a8d89; }
+.spark-axis span { flex: 1; text-align: center; font-size: 10px; color: var(--c-text-2); }
 
 .small-modal { width: min(440px, 92vw); }
-.modal-card { align-self: center; margin: auto; width: min(520px, 92vw); background: #fff; border-radius: 14px; padding: 22px; }
-.modal-card h3 { margin: 0 0 14px; color: #1f3e44; font-size: 16px; display: flex; gap: 6px; align-items: center; }
-.modal-card label { display: block; margin-bottom: 12px; color: #56716e; font-size: 11px; font-weight: 600; }
-.modal-card input, .modal-card select, .modal-card textarea { display: block; width: 100%; margin-top: 6px; padding: 8px 10px; border: 1px solid #d9e6e1; border-radius: 8px; background: #fafdfc; color: #24494d; font-size: 12px; outline: 0; }
+.modal-card { align-self: center; margin: auto; width: min(520px, 92vw); background: var(--c-surface); border-radius: var(--r-lg); padding: 22px; }
+.modal-card h3 { margin: 0 0 14px; color: var(--c-text); font-size: 16px; display: flex; gap: 6px; align-items: center; }
+.modal-card label { display: block; margin-bottom: 12px; color: var(--c-brand-deep); font-size: 11px; font-weight: 600; }
+.modal-card input, .modal-card select, .modal-card textarea { display: block; width: 100%; margin-top: 6px; padding: 8px 10px; border: 1px solid var(--c-separator); border-radius: var(--r-sm); background: var(--c-surface-2); color: var(--c-text); font-size: 12px; outline: 0; }
 .modal-card textarea { resize: vertical; font-family: inherit; }
 .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 14px; }
 
-.tag-input { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 8px; margin-top: 6px; border: 1px solid #d9e6e1; border-radius: 8px; background: #fafdfc; }
+.tag-input { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 8px; margin-top: 6px; border: 1px solid var(--c-separator); border-radius: var(--r-sm); background: var(--c-surface-2); }
 .tag-input.big { padding: 12px; }
-.tag-field { flex: 1; min-width: 110px; border: 0; background: transparent; outline: 0; color: #24494d; font-size: 12px; padding: 4px; }
+.tag-field { flex: 1; min-width: 110px; border: 0; background: transparent; outline: 0; color: var(--c-text); font-size: 12px; padding: 4px; }
 .tag-drawer { width: min(440px, 96vw); }
 
 .drawer-fade-enter-active, .drawer-fade-leave-active { transition: opacity .22s ease; }

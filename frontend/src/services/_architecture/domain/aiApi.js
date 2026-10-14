@@ -340,4 +340,41 @@ export const aiApi = {
     if (json?.code !== 0) {throw new Error(json?.message || "AI 模型重载失败");}
     return json.data ?? {};
   },
+
+  /**
+   * 社交媒体舆情文本分析。
+   *
+   * <p>经后端网关 POST /api/ai/social-media/analyze 转发至 ai-service，
+   * 返回情感极性 / 告警等级 / 灾害关键词 / 位置聚类 / 时间线。
+   * 响应内含 `mock` 布尔位：true 表示当前为关键词启发式实现（非真实数据源），
+   * 前端据此显示「演示数据」标识，不把假数据伪装成真实舆情。
+   *
+   * @param {Array<{content:string,author?:string,timestamp?:string,source?:string,location?:string}>} texts
+   * @param {{bbox?:number[], timeRangeHours?:number}} [options]
+   * @returns {Promise<{total_posts,sources,overall,per_source,top_keywords,location_clusters,timeline,mock}>}
+   */
+  /**
+   * 社媒舆情分析。
+   * @param {Array<string|{content:string,author?:string,source?:string,location?:string,timestamp?:string}>} texts
+   *   支持裸字符串数组，或带来源/位置的富对象数组；后端网关会把裸字符串归一化为 {content}。
+   * @param {{bbox?:number[], timeRangeHours?:number}} options
+   */
+  async analyzeSocialMedia(texts, options = {}) {
+    const token = getAuthToken();
+    const body = { texts };
+    if (options.bbox) {body.bbox = options.bbox;}
+    if (options.timeRangeHours) {body.time_range_hours = options.timeRangeHours;}
+    const resp = await fetch(`${API_BASE}/ai/social-media/analyze`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(body),
+    });
+    if (!resp.ok) {throw new Error(`AI social-media ${resp.status}`);}
+    const json = await resp.json();
+    if (json?.code !== 0) {throw new Error(json?.message || "AI 舆情分析失败");}
+    return json.data ?? {};
+  },
 };

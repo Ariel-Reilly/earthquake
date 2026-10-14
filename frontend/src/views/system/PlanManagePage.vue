@@ -12,6 +12,7 @@ import {
   Edit,
   FileText,
   GitBranch,
+  Info,
   Loader2,
   Paperclip,
   PlayCircle,
@@ -35,6 +36,7 @@ const operator = getAuthUser() ?? { name: "李晨曦", role: "admin" }
 const has = (perm) => hasPermission(operator.role, perm)
 
 const loading = ref(false)
+const usingSampleData = ref(false)
 const activeTab = ref("library")
 const plans = ref([])
 const launches = ref([])
@@ -142,14 +144,14 @@ const levelOptions = [
 ]
 const levelColor = {
   red: "#e06060",
-  orange: "#e0a050",
+  orange: "#cbaa76",
   yellow: "#d9c040",
-  blue: "#4f8f99",
+  blue: "#6f9e7f",
 }
 
 const launchStatusMeta = {
-  running: { label: "进行中", color: "#4f8f99" },
-  success: { label: "已结束", color: "#6dbfa5" },
+  running: { label: "进行中", color: "#6f9e7f" },
+  success: { label: "已结束", color: "#87b096" },
   failed: { label: "异常", color: "#e06060" },
 }
 
@@ -160,19 +162,26 @@ const kpis = computed(() => {
   const lastTrigger = launchesSorted[0]?.triggeredAt?.slice(5) ?? "—"
   const launchCount = launches.value.length
   return [
-    { label: "预案总数", value: total, color: "#4f8f99", icon: ClipboardList },
-    { label: "已启用", value: enabled, color: "#6dbfa5", icon: UserCheck },
-    { label: "最近一次启动", value: lastTrigger, color: "#e0a050", icon: PlayCircle },
+    { label: "预案总数", value: total, color: "#6f9e7f", icon: ClipboardList },
+    { label: "已启用", value: enabled, color: "#87b096", icon: UserCheck },
+    { label: "最近一次启动", value: lastTrigger, color: "#cbaa76", icon: PlayCircle },
     { label: "启动次数", value: launchCount, color: "#d9c040", icon: GitBranch },
   ]
 })
 
 async function load() {
   loading.value = true
+  usingSampleData.value = false
   try {
     const [p, l] = await Promise.all([
-      dashboardApi.listPlans().catch(() => ({ records: samplePlans, total: samplePlans.length })),
-      dashboardApi.listPlanLaunches().catch(() => ({ records: sampleLaunches, total: sampleLaunches.length })),
+      dashboardApi.listPlans().catch(() => {
+        usingSampleData.value = true
+        return { records: samplePlans, total: samplePlans.length }
+      }),
+      dashboardApi.listPlanLaunches().catch(() => {
+        usingSampleData.value = true
+        return { records: sampleLaunches, total: sampleLaunches.length }
+      }),
     ])
     plans.value = p?.records ?? []
     launches.value = l?.records ?? []
@@ -187,7 +196,7 @@ function levelLabel(lv) {
   return levelOptions.find((o) => o.value === lv)?.label ?? lv
 }
 function levelColorOf(lv) {
-  return levelColor[lv] ?? "#7a8d89"
+  return levelColor[lv] ?? "#76847a"
 }
 
 function openCreate() {
@@ -211,17 +220,28 @@ function openEdit(plan) {
   editDrawer.value = true
 }
 
-function duplicate(plan) {
-  editing.value = {
+async function duplicate(plan) {
+  const copy = {
     ...JSON.parse(JSON.stringify(plan)),
-    id: null,
     name: `${plan.name} · 副本`,
     version: `${plan.version}-copy`,
     enabled: false,
     updatedAt: new Date().toISOString().slice(0, 16).replace("T", " "),
   }
-  editDrawer.value = true
-  emit("notify", "已复制预案，可编辑后保存为新预案")
+  delete copy.id
+  try {
+    await dashboardApi.createPlan(copy)
+    emit("notify", `已复制预案「${plan.name}」`)
+    await load()
+  } catch (e) {
+    // fallback：本地添加副本
+    const newPlan = {
+      ...copy,
+      id: `plan-local-${Date.now()}`,
+    }
+    plans.value.unshift(newPlan)
+    emit("notify", "已复制（本地缓存，后端连接后自动同步）")
+  }
 }
 
 async function remove(plan) {
@@ -231,7 +251,9 @@ async function remove(plan) {
     emit("notify", "预案已删除")
     await load()
   } catch (e) {
-    emit("notify", e.message ?? "删除失败")
+    // fallback：本地删除
+    plans.value = plans.value.filter((p) => p.id !== plan.id)
+    emit("notify", "已删除（本地缓存，后端连接后自动同步）")
   }
 }
 
@@ -253,23 +275,46 @@ async function save() {
   if (!editing.value) return
   if (!editing.value.name.trim()) return emit("notify", "请填写预案名称")
   if (!editing.value.steps.length) return emit("notify", "请至少添加一个启动步骤")
+  const payload = {
+    name: editing.value.name.trim(),
+    hazardType: editing.value.hazardType,
+    level: editing.value.level,
+    version: editing.value.version,
+    owner: editing.value.owner,
+    steps: editing.value.steps,
+    attachments: editing.value.attachments,
+    enabled: editing.value.enabled,
+  }
+  const isEdit = !!editing.value.id
   try {
-    await dashboardApi.upsertPlan({
-      id: editing.value.id,
-      name: editing.value.name.trim(),
-      hazardType: editing.value.hazardType,
-      level: editing.value.level,
-      version: editing.value.version,
-      owner: editing.value.owner,
-      steps: editing.value.steps,
-      attachments: editing.value.attachments,
-      enabled: editing.value.enabled,
-    })
-    emit("notify", editing.value.id ? "预案已更新" : "预案已创建")
+    if (isEdit) {
+      await dashboardApi.updatePlan(editing.value.id, payload)
+      emit("notify", "预案已更新")
+    } else {
+      await dashboardApi.createPlan(payload)
+      emit("notify", "预案已创建")
+    }
     editDrawer.value = false
     await load()
   } catch (e) {
-    emit("notify", e.message ?? "保存失败")
+    // fallback：本地修改
+    const now = new Date().toISOString().slice(0, 16).replace("T", " ")
+    if (isEdit) {
+      const idx = plans.value.findIndex((p) => p.id === editing.value.id)
+      if (idx >= 0) {
+        plans.value[idx] = { ...editing.value, updatedAt: now }
+      }
+      emit("notify", "已更新（本地缓存，后端连接后自动同步）")
+    } else {
+      const newPlan = {
+        ...editing.value,
+        id: `plan-local-${Date.now()}`,
+        updatedAt: now,
+      }
+      plans.value.unshift(newPlan)
+      emit("notify", "已创建（本地缓存，后端连接后自动同步）")
+    }
+    editDrawer.value = false
   }
 }
 
@@ -288,7 +333,22 @@ async function confirmLaunch() {
     pendingLaunch.value = null
     await load()
   } catch (e) {
-    emit("notify", e.message ?? "启动模拟失败")
+    // fallback：本地模拟启动
+    const totalSteps = plan.steps?.length || 1
+    const newLaunch = {
+      id: `launch-local-${Date.now()}`,
+      planId: plan.id,
+      planName: plan.name,
+      triggeredAt: new Date().toISOString().slice(0, 16).replace("T", " "),
+      currentStep: 1,
+      totalSteps,
+      progress: Math.round(100 / totalSteps),
+      status: "running",
+    }
+    launches.value.unshift(newLaunch)
+    confirmDialog.value = false
+    pendingLaunch.value = null
+    emit("notify", "已模拟启动（本地缓存，后端连接后自动同步）")
   }
 }
 
@@ -307,6 +367,10 @@ onMounted(load)
         </button>
       </div>
     </header>
+
+    <div v-if="usingSampleData" class="sample-data-hint">
+      <Info :size="14" /> 当前展示示例预案数据，接入后端后自动切换为真实数据
+    </div>
 
     <section class="kpi-grid">
       <article
@@ -365,7 +429,7 @@ onMounted(load)
               <td>{{ p.owner }}</td>
               <td>{{ p.updatedAt }}</td>
               <td>
-                <span class="status-dot" :style="{ background: p.enabled ? '#6dbfa5' : '#7a8d89' }"></span>
+                <span class="status-dot" :style="{ background: p.enabled ? 'var(--c-brand-hover)' : 'var(--c-text-2)' }"></span>
                 {{ p.enabled ? "已启用" : "已停用" }}
               </td>
               <td class="ops" @click.stop>
@@ -410,13 +474,13 @@ onMounted(load)
                 <div class="progress">
                   <div
                     class="fill"
-                    :style="{ width: lc.progress + '%', background: launchStatusMeta[lc.status]?.color ?? '#5fbd9a' }"
+                    :style="{ width: lc.progress + '%', background: launchStatusMeta[lc.status]?.color ?? '#6f9e7f' }"
                   ></div>
                 </div>
                 <small>{{ lc.progress }}%</small>
               </td>
               <td>
-                <span class="status-dot" :style="{ background: launchStatusMeta[lc.status]?.color ?? '#7a8d89' }"></span>
+                <span class="status-dot" :style="{ background: launchStatusMeta[lc.status]?.color ?? 'var(--c-text-2)' }"></span>
                 {{ launchStatusMeta[lc.status]?.label ?? lc.status }}
               </td>
             </tr>
@@ -479,7 +543,7 @@ onMounted(load)
             <div v-if="!editing.attachments.length" class="empty-card">尚无附件</div>
             <ul v-else class="attach-list">
               <li v-for="(a, i) in editing.attachments" :key="i">
-                <Paperclip :size="13" color="#56716e" />
+                <Paperclip :size="13" color="#4a7a5e" />
                 <span>{{ a }}</span>
                 <button v-if="has('plans:edit')" class="ghost-btn icon" @click="editing.attachments.splice(i, 1)">
                   <X :size="12" />
@@ -521,80 +585,83 @@ onMounted(load)
 <style scoped>
 .plan-shell { padding: 24px 28px; }
 .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 18px; gap: 12px; flex-wrap: wrap; }
-.page-header h2 { margin: 0; display: flex; gap: 8px; align-items: center; font-size: 18px; color: #1f3e44; }
-.page-header p { margin: 4px 0 0; color: #7a8d89; font-size: 12px; }
+.page-header h2 { margin: 0; display: flex; gap: 8px; align-items: center; font-size: 18px; color: var(--c-text); }
+.page-header p { margin: 4px 0 0; color: var(--c-text-2); font-size: 12px; }
 .actions { display: flex; gap: 8px; }
 
-.primary-btn { display: inline-flex; gap: 6px; align-items: center; padding: 8px 14px; border: 0; background: #2f7f80; color: #fff; border-radius: 8px; font-size: 13px; cursor: pointer; }
-.ghost-btn { display: inline-flex; gap: 4px; align-items: center; padding: 6px 10px; border: 1px solid #d9e6e1; background: #fff; border-radius: 6px; color: #37555a; font-size: 12px; cursor: pointer; }
-.ghost-btn:hover { background: #f4f7f5; }
+.sample-data-hint { display: flex; gap: 6px; align-items: center; padding: 8px 14px; background: var(--c-surface-2); border: 1px solid var(--c-separator); border-radius: var(--r-sm); color: var(--c-brand-deep); font-size: 12px; margin-bottom: 14px; }
+.sample-data-hint svg { color: var(--c-brand); flex-shrink: 0; }
+
+.primary-btn { display: inline-flex; gap: 6px; align-items: center; padding: 8px 14px; border: 0; background: var(--c-brand); color: var(--c-on-brand); border-radius: var(--r-sm); font-size: 13px; cursor: pointer; }
+.ghost-btn { display: inline-flex; gap: 4px; align-items: center; padding: 6px 10px; border: 1px solid var(--c-separator); background: var(--c-surface); border-radius: var(--r-sm); color: var(--c-text); font-size: 12px; cursor: pointer; }
+.ghost-btn:hover { background: var(--c-bg); }
 .ghost-btn.icon { padding: 6px; }
-.ghost-btn.danger { color: #c7553b; border-color: rgba(199,85,59,.3); }
-.ghost-btn.primary { color: #2f7f80; border-color: #cfe1d9; }
+.ghost-btn.danger { color: var(--c-danger-strong); border-color: var(--c-danger-soft); }
+.ghost-btn.primary { color: var(--c-brand); border-color: var(--c-brand-tint); }
 
 .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 18px; }
-.kpi-card { background: #fff; border: 1px solid #e9eee9; border-left: 4px solid; border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; }
-.kpi-card strong { font-size: 22px; color: #1f3e44; }
-.kpi-card span { color: #56716e; font-size: 12px; }
+.kpi-card { background: var(--c-surface); border: 1px solid var(--c-brand-soft); border-left: 4px solid; border-radius: var(--r-md); padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; }
+.kpi-card strong { font-size: 22px; color: var(--c-text); }
+.kpi-card span { color: var(--c-brand-deep); font-size: 12px; }
 
-.tab-bar { display: flex; gap: 4px; background: #f4f7f5; padding: 4px; border-radius: 8px; margin-bottom: 14px; width: max-content; }
-.tab-bar button { display: inline-flex; gap: 6px; align-items: center; padding: 8px 16px; border: 0; background: transparent; border-radius: 6px; cursor: pointer; font-size: 13px; color: #56716e; }
-.tab-bar button.active { background: #fff; color: #1f3e44; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+.tab-bar { display: flex; gap: 4px; background: var(--c-bg); padding: 4px; border-radius: var(--r-sm); margin-bottom: 14px; width: max-content; }
+.tab-bar button { display: inline-flex; gap: 6px; align-items: center; padding: 8px 16px; border: 0; background: transparent; border-radius: var(--r-sm); cursor: pointer; font-size: 13px; color: var(--c-brand-deep); }
+.tab-bar button.active { background: var(--c-surface); color: var(--c-text); box-shadow: 0 1px 4px rgba(0,0,0,.06); }
 
-.panel-card { background: #fff; border: 1px solid #e9eee9; border-radius: 10px; padding: 16px; }
+.panel-card { background: var(--c-surface); border: 1px solid var(--c-brand-soft); border-radius: var(--r-md); padding: 16px; }
 .table-wrap { overflow-x: auto; }
 .task-table { width: 100%; border-collapse: collapse; min-width: 720px; }
-.task-table th, .task-table td { padding: 12px 14px; text-align: left; font-size: 13px; border-bottom: 1px solid #eef3f1; }
-.task-table th { background: #fafdfc; color: #56716e; font-weight: 600; }
+.task-table th, .task-table td { padding: 12px 14px; text-align: left; font-size: 13px; border-bottom: 1px solid var(--c-border-2); }
+.task-table th { background: var(--c-surface-2); color: var(--c-brand-deep); font-weight: 600; }
 .task-table tbody tr { cursor: pointer; transition: background .12s; }
-.task-table tbody tr:hover { background: #f4f7f5; }
-.task-table td strong { color: #1f3e44; }
-.task-table code { background: #f4f7f5; padding: 2px 6px; border-radius: 4px; font-size: 12px; }
+.task-table tbody tr:hover { background: var(--c-bg); }
+.task-table td strong { color: var(--c-text); }
+.task-table code { background: var(--c-bg); padding: 2px 6px; border-radius: var(--r-xs); font-size: 12px; }
 .ops-col { white-space: nowrap; }
 .ops .ghost-btn { margin-right: 4px; }
 
-.level-pill { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+.level-pill { display: inline-block; padding: 2px 8px; border-radius: var(--r-xs); font-size: 11px; font-weight: 600; }
 .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
 
-.progress { height: 6px; background: #f4f7f5; border-radius: 3px; overflow: hidden; margin-bottom: 4px; }
-.progress .fill { height: 100%; background: #5fbd9a; border-radius: 3px; transition: width .3s; }
+.progress { height: 6px; background: var(--c-bg); border-radius: 3px; overflow: hidden; margin-bottom: 4px; }
+.progress .fill { height: 100%; background: var(--c-brand); border-radius: 3px; transition: width .3s; }
 
-.loading-row, .empty-row { padding: 32px; text-align: center; color: #7a8d89; font-size: 13px; }
+.loading-row, .empty-row { padding: 32px; text-align: center; color: var(--c-text-2); font-size: 13px; }
 
-.drawer-mask { position: fixed; inset: 0; background: rgba(15,32,38,.35); display: flex; justify-content: flex-end; z-index: 110; }
-.drawer { width: min(560px, 100%); background: #fff; height: 100%; display: flex; flex-direction: column; box-shadow: -8px 0 24px rgba(0,0,0,.08); }
-.drawer > header { display: flex; align-items: center; justify-content: space-between; padding: 18px 22px; border-bottom: 1px solid #eef3f1; }
-.drawer > header h3 { margin: 0; font-size: 15px; color: #1f3e44; }
+.drawer-mask { position: fixed; inset: 0; background: var(--c-scrim); display: flex; justify-content: flex-end; z-index: 110; }
+.drawer { width: min(560px, 100%); background: var(--c-surface); height: 100%; display: flex; flex-direction: column; box-shadow: -8px 0 24px rgba(0,0,0,.08); }
+.drawer > header { display: flex; align-items: center; justify-content: space-between; padding: 18px 22px; border-bottom: 1px solid var(--c-border-2); }
+.drawer > header h3 { margin: 0; font-size: 15px; color: var(--c-text); }
 .drawer-body { padding: 22px; overflow-y: auto; flex: 1; }
 
 .form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin-bottom: 18px; }
 .form-grid .span-2 { grid-column: 1 / -1; }
-.form-grid label { display: flex; flex-direction: column; gap: 6px; color: #56716e; font-size: 12px; font-weight: 600; }
-.form-grid input, .form-grid select { padding: 8px 10px; border: 1px solid #d9e6e1; border-radius: 8px; background: #fafdfc; font-size: 13px; }
+.form-grid label { display: flex; flex-direction: column; gap: 6px; color: var(--c-brand-deep); font-size: 12px; font-weight: 600; }
+.form-grid input, .form-grid select { padding: 8px 10px; border: 1px solid var(--c-separator); border-radius: var(--r-sm); background: var(--c-surface-2); font-size: 13px; }
 
 .step-section, .attach-section { margin-bottom: 18px; }
 .step-section > header, .attach-section > header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-.step-section h4, .attach-section h4 { margin: 0; font-size: 13px; color: #1f3e44; }
+.step-section h4, .attach-section h4 { margin: 0; font-size: 13px; color: var(--c-text); }
 
 .step-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
-.step-list li { display: grid; grid-template-columns: 28px 1.6fr 1fr 1fr 28px; gap: 8px; align-items: center; padding: 8px; background: #fafdfc; border: 1px solid #e9eee9; border-radius: 8px; }
-.step-index { width: 24px; height: 24px; border-radius: 50%; background: #2f7f80; color: #fff; display: grid; place-items: center; font-size: 11px; font-weight: 600; }
-.step-list input { padding: 6px 8px; border: 1px solid #d9e6e1; border-radius: 6px; font-size: 12px; background: #fff; }
+.step-list li { display: grid; grid-template-columns: 28px 1.6fr 1fr 1fr 28px; gap: 8px; align-items: center; padding: 8px; background: var(--c-surface-2); border: 1px solid var(--c-brand-soft); border-radius: var(--r-sm); }
+.step-index { width: 24px; height: 24px; border-radius: 50%; background: var(--c-brand); color: var(--c-on-brand); display: grid; place-items: center; font-size: 11px; font-weight: 600; }
+.step-list input { padding: 6px 8px; border: 1px solid var(--c-separator); border-radius: var(--r-sm); font-size: 12px; background: var(--c-surface); }
 
-.empty-card { padding: 16px; border: 1px dashed #d9e6e1; border-radius: 8px; text-align: center; color: #7a8d89; font-size: 12px; }
+.empty-card { padding: 16px; border: 1px dashed var(--c-separator); border-radius: var(--r-sm); text-align: center; color: var(--c-text-2); font-size: 12px; }
 .attach-list { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
-.attach-list li { display: flex; gap: 6px; align-items: center; padding: 8px 10px; border: 1px solid #e9eee9; border-radius: 8px; background: #fff; font-size: 12px; color: #1f3e44; }
+.attach-list li { display: flex; gap: 6px; align-items: center; padding: 8px 10px; border: 1px solid var(--c-brand-soft); border-radius: var(--r-sm); background: var(--c-surface); font-size: 12px; color: var(--c-text); }
 .attach-list span { flex: 1; }
 
-.switch-row { display: flex; gap: 8px; align-items: center; margin-bottom: 18px; font-size: 13px; color: #37555a; font-weight: 500; }
-.switch-row input { width: 14px; height: 14px; accent-color: #2f7f80; }
+.switch-row { display: flex; gap: 8px; align-items: center; margin-bottom: 18px; font-size: 13px; color: var(--c-text); font-weight: 500; }
+.switch-row input { width: 14px; height: 14px; accent-color: var(--c-brand); }
 
-.drawer-actions { display: flex; gap: 10px; justify-content: flex-end; padding-top: 16px; border-top: 1px solid #eef3f1; }
+.drawer-actions { display: flex; gap: 10px; justify-content: flex-end; padding-top: 16px; border-top: 1px solid var(--c-border-2); }
 
-.modal-mask { position: fixed; inset: 0; background: rgba(15,32,38,.45); display: grid; place-items: center; z-index: 120; padding: 20px; }
-.modal-card { width: min(420px, 100%); background: #fff; border-radius: 14px; padding: 22px; }
-.modal-card h3 { margin: 0 0 12px; color: #1f3e44; font-size: 15px; }
-.confirm-text { color: #56716e; font-size: 13px; line-height: 1.7; margin: 0 0 18px; }
+.modal-mask { position: fixed; inset: 0; background: var(--c-scrim); display: grid; place-items: center; z-index: 120; padding: 20px; }
+.modal-card { width: min(420px, 100%); background: var(--c-surface); border-radius: var(--r-lg); padding: 22px; }
+.modal-card h3 { margin: 0 0 12px; color: var(--c-text); font-size: 15px; }
+.confirm-text { color: var(--c-brand-deep); font-size: 13px; line-height: 1.7; margin: 0 0 18px; }
 .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
 
 .spin { animation: spin 1s linear infinite; }

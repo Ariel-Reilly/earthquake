@@ -56,9 +56,9 @@ const levelOptions = [
 
 const levelColor = {
   red: "#e06060",
-  orange: "#e0a050",
+  orange: "#cbaa76",
   yellow: "#d9c040",
-  blue: "#6dbfa5",
+  blue: "#87b096",
 }
 
 const actionTypes = [
@@ -371,9 +371,9 @@ watch(() => props.rule, initForm)
 
 <style scoped>
 .rule-editor {
-  background: #fff;
-  border: 1px solid #e9eee9;
-  border-radius: 12px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-brand-soft);
+  border-radius: var(--r-lg);
   overflow: hidden;
 }
 
@@ -382,14 +382,14 @@ watch(() => props.rule, initForm)
   justify-content: space-between;
   align-items: center;
   padding: 16px 20px;
-  border-bottom: 1px solid #e9eee9;
-  background: #fafdfc;
+  border-bottom: 1px solid var(--c-brand-soft);
+  background: var(--c-surface-2);
 }
 
 .editor-header h3 {
   margin: 0;
   font-size: 16px;
-  color: #1f3e44;
+  color: var(--c-text);
 }
 
 .switch-label {
@@ -397,7 +397,7 @@ watch(() => props.rule, initForm)
   align-items: center;
   gap: 8px;
   font-size: 13px;
-  color: #56716e;
+  color: var(--c-brand-deep);
 }
 
 .editor-body {
@@ -411,7 +411,7 @@ watch(() => props.rule, initForm)
 .form-section h4 {
   margin: 0 0 12px;
   font-size: 13px;
-  color: #37555a;
+  color: var(--c-text);
   font-weight: 600;
 }
 
@@ -436,25 +436,25 @@ watch(() => props.rule, initForm)
 
 .form-item span {
   font-size: 12px;
-  color: #56716e;
+  color: var(--c-brand-deep);
   font-weight: 600;
 }
 
 .form-item input,
 .form-item select {
   padding: 8px 10px;
-  border: 1px solid #d9e6e1;
-  border-radius: 6px;
+  border: 1px solid var(--c-separator);
+  border-radius: var(--r-sm);
   font-size: 13px;
-  background: #fafdfc;
+  background: var(--c-surface-2);
 }
 
 .toggle-op-btn {
   padding: 4px 12px;
-  border: 1px solid #2f7f80;
-  background: #fff;
-  color: #2f7f80;
-  border-radius: 4px;
+  border: 1px solid var(--c-brand);
+  background: var(--c-surface);
+  color: var(--c-brand);
+  border-radius: var(--r-xs);
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
@@ -475,9 +475,9 @@ watch(() => props.rule, initForm)
 
 .op-label {
   padding: 4px 10px;
-  background: #2f7f80;
-  color: #fff;
-  border-radius: 4px;
+  background: var(--c-brand);
+  color: var(--c-on-brand);
+  border-radius: var(--r-xs);
   font-size: 11px;
   font-weight: 600;
 }
@@ -485,15 +485,15 @@ watch(() => props.rule, initForm)
 .condition-row select,
 .condition-row input {
   padding: 7px 10px;
-  border: 1px solid #d9e6e1;
-  border-radius: 6px;
+  border: 1px solid var(--c-separator);
+  border-radius: var(--r-sm);
   font-size: 13px;
-  background: #fafdfc;
+  background: var(--c-surface-2);
 }
 
 .unit-label {
   font-size: 12px;
-  color: #99a7a1;
+  color: rgba(60,60,67,.52);
   min-width: 30px;
 }
 
@@ -506,24 +506,24 @@ watch(() => props.rule, initForm)
 .dsl-editor textarea {
   width: 100%;
   padding: 12px;
-  border: 1px solid #d9e6e1;
-  border-radius: 6px;
+  border: 1px solid var(--c-separator);
+  border-radius: var(--r-sm);
   font-family: monospace;
   font-size: 13px;
   resize: vertical;
 }
 
 .dsl-preview {
-  background: #f8fbfa;
+  background: rgba(60,60,67,.04);
   padding: 14px;
-  border-radius: 8px;
+  border-radius: var(--r-sm);
 }
 
 .dsl-preview code {
   display: block;
   font-family: monospace;
   font-size: 13px;
-  color: #2b6cb0;
+  color: var(--c-brand);
   word-break: break-all;
 }
 
@@ -533,16 +533,16 @@ watch(() => props.rule, initForm)
   gap: 6px;
   margin-top: 10px;
   padding: 5px 12px;
-  border: 1px dashed #d9e6e1;
-  background: #fff;
-  border-radius: 6px;
-  color: #56716e;
+  border: 1px dashed var(--c-separator);
+  background: var(--c-surface);
+  border-radius: var(--r-sm);
+  color: var(--c-brand-deep);
   font-size: 12px;
   cursor: pointer;
 }
 
 .mode-toggle:hover {
-  background: #f4f7f5;
+  background: var(--c-bg);
 }
 
 .actions-list {
@@ -560,19 +560,19 @@ watch(() => props.rule, initForm)
 .action-row select {
   flex: 1;
   padding: 7px 10px;
-  border: 1px solid #d9e6e1;
-  border-radius: 6px;
+  border: 1px solid var(--c-separator);
+  border-radius: var(--r-sm);
   font-size: 13px;
-  background: #fafdfc;
+  background: var(--c-surface-2);
 }
 
 .action-row input {
   flex: 1;
   padding: 7px 10px;
-  border: 1px solid #d9e6e1;
-  border-radius: 6px;
+  border: 1px solid var(--c-separator);
+  border-radius: var(--r-sm);
   font-size: 13px;
-  background: #fafdfc;
+  background: var(--c-surface-2);
 }
 
 .add-btn {
@@ -580,16 +580,16 @@ watch(() => props.rule, initForm)
   align-items: center;
   gap: 6px;
   padding: 7px 12px;
-  border: 1px dashed #d9e6e1;
-  background: #fff;
-  border-radius: 6px;
-  color: #2f7f80;
+  border: 1px dashed var(--c-separator);
+  background: var(--c-surface);
+  border-radius: var(--r-sm);
+  color: var(--c-brand);
   font-size: 12px;
   cursor: pointer;
 }
 
 .add-btn:hover {
-  background: #e8f5f3;
+  background: var(--c-brand-mist);
 }
 
 .editor-footer {
@@ -597,8 +597,8 @@ watch(() => props.rule, initForm)
   justify-content: flex-end;
   gap: 10px;
   padding: 16px 20px;
-  border-top: 1px solid #e9eee9;
-  background: #fafdfc;
+  border-top: 1px solid var(--c-brand-soft);
+  background: var(--c-surface-2);
 }
 
 .primary-btn {
@@ -607,9 +607,9 @@ watch(() => props.rule, initForm)
   gap: 6px;
   padding: 8px 16px;
   border: none;
-  background: #2f7f80;
-  color: #fff;
-  border-radius: 6px;
+  background: var(--c-brand);
+  color: var(--c-on-brand);
+  border-radius: var(--r-sm);
   font-size: 13px;
   cursor: pointer;
 }
@@ -619,10 +619,10 @@ watch(() => props.rule, initForm)
   align-items: center;
   gap: 6px;
   padding: 8px 16px;
-  border: 1px solid #2f7f80;
-  background: #fff;
-  color: #2f7f80;
-  border-radius: 6px;
+  border: 1px solid var(--c-brand);
+  background: var(--c-surface);
+  color: var(--c-brand);
+  border-radius: var(--r-sm);
   font-size: 13px;
   cursor: pointer;
 }
@@ -632,10 +632,10 @@ watch(() => props.rule, initForm)
   align-items: center;
   gap: 6px;
   padding: 8px 16px;
-  border: 1px solid #d9e6e1;
-  background: #fff;
-  border-radius: 6px;
-  color: #37555a;
+  border: 1px solid var(--c-separator);
+  background: var(--c-surface);
+  border-radius: var(--r-sm);
+  color: var(--c-text);
   font-size: 13px;
   cursor: pointer;
 }
@@ -648,17 +648,17 @@ watch(() => props.rule, initForm)
   height: 28px;
   border: none;
   background: transparent;
-  color: #56716e;
-  border-radius: 4px;
+  color: var(--c-brand-deep);
+  border-radius: var(--r-xs);
   cursor: pointer;
 }
 
 .icon-btn:hover {
-  background: #f0f5f4;
+  background: var(--c-brand-mist);
 }
 
 .icon-btn.danger {
-  color: #c7553b;
+  color: var(--c-danger-strong);
 }
 
 .switch {
@@ -677,8 +677,8 @@ watch(() => props.rule, initForm)
 .switch .slider {
   position: absolute;
   inset: 0;
-  background: #d9e6e1;
-  border-radius: 10px;
+  background: var(--c-separator);
+  border-radius: var(--r-md);
   transition: background 0.2s;
   cursor: pointer;
 }
@@ -690,13 +690,13 @@ watch(() => props.rule, initForm)
   top: 2px;
   width: 16px;
   height: 16px;
-  background: #fff;
+  background: var(--c-surface);
   border-radius: 50%;
   transition: transform 0.2s;
 }
 
 .switch input:checked + .slider {
-  background: #2f7f80;
+  background: var(--c-brand);
 }
 
 .switch input:checked + .slider::before {

@@ -56,19 +56,19 @@ const body  = computed(() => generatedText.value.split('\n').slice(1).join('\n')
 
 <style scoped>
 .preview { display: flex; flex-direction: column; gap: 10px; }
-header { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--dashboard-muted, #4b5563); }
+header { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--dashboard-muted, var(--c-text-2)); }
 .box {
-  border: 1px solid var(--dashboard-border, #eef2f7); border-radius: 10px;
-  padding: 14px 16px; background: linear-gradient(180deg, #f8fafc, #fff);
+  border: 1px solid var(--dashboard-border, var(--c-brand-mist)); border-radius: var(--r-md);
+  padding: 14px 16px; background: linear-gradient(180deg, var(--c-brand-mist), var(--c-surface));
 }
-.box h4 { margin: 0 0 8px; font-size: 15px; color: #0f172a; }
+.box h4 { margin: 0 0 8px; font-size: 15px; color: var(--c-text); }
 .box pre {
   margin: 0; white-space: pre-wrap; word-break: break-word;
-  font-family: inherit; font-size: 13px; color: var(--dashboard-text, #1e293b); line-height: 1.6;
+  font-family: inherit; font-size: 13px; color: var(--dashboard-text, var(--c-scrim)); line-height: 1.6;
 }
-footer { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 12px; color: var(--dashboard-muted, #64748b); }
+footer { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 12px; color: var(--dashboard-muted, var(--c-text-3)); }
 .tag {
-  background: #eef4ff; color: #2563eb; padding: 2px 8px; border-radius: 999px; font-size: 11px;
+  background: var(--sys-blue-soft); color: var(--c-brand-deep); padding: 2px 8px; border-radius: var(--r-pill); font-size: 11px;
 }
-.muted { color: #94a3b8; }
+.muted { color: var(--c-text-3); }
 </style>

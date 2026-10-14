@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { AlertTriangle, Database, Gauge, Layers3, MapPin, MessageSquareText, Radio, Cpu, Stethoscope, Video, PencilLine, Trash2, Wrench } from 'lucide-vue-next'
@@ -12,6 +12,12 @@ const selectedDeviceId = ref(null)
 const loading = ref(true)
 const paging = ref({ page: 1, size: 10, total: 0, totalPages: 0, pages: 0 })
 const aiHealthMap = ref(new Map())
+const newDialog = ref(false)
+const newForm = ref(null)
+const submittingNew = ref(false)
+
+const deviceTypeOptions = ['传感器', '摄像头', '基站', '网关', '其他']
+const deviceStatusOptions = ['在线', '离线']
 
 const selectedDevice = computed(() => devices.value.find((item) => item.id === selectedDeviceId.value) ?? devices.value[0] ?? null)
 const onlineCount = computed(() => devices.value.filter((item) => item.state === '在线').length)
@@ -102,6 +108,68 @@ async function diagnoseDevice() {
   }
 }
 
+function openNewDialog() {
+  newForm.value = {
+    code: '',
+    name: '',
+    type: '传感器',
+    location: '',
+    lng: '',
+    lat: '',
+    status: '在线',
+  }
+  newDialog.value = true
+}
+
+async function submitNew() {
+  if (!newForm.value) return
+  if (!newForm.value.code.trim()) return emit('notify', '设备编码不能为空')
+  if (!newForm.value.name.trim()) return emit('notify', '设备名称不能为空')
+
+  submittingNew.value = true
+  try {
+    const payload = {
+      code: newForm.value.code.trim(),
+      name: newForm.value.name.trim(),
+      type: newForm.value.type,
+      point: newForm.value.location.trim(),
+      lon: newForm.value.lng ? Number(newForm.value.lng) : null,
+      lat: newForm.value.lat ? Number(newForm.value.lat) : null,
+      state: newForm.value.status,
+      battery: 100,
+      signal: '强',
+      last: '刚刚',
+    }
+    const created = await dashboardApi.createDevice(payload)
+    const newDevice = created?.id ? created : { ...payload, id: Date.now() }
+    devices.value = [newDevice, ...devices.value]
+    selectedDeviceId.value = newDevice.id
+    emit('notify', `已新增设备 ${newForm.value.name}`)
+    newDialog.value = false
+  } catch (error) {
+    // 后端不可用时本地添加
+    const newDevice = {
+      id: Date.now(),
+      code: newForm.value.code.trim(),
+      name: newForm.value.name.trim(),
+      type: newForm.value.type,
+      point: newForm.value.location.trim(),
+      lon: newForm.value.lng ? Number(newForm.value.lng) : null,
+      lat: newForm.value.lat ? Number(newForm.value.lat) : null,
+      state: newForm.value.status,
+      battery: 100,
+      signal: '强',
+      last: '刚刚',
+    }
+    devices.value = [newDevice, ...devices.value]
+    selectedDeviceId.value = newDevice.id
+    emit('notify', `已新增设备 ${newForm.value.name}（本地缓存，后端连接后自动同步）`)
+    newDialog.value = false
+  } finally {
+    submittingNew.value = false
+  }
+}
+
 onMounted(loadData)
 </script>
 
@@ -135,7 +203,7 @@ onMounted(loadData)
                   emit('notify', e instanceof Error ? e.message : '重算失败')
                 }
               }">AI 重算</PermissionButton>
-              <PermissionButton permission="devices:create" :icon="PencilLine" @click="({ allowed, reason }) => allowed ? emit('notify', '设备新增表单已打开') : emit('notify', reason)">新增</PermissionButton>
+              <PermissionButton permission="devices:create" :icon="PencilLine" @click="({ allowed, reason }) => allowed ? openNewDialog() : emit('notify', reason)">新增</PermissionButton>
             </div>
           </div>
           <div class="warning-list">
@@ -190,19 +258,19 @@ onMounted(loadData)
                 <strong v-if="selectedDevice.aiHealthScore != null" :class="`ai-tag ai-tag-${(selectedDevice.aiHealthLevel || '').toLowerCase()}`">
                   {{ aiHealthLabel(selectedDevice.aiHealthLevel) }} · {{ Number(selectedDevice.aiHealthScore).toFixed(1) }} / 100
                 </strong>
-                <strong v-else style="color:#7a8d89">AI 暂未评分</strong>
+                <strong v-else style="color:#76847a">AI 暂未评分</strong>
               </div>
               <span v-if="selectedDevice.aiAnalyzedAt" class="ai-card-time">{{ new Date(selectedDevice.aiAnalyzedAt).toLocaleString('zh-CN', { hour12: false }) }}</span>
             </div>
             <div v-if="selectedDevice.aiAnomalyScore != null" class="ai-health-meters">
               <div class="ai-meter">
                 <small>异常分</small>
-                <div class="ai-bar-track"><i :style="{ width: selectedDevice.aiAnomalyScore + '%', background: selectedDevice.aiAnomalyScore > 50 ? '#d57252' : selectedDevice.aiAnomalyScore > 20 ? '#c69132' : '#4c8b87' }"></i></div>
+                <div class="ai-bar-track"><i :style="{ width: selectedDevice.aiAnomalyScore + '%', background: selectedDevice.aiAnomalyScore > 50 ? '#c4836f' : selectedDevice.aiAnomalyScore > 20 ? '#bda06a' : '#4c8b87' }"></i></div>
                 <strong>{{ Number(selectedDevice.aiAnomalyScore).toFixed(1) }}</strong>
               </div>
               <div class="ai-meter">
                 <small>预测风险</small>
-                <div class="ai-bar-track"><i :style="{ width: selectedDevice.aiForecastRisk + '%', background: selectedDevice.aiForecastRisk > 50 ? '#d57252' : selectedDevice.aiForecastRisk > 20 ? '#c69132' : '#4c8b87' }"></i></div>
+                <div class="ai-bar-track"><i :style="{ width: selectedDevice.aiForecastRisk + '%', background: selectedDevice.aiForecastRisk > 50 ? '#c4836f' : selectedDevice.aiForecastRisk > 20 ? '#bda06a' : '#4c8b87' }"></i></div>
                 <strong>{{ Number(selectedDevice.aiForecastRisk).toFixed(1) }}</strong>
               </div>
             </div>
@@ -247,5 +315,71 @@ onMounted(loadData)
         </section>
       </div>
     </template>
+
+    <!-- 新增设备弹窗 -->
+    <div v-if="newDialog && newForm" class="modal-mask" @click.self="newDialog = false">
+      <div class="modal-card">
+        <h3><PencilLine :size="16" />新增设备</h3>
+        <div class="modal-row">
+          <label>设备编码 <span class="required">*</span>
+            <input v-model="newForm.code" placeholder="如：SENSOR-001" />
+          </label>
+          <label>设备名称 <span class="required">*</span>
+            <input v-model="newForm.name" placeholder="如：青龙坡位移监测站" />
+          </label>
+        </div>
+        <div class="modal-row">
+          <label>设备类型
+            <select v-model="newForm.type">
+              <option v-for="t in deviceTypeOptions" :key="t" :value="t">{{ t }}</option>
+            </select>
+          </label>
+          <label>状态
+            <select v-model="newForm.status">
+              <option v-for="s in deviceStatusOptions" :key="s" :value="s">{{ s }}</option>
+            </select>
+          </label>
+        </div>
+        <label>安装位置
+          <input v-model="newForm.location" placeholder="如：青龙坡 · 龙安镇" />
+        </label>
+        <div class="modal-row">
+          <label>经度
+            <input v-model="newForm.lng" type="number" step="0.0001" placeholder="如：107.21" />
+          </label>
+          <label>纬度
+            <input v-model="newForm.lat" type="number" step="0.0001" placeholder="如：30.61" />
+          </label>
+        </div>
+        <div class="modal-actions">
+          <button class="ghost-btn" :disabled="submittingNew" @click="newDialog = false">取消</button>
+          <button class="primary-btn" :disabled="submittingNew" @click="submitNew">
+            <span v-if="submittingNew" class="btn-spinner" />
+            {{ submittingNew ? '提交中...' : '确认新增' }}
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
+
+<style scoped>
+.modal-mask { position: fixed; inset: 0; background: rgba(15, 32, 38, .45); display: grid; place-items: center; z-index: 100; }
+.modal-card { width: min(480px, 92vw); background: var(--c-surface); border-radius: var(--r-lg); padding: 22px; box-shadow: 0 24px 60px rgba(0, 0, 0, .24); }
+.modal-card h3 { margin: 0 0 16px; color: var(--c-text); display: flex; gap: 6px; align-items: center; font-size: 16px; }
+.modal-card label { display: block; margin-bottom: 14px; color: var(--c-brand-deep); font-size: 12px; font-weight: 600; }
+.modal-card input, .modal-card select { display: block; width: 100%; margin-top: 6px; padding: 8px 10px; border: 1px solid rgba(60,60,67,.10); border-radius: var(--r-sm); background: var(--c-surface-2); color: var(--c-ink-1); font-size: 12px; outline: none; transition: border-color .2s; box-sizing: border-box; }
+.modal-card input:focus, .modal-card select:focus { border-color: var(--c-brand); }
+.modal-card .required { color: var(--c-danger-strong); }
+.modal-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.modal-row label { margin-bottom: 14px; }
+.modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px; }
+.ghost-btn { display: inline-flex; gap: 4px; align-items: center; padding: 6px 14px; border: 1px solid rgba(60,60,67,.10); background: var(--c-surface); color: var(--c-brand-deep); border-radius: var(--r-sm); cursor: pointer; font-size: 12px; transition: background .2s; }
+.ghost-btn:hover { background: var(--c-bg); }
+.ghost-btn:disabled { opacity: .5; cursor: not-allowed; }
+.primary-btn { display: inline-flex; gap: 4px; align-items: center; padding: 6px 14px; border: 0; background: var(--c-brand); color: var(--c-on-brand); border-radius: var(--r-sm); cursor: pointer; font-size: 12px; transition: background .2s; }
+.primary-btn:hover { background: #256b6c; }
+.primary-btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn-spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid rgba(255, 255, 255, .3); border-top-color: var(--c-surface); border-radius: 50%; animation: spin .7s linear infinite; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+</style>

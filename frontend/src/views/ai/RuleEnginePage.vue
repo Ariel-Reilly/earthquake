@@ -119,12 +119,12 @@ function backToList() {
   gap: 8px;
   align-items: center;
   font-size: 18px;
-  color: #1f3e44;
+  color: var(--c-text);
 }
 
 .page-header p {
   margin: 4px 0 0;
-  color: #7a8d89;
+  color: var(--c-text-2);
   font-size: 12px;
 }
 
@@ -142,16 +142,16 @@ function backToList() {
   align-items: center;
   gap: 6px;
   padding: 7px 12px;
-  border: 1px solid #d9e6e1;
-  background: #fff;
-  border-radius: 6px;
-  color: #37555a;
+  border: 1px solid var(--c-separator);
+  background: var(--c-surface);
+  border-radius: var(--r-sm);
+  color: var(--c-text);
   font-size: 13px;
   cursor: pointer;
 }
 
 .back-btn:hover {
-  background: #f4f7f5;
+  background: var(--c-bg);
 }
 
 .primary-btn {
@@ -160,9 +160,9 @@ function backToList() {
   align-items: center;
   padding: 8px 14px;
   border: 0;
-  background: #2f7f80;
-  color: #fff;
-  border-radius: 8px;
+  background: var(--c-brand);
+  color: var(--c-on-brand);
+  border-radius: var(--r-sm);
   font-size: 13px;
   cursor: pointer;
 }

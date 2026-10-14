@@ -1058,7 +1058,7 @@ export function addCesiumPoint(viewerBundle, point) {
     position: Cesium.Cartesian3.fromDegrees(Number(point.lon), Number(point.lat), 30),
     point: {
       pixelSize: 14,
-      color: Cesium.Color.fromCssColorString('#e27d5b'),
+      color: Cesium.Color.fromCssColorString('#cd927e'),
       outlineColor: Cesium.Color.WHITE,
       outlineWidth: 3,
     },
@@ -1088,10 +1088,10 @@ export function buildClusterStyle(feature, type, selectedId) {
   const size = features.length
   if (size > 1) {
     const palette = {
-      hazard: '#e27d5b',
+      hazard: '#cd927e',
       device: '#4f7fd7',
       warning: '#e2a03a',
-      personnel: '#5db486',
+      personnel: '#87b096',
     }
     const color = palette[type] || '#4f8f99'
     return new Style({
@@ -1126,7 +1126,7 @@ export function buildClusterStyle(feature, type, selectedId) {
 
 export function buildWarningStyle(featureOrLevel = '预警') {
   const level = typeof featureOrLevel === 'string' ? featureOrLevel : featureOrLevel.get?.('level') || '预警'
-  const color = level.includes('橙') || level.includes('红') ? '#e27d5b' : level.includes('黄') ? '#d7a546' : '#4f8f99'
+  const color = level.includes('橙') || level.includes('红') ? '#cd927e' : level.includes('黄') ? '#c4a86e' : '#4f8f99'
   return new Style({
     image: new CircleStyle({ radius: 8, fill: new Fill({ color }), stroke: new Stroke({ color: '#ffffff', width: 2 }) }),
     text: new Text({
@@ -1146,19 +1146,19 @@ export function buildHazardStyle(featureOrLevel = '正常', _name = '', selected
     return new Style({
       image: new CircleStyle({
         radius: 13,
-        fill: new Fill({ color: '#2f7f80' }),
+        fill: new Fill({ color: '#6f9e7f' }),
         stroke: new Stroke({ color: '#ffffff', width: 3 }),
       }),
       text: new Text({
         text: '!',
         fill: new Fill({ color: '#ffffff' }),
-        stroke: new Stroke({ color: '#2f7f80', width: 2 }),
+        stroke: new Stroke({ color: '#6f9e7f', width: 2 }),
         offsetY: -18,
         font: 'bold 13px sans-serif',
       }),
     })
   }
-  const color = level.includes('高') ? '#e27d5b' : level.includes('关注') ? '#d7a546' : '#5db486'
+  const color = level.includes('高') ? '#cd927e' : level.includes('关注') ? '#c4a86e' : '#87b096'
   return new Style({
     image: new CircleStyle({ radius: 8, fill: new Fill({ color }), stroke: new Stroke({ color: '#ffffff', width: 2 }) }),
     text: new Text({
@@ -1173,7 +1173,7 @@ export function buildHazardStyle(featureOrLevel = '正常', _name = '', selected
 
 export function buildDeviceStyle(featureOrState = '在线') {
   const state = typeof featureOrState === 'string' ? featureOrState : featureOrState.get?.('state') || '在线'
-  const color = state === '在线' ? '#2f7f80' : '#d57b56'
+  const color = state === '在线' ? '#6f9e7f' : '#d57b56'
   return new Style({
     image: new CircleStyle({ radius: 7, fill: new Fill({ color }), stroke: new Stroke({ color: '#ffffff', width: 2 }) }),
     text: new Text({
@@ -1236,15 +1236,15 @@ export function buildUserLocationStyle(feature, resolution = 1) {
     new Style({
       image: new CircleStyle({
         radius: Math.max(8, accuracyPx),
-        fill: new Fill({ color: 'rgba(47, 127, 128, 0.12)' }),
-        stroke: new Stroke({ color: 'rgba(47, 127, 128, 0.55)', width: 1.5 }),
+        fill: new Fill({ color: 'rgba(111, 158, 127, 0.12)' }),
+        stroke: new Stroke({ color: 'rgba(111, 158, 127, 0.55)', width: 1.5 }),
       }),
     }),
     // 中心蓝点
     new Style({
       image: new CircleStyle({
         radius: 8,
-        fill: new Fill({ color: '#2f7f80' }),
+        fill: new Fill({ color: '#6f9e7f' }),
         stroke: new Stroke({ color: '#ffffff', width: 3 }),
       }),
     }),

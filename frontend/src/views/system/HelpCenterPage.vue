@@ -31,6 +31,7 @@ import {
   Video,
 } from "lucide-vue-next";
 import { getAuthUser } from "../../stores/auth";
+import { dashboardApi } from "../../services/dashboardApi";
 
 const operator = getAuthUser() ?? { name: "李晨曦", role: "admin" };
 
@@ -38,16 +39,26 @@ const operator = getAuthUser() ?? { name: "李晨曦", role: "admin" };
 const feedback = ref({ type: "question", subject: "", content: "", contact: "" });
 const feedbackSending = ref(false);
 const feedbackSuccess = ref(false);
+const feedbackError = ref("");
+const feedbackTicket = ref("");
 
 async function submitFeedback() {
   if (!feedback.value.content.trim()) return;
   feedbackSending.value = true;
+  feedbackError.value = "";
   try {
-    // 真实场景：await dashboardApi.submitFeedback(feedback.value)
-    await new Promise((r) => setTimeout(r, 800));
+    const res = await dashboardApi.submitSupportFeedback({
+      type: feedback.value.type,
+      subject: feedback.value.subject,
+      content: feedback.value.content,
+      contact: feedback.value.contact,
+    });
+    feedbackTicket.value = res?.ticketId ?? "";
     feedbackSuccess.value = true;
     feedback.value = { type: "question", subject: "", content: "", contact: "" };
-    setTimeout(() => { feedbackSuccess.value = false; }, 3000);
+    setTimeout(() => { feedbackSuccess.value = false; }, 5000);
+  } catch (e) {
+    feedbackError.value = e?.message ?? "反馈提交失败";
   } finally {
     feedbackSending.value = false;
   }
@@ -387,7 +398,8 @@ const currentManual = manuals.find((m) => m.role === operator.role) ?? manuals[0
             提交反馈
           </h3>
           <div v-if="feedbackSuccess" class="feedback-success">
-            ✓ 反馈已提交，我们会尽快处理
+            ✓ 反馈已受理<span v-if="feedbackTicket">，受理号 <code>{{ feedbackTicket }}</code></span>
+            <small>管理员可在「日志审计」中按支持模块查询</small>
           </div>
           <form v-else class="feedback-form" @submit.prevent="submitFeedback">
             <div class="form-field">
@@ -426,6 +438,7 @@ const currentManual = manuals.find((m) => m.role === operator.role) ?? manuals[0
                 placeholder="手机号或邮箱"
               />
             </div>
+            <p v-if="feedbackError" class="feedback-error">提交失败：{{ feedbackError }}</p>
             <button
               type="submit"
               class="submit-btn"
@@ -468,13 +481,13 @@ const currentManual = manuals.find((m) => m.role === operator.role) ?? manuals[0
 const stateRows = [
   { state: "疑似事件", color: "#6366f1", desc: "AI 检测到异常或舆情上报的初始状态", ops: "认领 / 驳回" },
   { state: "人工确认", color: "#f59e0b", desc: "值班员认领并开始核实", ops: "开始确认 / 转派" },
-  { state: "确认中", color: "#3b82f6", desc: "正在二次核实与评估", ops: "确认 / 驳回" },
+  { state: "确认中", color: "#87b096", desc: "正在二次核实与评估", ops: "确认 / 驳回" },
   { state: "已确认", color: "#22c55e", desc: "灾害事件确认，进入档案", ops: "创建预警 / 升级应急" },
   { state: "预警发布", color: "#ef4444", desc: "预警已发布，等待处置", ops: "解除 / 升级应急" },
   { state: "应急事件", color: "#dc2626", desc: "橙/红预警触发的应急处置流程", ops: "开始处置" },
-  { state: "已闭环", color: "#64748b", desc: "处置完成，等待归档", ops: "归档" },
-  { state: "已解除", color: "#94a3b8", desc: "预警已解除，系统恢复", ops: "归档" },
-  { state: "已驳回", color: "#94a3b8", desc: "事件被驳回，无需处置", ops: "归档" },
+  { state: "已闭环", color: "#6b7f7c", desc: "处置完成，等待归档", ops: "归档" },
+  { state: "已解除", color: "#8a9c90", desc: "预警已解除，系统恢复", ops: "归档" },
+  { state: "已驳回", color: "#8a9c90", desc: "事件被驳回，无需处置", ops: "归档" },
 ];
 </script>
 
@@ -482,7 +495,7 @@ const stateRows = [
 .help-page {
   height: 100%;
   overflow-y: auto;
-  background: #f8fafc;
+  background: var(--c-brand-mist);
 }
 
 /* ── 头部 ── */
@@ -491,16 +504,16 @@ const stateRows = [
   align-items: center;
   gap: 16px;
   padding: 24px 24px 16px;
-  background: #fff;
-  border-bottom: 1px solid #e2e8f0;
+  background: var(--c-surface);
+  border-bottom: 1px solid var(--c-brand-soft);
 }
 
 .header-icon {
   width: 52px;
   height: 52px;
-  background: #eff6ff;
-  color: #3b82f6;
-  border-radius: 12px;
+  background: var(--sys-blue-soft);
+  color: var(--c-brand-hover);
+  border-radius: var(--r-lg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -510,13 +523,13 @@ const stateRows = [
 .page-title {
   font-size: 22px;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--c-scrim);
   margin: 0 0 4px;
 }
 
 .page-desc {
   font-size: 14px;
-  color: #64748b;
+  color: var(--c-text-3);
   margin: 0;
 }
 
@@ -525,8 +538,8 @@ const stateRows = [
   display: flex;
   gap: 8px;
   padding: 12px 24px;
-  background: #fff;
-  border-bottom: 1px solid #e2e8f0;
+  background: var(--c-surface);
+  border-bottom: 1px solid var(--c-brand-soft);
   flex-wrap: wrap;
 }
 
@@ -535,19 +548,19 @@ const stateRows = [
   align-items: center;
   gap: 6px;
   padding: 6px 14px;
-  background: #f1f5f9;
-  border: 1px solid #e2e8f0;
-  border-radius: 20px;
+  background: var(--c-brand-mist);
+  border: 1px solid var(--c-brand-soft);
+  border-radius: var(--r-xl);
   font-size: 13px;
-  color: #475569;
+  color: var(--c-ink-1);
   text-decoration: none;
   transition: all 0.15s;
 }
 
 .quick-link:hover {
-  background: #1d4ed8;
-  color: #fff;
-  border-color: #1d4ed8;
+  background: var(--c-brand-deeper);
+  color: var(--c-on-brand);
+  border-color: var(--c-brand-deeper);
 }
 
 /* ── 主体布局 ── */
@@ -565,9 +578,9 @@ const stateRows = [
 
 /* ── 章节 ── */
 .help-section {
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-brand-soft);
+  border-radius: var(--r-lg);
   padding: 20px;
   margin-bottom: 16px;
 }
@@ -578,23 +591,23 @@ const stateRows = [
   gap: 8px;
   font-size: 16px;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--c-scrim);
   margin: 0 0 16px;
 }
 
 .role-badge {
   margin-left: auto;
-  background: #dbeafe;
-  color: #1d4ed8;
+  background: var(--sys-blue-soft);
+  color: var(--c-brand-deeper);
   font-size: 12px;
   font-weight: 600;
   padding: 2px 10px;
-  border-radius: 10px;
+  border-radius: var(--r-md);
 }
 
 .section-desc {
   font-size: 13px;
-  color: #64748b;
+  color: var(--c-text-3);
   margin: 0 0 14px;
   line-height: 1.6;
 }
@@ -612,32 +625,32 @@ const stateRows = [
   align-items: center;
   gap: 12px;
   padding: 12px;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  border: 1px solid var(--c-brand-soft);
+  border-radius: var(--r-sm);
   cursor: pointer;
   transition: all 0.15s;
 }
 
 .manual-card:hover, .manual-card.active {
-  border-color: #3b82f6;
-  background: #eff6ff;
+  border-color: var(--c-brand-hover);
+  background: var(--sys-blue-soft);
 }
 
-.manual-icon { color: #3b82f6; flex-shrink: 0; }
+.manual-icon { color: var(--c-brand-hover); flex-shrink: 0; }
 
 .manual-title {
   font-size: 13px;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--c-scrim);
   margin-bottom: 2px;
 }
 
-.manual-meta { font-size: 11px; color: #94a3b8; }
+.manual-meta { font-size: 11px; color: var(--c-text-3); }
 
 .manual-detail {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  background: var(--c-brand-mist);
+  border: 1px solid var(--c-brand-soft);
+  border-radius: var(--r-sm);
   padding: 16px;
 }
 
@@ -647,7 +660,7 @@ const stateRows = [
 .section-heading {
   font-size: 13px;
   font-weight: 700;
-  color: #374151;
+  color: var(--c-ink-1);
   margin: 0 0 8px;
 }
 
@@ -665,24 +678,24 @@ const stateRows = [
   align-items: center;
   gap: 4px;
   font-size: 12px;
-  color: #64748b;
-  background: #fff;
-  border: 1px solid #e2e8f0;
+  color: var(--c-text-3);
+  background: var(--c-surface);
+  border: 1px solid var(--c-brand-soft);
   padding: 3px 8px;
-  border-radius: 4px;
+  border-radius: var(--r-xs);
 }
 
 /* ── FAQ ── */
 .faq-list { display: flex; flex-direction: column; gap: 8px; }
 
 .faq-item {
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  border: 1px solid var(--c-brand-soft);
+  border-radius: var(--r-sm);
   overflow: hidden;
   transition: border-color 0.15s;
 }
 
-.faq-item.open { border-color: #3b82f6; }
+.faq-item.open { border-color: var(--c-brand-hover); }
 
 .faq-question {
   width: 100%;
@@ -695,34 +708,34 @@ const stateRows = [
   border: none;
   font-size: 13px;
   font-weight: 600;
-  color: #374151;
+  color: var(--c-ink-1);
   cursor: pointer;
   text-align: left;
   transition: background 0.15s;
 }
 
-.faq-question:hover { background: #f8fafc; }
+.faq-question:hover { background: var(--c-brand-mist); }
 
 .faq-answer {
   padding: 12px 14px;
   font-size: 13px;
-  color: #475569;
+  color: var(--c-ink-1);
   line-height: 1.7;
-  border-top: 1px solid #f1f5f9;
-  background: #fafafa;
+  border-top: 1px solid var(--c-brand-mist);
+  background: var(--c-surface-2);
 }
 
 /* ── 状态机图 ── */
 .mermaid-wrap {
-  background: #1e293b;
-  border-radius: 8px;
+  background: var(--c-scrim);
+  border-radius: var(--r-sm);
   padding: 16px;
   margin-bottom: 14px;
   overflow-x: auto;
 }
 
 .mermaid {
-  color: #e2e8f0;
+  color: var(--c-brand-soft);
   font-family: "Courier New", monospace;
   font-size: 12px;
   line-height: 1.5;
@@ -731,20 +744,20 @@ const stateRows = [
 
 .mermaid-note {
   font-size: 12px;
-  color: #64748b;
+  color: var(--c-text-3);
   margin: 8px 0 0;
 }
 
 .mermaid-note code {
-  background: #334155;
-  color: #38bdf8;
+  background: var(--c-ink-1);
+  color: var(--sys-cyan);
   padding: 1px 5px;
   border-radius: 3px;
 }
 
 .state-table {
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  border: 1px solid var(--c-brand-soft);
+  border-radius: var(--r-sm);
   overflow: hidden;
   font-size: 12px;
 }
@@ -754,15 +767,15 @@ const stateRows = [
   grid-template-columns: 80px 1fr 120px;
   gap: 12px;
   padding: 8px 12px;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--c-brand-mist);
 }
 
 .state-row:last-child { border-bottom: none; }
-.state-row.header { background: #f8fafc; font-weight: 700; color: #64748b; }
+.state-row.header { background: var(--c-brand-mist); font-weight: 700; color: var(--c-text-3); }
 
 .state-name { font-weight: 700; }
-.state-desc { color: #64748b; }
-.state-ops { color: #3b82f6; font-size: 11px; }
+.state-desc { color: var(--c-text-3); }
+.state-ops { color: var(--c-brand-hover); font-size: 11px; }
 
 /* ── API ── */
 .api-links {
@@ -773,9 +786,9 @@ const stateRows = [
 }
 
 .api-card {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  background: var(--c-brand-mist);
+  border: 1px solid var(--c-brand-soft);
+  border-radius: var(--r-sm);
   padding: 12px;
 }
 
@@ -790,48 +803,48 @@ const stateRows = [
   font-size: 10px;
   font-weight: 700;
   padding: 2px 6px;
-  border-radius: 4px;
-  color: #fff;
+  border-radius: var(--r-xs);
+  color: var(--c-on-brand);
 }
 
-.method.get { background: #22c55e; }
-.method.post { background: #3b82f6; }
-.method.put { background: #f59e0b; }
-.method.delete { background: #ef4444; }
+.method.get { background: var(--c-success); }
+.method.post { background: var(--c-brand-hover); }
+.method.put { background: var(--c-warning); }
+.method.delete { background: var(--c-danger); }
 
 .api-endpoint code {
   font-size: 12px;
-  color: #374151;
-  background: #fff;
+  color: var(--c-ink-1);
+  background: var(--c-surface);
   padding: 1px 4px;
   border-radius: 3px;
 }
 
-.api-desc { font-size: 12px; color: #64748b; }
+.api-desc { font-size: 12px; color: var(--c-text-3); }
 
 .swagger-link {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 8px 16px;
-  background: #1e293b;
-  color: #38bdf8;
-  border-radius: 8px;
+  background: var(--c-scrim);
+  color: var(--sys-cyan);
+  border-radius: var(--r-sm);
   font-size: 13px;
   font-weight: 600;
   text-decoration: none;
   transition: background 0.15s;
 }
 
-.swagger-link:hover { background: #334155; }
+.swagger-link:hover { background: var(--c-ink-1); }
 
 /* ── 侧栏 ── */
 .help-side { display: flex; flex-direction: column; gap: 14px; }
 
 .side-card {
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-brand-soft);
+  border-radius: var(--r-lg);
   padding: 16px;
 }
 
@@ -841,7 +854,7 @@ const stateRows = [
   gap: 6px;
   font-size: 14px;
   font-weight: 700;
-  color: #374151;
+  color: var(--c-ink-1);
   margin: 0 0 12px;
 }
 
@@ -854,17 +867,17 @@ const stateRows = [
   align-items: center;
   cursor: pointer;
   padding: 6px;
-  border-radius: 6px;
+  border-radius: var(--r-sm);
   transition: background 0.15s;
 }
 
-.video-item:hover { background: #f8fafc; }
+.video-item:hover { background: var(--c-brand-mist); }
 
 .video-thumb {
   width: 36px;
   height: 36px;
-  background: #eff6ff;
-  border-radius: 6px;
+  background: var(--sys-blue-soft);
+  border-radius: var(--r-sm);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -872,18 +885,43 @@ const stateRows = [
   flex-shrink: 0;
 }
 
-.video-title { font-size: 12px; font-weight: 600; color: #374151; margin-bottom: 2px; }
-.video-duration { font-size: 11px; color: #94a3b8; }
+.video-title { font-size: 12px; font-weight: 600; color: var(--c-ink-1); margin-bottom: 2px; }
+.video-duration { font-size: 11px; color: var(--c-text-3); }
 
 /* ── 反馈表单 ── */
 .feedback-success {
   padding: 14px;
-  background: #f0fdf4;
-  border: 1px solid #bbf7d0;
-  border-radius: 8px;
-  color: #166534;
+  background: var(--c-success-bg);
+  border: 1px solid var(--c-success-bg);
+  border-radius: var(--r-sm);
+  color: var(--c-success-strong);
   font-size: 13px;
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.feedback-success code {
+  background: var(--c-success-bg);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 12px;
+}
+
+.feedback-success small {
+  color: var(--c-brand-deep);
+  font-size: 11px;
+}
+
+.feedback-error {
+  margin: 0;
+  padding: 8px 10px;
+  background: var(--c-danger-bg);
+  border: 1px solid var(--c-danger-bg);
+  border-radius: var(--r-sm);
+  color: var(--c-danger-strong);
+  font-size: 12px;
 }
 
 .feedback-form { display: flex; flex-direction: column; gap: 10px; }
@@ -893,25 +931,25 @@ const stateRows = [
 .form-field label {
   font-size: 12px;
   font-weight: 600;
-  color: #64748b;
+  color: var(--c-text-3);
 }
 
-.required { color: #ef4444; }
+.required { color: var(--c-danger); }
 
 .form-input, .form-select, .form-textarea {
   padding: 7px 10px;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
+  border: 1px solid var(--c-brand-soft);
+  border-radius: var(--r-sm);
   font-size: 13px;
-  color: #374151;
-  background: #fff;
+  color: var(--c-ink-1);
+  background: var(--c-surface);
   outline: none;
   transition: border-color 0.15s;
   font-family: inherit;
 }
 
 .form-input:focus, .form-select:focus, .form-textarea:focus {
-  border-color: #3b82f6;
+  border-color: var(--c-brand-hover);
 }
 
 .form-textarea { resize: vertical; }
@@ -922,17 +960,17 @@ const stateRows = [
   justify-content: center;
   gap: 6px;
   padding: 9px;
-  background: #1d4ed8;
-  color: #fff;
+  background: var(--c-brand-deeper);
+  color: var(--c-on-brand);
   border: none;
-  border-radius: 8px;
+  border-radius: var(--r-sm);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   transition: background 0.15s;
 }
 
-.submit-btn:hover:not(:disabled) { background: #1e40af; }
+.submit-btn:hover:not(:disabled) { background: var(--sys-blue-deep); }
 .submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
 /* ── 联系 ── */
@@ -944,11 +982,11 @@ const stateRows = [
   align-items: center;
   font-size: 13px;
   padding-bottom: 8px;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--c-brand-mist);
 }
 
 .contact-item:last-child { border-bottom: none; padding-bottom: 0; }
 
-.contact-label { color: #64748b; }
-.contact-value { font-weight: 600; color: #374151; }
+.contact-label { color: var(--c-text-3); }
+.contact-value { font-weight: 600; color: var(--c-ink-1); }
 </style>

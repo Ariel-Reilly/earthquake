@@ -75,22 +75,49 @@ function useMyLocation() {
   )
 }
 
-const HAZARD_SEED = [
-  { code: "HZ-001", lon: "107.21", lat: "30.61", name: "青龙坡滑坡隐患点" },
-  { code: "HZ-002", lon: "107.34", lat: "30.48", name: "大岭村崩塌点" },
-  { code: "HZ-003", lon: "107.55", lat: "30.42", name: "白石沟泥石流" },
-  { code: "HZ-004", lon: "107.61", lat: "30.67", name: "云台山地裂缝" },
-  { code: "HZ-005", lon: "107.14", lat: "30.56", name: "石门沟滑坡点" },
-]
+/**
+ * 灾害点坐标缓存（code → {lon, lat, name}），来自后端 GET /api/hazards。
+ * 原实现为本地硬编码 HAZARD_SEED，坐标与真实隐患点不符（且与项目主口径冲突），已移除。
+ */
+const hazardCoordMap = ref({})
+const hazardCoordLoading = ref(false)
 
-function useEventLocation() {
+async function ensureHazardCoords() {
+  if (Object.keys(hazardCoordMap.value).length || hazardCoordLoading.value) return
+  hazardCoordLoading.value = true
+  try {
+    const res = await dashboardApi.getHazards({ page: 1, size: 500 })
+    const list = res?.list ?? res?.records ?? []
+    const map = {}
+    for (const h of list) {
+      const code = h.hazardCode ?? h.hazard_code ?? h.code
+      const lon = h.longitude ?? h.lon
+      const lat = h.latitude ?? h.lat
+      if (code && lon != null && lat != null) {
+        map[code] = {
+          lon: Number(lon),
+          lat: Number(lat),
+          name: h.name ?? h.hazardName ?? code,
+        }
+      }
+    }
+    hazardCoordMap.value = map
+  } catch (e) {
+    emit("notify", `灾害点坐标加载失败：${e?.message ?? e}`)
+  } finally {
+    hazardCoordLoading.value = false
+  }
+}
+
+async function useEventLocation() {
   if (!route.query.hazardCode) { emit("notify", "当前无关联灾害点"); return }
-  const hazard = HAZARD_SEED.find((h) => h.code === route.query.hazardCode)
-  if (hazard && hazard.lon && hazard.lat) {
+  await ensureHazardCoords()
+  const hazard = hazardCoordMap.value[route.query.hazardCode]
+  if (hazard) {
     routeStart.value = `${hazard.lon},${hazard.lat}`
-    emit("notify", `已使用灾害点 ${hazard.code} 坐标作为起点`)
+    emit("notify", `已使用灾害点 ${route.query.hazardCode} 坐标作为起点`)
   } else {
-    emit("notify", "未找到灾害点坐标")
+    emit("notify", `未找到灾害点 ${route.query.hazardCode} 的坐标`)
   }
 }
 
@@ -98,8 +125,13 @@ function addAvoidZone() {
   const name = prompt("输入避障区名称（如：塌方区域）")
   if (!name) return
   const id = Date.now()
-  const cx = 107.3 + Math.random() * 0.1
-  const cy = 30.5 + Math.random() * 0.1
+  // 以当前起点为中心生成避障区；无起点时回退到地图默认视野中心（重庆主城）。
+  let cx = 106.55
+  let cy = 29.56
+  if (routeStart.value) {
+    const [lon, lat] = routeStart.value.split(",").map(Number)
+    if (Number.isFinite(lon) && Number.isFinite(lat)) { cx = lon; cy = lat }
+  }
   const d = 0.02
   routeAvoidZones.value.push({ id, name, polygon: [[cx - d, cy - d], [cx + d, cy - d], [cx + d, cy + d], [cx - d, cy + d]] })
 }
@@ -144,9 +176,9 @@ function exportRouteGPX() {
 
 // 原资源调度功能
 const typeMeta = {
-  team:    { label: "救援队伍", icon: Users,    color: "#2b6cb0" },
+  team:    { label: "救援队伍", icon: Users,    color: "#6f9e7f" },
   material:{ label: "应急物资",  icon: Package,  color: "#9b761e" },
-  shelter: { label: "避难场所", icon: MapPin,   color: "#2a8154" },
+  shelter: { label: "避难场所", icon: MapPin,   color: "#4a7a5e" },
 }
 
 const filteredResources = computed(() => {
@@ -242,7 +274,7 @@ onMounted(() => loadResources())
     <template v-if="!routeTabActive">
       <section class="stat-grid">
         <div class="stat-card">
-          <UsersRound :size="18" color="#2b6cb0" />
+          <UsersRound :size="18" color="#6f9e7f" />
           <strong>{{ stats.team }}</strong><span>救援队伍</span>
         </div>
         <div class="stat-card">
@@ -250,7 +282,7 @@ onMounted(() => loadResources())
           <strong>{{ stats.material }}</strong><span>应急物资</span>
         </div>
         <div class="stat-card">
-          <MapPin :size="18" color="#2a8154" />
+          <MapPin :size="18" color="#4a7a5e" />
           <strong>{{ stats.shelter }}</strong><span>避难场所</span>
         </div>
         <div class="stat-card">
@@ -291,7 +323,7 @@ onMounted(() => loadResources())
             <li><span>规模</span>{{ r.count ?? "—" }}</li>
             <li>
               <span>状态</span>
-              <strong :style="{ color: r.status === '已派出' ? '#c7553b' : (r.status === '可用' || r.status === '在岗') ? '#2a8154' : '#9baead' }">{{ r.status }}</strong>
+              <strong :style="{ color: r.status === '已派出' ? '#c7553b' : (r.status === '可用' || r.status === '在岗') ? '#4a7a5e' : '#9aab9f' }">{{ r.status }}</strong>
             </li>
           </ul>
           <div class="card-actions">
@@ -351,7 +383,7 @@ onMounted(() => loadResources())
           <ul v-else-if="routeResults.length" class="route-results">
             <li v-for="r in routeResults" :key="r.type" class="route-result-item" :class="{ recommended: r.type === 'fastest' }">
               <div class="route-result-head">
-                <span class="route-type-tag" :style="{ background: r.type === 'fastest' ? '#4f8f99' : '#d9c040', color: '#fff' }">
+                <span class="route-type-tag" :style="{ background: r.type === 'fastest' ? '#6f9e7f' : '#d9c040', color: '#fff' }">
                   {{ r.type === "fastest" ? "最快" : "最安全" }}
                 </span>
                 <strong>{{ r.distance }} km</strong>
@@ -383,7 +415,7 @@ onMounted(() => loadResources())
           <div class="priority-row">
             <button v-for="p in ['P0','P1','P2','P3']" :key="p"
               :class="{ active: assignForm.priority === p }"
-              :style="{ color: assignForm.priority === p ? '#fff' : '', background: assignForm.priority === p ? (p === 'P0' ? '#c7553b' : p === 'P1' ? '#d7a546' : p === 'P2' ? '#5d95c1' : '#9baead') : '' }"
+              :style="{ color: assignForm.priority === p ? '#fff' : '', background: assignForm.priority === p ? (p === 'P0' ? '#c7553b' : p === 'P1' ? '#c4a86e' : p === 'P2' ? '#5d95c1' : '#9aab9f') : '' }"
               @click="assignForm.priority = p">{{ p }}</button>
           </div>
         </label>
@@ -402,53 +434,53 @@ onMounted(() => loadResources())
 <style scoped>
 .resource-dispatch-shell { padding: 24px 28px; }
 .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 18px; }
-.page-header h2 { margin: 0; display: flex; gap: 8px; align-items: center; font-size: 18px; color: #1f3e44; }
-.page-header p { margin: 4px 0 0; color: #7a8d89; font-size: 12px; }
+.page-header h2 { margin: 0; display: flex; gap: 8px; align-items: center; font-size: 18px; color: var(--c-text); }
+.page-header p { margin: 4px 0 0; color: var(--c-text-2); font-size: 12px; }
 
-.op-btn { display: flex; gap: 6px; align-items: center; padding: 7px 12px; border: 1px solid #d9e6e1; background: #fff; border-radius: 8px; color: #37555a; font-size: 12px; cursor: pointer; }
-.op-btn:hover { background: #f4f7f5; }
-.op-btn.active { border-color: #2f7f80; color: #2f7f80; background: #eff9f6; }
+.op-btn { display: flex; gap: 6px; align-items: center; padding: 7px 12px; border: 1px solid var(--c-separator); background: var(--c-surface); border-radius: var(--r-sm); color: var(--c-text); font-size: 12px; cursor: pointer; }
+.op-btn:hover { background: var(--c-bg); }
+.op-btn.active { border-color: var(--c-brand); color: var(--c-brand); background: color-mix(in srgb, var(--c-brand) 8%, transparent); }
 
 .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 18px; }
-.stat-card { padding: 14px 16px; background: #fff; border: 1px solid #e9eee9; border-radius: 10px; display: flex; gap: 10px; align-items: center; }
-.stat-card strong { font-size: 22px; color: #1f3e44; }
-.stat-card span { color: #7a8d89; font-size: 12px; }
+.stat-card { padding: 14px 16px; background: var(--c-surface); border: 1px solid var(--c-brand-soft); border-radius: var(--r-md); display: flex; gap: 10px; align-items: center; }
+.stat-card strong { font-size: 22px; color: var(--c-text); }
+.stat-card span { color: var(--c-text-2); font-size: 12px; }
 .stat-card > strong, .stat-card > span { display: block; }
 
-.filter-bar { display: flex; gap: 10px; background: #fff; border: 1px solid #e9eee9; border-radius: 10px; padding: 14px; margin-bottom: 14px; }
-.filter-input { flex: 1; padding: 8px 12px; border: 1px solid #d9e6e1; border-radius: 8px; background: #fafdfc; }
-.filter-bar select { padding: 8px 12px; border: 1px solid #d9e6e1; border-radius: 8px; background: #fff; }
+.filter-bar { display: flex; gap: 10px; background: var(--c-surface); border: 1px solid var(--c-brand-soft); border-radius: var(--r-md); padding: 14px; margin-bottom: 14px; }
+.filter-input { flex: 1; padding: 8px 12px; border: 1px solid var(--c-separator); border-radius: var(--r-sm); background: var(--c-surface-2); }
+.filter-bar select { padding: 8px 12px; border: 1px solid var(--c-separator); border-radius: var(--r-sm); background: var(--c-surface); }
 
-.loading-row, .empty-row { padding: 32px; text-align: center; color: #7a8d89; font-size: 13px; }
+.loading-row, .empty-row { padding: 32px; text-align: center; color: var(--c-text-2); font-size: 13px; }
 
 .resource-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; list-style: none; padding: 0; margin: 0; }
-.resource-grid li { background: #fff; border: 1px solid #e9eee9; border-radius: 10px; padding: 14px; transition: box-shadow .15s; }
+.resource-grid li { background: var(--c-surface); border: 1px solid var(--c-brand-soft); border-radius: var(--r-md); padding: 14px; transition: box-shadow .15s; }
 .resource-grid li:hover { box-shadow: 0 4px 14px rgba(0,0,0,.05); }
-.card-head { display: flex; gap: 10px; align-items: center; padding-bottom: 12px; border-bottom: 1px dashed #e9eee9; margin-bottom: 12px; border-left: 3px solid; padding-left: 8px; }
+.card-head { display: flex; gap: 10px; align-items: center; padding-bottom: 12px; border-bottom: 1px dashed var(--c-brand-soft); margin-bottom: 12px; border-left: 3px solid; padding-left: 8px; }
 .card-head .meta { flex: 1; min-width: 0; }
-.card-head strong { display: block; color: #1f3e44; font-size: 14px; }
-.card-head code { color: #7a8d89; font-size: 11px; }
-.type-tag { padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+.card-head strong { display: block; color: var(--c-text); font-size: 14px; }
+.card-head code { color: var(--c-text-2); font-size: 11px; }
+.type-tag { padding: 2px 8px; border-radius: var(--r-xs); font-size: 11px; font-weight: 600; }
 
 .props { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
-.props li { display: flex; gap: 8px; font-size: 12px; color: #37555a; }
-.props li span { width: 48px; color: #7a8d89; }
+.props li { display: flex; gap: 8px; font-size: 12px; color: var(--c-text); }
+.props li span { width: 48px; color: var(--c-text-2); }
 
-.card-actions { display: flex; gap: 6px; margin-top: 14px; padding-top: 12px; border-top: 1px dashed #e9eee9; }
+.card-actions { display: flex; gap: 6px; margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--c-brand-soft); }
 .primary-btn.small { flex: 1; }
-.primary-btn { display: flex; gap: 6px; align-items: center; padding: 7px 12px; border: 0; background: #2f7f80; color: #fff; border-radius: 8px; cursor: pointer; font-size: 12px; justify-content: center; }
+.primary-btn { display: flex; gap: 6px; align-items: center; padding: 7px 12px; border: 0; background: var(--c-brand); color: var(--c-on-brand); border-radius: var(--r-sm); cursor: pointer; font-size: 12px; justify-content: center; }
 .primary-btn:disabled { opacity: .5; }
 .ghost-btn.small { padding: 7px 10px; }
-.ghost-btn { padding: 7px 12px; border: 1px solid #d9e6e1; background: #fff; border-radius: 8px; color: #37555a; cursor: pointer; font-size: 12px; }
+.ghost-btn { padding: 7px 12px; border: 1px solid var(--c-separator); background: var(--c-surface); border-radius: var(--r-sm); color: var(--c-text); cursor: pointer; font-size: 12px; }
 
-.modal-mask { position: fixed; inset: 0; background: rgba(15,32,38,.45); display: grid; place-items: center; z-index: 100; }
-.modal-card { width: min(440px, 92vw); background: #fff; border-radius: 14px; padding: 22px; }
-.modal-card h3 { margin: 0 0 16px; color: #1f3e44; display: flex; gap: 6px; align-items: center; }
-.modal-card label { display: block; margin-bottom: 14px; color: #56716e; font-size: 12px; font-weight: 600; }
-.modal-card input, .modal-card textarea { display: block; width: 100%; margin-top: 6px; padding: 8px 10px; border: 1px solid #d9e6e1; border-radius: 8px; background: #fafdfc; }
+.modal-mask { position: fixed; inset: 0; background: var(--c-scrim); display: grid; place-items: center; z-index: 100; }
+.modal-card { width: min(440px, 92vw); background: var(--c-surface); border-radius: var(--r-lg); padding: 22px; }
+.modal-card h3 { margin: 0 0 16px; color: var(--c-text); display: flex; gap: 6px; align-items: center; }
+.modal-card label { display: block; margin-bottom: 14px; color: var(--c-brand-deep); font-size: 12px; font-weight: 600; }
+.modal-card input, .modal-card textarea { display: block; width: 100%; margin-top: 6px; padding: 8px 10px; border: 1px solid var(--c-separator); border-radius: var(--r-sm); background: var(--c-surface-2); }
 
 .priority-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 6px; }
-.priority-row button { padding: 8px; border: 1px solid #d9e6e1; background: #fafdfc; border-radius: 6px; cursor: pointer; font-weight: 600; }
+.priority-row button { padding: 8px; border: 1px solid var(--c-separator); background: var(--c-surface-2); border-radius: var(--r-sm); cursor: pointer; font-weight: 600; }
 
 .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px; }
 
@@ -461,38 +493,38 @@ onMounted(() => loadResources())
   grid-template-columns: 280px 1fr 280px;
   gap: 0;
   height: calc(100vh - 220px);
-  border: 1px solid #e9eee9;
-  border-radius: 12px;
+  border: 1px solid var(--c-brand-soft);
+  border-radius: var(--r-lg);
   overflow: hidden;
   margin-top: 14px;
 }
-.route-left { padding: 16px; border-right: 1px solid #e9eee9; overflow-y: auto; background: #fff; }
-.route-panel-title { display: flex; gap: 6px; align-items: center; color: #1f3e44; font-size: 13px; margin: 0 0 14px; }
+.route-left { padding: 16px; border-right: 1px solid var(--c-brand-soft); overflow-y: auto; background: var(--c-surface); }
+.route-panel-title { display: flex; gap: 6px; align-items: center; color: var(--c-text); font-size: 13px; margin: 0 0 14px; }
 .route-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
-.route-field > span { color: #56716e; font-size: 12px; font-weight: 600; }
-.route-field input { padding: 8px 10px; border: 1px solid #d9e6e1; border-radius: 8px; background: #fafdfc; font-size: 12px; color: #24494d; }
+.route-field > span { color: var(--c-brand-deep); font-size: 12px; font-weight: 600; }
+.route-field input { padding: 8px 10px; border: 1px solid var(--c-separator); border-radius: var(--r-sm); background: var(--c-surface-2); font-size: 12px; color: var(--c-text); }
 .route-field-btns { display: flex; gap: 6px; flex-wrap: wrap; }
 .op-btn.small { padding: 5px 10px; font-size: 11px; }
-.secondary-btn { display: flex; gap: 6px; align-items: center; padding: 7px 12px; border: 1px solid #d9e6e1; background: #fff; border-radius: 8px; color: #37555a; cursor: pointer; font-size: 12px; }
+.secondary-btn { display: flex; gap: 6px; align-items: center; padding: 7px 12px; border: 1px solid var(--c-separator); background: var(--c-surface); border-radius: var(--r-sm); color: var(--c-text); cursor: pointer; font-size: 12px; }
 .secondary-btn:disabled { opacity: .5; cursor: not-allowed; }
 .avoid-list { list-style: none; padding: 0; margin: 8px 0 0; display: flex; flex-direction: column; gap: 6px; }
-.avoid-card { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; background: #fffaf0; border: 1px solid #e7d3a3; border-radius: 8px; font-size: 12px; color: #8a6d3b; }
-.avoid-empty { font-size: 12px; color: #7a8d89; text-align: center; padding: 10px 0; }
-.icon-btn.danger { color: #c7553b; }
-.route-map-stage { position: relative; background: #e9f2ee; }
+.avoid-card { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; background: var(--c-warning-bg); border: 1px solid var(--c-warning-strong); border-radius: var(--r-sm); font-size: 12px; color: var(--c-warning-ink); }
+.avoid-empty { font-size: 12px; color: var(--c-text-2); text-align: center; padding: 10px 0; }
+.icon-btn.danger { color: var(--c-danger-strong); }
+.route-map-stage { position: relative; background: var(--c-brand-mist); }
 .route-ol-map { position: absolute; inset: 0; }
-.route-map-loading { position: absolute; inset: 0; display: flex; gap: 8px; align-items: center; justify-content: center; background: rgba(244,247,245,.85); color: #56716e; }
-.route-right { padding: 16px; border-left: 1px solid #e9eee9; overflow-y: auto; background: #fff; display: flex; flex-direction: column; gap: 12px; }
-.loading-hint { font-size: 12px; color: #7a8d89; display: flex; gap: 6px; align-items: center; }
+.route-map-loading { position: absolute; inset: 0; display: flex; gap: 8px; align-items: center; justify-content: center; background: color-mix(in srgb, var(--c-bg) 85%, transparent); color: var(--c-brand-deep); }
+.route-right { padding: 16px; border-left: 1px solid var(--c-brand-soft); overflow-y: auto; background: var(--c-surface); display: flex; flex-direction: column; gap: 12px; }
+.loading-hint { font-size: 12px; color: var(--c-text-2); display: flex; gap: 6px; align-items: center; }
 .route-results { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
-.route-result-item { padding: 12px; border: 1px solid #e9eee9; border-radius: 10px; background: #fafdfc; }
-.route-result-item.recommended { border-color: #4f8f99; background: #f0f8f8; }
+.route-result-item { padding: 12px; border: 1px solid var(--c-brand-soft); border-radius: var(--r-md); background: var(--c-surface-2); }
+.route-result-item.recommended { border-color: var(--c-brand); background: var(--c-surface-2); }
 .route-result-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-.route-type-tag { padding: 2px 8px; border-radius: 5px; font-size: 11px; font-weight: 600; }
-.route-result-head strong { font-size: 16px; color: #1f3e44; }
-.route-result-meta { display: flex; justify-content: space-between; font-size: 12px; color: #56716e; }
-.route-result-warning { margin-top: 6px; padding: 5px 8px; background: #fbecec; color: #9c3d3d; border-radius: 6px; font-size: 11px; }
-.empty-hint-sm { font-size: 12px; color: #7a8d89; text-align: center; padding: 20px 0; }
+.route-type-tag { padding: 2px 8px; border-radius: var(--r-sm); font-size: 11px; font-weight: 600; }
+.route-result-head strong { font-size: 16px; color: var(--c-text); }
+.route-result-meta { display: flex; justify-content: space-between; font-size: 12px; color: var(--c-brand-deep); }
+.route-result-warning { margin-top: 6px; padding: 5px 8px; background: var(--c-danger-bg); color: var(--c-danger-strong); border-radius: var(--r-sm); font-size: 11px; }
+.empty-hint-sm { font-size: 12px; color: var(--c-text-2); text-align: center; padding: 20px 0; }
 .route-actions-top { display: flex; flex-direction: column; gap: 8px; margin-top: auto; }
 .route-actions-top .primary-btn { width: 100%; }
 .route-actions-top .secondary-btn { width: 100%; justify-content: center; }

@@ -374,28 +374,28 @@ async function toggleTask(taskId, currentStatus) {
   gap: 12px;
 }
 .ds-stat-card {
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-brand-soft);
+  border-radius: var(--r-md);
   padding: 14px 16px;
   display: flex;
   align-items: center;
   gap: 12px;
 }
-.ds-stat-card.ds-ok { border-color: rgba(34,197,94,0.3); background: rgba(34,197,94,0.05); }
-.ds-stat-card.ds-delayed { border-color: rgba(249,115,22,0.3); background: rgba(249,115,22,0.05); }
-.ds-stat-card.ds-failed { border-color: rgba(239,68,68,0.3); background: rgba(239,68,68,0.05); }
-.ds-stat-card.ds-records { border-color: rgba(59,130,246,0.3); background: rgba(59,130,246,0.05); }
-.ds-stat-card.ds-delay { border-color: rgba(168,85,247,0.3); background: rgba(168,85,247,0.05); }
-.stat-icon { color: #64748b; }
-.ds-stat-card.ds-ok .stat-icon { color: #22c55e; }
-.ds-stat-card.ds-delayed .stat-icon { color: #f97316; }
-.ds-stat-card.ds-failed .stat-icon { color: #ef4444; }
-.ds-stat-card.ds-records .stat-icon { color: #3b82f6; }
-.ds-stat-card.ds-delay .stat-icon { color: #a855f7; }
+.ds-stat-card.ds-ok { border-color: var(--c-success); background: var(--c-success-bg); }
+.ds-stat-card.ds-delayed { border-color: var(--c-warning); background: var(--c-warning-bg); }
+.ds-stat-card.ds-failed { border-color: var(--c-danger); background: var(--c-danger-bg); }
+.ds-stat-card.ds-records { border-color: var(--c-success); background: var(--c-success-bg); }
+.ds-stat-card.ds-delay { border-color: var(--c-info); background: var(--c-info-bg); }
+.stat-icon { color: var(--c-text-3); }
+.ds-stat-card.ds-ok .stat-icon { color: var(--c-success); }
+.ds-stat-card.ds-delayed .stat-icon { color: var(--c-warning-strong); }
+.ds-stat-card.ds-failed .stat-icon { color: var(--c-danger); }
+.ds-stat-card.ds-records .stat-icon { color: var(--c-brand-hover); }
+.ds-stat-card.ds-delay .stat-icon { color: var(--c-info); }
 .stat-body { flex: 1; }
-.stat-num { font-size: 24px; font-weight: 700; color: #1e293b; line-height: 1; }
-.stat-label { font-size: 12px; color: #64748b; margin-top: 3px; }
+.stat-num { font-size: 24px; font-weight: 700; color: var(--c-scrim); line-height: 1; }
+.stat-label { font-size: 12px; color: var(--c-text-3); margin-top: 3px; }
 
 /* 工具栏 */
 .ds-toolbar {
@@ -407,12 +407,12 @@ async function toggleTask(taskId, currentStatus) {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-brand-soft);
+  border-radius: var(--r-sm);
   padding: 8px 12px;
   flex: 1;
-  color: #64748b;
+  color: var(--c-text-3);
 }
 .ds-input {
   border: none;
@@ -420,16 +420,16 @@ async function toggleTask(taskId, currentStatus) {
   background: transparent;
   flex: 1;
   font-size: 14px;
-  color: #1e293b;
+  color: var(--c-scrim);
 }
-.ds-input::placeholder { color: #94a3b8; }
+.ds-input::placeholder { color: var(--c-text-3); }
 .ds-select {
   padding: 8px 12px;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  background: #fff;
+  border: 1px solid var(--c-brand-soft);
+  border-radius: var(--r-sm);
+  background: var(--c-surface);
   font-size: 14px;
-  color: #1e293b;
+  color: var(--c-scrim);
   cursor: pointer;
 }
 .ds-btn {
@@ -437,18 +437,18 @@ async function toggleTask(taskId, currentStatus) {
   align-items: center;
   gap: 6px;
   padding: 8px 16px;
-  border-radius: 8px;
-  border: 1px solid #e2e8f0;
-  background: #fff;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--c-brand-soft);
+  background: var(--c-surface);
   font-size: 14px;
-  color: #475569;
+  color: var(--c-ink-1);
   cursor: pointer;
   transition: all 0.15s;
   white-space: nowrap;
 }
-.ds-btn:hover { border-color: #3b82f6; color: #3b82f6; }
-.ds-btn-refresh { border-color: #3b82f6; color: #3b82f6; }
-.ds-btn-refresh:hover { background: #eff6ff; }
+.ds-btn:hover { border-color: var(--c-brand-hover); color: var(--c-brand-hover); }
+.ds-btn-refresh { border-color: var(--c-brand-hover); color: var(--c-brand-hover); }
+.ds-btn-refresh:hover { background: var(--sys-blue-soft); }
 
 /* 加载/空 */
 .ds-loading, .ds-empty {
@@ -458,22 +458,22 @@ async function toggleTask(taskId, currentStatus) {
   justify-content: center;
   gap: 12px;
   padding: 60px;
-  color: #94a3b8;
+  color: var(--c-text-3);
   font-size: 14px;
 }
-.ds-empty small { font-size: 12px; color: #cbd5e1; }
+.ds-empty small { font-size: 12px; color: var(--c-brand-tint); }
 
 /* 表格 */
-.ds-table-wrap { background: #fff; border-radius: 10px; border: 1px solid #e2e8f0; overflow: auto; }
+.ds-table-wrap { background: var(--c-surface); border-radius: var(--r-md); border: 1px solid var(--c-brand-soft); overflow: auto; }
 .ds-table { width: 100%; border-collapse: collapse; font-size: 14px; }
 .ds-table th {
   padding: 10px 14px;
   text-align: left;
   font-size: 12px;
   font-weight: 600;
-  color: #64748b;
-  background: #f8fafc;
-  border-bottom: 1px solid #e2e8f0;
+  color: var(--c-text-3);
+  background: var(--c-brand-mist);
+  border-bottom: 1px solid var(--c-brand-soft);
   white-space: nowrap;
   position: sticky;
   top: 0;
@@ -481,21 +481,21 @@ async function toggleTask(taskId, currentStatus) {
 }
 .ds-table td {
   padding: 11px 14px;
-  border-bottom: 1px solid #f1f5f9;
-  color: #334155;
+  border-bottom: 1px solid var(--c-brand-mist);
+  color: var(--c-ink-1);
   vertical-align: middle;
 }
 .ds-table tbody tr { cursor: pointer; transition: background 0.1s; }
-.ds-table tbody tr:hover { background: #f8fafc; }
+.ds-table tbody tr:hover { background: var(--c-brand-mist); }
 .ds-table tbody tr:last-child td { border-bottom: none; }
-.row-delayed { background: rgba(249,115,22,0.04); }
-.row-failed { background: rgba(239,68,68,0.04); }
-.task-name { font-weight: 500; color: #1e293b; }
-.td-source, .td-target { color: #64748b; font-size: 13px; }
+.row-delayed { background: var(--c-warning-bg); }
+.row-failed { background: var(--c-danger-bg); }
+.task-name { font-weight: 500; color: var(--c-scrim); }
+.td-source, .td-target { color: var(--c-text-3); font-size: 13px; }
 .td-num { text-align: right; font-variant-numeric: tabular-nums; }
-.td-time { color: #94a3b8; font-size: 12px; white-space: nowrap; }
+.td-time { color: var(--c-text-3); font-size: 12px; white-space: nowrap; }
 .td-actions { display: flex; gap: 4px; }
-.delay-warn { color: #f97316; font-weight: 600; }
+.delay-warn { color: var(--c-warning-strong); font-weight: 600; }
 
 /* 状态徽章 */
 .ds-badge {
@@ -503,16 +503,16 @@ async function toggleTask(taskId, currentStatus) {
   align-items: center;
   gap: 4px;
   padding: 2px 8px;
-  border-radius: 12px;
+  border-radius: var(--r-lg);
   font-size: 12px;
   font-weight: 600;
   white-space: nowrap;
 }
-.badge-cyan   { background: rgba(6,182,212,0.1); color: #0891b2; }
-.badge-gray   { background: rgba(100,116,139,0.1); color: #64748b; }
-.badge-orange { background: rgba(249,115,22,0.1); color: #ea580c; }
-.badge-red    { background: rgba(239,68,68,0.1); color: #dc2626; }
-.badge-blue   { background: rgba(59,130,246,0.1); color: #2563eb; }
+.badge-cyan   { background: var(--c-info-bg); color: var(--c-info); }
+.badge-gray   { background: var(--c-border-2); color: var(--c-text-3); }
+.badge-orange { background: var(--c-warning-bg); color: var(--c-warning-ink); }
+.badge-red    { background: var(--c-danger-bg); color: var(--c-danger-strong); }
+.badge-blue   { background: var(--c-success-bg); color: var(--c-brand-deep); }
 
 /* 图标按钮 */
 .ds-icon-btn {
@@ -520,14 +520,14 @@ async function toggleTask(taskId, currentStatus) {
   align-items: center;
   justify-content: center;
   width: 28px; height: 28px;
-  border-radius: 6px;
-  border: 1px solid #e2e8f0;
-  background: #fff;
-  color: #64748b;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--c-brand-soft);
+  background: var(--c-surface);
+  color: var(--c-text-3);
   cursor: pointer;
   transition: all 0.15s;
 }
-.ds-icon-btn:hover { border-color: #3b82f6; color: #3b82f6; }
+.ds-icon-btn:hover { border-color: var(--c-brand-hover); color: var(--c-brand-hover); }
 .ds-icon-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* 详情抽屉 */
@@ -535,8 +535,8 @@ async function toggleTask(taskId, currentStatus) {
   position: fixed;
   right: 0; top: 0; bottom: 0;
   width: 380px;
-  background: #fff;
-  border-left: 1px solid #e2e8f0;
+  background: var(--c-surface);
+  border-left: 1px solid var(--c-brand-soft);
   z-index: 200;
   display: flex;
   flex-direction: column;
@@ -547,10 +547,10 @@ async function toggleTask(taskId, currentStatus) {
   align-items: center;
   justify-content: space-between;
   padding: 16px 18px;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--c-brand-soft);
   font-size: 15px;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--c-scrim);
   flex-shrink: 0;
 }
 .drawer-body { flex: 1; overflow-y: auto; padding: 16px 18px; }
@@ -561,16 +561,16 @@ async function toggleTask(taskId, currentStatus) {
   gap: 6px;
   font-size: 13px;
   font-weight: 600;
-  color: #64748b;
+  color: var(--c-text-3);
   margin-bottom: 10px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 .detail-grid { display: flex; flex-direction: column; gap: 8px; }
 .detail-row { display: flex; gap: 8px; font-size: 13px; }
-.detail-key { color: #94a3b8; min-width: 70px; flex-shrink: 0; }
-.detail-row span:last-child { color: #1e293b; }
-.no-data { font-size: 13px; color: #cbd5e1; text-align: center; padding: 12px 0; }
+.detail-key { color: var(--c-text-3); min-width: 70px; flex-shrink: 0; }
+.detail-row span:last-child { color: var(--c-scrim); }
+.no-data { font-size: 13px; color: var(--c-brand-tint); text-align: center; padding: 12px 0; }
 
 /* 告警 */
 .alert-item {
@@ -578,17 +578,17 @@ async function toggleTask(taskId, currentStatus) {
   align-items: center;
   gap: 8px;
   padding: 8px 0;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--c-brand-mist);
   font-size: 13px;
 }
-.alert-msg { flex: 1; color: #334155; }
-.alert-time { color: #94a3b8; font-size: 12px; white-space: nowrap; }
+.alert-msg { flex: 1; color: var(--c-ink-1); }
+.alert-time { color: var(--c-text-3); font-size: 12px; white-space: nowrap; }
 
 /* 遮罩 */
 .ds-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.2);
+  background: var(--c-scrim);
   z-index: 199;
 }
 

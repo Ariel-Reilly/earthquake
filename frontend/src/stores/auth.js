@@ -65,7 +65,9 @@ export const ROLE_MENU_MAP = {
     '/dashboard/notice-templates', '/dashboard/plans', '/dashboard/reports',
     '/dashboard/data-catalog', '/dashboard/backup-recovery',
     '/dashboard/account-security', '/dashboard/settings', '/dashboard/profile',
-    '/dashboard/zone',
+    '/dashboard/zone', '/dashboard/workbench', '/dashboard/help',
+    '/dashboard/social-media', '/dashboard/warning-config', '/dashboard/data-manage',
+    '/dashboard/notification-channels',
   ],
   attendant: [
     '/dashboard', '/dashboard/real-time-map', '/dashboard/satellite-compare',
@@ -79,7 +81,8 @@ export const ROLE_MENU_MAP = {
     '/dashboard/weather', '/dashboard/analytics',
     '/dashboard/approvals', '/dashboard/account-security',
     '/dashboard/message-center', '/dashboard/todo', '/dashboard/settings', '/dashboard/profile',
-    '/dashboard/route-planning',
+    '/dashboard/route-planning', '/dashboard/workbench', '/dashboard/help',
+    '/dashboard/social-media', '/dashboard/warning-config', '/dashboard/notification-channels',
   ],
   expert: [
     '/dashboard',
@@ -93,7 +96,7 @@ export const ROLE_MENU_MAP = {
     '/dashboard/approvals', '/dashboard/rule-engine',
     '/dashboard/reports', '/dashboard/analytics',
     '/dashboard/account-security', '/dashboard/message-center', '/dashboard/todo',
-    '/dashboard/settings', '/dashboard/profile',
+    '/dashboard/settings', '/dashboard/profile', '/dashboard/workbench', '/dashboard/help',
   ],
   maintenance: [
     '/dashboard', '/dashboard/real-time-map',
@@ -104,14 +107,14 @@ export const ROLE_MENU_MAP = {
     '/dashboard/emergency', '/dashboard/resource-dispatch', '/dashboard/route-planning',
     '/dashboard/system-monitor', '/dashboard/backup-recovery',
     '/dashboard/account-security', '/dashboard/message-center', '/dashboard/todo',
-    '/dashboard/settings', '/dashboard/profile',
+    '/dashboard/settings', '/dashboard/profile', '/dashboard/workbench', '/dashboard/help',
   ],
   'system-admin': [
     '/dashboard', '/dashboard/analytics', '/dashboard/history-hazards',
     '/dashboard/reports', '/dashboard/user-management', '/dashboard/audit-log',
     '/dashboard/system-monitor', '/dashboard/data-sync', '/dashboard/account-security',
     '/dashboard/settings', '/dashboard/profile', '/dashboard/message-center',
-    '/dashboard/todo', '/dashboard/backup-recovery',
+    '/dashboard/todo', '/dashboard/backup-recovery', '/dashboard/workbench', '/dashboard/help',
   ],
   'emergency-commander': [
     '/dashboard', '/dashboard/real-time-map', '/dashboard/satellite-compare',
@@ -125,7 +128,8 @@ export const ROLE_MENU_MAP = {
     '/dashboard/devices', '/dashboard/device-map',
     '/dashboard/notice-templates', '/dashboard/plans',
     '/dashboard/approvals', '/dashboard/reports', '/dashboard/analytics',
-    '/dashboard/account-security', '/dashboard/profile',
+    '/dashboard/account-security', '/dashboard/profile', '/dashboard/workbench', '/dashboard/help',
+    '/dashboard/social-media', '/dashboard/warning-config', '/dashboard/notification-channels',
   ],
   'ai-engineer': [
     '/dashboard', '/dashboard/ai-tasks', '/dashboard/ai-results',
@@ -135,7 +139,7 @@ export const ROLE_MENU_MAP = {
     '/dashboard/analytics', '/dashboard/reports',
     '/dashboard/system-monitor',
     '/dashboard/account-security', '/dashboard/message-center', '/dashboard/todo',
-    '/dashboard/profile',
+    '/dashboard/profile', '/dashboard/workbench', '/dashboard/help', '/dashboard/data-manage',
   ],
 }
 

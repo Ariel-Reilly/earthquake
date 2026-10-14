@@ -24,7 +24,7 @@ function chip(status) {
     case 'PENDING':   return { label: '待确认', color: '#f59e0b', icon: Clock }
     case 'CONFIRMED': return { label: '已同意', color: '#10b981', icon: CheckCircle2 }
     case 'REJECTED':  return { label: '已驳回', color: '#ef4444', icon: X }
-    default:          return { label: status, color: '#64748b', icon: Clock }
+    default:          return { label: status, color: '#6b7f7c', icon: Clock }
   }
 }
 </script>
@@ -67,7 +67,7 @@ function chip(status) {
 
 <style scoped>
 .timeline { display: flex; flex-direction: column; gap: 12px; }
-.empty { color: var(--dashboard-muted, #94a3b8); font-size: 13px; }
+.empty { color: var(--dashboard-muted, var(--c-text-3)); font-size: 13px; }
 ul { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; position: relative; }
 li { display: flex; align-items: flex-start; gap: 12px; position: relative; padding: 4px 0; }
 .dot {
@@ -77,18 +77,18 @@ li { display: flex; align-items: flex-start; gap: 12px; position: relative; padd
 }
 .meta { display: flex; flex-direction: column; gap: 4px; flex: 1; }
 .row1 { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.row1 strong { font-size: 14px; color: var(--dashboard-text, #1e293b); }
-.role { font-size: 11px; color: var(--dashboard-muted, #64748b); background: #f1f5f9; padding: 1px 8px; border-radius: 999px; }
+.row1 strong { font-size: 14px; color: var(--dashboard-text, var(--c-scrim)); }
+.role { font-size: 11px; color: var(--dashboard-muted, var(--c-text-3)); background: var(--c-brand-mist); padding: 1px 8px; border-radius: var(--r-pill); }
 .state {
-  margin-left: auto; font-size: 12px; padding: 2px 8px; border-radius: 999px;
-  background: var(--dashboard-muted-bg, #f1f5f9); color: var(--dashboard-muted, #475569);
+  margin-left: auto; font-size: 12px; padding: 2px 8px; border-radius: var(--r-pill);
+  background: var(--dashboard-muted-bg, var(--c-brand-mist)); color: var(--dashboard-muted, var(--c-ink-1));
 }
-.row2 { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 12px; color: var(--dashboard-muted, #64748b); }
-.time.pending { color: #f59e0b; }
-.opinion { font-style: italic; color: var(--dashboard-text, #334155); }
-.line { position: absolute; left: 12px; top: 28px; bottom: -8px; width: 2px; background: var(--dashboard-border, #e2e8f0); }
-.transfers { border-top: 1px dashed var(--dashboard-border, #e2e8f0); padding-top: 10px; }
-.transfers h4 { display: inline-flex; align-items: center; gap: 4px; margin: 0 0 6px; font-size: 13px; color: var(--dashboard-muted, #4b5563); }
+.row2 { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 12px; color: var(--dashboard-muted, var(--c-text-3)); }
+.time.pending { color: var(--c-warning); }
+.opinion { font-style: italic; color: var(--dashboard-text, var(--c-ink-1)); }
+.line { position: absolute; left: 12px; top: 28px; bottom: -8px; width: 2px; background: var(--dashboard-border, var(--c-brand-soft)); }
+.transfers { border-top: 1px dashed var(--dashboard-border, var(--c-brand-soft)); padding-top: 10px; }
+.transfers h4 { display: inline-flex; align-items: center; gap: 4px; margin: 0 0 6px; font-size: 13px; color: var(--dashboard-muted, var(--c-text-2)); }
 .transfers ul { gap: 4px; }
-.transfers li { font-size: 12px; color: var(--dashboard-muted, #475569); }
+.transfers li { font-size: 12px; color: var(--dashboard-muted, var(--c-ink-1)); }
 </style>

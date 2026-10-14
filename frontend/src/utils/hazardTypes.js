@@ -58,11 +58,19 @@ const ALIASES = Object.freeze({
  * @returns {string}
  */
 export function normalizeHazardType(v, fallback = "") {
-  if (typeof v !== "string") return fallback
+  if (typeof v !== "string") {
+    return fallback
+  }
   const raw = v.trim()
-  if (!raw) return fallback
-  if (LABEL_TO_CODE[raw]) return LABEL_TO_CODE[raw]
-  if (ALIASES[raw]) return ALIASES[raw]
+  if (!raw) {
+    return fallback
+  }
+  if (LABEL_TO_CODE[raw]) {
+    return LABEL_TO_CODE[raw]
+  }
+  if (ALIASES[raw]) {
+    return ALIASES[raw]
+  }
   // 已是英文码（含字典中暂未收录的新码）时原样返回
   return raw
 }
@@ -72,6 +80,8 @@ export function normalizeHazardType(v, fallback = "") {
  * 未知码原样返回，避免界面出现空白或 undefined。
  */
 export function hazardTypeLabel(v) {
-  if (typeof v !== "string" || !v) return v ?? "—"
+  if (typeof v !== "string" || !v) {
+    return v ?? "—"
+  }
   return HAZARD_TYPE_LABELS[v] ?? v
 }

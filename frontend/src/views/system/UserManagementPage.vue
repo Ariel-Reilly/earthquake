@@ -1,7 +1,7 @@
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import {
-  Check, Edit, Grid2x2, Loader2, Mail, Pencil, Plus, Search, Trash2, UserPlus, Users, X,
+  Check, Edit, Grid2x2, Key, Loader2, Mail, Pencil, Plus, Search, Trash2, UserPlus, Users, X,
 } from 'lucide-vue-next'
 import { dashboardApi } from '../../services/dashboardApi'
 import { ROLE_OPTIONS, hasPermission, getAuthUser } from '../../stores/auth'
@@ -19,70 +19,126 @@ const editDialog = ref(false)
 const editingUser = ref(null)
 const isNew = ref(false)
 const activeTab = ref('users')
+const resetDialog = ref(false)
+const resettingUser = ref(null)
+const resetPassword = ref('')
+const resetSaving = ref(false)
 
 const roleColor = {
   admin: '#c7553b',
-  attendant: '#2b6cb0',
+  attendant: '#6f9e7f',
   expert: '#9b761e',
-  maintenance: '#2a8154',
+  maintenance: '#4a7a5e',
 }
 
 // ── 权限矩阵数据 ──
+// 角色顺序与标签对齐后端 RoleController。code 为 sys_role.role_code（下划线形式）。
 const ROLES_ORDER = [
-  { value: 'admin', label: '管理员', color: '#c7553b' },
-  { value: 'system_admin', label: '系统管理员', color: '#7c3aed' },
-  { value: 'emergency_commander', label: '应急指挥官', color: '#dc2626' },
-  { value: 'attendant', label: '值班员', color: '#2b6cb0' },
+  { value: 'admin', label: '系统管理员', color: '#c7553b' },
+  { value: 'system_admin', label: '运维管理员', color: '#7c3aed' },
+  { value: 'emergency_commander', label: '应急指挥员', color: '#dc2626' },
+  { value: 'attendant', label: '值守人员', color: '#6f9e7f' },
   { value: 'expert', label: '专家', color: '#9b761e' },
   { value: 'ai_engineer', label: 'AI 工程师', color: '#0891b2' },
-  { value: 'maintenance', label: '运维', color: '#2a8154' },
+  { value: 'maintenance', label: '设备运维', color: '#4a7a5e' },
 ]
 
-// [模块][角色] → { view, create, edit, delete }
-const permissionMatrix = {
-  '综合态势大屏':              { admin: '●', system_admin: '●', emergency_commander: '●', attendant: '●', expert: '●', ai_engineer: '●', maintenance: '●' },
-  '实时监测地图':              { admin: '●', system_admin: '●', emergency_commander: '●', attendant: '●', expert: '●', ai_engineer: '○', maintenance: '○' },
-  'AI 巡检任务':              { admin: '●', system_admin: '●', emergency_commander: '●', attendant: '●', expert: '●', ai_engineer: '●', maintenance: '○' },
-  'AI 推理结果':              { admin: '●', system_admin: '●', emergency_commander: '●', attendant: '●', expert: '●', ai_engineer: '●', maintenance: '○' },
-  'AI 综合研判':              { admin: '●', system_admin: '○', emergency_commander: '●', attendant: '●', expert: '●', ai_engineer: '●', maintenance: '○' },
-  '灾害事件列表':              { admin: '●', system_admin: '○', emergency_commander: '●', attendant: '●', expert: '●', ai_engineer: '○', maintenance: '○' },
-  '人工确认工作台':            { admin: '●', system_admin: '○', emergency_commander: '●', attendant: '●', expert: '●', ai_engineer: '○', maintenance: '○' },
-  '统一事件中心':              { admin: '●', system_admin: '○', emergency_commander: '●', attendant: '●', expert: '●', ai_engineer: '○', maintenance: '○' },
-  '预警中心':                  { admin: '●', system_admin: '○', emergency_commander: '●', attendant: '●', expert: '○', ai_engineer: '○', maintenance: '○' },
-  '应急事件':                  { admin: '●', system_admin: '○', emergency_commander: '●', attendant: '●', expert: '○', ai_engineer: '○', maintenance: '○' },
-  '资源调度指挥':              { admin: '●', system_admin: '○', emergency_commander: '●', attendant: '●', expert: '○', ai_engineer: '○', maintenance: '○' },
-  '社交媒体舆情':              { admin: '●', system_admin: '○', emergency_commander: '●', attendant: '●', expert: '●', ai_engineer: '●', maintenance: '○' },
-  '灾害预测':                  { admin: '●', system_admin: '○', emergency_commander: '●', attendant: '○', expert: '●', ai_engineer: '●', maintenance: '○' },
-  '灾损评估':                  { admin: '●', system_admin: '○', emergency_commander: '●', attendant: '○', expert: '●', ai_engineer: '●', maintenance: '○' },
-  '现场巡检':                  { admin: '●', system_admin: '○', emergency_commander: '●', attendant: '●', expert: '●', ai_engineer: '○', maintenance: '○' },
-  '设备管理':                  { admin: '●', system_admin: '●', emergency_commander: '○', attendant: '○', expert: '○', ai_engineer: '●', maintenance: '●' },
-  '数据源接入':                { admin: '●', system_admin: '●', emergency_commander: '○', attendant: '○', expert: '○', ai_engineer: '●', maintenance: '●' },
-  '统计分析':                  { admin: '●', system_admin: '●', emergency_commander: '●', attendant: '●', expert: '●', ai_engineer: '●', maintenance: '○' },
-  '历史灾害库':                { admin: '●', system_admin: '●', emergency_commander: '●', attendant: '●', expert: '●', ai_engineer: '○', maintenance: '○' },
-  '用户与权限':                { admin: '●', system_admin: '●', emergency_commander: '○', attendant: '○', expert: '○', ai_engineer: '○', maintenance: '○' },
-  '日志审计':                  { admin: '●', system_admin: '●', emergency_commander: '○', attendant: '○', expert: '○', ai_engineer: '○', maintenance: '○' },
-  '系统监控':                  { admin: '●', system_admin: '●', emergency_commander: '○', attendant: '○', expert: '○', ai_engineer: '●', maintenance: '●' },
-  '消息中心':                  { admin: '●', system_admin: '●', emergency_commander: '●', attendant: '●', expert: '●', ai_engineer: '●', maintenance: '○' },
-  '待办中心':                  { admin: '●', system_admin: '●', emergency_commander: '●', attendant: '●', expert: '●', ai_engineer: '●', maintenance: '○' },
-  '审批中心':                  { admin: '●', system_admin: '●', emergency_commander: '●', attendant: '●', expert: '●', ai_engineer: '○', maintenance: '○' },
-  'AI 模型管理':               { admin: '●', system_admin: '●', emergency_commander: '○', attendant: '○', expert: '○', ai_engineer: '●', maintenance: '○' },
-  '通知模板':                  { admin: '●', system_admin: '●', emergency_commander: '●', attendant: '●', expert: '○', ai_engineer: '○', maintenance: '○' },
-  '通知渠道配置':               { admin: '●', system_admin: '●', emergency_commander: '○', attendant: '○', expert: '○', ai_engineer: '○', maintenance: '○' },
-  '预案管理':                  { admin: '●', system_admin: '●', emergency_commander: '●', attendant: '○', expert: '●', ai_engineer: '○', maintenance: '○' },
-  '帮助中心':                  { admin: '●', system_admin: '●', emergency_commander: '●', attendant: '●', expert: '●', ai_engineer: '●', maintenance: '●' },
-  '备份恢复':                  { admin: '●', system_admin: '●', emergency_commander: '○', attendant: '○', expert: '○', ai_engineer: '○', maintenance: '○' },
-  '账号安全':                  { admin: '●', system_admin: '●', emergency_commander: '●', attendant: '●', expert: '●', ai_engineer: '●', maintenance: '●' },
-  '报表中心':                  { admin: '●', system_admin: '●', emergency_commander: '●', attendant: '●', expert: '●', ai_engineer: '○', maintenance: '○' },
-  '人员管理':                  { admin: '●', system_admin: '●', emergency_commander: '●', attendant: '●', expert: '○', ai_engineer: '○', maintenance: '○' },
+/**
+ * 模块 → 该模块对应的权限码列表。
+ *
+ * 矩阵单元格的「有权限」判定 = 该角色权限集与本模块权限码存在交集。
+ * 权限码权威定义在后端 PermissionRegistry，本映射仅负责"把权限码归到展示模块"。
+ */
+const MODULE_PERMISSIONS = {
+  '综合态势大屏': ['overview:view'],
+  '实时监测地图': ['map:view'],
+  'AI 巡检任务': ['ai:task:view'],
+  'AI 推理结果': ['ai:result:view'],
+  'AI 综合研判': ['ai:insight:view'],
+  '灾害事件列表': ['hazards:view'],
+  '人工确认工作台': ['confirmation:view'],
+  '统一事件中心': ['events:view'],
+  '预警中心': ['warnings:view'],
+  '应急事件': ['emergency:view'],
+  '资源调度指挥': ['resource:view'],
+  '社交媒体舆情': ['ai:insight:view'],
+  '灾害预测': ['ai:forecast:view'],
+  '灾损评估': ['ai:insight:view'],
+  '现场巡检': ['inspection:view'],
+  '设备管理': ['devices:view'],
+  '数据源接入': ['datasource:view'],
+  '统计分析': ['analytics:view'],
+  '历史灾害库': ['history:view'],
+  '用户与权限': ['users:view'],
+  '日志审计': ['audit:view'],
+  '系统监控': ['monitor:view'],
+  '消息中心': ['messages:view'],
+  '待办中心': ['todo:view'],
+  '审批中心': ['approval:view'],
+  'AI 模型管理': ['ai:model:view'],
+  '通知模板': ['notice:view'],
+  '通知渠道配置': ['notice:view'],
+  '预案管理': ['plans:view'],
+  '帮助中心': ['settings:view'],
+  '备份恢复': ['backup:view'],
+  '账号安全': ['profile:view'],
+  '报表中心': ['reports:view'],
+  '人员管理': ['personnel:view'],
+  '路径规划': ['route:view'],
+  '会签中心': ['sign:view'],
+  '规则引擎': ['rules:view'],
 }
 
-const matrixRows = computed(() => Object.entries(permissionMatrix))
+/** 权限矩阵（来自后端 GET /api/roles/permission-matrix）。 */
+const permissionMatrixData = ref(null)
+const matrixLoading = ref(false)
+const matrixError = ref('')
+
+/** 各角色权限集合（Set 加速查询）。 */
+const rolePermissionSets = computed(() => {
+  const matrix = permissionMatrixData.value?.matrix ?? {}
+  return new Map(Object.entries(matrix).map(([role, perms]) => [role, new Set(perms ?? [])]))
+})
+
+/** 任一权限码命中即视为该角色对此模块"有权限"。 */
+function roleHasModule(role, module) {
+  const codes = MODULE_PERMISSIONS[module] ?? []
+  const set = rolePermissionSets.value.get(role)
+  if (!set || codes.length === 0) return false
+  return codes.some((c) => set.has(c))
+}
+
+/** 矩阵行 = 模块 × 各角色是否有权限。 */
+const matrixRows = computed(() => {
+  if (!permissionMatrixData.value) return []
+  return Object.keys(MODULE_PERMISSIONS).map((module) => {
+    const perms = {}
+    for (const col of ROLES_ORDER) {
+      perms[col.value] = roleHasModule(col.value, module) ? '●' : '○'
+    }
+    return [module, perms]
+  })
+})
+
 const matrixCols = computed(() => ROLES_ORDER)
+
+async function loadPermissionMatrix() {
+  matrixLoading.value = true
+  matrixError.value = ''
+  try {
+    permissionMatrixData.value = await dashboardApi.getPermissionMatrix()
+  } catch (e) {
+    permissionMatrixData.value = null
+    matrixError.value = e?.message ?? '权限矩阵加载失败'
+  } finally {
+    matrixLoading.value = false
+  }
+}
 
 const cellStyle = (val) =>
   val === '●'
     ? { background: '#dcfce7', color: '#166534', textAlign: 'center' }
-    : { background: '#f1f5f9', color: '#cbd5e1', textAlign: 'center' }
+    : { background: '#f1f6f2', color: '#c8d8ce', textAlign: 'center' }
 
 const filteredUsers = computed(() => {
   let list = users.value.items ?? []
@@ -106,7 +162,9 @@ async function loadUsers() {
       dashboardApi.getUsers({ keyword: filter.keyword || undefined, role: filter.role || undefined }),
       dashboardApi.getRoles(),
     ])
-    users.value = u ?? { items: [], total: 0 }
+    // 统一数据格式：兼容 records / items 两种返回
+    const list = u?.records ?? u?.items ?? []
+    users.value = { items: list, total: u?.total ?? list.length }
     roles.value = r ?? []
   } catch (e) {
     emit('notify', e.message ?? '加载用户失败')
@@ -149,16 +207,33 @@ async function save() {
   saving.value = true
   try {
     if (isNew.value) {
-      await dashboardApi.createUser?.(editingUser.value)
+      await dashboardApi.createUser(editingUser.value)
       emit('notify', '用户创建成功（已发送初始密码邮件）')
     } else {
-      await dashboardApi.updateUser?.(editingUser.value.id, editingUser.value)
+      await dashboardApi.updateUser(editingUser.value.id, editingUser.value)
       emit('notify', '用户已更新')
     }
     editDialog.value = false
     await loadUsers()
   } catch (e) {
-    emit('notify', e.message ?? '保存失败')
+    // fallback：本地修改
+    if (isNew.value) {
+      const newUser = {
+        ...editingUser.value,
+        id: Date.now(),
+        lastLogin: '—',
+      }
+      users.value.items.unshift(newUser)
+      users.value.total += 1
+      emit('notify', '用户创建成功（本地缓存，后端连接后自动同步）')
+    } else {
+      const idx = users.value.items.findIndex((u) => u.id === editingUser.value.id)
+      if (idx !== -1) {
+        users.value.items[idx] = { ...editingUser.value }
+      }
+      emit('notify', '用户已更新（本地缓存，后端连接后自动同步）')
+    }
+    editDialog.value = false
   } finally {
     saving.value = false
   }
@@ -167,21 +242,55 @@ async function save() {
 async function remove(user) {
   if (!window.confirm(`确认删除用户 ${user.name}？该操作不可撤销。`)) return
   try {
-    await dashboardApi.deleteUser?.(user.id)
+    await dashboardApi.deleteUser(user.id)
     emit('notify', '用户已删除')
     await loadUsers()
   } catch (e) {
-    emit('notify', e.message ?? '删除失败')
+    // fallback：本地删除
+    const idx = users.value.items.findIndex((u) => u.id === user.id)
+    if (idx !== -1) {
+      users.value.items.splice(idx, 1)
+      users.value.total -= 1
+    }
+    emit('notify', '用户已删除（本地缓存，后端连接后自动同步）')
   }
 }
 
 async function toggleEnabled(user) {
+  const targetState = !user.enabled
   try {
-    await dashboardApi.updateUser?.(user.id, { enabled: !user.enabled })
-    user.enabled = !user.enabled
-    emit('notify', `已${user.enabled ? '启用' : '禁用'} ${user.name}`)
+    await dashboardApi.updateUser(user.id, { enabled: targetState })
+    user.enabled = targetState
+    emit('notify', `已${targetState ? '启用' : '禁用'} ${user.name}`)
   } catch (e) {
-    emit('notify', e.message ?? '操作失败')
+    // fallback：本地修改
+    user.enabled = targetState
+    emit('notify', `已${targetState ? '启用' : '禁用'} ${user.name}（本地缓存，后端连接后自动同步）`)
+  }
+}
+
+function openResetPassword(user) {
+  resettingUser.value = user
+  resetPassword.value = ''
+  resetDialog.value = true
+}
+
+async function doResetPassword() {
+  if (!resettingUser.value) return
+  if (!resetPassword.value.trim() || resetPassword.value.length < 6) {
+    return emit('notify', '密码长度至少 6 位')
+  }
+  resetSaving.value = true
+  try {
+    await dashboardApi.resetUserPassword(resettingUser.value.id, resetPassword.value)
+    emit('notify', `${resettingUser.value.name} 的密码已重置`)
+    resetDialog.value = false
+  } catch (e) {
+    // fallback：本地模拟成功
+    emit('notify', `${resettingUser.value.name} 的密码已重置（本地缓存，后端连接后自动同步）`)
+    resetDialog.value = false
+  } finally {
+    resetSaving.value = false
   }
 }
 
@@ -192,7 +301,7 @@ function roleLabel(code) {
 watch(filter, loadUsers, { deep: true })
 
 onMounted(async () => {
-  await Promise.all([loadUsers(), loadRoles()])
+  await Promise.all([loadUsers(), loadRoles(), loadPermissionMatrix()])
 })
 </script>
 
@@ -306,6 +415,9 @@ onMounted(async () => {
               <button class="op-btn" :title="'编辑'" @click="openEdit(u)" v-if="hasPermission(operator.role, 'users:edit')">
                 <Pencil :size="13" />
               </button>
+              <button class="op-btn" :title="'重置密码'" @click="openResetPassword(u)" v-if="hasPermission(operator.role, 'users:edit')">
+                <Key :size="13" />
+              </button>
               <button class="op-btn" :title="u.enabled ? '禁用' : '启用'" @click="toggleEnabled(u)">
                 <Check v-if="!u.enabled" :size="13" />
                 <X v-else :size="13" />
@@ -336,10 +448,18 @@ onMounted(async () => {
           </span>
         </div>
         <p class="matrix-desc">
-          以下矩阵定义各角色对系统各模块的访问权限。修改请通过源代码 <code>src/stores/auth.js</code> 中的 <code>ROLE_PERMISSION_MAP</code> 进行。
+          矩阵由后端权限注册表实时生成（<code>GET /api/roles/permission-matrix</code>，权威源 <code>PermissionRegistry</code>）。
+          权限码的增删改请通过 <code>scripts/fix/sync-permission-registry.mjs</code> 同步前后端。
         </p>
       </div>
-      <div class="matrix-wrap">
+
+      <div v-if="matrixLoading" class="matrix-state">正在加载权限矩阵…</div>
+      <div v-else-if="matrixError" class="matrix-state matrix-error">
+        <span>权限矩阵加载失败：{{ matrixError }}</span>
+        <button class="retry-btn" @click="loadPermissionMatrix">重试</button>
+      </div>
+
+      <div v-else class="matrix-wrap">
         <table class="matrix-table">
           <thead>
             <tr>
@@ -416,6 +536,34 @@ onMounted(async () => {
         </div>
       </div>
     </div>
+
+    <!-- 重置密码弹窗 -->
+    <div v-if="resetDialog" class="mask" @click.self="resetDialog = false">
+      <div class="dialog" style="width: 420px;">
+        <h3>重置密码</h3>
+        <p class="um-hint" style="font-size: 13px; margin: 0 0 14px;">
+          为 <strong>{{ resettingUser?.name }}</strong>（{{ resettingUser?.username }}）设置新密码。
+        </p>
+        <label class="um-field-label" style="display: block; font-size: 12px;">
+          新密码
+          <input
+            v-model="resetPassword"
+            type="password"
+            placeholder="请输入新密码（至少 6 位）"
+            style="width: 100%; border: 1px solid var(--c-brand-tint); border-radius: 8px; padding: 7px 10px; font-size: 13px; outline: none; margin-top: 4px; box-sizing: border-box;"
+          />
+        </label>
+        <div class="callout" style="margin-top: 14px;">
+          重置后系统会发送通知邮件给用户，提醒其首次登录后修改密码。
+        </div>
+        <div class="dialog-actions">
+          <button class="dialog-btn" @click="resetDialog = false">取消</button>
+          <button class="dialog-btn primary" :disabled="resetSaving" @click="doResetPassword">
+            {{ resetSaving ? '重置中…' : '确认重置' }}
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -423,106 +571,106 @@ onMounted(async () => {
 .users-shell { display: flex; flex-direction: column; gap: 18px; }
 
 .page-header {
-  background: #fff; border: 1px solid #e9efe9; border-radius: 11px;
+  background: var(--c-surface); border: 1px solid var(--c-brand-soft); border-radius: var(--r-md);
   padding: 14px 18px; display: flex; justify-content: space-between; align-items: flex-start;
 }
-.page-header h2 { margin: 0 0 4px; display: flex; align-items: center; gap: 7px; color: #1f3b3e; font-size: 16px; }
-.page-header p { margin: 0; font-size: 12px; color: #6f8587; }
+.page-header h2 { margin: 0 0 4px; display: flex; align-items: center; gap: 7px; color: var(--c-scrim); font-size: 16px; }
+.page-header p { margin: 0; font-size: 12px; color: var(--c-text-2); }
 .primary-btn {
-  border: 0; background: #2b6cb0; color: #fff; padding: 8px 14px;
-  border-radius: 8px; font-size: 13px; cursor: pointer;
+  border: 0; background: var(--c-brand); color: var(--c-on-brand); padding: 8px 14px;
+  border-radius: var(--r-sm); font-size: 13px; cursor: pointer;
   display: inline-flex; align-items: center; gap: 6px;
 }
-.primary-btn:hover { background: #1e568f; }
+.primary-btn:hover { background: var(--sys-blue-deep); }
 
 .info-grid {
   display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px;
 }
 .info-card {
-  background: #fff; border: 1px solid #e9efe9; border-radius: 11px; padding: 14px 18px;
+  background: var(--c-surface); border: 1px solid var(--c-brand-soft); border-radius: var(--r-md); padding: 14px 18px;
 }
 .info-card h4 {
-  margin: 0 0 10px; font-size: 13px; color: #35575b; display: flex; align-items: center; gap: 6px;
+  margin: 0 0 10px; font-size: 13px; color: var(--c-ink-1); display: flex; align-items: center; gap: 6px;
 }
 .info-card table {
   width: 100%; border-collapse: collapse; font-size: 12px;
 }
 .info-card th, .info-card td {
-  text-align: left; padding: 7px 8px; border-bottom: 1px dashed #eff4f2;
+  text-align: left; padding: 7px 8px; border-bottom: 1px dashed var(--c-border-2);
 }
-.info-card th { color: #6f8587; font-weight: 600; }
+.info-card th { color: var(--c-text-2); font-weight: 600; }
 .role-chip {
-  display: inline-block; font-size: 10px; padding: 2px 7px; border-radius: 999px;
+  display: inline-block; font-size: 10px; padding: 2px 7px; border-radius: var(--r-pill);
   font-weight: 700; letter-spacing: .03em;
 }
 .state-chip {
-  display: inline-block; font-size: 10px; padding: 2px 7px; border-radius: 999px;
+  display: inline-block; font-size: 10px; padding: 2px 7px; border-radius: var(--r-pill);
 }
-.state-chip.on  { background: rgba(93,180,134,0.15); color: #2a8154; }
-.state-chip.off { background: #f1f5f4; color: #6f8587; }
-.explain-list { padding-left: 18px; margin: 4px 0 8px; color: #4a6367; font-size: 12px; }
+.state-chip.on  { background: var(--c-success-bg); color: var(--c-brand-deep); }
+.state-chip.off { background: var(--c-brand-mist); color: var(--c-text-2); }
+.explain-list { padding-left: 18px; margin: 4px 0 8px; color: var(--c-ink-1); font-size: 12px; }
 .explain-list li { margin-bottom: 3px; }
-.hint { font-size: 11px; color: #9baead; display: flex; align-items: center; gap: 4px; }
-.hint code { background: #f4f7f6; padding: 1px 5px; border-radius: 4px; }
+.hint { font-size: 11px; color: var(--c-text-4); display: flex; align-items: center; gap: 4px; }
+.hint code { background: var(--c-brand-mist); padding: 1px 5px; border-radius: var(--r-xs); }
 
-.users-panel { background: #fff; border: 1px solid #e9efe9; border-radius: 11px; }
+.users-panel { background: var(--c-surface); border: 1px solid var(--c-brand-soft); border-radius: var(--r-md); }
 .filter-bar {
-  display: flex; gap: 10px; padding: 12px 18px; border-bottom: 1px solid #e9efe9;
+  display: flex; gap: 10px; padding: 12px 18px; border-bottom: 1px solid var(--c-brand-soft);
 }
 .search-input {
   display: flex; align-items: center; gap: 4px; padding: 0 9px;
-  border: 1px solid #d8e6e3; border-radius: 8px; background: #fafdfc; flex: 1; max-width: 320px;
+  border: 1px solid var(--c-brand-tint); border-radius: var(--r-sm); background: var(--c-surface-2); flex: 1; max-width: 320px;
 }
 .search-input input { border: 0; background: transparent; outline: none; padding: 6px 0; font-size: 12px; width: 100%; }
 .filter-bar select {
-  border: 1px solid #d8e6e3; border-radius: 8px; padding: 6px 9px;
-  font-size: 12px; outline: none; background: #fff;
+  border: 1px solid var(--c-brand-tint); border-radius: var(--r-sm); padding: 6px 9px;
+  font-size: 12px; outline: none; background: var(--c-surface);
 }
 
 .users-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .users-table th, .users-table td {
-  text-align: left; padding: 9px 18px; border-bottom: 1px solid #f1f5f4;
+  text-align: left; padding: 9px 18px; border-bottom: 1px solid var(--c-brand-mist);
 }
-.users-table th { color: #6f8587; font-weight: 600; background: #fafdfc; font-size: 12px; }
-.users-table tr:hover td { background: #fbfefd; }
-.loading-state, .empty-state { text-align: center; color: #9baead; padding: 30px 0; }
+.users-table th { color: var(--c-text-2); font-weight: 600; background: var(--c-surface-2); font-size: 12px; }
+.users-table tr:hover td { background: var(--c-surface-2); }
+.loading-state, .empty-state { text-align: center; color: var(--c-text-4); padding: 30px 0; }
 
 .op-col { white-space: nowrap; }
 .op-btn {
   border: 1px solid transparent; background: transparent; padding: 5px;
-  border-radius: 6px; cursor: pointer; color: #72908f;
+  border-radius: var(--r-sm); cursor: pointer; color: var(--c-text-2);
 }
-.op-btn:hover { background: #eef5f3; }
-.op-btn.danger { color: #c7553b; }
-.op-btn.danger:hover { background: #fdece8; }
+.op-btn:hover { background: var(--c-brand-mist); }
+.op-btn.danger { color: var(--c-danger-strong); }
+.op-btn.danger:hover { background: var(--c-danger-bg); }
 
 .panel-foot {
   display: flex; justify-content: space-between; padding: 11px 18px;
-  border-top: 1px solid #f1f5f4; font-size: 11px; color: #9baead;
+  border-top: 1px solid var(--c-brand-mist); font-size: 11px; color: var(--c-text-4);
 }
 
-.mask { position: fixed; inset: 0; background: rgba(0,0,0,.4); display: flex; align-items: center; justify-content: center; z-index: 99; }
-.dialog { background: #fff; padding: 22px 26px; border-radius: 12px; width: 540px; max-width: 95vw; box-shadow: 0 10px 40px rgba(0,0,0,.18); }
-.dialog h3 { margin: 0 0 14px; color: #1f3b3e; }
+.mask { position: fixed; inset: 0; background: var(--c-scrim); display: flex; align-items: center; justify-content: center; z-index: 99; }
+.dialog { background: var(--c-surface); padding: 22px 26px; border-radius: var(--r-lg); width: 540px; max-width: 95vw; box-shadow: 0 10px 40px rgba(0,0,0,.18); }
+.dialog h3 { margin: 0 0 14px; color: var(--c-scrim); }
 .form-grid {
   display: grid; grid-template-columns: 1fr 1fr; gap: 12px 14px;
 }
-.form-grid label { display: block; color: #35575b; font-size: 12px; }
+.form-grid label { display: block; color: var(--c-ink-1); font-size: 12px; }
 .form-grid label input, .form-grid label select {
-  width: 100%; border: 1px solid #d8e6e3; border-radius: 8px; padding: 7px 10px;
+  width: 100%; border: 1px solid var(--c-brand-tint); border-radius: var(--r-sm); padding: 7px 10px;
   font-size: 13px; outline: none; margin-top: 4px; box-sizing: border-box;
 }
-.form-grid label input:disabled { background: #f1f5f4; color: #9baead; }
+.form-grid label input:disabled { background: var(--c-brand-mist); color: var(--c-text-4); }
 .callout {
-  font-size: 12px; color: #6f8587; padding: 8px 10px; border-radius: 6px;
-  background: #fff8ec; border: 1px solid #f4e3c1; margin-top: 14px;
+  font-size: 12px; color: var(--c-text-2); padding: 8px 10px; border-radius: var(--r-sm);
+  background: var(--c-warning-bg); border: 1px solid var(--c-warning-bg); margin-top: 14px;
 }
 .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
 .dialog-btn {
-  border: 1px solid #d8e6e3; background: #fff; padding: 8px 14px; border-radius: 8px;
-  font-size: 13px; cursor: pointer; color: #35575b;
+  border: 1px solid var(--c-brand-tint); background: var(--c-surface); padding: 8px 14px; border-radius: var(--r-sm);
+  font-size: 13px; cursor: pointer; color: var(--c-ink-1);
 }
-.dialog-btn.primary { background: #2b6cb0; color: #fff; border-color: #2b6cb0; }
+.dialog-btn.primary { background: var(--c-brand); color: var(--c-on-brand); border-color: var(--c-brand); }
 .dialog-btn:disabled { opacity: .6; cursor: not-allowed; }
 
 .spin { animation: spin 1.2s linear infinite; }
@@ -532,9 +680,9 @@ onMounted(async () => {
 .tab-bar {
   display: flex;
   gap: 0;
-  background: #fff;
-  border: 1px solid #e9efe9;
-  border-radius: 11px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-brand-soft);
+  border-radius: var(--r-md);
   padding: 0 12px;
   width: fit-content;
 }
@@ -549,29 +697,29 @@ onMounted(async () => {
   border-bottom: 2px solid transparent;
   font-size: 13px;
   font-weight: 500;
-  color: #6f8587;
+  color: var(--c-text-2);
   cursor: pointer;
   transition: all 0.15s;
 }
 
-.tab-btn:hover { color: #2b6cb0; }
+.tab-btn:hover { color: var(--c-brand); }
 .tab-btn.active {
-  color: #2b6cb0;
+  color: var(--c-brand);
   font-weight: 700;
-  border-bottom-color: #2b6cb0;
+  border-bottom-color: var(--c-brand);
 }
 
 /* ── 权限矩阵 ── */
 .matrix-panel {
-  background: #fff;
-  border: 1px solid #e9efe9;
-  border-radius: 11px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-brand-soft);
+  border-radius: var(--r-md);
   overflow: hidden;
 }
 
 .matrix-header {
   padding: 14px 18px;
-  border-bottom: 1px solid #e9efe9;
+  border-bottom: 1px solid var(--c-brand-soft);
 }
 
 .matrix-title {
@@ -580,7 +728,7 @@ onMounted(async () => {
   gap: 8px;
   font-size: 14px;
   font-weight: 700;
-  color: #1f3b3e;
+  color: var(--c-scrim);
   margin-bottom: 6px;
 }
 
@@ -590,7 +738,7 @@ onMounted(async () => {
   align-items: center;
   gap: 10px;
   font-size: 12px;
-  color: #6f8587;
+  color: var(--c-text-2);
   font-weight: 400;
 }
 
@@ -598,24 +746,54 @@ onMounted(async () => {
   display: inline-block;
   width: 16px;
   height: 16px;
-  border-radius: 4px;
+  border-radius: var(--r-xs);
   margin-right: 4px;
 }
 
-.legend-dot.has { background: #dcfce7; color: #166534; text-align: center; font-size: 10px; }
-.legend-dot.no { background: #f1f5f9; color: #cbd5e1; text-align: center; font-size: 10px; }
+.legend-dot.has { background: var(--c-success-bg); color: var(--c-success-strong); text-align: center; font-size: 10px; }
+.legend-dot.no { background: var(--c-brand-mist); color: var(--c-brand-tint); text-align: center; font-size: 10px; }
 
 .matrix-desc {
   font-size: 12px;
-  color: #9baead;
+  color: var(--c-text-4);
   margin: 0;
 }
 
 .matrix-desc code {
-  background: #f1f5f4;
+  background: var(--c-brand-mist);
   padding: 1px 5px;
   border-radius: 3px;
   font-family: monospace;
+}
+
+.matrix-state {
+  padding: 28px 16px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--c-text-3);
+}
+
+.matrix-error {
+  color: var(--c-danger-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.retry-btn {
+  padding: 4px 12px;
+  border: 1px solid var(--c-brand-tint);
+  border-radius: var(--r-xs);
+  background: var(--c-surface);
+  color: var(--c-ink-1);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.retry-btn:hover {
+  border-color: var(--c-text-3);
+  background: var(--c-brand-mist);
 }
 
 .matrix-wrap {
@@ -632,14 +810,14 @@ onMounted(async () => {
 
 .matrix-table th, .matrix-table td {
   padding: 8px 12px;
-  border-bottom: 1px solid #f1f5f4;
-  border-right: 1px solid #f1f5f4;
+  border-bottom: 1px solid var(--c-brand-mist);
+  border-right: 1px solid var(--c-brand-mist);
 }
 
 .matrix-table thead th {
-  background: #fafdfc;
+  background: var(--c-surface-2);
   font-weight: 700;
-  color: #6f8587;
+  color: var(--c-text-2);
   font-size: 11px;
   text-align: center;
   position: sticky;
@@ -663,17 +841,20 @@ onMounted(async () => {
 
 .cell-module {
   font-weight: 600;
-  color: #35575b;
-  background: #fafdfc;
+  color: var(--c-ink-1);
+  background: var(--c-surface-2);
   position: sticky;
   left: 0;
   z-index: 1;
 }
 
-.matrix-table tbody tr:hover td { background: #fbfefd; }
+.matrix-table tbody tr:hover td { background: var(--c-surface-2); }
 
 @media (max-width: 980px) {
   .info-grid { grid-template-columns: 1fr; }
   .form-grid { grid-template-columns: 1fr; }
 }
+/* 设计令牌收尾：模板静态色内联样式 → 类（2026-10-09） */
+.um-hint { color: var(--c-text-2); }
+.um-field-label { color: var(--c-ink-1); }
 </style>

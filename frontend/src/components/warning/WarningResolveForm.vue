@@ -120,46 +120,46 @@ watch(reason, (v) => {
 <style scoped>
 .resolve-form { display: flex; flex-direction: column; gap: 18px; }
 .field { display: flex; flex-direction: column; gap: 6px; }
-.field label { font-size: 13px; color: var(--dashboard-muted, #4b5563); font-weight: 500; }
-.required { color: #ef4444; }
-.meta { margin: 4px 0 0; font-size: 12px; color: var(--dashboard-muted, #6b7280); }
+.field label { font-size: 13px; color: var(--dashboard-muted, var(--c-text-2)); font-weight: 500; }
+.required { color: var(--c-danger); }
+.meta { margin: 4px 0 0; font-size: 12px; color: var(--dashboard-muted, var(--c-text-2)); }
 textarea {
-  border: 1px solid var(--dashboard-border, #e2e8f0); border-radius: 8px;
+  border: 1px solid var(--dashboard-border, var(--c-brand-soft)); border-radius: var(--r-sm);
   padding: 10px 12px; font-size: 14px; resize: vertical; min-height: 80px;
   font-family: inherit;
-  background: var(--dashboard-input-bg, #fff);
+  background: var(--dashboard-input-bg, var(--c-surface));
 }
-textarea:focus { outline: none; border-color: #5b8ef9; box-shadow: 0 0 0 3px rgba(91,142,249,0.15); }
-.hint { color: var(--dashboard-muted, #64748b); margin-top: 6px; font-size: 12px; }
+textarea:focus { outline: none; border-color: var(--c-brand-tint); box-shadow: 0 0 0 3px rgba(99,199,127,0.15); }
+.hint { color: var(--dashboard-muted, var(--c-text-3)); margin-top: 6px; font-size: 12px; }
 .templates { display: flex; flex-direction: column; gap: 4px; }
 .templates button {
-  text-align: left; background: var(--dashboard-muted-bg, #f1f5f9);
-  border: 1px dashed var(--dashboard-border, #cbd5e1); border-radius: 6px;
+  text-align: left; background: var(--dashboard-muted-bg, var(--c-brand-mist));
+  border: 1px dashed var(--dashboard-border, var(--c-brand-tint)); border-radius: var(--r-sm);
   padding: 6px 10px; cursor: pointer; font-size: 12px;
   display: inline-flex; align-items: center; gap: 4px;
 }
-.templates button:hover { border-color: #5b8ef9; color: #2563eb; }
+.templates button:hover { border-color: var(--c-brand-tint); color: var(--c-brand-deep); }
 .radios { display: flex; gap: 14px; font-size: 13px; }
 .radios label { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
 .select {
-  padding: 6px 10px; border-radius: 8px; border: 1px solid var(--dashboard-border, #e2e8f0);
-  background: var(--dashboard-input-bg, #fff);
+  padding: 6px 10px; border-radius: var(--r-sm); border: 1px solid var(--dashboard-border, var(--c-brand-soft));
+  background: var(--dashboard-input-bg, var(--c-surface));
 }
 .channels { display: flex; flex-wrap: wrap; gap: 8px; }
 .channels label {
   display: inline-flex; align-items: center; gap: 4px;
-  padding: 4px 10px; border-radius: 999px; cursor: pointer; font-size: 13px;
-  border: 1px solid var(--dashboard-border, #e2e8f0);
-  background: var(--dashboard-muted-bg, #f8fafc);
+  padding: 4px 10px; border-radius: var(--r-pill); cursor: pointer; font-size: 13px;
+  border: 1px solid var(--dashboard-border, var(--c-brand-soft));
+  background: var(--dashboard-muted-bg, var(--c-brand-mist));
 }
-.channels label.checked { background: linear-gradient(135deg, #eef4ff, #e0ecff); border-color: #5b8ef9; color: #2563eb; }
+.channels label.checked { background: linear-gradient(135deg, var(--sys-blue-soft), var(--sys-blue-soft)); border-color: var(--c-brand-tint); color: var(--c-brand-deep); }
 .actions { display: flex; justify-content: flex-end; gap: 8px; }
 .primary, .ghost {
   display: inline-flex; align-items: center; gap: 6px;
-  padding: 8px 18px; border-radius: 8px; cursor: pointer; font-size: 14px;
+  padding: 8px 18px; border-radius: var(--r-sm); cursor: pointer; font-size: 14px;
   border: 1px solid transparent;
 }
-.primary { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; border: none; }
+.primary { background: linear-gradient(135deg, var(--c-danger), var(--c-danger-strong)); color: white; border: none; }
 .primary:disabled { opacity: 0.5; cursor: not-allowed; }
-.ghost { background: transparent; color: var(--dashboard-muted, #64748b); border-color: var(--dashboard-border, #cbd5e1); }
+.ghost { background: transparent; color: var(--dashboard-muted, var(--c-text-3)); border-color: var(--dashboard-border, var(--c-brand-tint)); }
 </style>

@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <svg
     :width="size"
     :height="size"
@@ -18,7 +18,7 @@
     <path d="M3 30 L37 30" stroke="white" stroke-opacity="0.3" stroke-width="1.5" stroke-linecap="round" />
     <defs>
       <linearGradient id="brandGrad" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
-        <stop offset="0%" stop-color="#3caa82" />
+        <stop offset="0%" stop-color="#6f9e7f" />
         <stop offset="100%" stop-color="#267a62" />
       </linearGradient>
     </defs>

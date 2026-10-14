@@ -62,6 +62,63 @@ const escalationHint = computed(() => {
   return '按预警等级采取对应处置策略'
 })
 
+/* ===================== KPI 计算（无真实数据时显示 —） ===================== */
+
+/** 消息通知送达率：优先取 warning 上的 notificationRate/notifyRate/deliveryRate 字段求平均，否则显示 — */
+const notificationRateDisplay = computed(() => {
+  const list = warnings.value
+  if (!list || list.length === 0) return null
+  const rates = list
+    .map((w) => w.notificationRate ?? w.notifyRate ?? w.deliveryRate)
+    .filter((v) => typeof v === 'number' && !Number.isNaN(v))
+  if (rates.length === 0) return null
+  const avg = rates.reduce((a, b) => a + b, 0) / rates.length
+  return Math.round(avg)
+})
+
+/** 联动部门数：优先取 linkedDepartments/depts 数组去重计数，其次用 deptCount/departmentCount 最大值，否则显示 — */
+const deptCountDisplay = computed(() => {
+  const list = warnings.value
+  if (!list || list.length === 0) return null
+  const allDepts = new Set()
+  let hasArrayData = false
+  list.forEach((w) => {
+    const arr = w.linkedDepartments ?? w.depts
+    if (Array.isArray(arr)) {
+      hasArrayData = true
+      arr.forEach((d) => allDepts.add(typeof d === 'object' ? d.id ?? d.name : d))
+    }
+  })
+  if (hasArrayData) return allDepts.size
+  const counts = list
+    .map((w) => w.deptCount ?? w.departmentCount)
+    .filter((v) => typeof v === 'number' && !Number.isNaN(v))
+  if (counts.length > 0) return Math.max(...counts)
+  return null
+})
+
+/**
+ * 处置进度：
+ * 1. 优先使用 warning 上的 progress / disposalProgress / disposeProgress 字段
+ * 2. 没有则根据 status 估算
+ * 3. 都没有返回 null，模板显示 —
+ */
+const disposalProgress = computed(() => {
+  const w = selectedWarning.value
+  if (!w) return null
+  const direct = w.progress ?? w.disposalProgress ?? w.disposeProgress
+  if (typeof direct === 'number' && !Number.isNaN(direct)) {
+    return Math.min(100, Math.max(0, Math.round(direct)))
+  }
+  const status = w.status ?? ''
+  if (status === '待确认' || status.includes('发布') || status.includes('新建')) return 10
+  if (status === '已确认') return 30
+  if (status === '已派发') return 40
+  if (status === '处理中' || status.includes('处置')) return 60
+  if (status === '已解除' || status === '已关闭' || status === '已忽略') return 100
+  return null
+})
+
 /** Tab 切换时若选中已不在新列表内，自动落到当前首条 */
 function switchTab(tab) {
   if (statusTab.value === tab) return
@@ -317,8 +374,8 @@ onMounted(loadData)
       <div class="stats-grid">
         <div class="stat-card"><div class="stat-icon orange"><Bell :size="19" /></div><div class="stat-copy"><span>未闭环预警</span><strong>{{ activeWarnings.length }} <small>起</small></strong><em class="negative">需快速处置 <i>重点升级</i></em></div></div>
         <div class="stat-card"><div class="stat-icon blue"><ShieldCheck :size="19" /></div><div class="stat-copy"><span>已确认预警</span><strong>{{ warnings.filter((warning) => warning.status === '已确认').length }} <small>起</small></strong><em class="positive">闭环处理 <i>流程规范</i></em></div></div>
-        <div class="stat-card"><div class="stat-icon teal"><MessageSquareText :size="19" /></div><div class="stat-copy"><span>消息通知</span><strong>100 <small>%</small></strong><em class="positive">全渠道触达 <i>短信/APP</i></em></div></div>
-        <div class="stat-card"><div class="stat-icon purple"><UsersRound :size="19" /></div><div class="stat-copy"><span>联动部门</span><strong>4 <small>个</small></strong><em class="positive">协同响应 <i>专家/乡镇/运维</i></em></div></div>
+        <div class="stat-card"><div class="stat-icon teal"><MessageSquareText :size="19" /></div><div class="stat-copy"><span>消息通知</span><strong>{{ notificationRateDisplay != null ? notificationRateDisplay : '—' }} <small>{{ notificationRateDisplay != null ? '%' : '' }}</small></strong><em class="positive">全渠道触达 <i>短信/APP</i></em></div></div>
+        <div class="stat-card"><div class="stat-icon purple"><UsersRound :size="19" /></div><div class="stat-copy"><span>联动部门</span><strong>{{ deptCountDisplay != null ? deptCountDisplay : '—' }} <small>{{ deptCountDisplay != null ? '个' : '' }}</small></strong><em class="positive">协同响应 <i>专家/乡镇/运维</i></em></div></div>
       </div>
 
       <div class="content-grid">
@@ -427,7 +484,7 @@ onMounted(loadData)
             </div>
           </div>
           <div v-if="selectedWarning" class="task-summary">
-            <div class="progress-ring"><span>{{ selectedWarning.level.includes('橙色') ? '86' : selectedWarning.level.includes('黄色') ? '71' : '54' }}<small>%</small></span></div>
+            <div class="progress-ring"><span>{{ disposalProgress != null ? disposalProgress : '—' }}<small>{{ disposalProgress != null ? '%' : '' }}</small></span></div>
             <div class="task-overview">
               <strong>{{ selectedWarning.title }}</strong>
               <span>{{ selectedWarning.desc }}</span>

@@ -20,10 +20,7 @@
 
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
-import { Radar, AlertTriangle, Antenna, Bell, Building2, Calendar, CheckCircle2,
-  ChevronLeft, ChevronRight, CloudRain, Cpu, Eye, Landmark, Layers,
-  MapPin, Radio, RefreshCw, ShieldAlert, Thermometer, Timer, TrendingUp,
-  Users, Wifi, WifiOff, Wind, Zap } from "lucide-vue-next";
+import { Activity, AlertTriangle, Antenna, Bell, Building2, Calendar, CheckCircle2, ChevronLeft, ChevronRight, CloudRain, Cpu, Eye, Globe2, Landmark, Layers, MapPin, Radar, Radio, RefreshCw, ShieldAlert, Thermometer, Timer, TrendingUp, Users, Wifi, WifiOff, Wind, Zap } from "lucide-vue-next";
 import { dashboardApi } from "../../services/dashboardApi.js";
 import {
   onRealtimeUpdate,
@@ -692,7 +689,7 @@ function relativeTime(isoStr) {
                 <text x="60" y="55" text-anchor="middle" fill="white" font-size="22" font-weight="bold">
                   {{ deviceOnlineRate }}%
                 </text>
-                <text x="60" y="72" text-anchor="middle" fill="#94a3b8" font-size="10">
+                <text x="60" y="72" text-anchor="middle" fill="#8a9c90" font-size="10">
                   设备在线率
                 </text>
               </svg>
@@ -809,13 +806,53 @@ function relativeTime(isoStr) {
 <style scoped>
 /* ─── 根容器 ─── */
 .cs-root {
+  /* ─── 本页专用调色板（固定深色大屏）────────────────────────────────
+     指挥大屏是常驻深色的控制室画面，不随浅色/深色主题切换；
+     深色底 / 玻璃面板 / 等级强调色统一收敛到这里，避免散落写死。
+     这些色属于「有意区分」的大屏视觉体系，不要合并成单一令牌。 */
+  --cs-bg:            #060a14;
+  --cs-panel:         rgba(10, 15, 30, .9);
+  --cs-panel-deep:    rgba(10, 15, 30, .95);
+  --cs-elev:          rgba(15, 23, 42, .8);
+  --cs-elev-dim:      rgba(15, 23, 42, .6);
+  --cs-elev-strong:   rgba(15, 23, 42, .9);
+  --cs-tab-bg:        rgba(30, 41, 59, .8);
+  --cs-overlay:       rgba(6, 10, 20, .85);
+  --cs-hairline:      rgba(255, 255, 255, .06);
+  --cs-header-grad:   linear-gradient(90deg, #0d1b2a 0%, #1b2a3a 50%, #0d1b2a 100%);
+  /* 品牌绿叠加：大屏原为蓝色系，已统一改品牌绿，各透明度档位保留区分 */
+  --cs-brand-a06:     rgba(76, 189, 106, .06);
+  --cs-brand-a10:     rgba(76, 189, 106, .1);
+  --cs-brand-a15:     rgba(76, 189, 106, .15);
+  --cs-brand-a20:     rgba(76, 189, 106, .2);
+  --cs-brand-a25:     rgba(76, 189, 106, .25);
+  --cs-brand-a30:     rgba(76, 189, 106, .3);
+  /* 告警强调叠加（红/橙/黄/绿 分级保留辨识度）*/
+  --cs-danger-a20:    rgba(239, 68, 68, .2);
+  --cs-danger-a30:    rgba(239, 68, 68, .3);
+  --cs-warning-a06:   rgba(249, 115, 22, .06);
+  --cs-warning-a10:   rgba(249, 115, 22, .1);
+  --cs-warning-a20:   rgba(249, 115, 22, .2);
+  --cs-warning-a30:   rgba(249, 115, 22, .3);
+  --cs-success-a20:   rgba(34, 197, 94, .2);
+  --cs-success-a30:   rgba(34, 197, 94, .3);
+  --cs-yellow-a15:    rgba(234, 179, 8, .15);
+  --cs-yellow-a20:    rgba(234, 179, 8, .2);
+  /* 等级文字/点缀色（蓝/红/橙/黄/青/紫）*/
+  --cs-lvl-blue:      #60a5fa;
+  --cs-lvl-red:       #f87171;
+  --cs-lvl-orange:    #fb923c;
+  --cs-lvl-yellow:    #facc15;
+  --cs-accent-cyan:   #06b6d4;
+  --cs-accent-purple: #a855f7;
+  --cs-accent-yellow: #eab308;
   display: flex;
   flex-direction: column;
   height: 100vh;
   width: 100vw;
   overflow: hidden;
-  background: #060a14;
-  color: #e2e8f0;
+  background: var(--cs-bg);
+  color: var(--c-brand-soft);
   font-family: "Microsoft YaHei UI", "PingFang SC", "Helvetica Neue", sans-serif;
   user-select: none;
 }
@@ -827,8 +864,8 @@ function relativeTime(isoStr) {
   justify-content: space-between;
   height: 56px;
   padding: 0 20px;
-  background: linear-gradient(90deg, #0d1b2a 0%, #1b2a3a 50%, #0d1b2a 100%);
-  border-bottom: 1px solid rgba(59, 130, 246, 0.25);
+  background: var(--cs-header-grad);
+  border-bottom: 1px solid var(--cs-brand-a25);
   flex-shrink: 0;
 }
 .cs-header-left {
@@ -836,17 +873,17 @@ function relativeTime(isoStr) {
   align-items: center;
   gap: 10px;
 }
-.cs-logo-icon { color: #3b82f6; }
+.cs-logo-icon { color: var(--c-brand-hover); }
 .cs-logo-text {
   font-size: 18px;
   font-weight: 700;
-  color: #f1f5f9;
+  color: var(--c-brand-mist);
   letter-spacing: 1px;
 }
-.cs-divider { color: #334155; }
+.cs-divider { color: var(--c-ink-1); }
 .cs-subtitle {
   font-size: 12px;
-  color: #64748b;
+  color: var(--c-text-3);
   letter-spacing: 0.5px;
 }
 
@@ -854,29 +891,29 @@ function relativeTime(isoStr) {
 .cs-tabs {
   display: flex;
   gap: 4px;
-  background: rgba(30, 41, 59, 0.8);
-  border-radius: 10px;
+  background: var(--cs-tab-bg);
+  border-radius: var(--r-md);
   padding: 4px;
-  border: 1px solid rgba(59, 130, 246, 0.2);
+  border: 1px solid var(--cs-brand-a20);
 }
 .cs-tab {
   display: flex;
   align-items: center;
   gap: 6px;
   padding: 6px 16px;
-  border-radius: 7px;
+  border-radius: var(--r-sm);
   border: none;
   background: transparent;
-  color: #94a3b8;
+  color: var(--c-text-3);
   font-size: 13px;
   cursor: pointer;
   transition: all 0.2s;
   white-space: nowrap;
 }
-.cs-tab:hover { color: #e2e8f0; background: rgba(59, 130, 246, 0.15); }
+.cs-tab:hover { color: var(--c-brand-soft); background: var(--cs-brand-a15); }
 .cs-tab.active {
-  background: #1d4ed8;
-  color: #fff;
+  background: var(--c-brand-deeper);
+  color: var(--c-on-brand);
   font-weight: 600;
 }
 
@@ -891,15 +928,15 @@ function relativeTime(isoStr) {
   align-items: center;
   gap: 5px;
   padding: 4px 10px;
-  border-radius: 20px;
+  border-radius: var(--r-xl);
   font-size: 12px;
   font-weight: 500;
 }
-.ws-ok { background: rgba(34, 197, 94, 0.15); color: #22c55e; border: 1px solid rgba(34,197,94,0.3); }
-.ws-off { background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); }
+.ws-ok { background: var(--c-success-bg); color: var(--c-success); border: 1px solid var(--cs-success-a30); }
+.ws-off { background: var(--c-danger-bg); color: var(--c-danger); border: 1px solid var(--cs-danger-a30); }
 .cs-clock {
   font-size: 14px;
-  color: #94a3b8;
+  color: var(--c-text-3);
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.5px;
 }
@@ -933,9 +970,9 @@ function relativeTime(isoStr) {
   align-items: center;
   gap: 12px;
   padding: 14px 16px;
-  border-radius: 10px;
-  background: rgba(15, 23, 42, 0.8);
-  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: var(--r-md);
+  background: var(--cs-elev);
+  border: 1px solid var(--cs-hairline);
   position: relative;
   overflow: hidden;
   transition: border-color 0.2s;
@@ -947,22 +984,22 @@ function relativeTime(isoStr) {
   width: 3px;
   border-radius: 3px 0 0 3px;
 }
-.kpi-cyan::before { background: #06b6d4; }
-.kpi-orange::before { background: #f97316; }
-.kpi-red::before { background: #ef4444; }
-.kpi-green::before { background: #22c55e; }
-.kpi-blue::before { background: #3b82f6; }
-.kpi-purple::before { background: #a855f7; }
-.kpi-yellow::before { background: #eab308; }
-.kpi-gray::before { background: #6b7280; }
+.kpi-cyan::before { background: var(--cs-accent-cyan); }
+.kpi-orange::before { background: var(--c-warning-strong); }
+.kpi-red::before { background: var(--c-danger); }
+.kpi-green::before { background: var(--c-success); }
+.kpi-blue::before { background: var(--c-brand-hover); }
+.kpi-purple::before { background: var(--cs-accent-purple); }
+.kpi-yellow::before { background: var(--cs-accent-yellow); }
+.kpi-gray::before { background: var(--c-text-2); }
 
-.kpi-icon-wrap { color: #64748b; flex-shrink: 0; }
+.kpi-icon-wrap { color: var(--c-text-3); flex-shrink: 0; }
 .kpi-body { flex: 1; min-width: 0; }
 .kpi-value { display: flex; align-items: baseline; gap: 2px; }
-.kpi-num { font-size: 28px; font-weight: 700; color: #f1f5f9; line-height: 1; }
-.kpi-suffix { font-size: 13px; color: #94a3b8; margin-left: 2px; }
-.kpi-label { font-size: 12px; color: #64748b; margin-top: 3px; }
-.kpi-trend { font-size: 11px; color: #22c55e; margin-top: 2px; }
+.kpi-num { font-size: 28px; font-weight: 700; color: var(--c-brand-mist); line-height: 1; }
+.kpi-suffix { font-size: 13px; color: var(--c-text-3); margin-left: 2px; }
+.kpi-label { font-size: 12px; color: var(--c-text-3); margin-top: 3px; }
+.kpi-trend { font-size: 11px; color: var(--c-success); margin-top: 2px; }
 
 /* 下半分栏 */
 .cs-overview-split {
@@ -973,9 +1010,9 @@ function relativeTime(isoStr) {
   min-height: 0;
 }
 .cs-panel {
-  background: rgba(10, 15, 30, 0.9);
-  border: 1px solid rgba(59, 130, 246, 0.15);
-  border-radius: 10px;
+  background: var(--cs-panel);
+  border: 1px solid var(--cs-brand-a15);
+  border-radius: var(--r-md);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -987,25 +1024,25 @@ function relativeTime(isoStr) {
   padding: 10px 14px;
   font-size: 13px;
   font-weight: 600;
-  color: #94a3b8;
-  border-bottom: 1px solid rgba(59, 130, 246, 0.1);
-  background: rgba(15, 23, 42, 0.6);
+  color: var(--c-text-3);
+  border-bottom: 1px solid var(--cs-brand-a10);
+  background: var(--cs-elev-dim);
   flex-shrink: 0;
 }
 .panel-count {
   margin-left: auto;
   font-size: 11px;
-  background: rgba(59, 130, 246, 0.15);
-  color: #60a5fa;
+  background: var(--cs-brand-a15);
+  color: var(--cs-lvl-blue);
   padding: 2px 8px;
-  border-radius: 10px;
+  border-radius: var(--r-md);
 }
-.panel-count-alert { background: rgba(239, 68, 68, 0.15); color: #f87171; }
+.panel-count-alert { background: var(--c-danger-bg); color: var(--cs-lvl-red); }
 
 /* 灾害点列表 */
 .cs-hazard-list { flex: 1; overflow-y: auto; padding: 6px 0; }
 .cs-hazard-list::-webkit-scrollbar { width: 4px; }
-.cs-hazard-list::-webkit-scrollbar-thumb { background: #1e3a5f; border-radius: 4px; }
+.cs-hazard-list::-webkit-scrollbar-thumb { background: var(--sys-indigo-deep); border-radius: var(--r-xs); }
 .cs-hazard-item {
   display: flex;
   align-items: center;
@@ -1013,36 +1050,36 @@ function relativeTime(isoStr) {
   padding: 7px 14px;
   transition: background 0.15s;
 }
-.cs-hazard-item:hover { background: rgba(59, 130, 246, 0.06); }
+.cs-hazard-item:hover { background: var(--cs-brand-a06); }
 .hazard-dot {
   width: 8px; height: 8px;
   border-radius: 50%;
   flex-shrink: 0;
 }
-.dot-red, .dot-红色 { background: #ef4444; box-shadow: 0 0 6px #ef4444; }
-.dot-orange, .dot-橙色 { background: #f97316; box-shadow: 0 0 6px #f97316; }
-.dot-yellow, .dot-黄色 { background: #eab308; }
-.dot-blue, .dot-蓝色 { background: #3b82f6; }
-.dot-关注, .dot-全部 { background: #64748b; }
+.dot-red, .dot-红色 { background: var(--c-danger); box-shadow: 0 0 6px var(--c-danger); }
+.dot-orange, .dot-橙色 { background: var(--c-warning-strong); box-shadow: 0 0 6px var(--c-warning-strong); }
+.dot-yellow, .dot-黄色 { background: var(--cs-accent-yellow); }
+.dot-blue, .dot-蓝色 { background: var(--c-brand-hover); }
+.dot-关注, .dot-全部 { background: var(--c-text-3); }
 .hazard-info { flex: 1; min-width: 0; }
-.hazard-name { font-size: 13px; color: #cbd5e1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.hazard-meta { font-size: 11px; color: #475569; margin-top: 2px; }
+.hazard-name { font-size: 13px; color: var(--c-brand-tint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hazard-meta { font-size: 11px; color: var(--c-ink-1); margin-top: 2px; }
 .hazard-level {
   font-size: 11px;
   padding: 2px 8px;
-  border-radius: 4px;
+  border-radius: var(--r-xs);
   font-weight: 600;
   flex-shrink: 0;
 }
-.lvl-red, .lvl-红色 { background: rgba(239,68,68,0.15); color: #f87171; }
-.lvl-orange, .lvl-橙色 { background: rgba(249,115,22,0.15); color: #fb923c; }
-.lvl-yellow, .lvl-黄色 { background: rgba(234,179,8,0.15); color: #facc15; }
-.lvl-blue, .lvl-蓝色, .lvl-关注 { background: rgba(59,130,246,0.15); color: #60a5fa; }
+.lvl-red, .lvl-红色 { background: var(--c-danger-bg); color: var(--cs-lvl-red); }
+.lvl-orange, .lvl-橙色 { background: var(--c-warning-bg); color: var(--cs-lvl-orange); }
+.lvl-yellow, .lvl-黄色 { background: var(--cs-yellow-a15); color: var(--cs-lvl-yellow); }
+.lvl-blue, .lvl-蓝色, .lvl-关注 { background: var(--cs-brand-a15); color: var(--cs-lvl-blue); }
 
 /* 预警列表 */
 .cs-warning-list { flex: 1; overflow-y: auto; padding: 6px 0; }
 .cs-warning-list::-webkit-scrollbar { width: 4px; }
-.cs-warning-list::-webkit-scrollbar-thumb { background: #1e3a5f; border-radius: 4px; }
+.cs-warning-list::-webkit-scrollbar-thumb { background: var(--sys-indigo-deep); border-radius: var(--r-xs); }
 .cs-warning-item {
   display: flex;
   align-items: center;
@@ -1050,10 +1087,10 @@ function relativeTime(isoStr) {
   padding: 7px 14px;
   transition: background 0.15s;
 }
-.cs-warning-item:hover { background: rgba(249, 115, 22, 0.06); }
-.w-icon { color: #f97316; flex-shrink: 0; }
+.cs-warning-item:hover { background: var(--cs-warning-a06); }
+.w-icon { color: var(--c-warning-strong); flex-shrink: 0; }
 .w-body { flex: 1; min-width: 0; }
-.w-title { font-size: 13px; color: #cbd5e1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.w-title { font-size: 13px; color: var(--c-brand-tint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .w-meta { display: flex; align-items: center; gap: 8px; margin-top: 2px; }
 .w-level {
   font-size: 11px;
@@ -1061,7 +1098,7 @@ function relativeTime(isoStr) {
   border-radius: 3px;
   font-weight: 600;
 }
-.w-time { font-size: 11px; color: #475569; }
+.w-time { font-size: 11px; color: var(--c-ink-1); }
 
 /* ─── 视图 B: 实时地图 ─── */
 .cs-view-map { padding: 0; position: relative; }
@@ -1079,15 +1116,15 @@ function relativeTime(isoStr) {
   display: flex;
   align-items: center;
   gap: 6px;
-  background: rgba(6, 10, 20, 0.85);
-  border: 1px solid rgba(59, 130, 246, 0.25);
-  border-radius: 6px;
+  background: var(--cs-overlay);
+  border: 1px solid var(--cs-brand-a25);
+  border-radius: var(--r-sm);
   padding: 6px 12px;
   font-size: 12px;
-  color: #94a3b8;
+  color: var(--c-text-3);
   backdrop-filter: blur(6px);
 }
-.overlay-stat strong { color: #f1f5f9; font-size: 15px; }
+.overlay-stat strong { color: var(--c-brand-mist); font-size: 15px; }
 
 /* ─── 视图 C: 预警播报 ─── */
 .cs-view-warnings { display: flex; flex-direction: column; gap: 12px; overflow: hidden; }
@@ -1104,23 +1141,23 @@ function relativeTime(isoStr) {
   align-items: center;
   gap: 14px;
   padding: 14px 18px;
-  border-radius: 10px;
-  background: rgba(15, 23, 42, 0.8);
-  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: var(--r-md);
+  background: var(--cs-elev);
+  border: 1px solid var(--cs-hairline);
 }
-.warn-critical { border-color: rgba(239,68,68,0.3); color: #ef4444; }
-.warn-high { border-color: rgba(249,115,22,0.3); color: #f97316; }
-.warn-online { border-color: rgba(34,197,94,0.3); color: #22c55e; }
-.warn-device { border-color: rgba(59,130,246,0.3); color: #3b82f6; }
-.wsc-num { font-size: 26px; font-weight: 700; color: #f1f5f9; line-height: 1; }
-.wsc-label { font-size: 12px; color: #64748b; margin-top: 3px; }
+.warn-critical { border-color: var(--cs-danger-a30); color: var(--c-danger); }
+.warn-high { border-color: var(--cs-warning-a30); color: var(--c-warning-strong); }
+.warn-online { border-color: var(--cs-success-a30); color: var(--c-success); }
+.warn-device { border-color: var(--cs-brand-a30); color: var(--c-brand-hover); }
+.wsc-num { font-size: 26px; font-weight: 700; color: var(--c-brand-mist); line-height: 1; }
+.wsc-label { font-size: 12px; color: var(--c-text-3); margin-top: 3px; }
 
 /* 滚动播报 */
 .cs-ticker-wrap {
   flex-shrink: 0;
-  background: rgba(15, 23, 42, 0.9);
-  border: 1px solid rgba(249, 115, 22, 0.2);
-  border-radius: 8px;
+  background: var(--cs-elev-strong);
+  border: 1px solid var(--cs-warning-a20);
+  border-radius: var(--r-sm);
   overflow: hidden;
 }
 .cs-ticker-label {
@@ -1130,9 +1167,9 @@ function relativeTime(isoStr) {
   padding: 6px 12px;
   font-size: 12px;
   font-weight: 600;
-  color: #f97316;
-  background: rgba(249, 115, 22, 0.1);
-  border-bottom: 1px solid rgba(249, 115, 22, 0.15);
+  color: var(--c-warning-strong);
+  background: var(--cs-warning-a10);
+  border-bottom: 1px solid var(--c-warning-bg);
 }
 .cs-ticker {
   height: 36px;
@@ -1156,7 +1193,7 @@ function relativeTime(isoStr) {
   gap: 8px;
   padding: 0 16px;
   font-size: 13px;
-  color: #cbd5e1;
+  color: var(--c-brand-tint);
 }
 .ti-level {
   font-size: 11px;
@@ -1164,8 +1201,8 @@ function relativeTime(isoStr) {
   border-radius: 3px;
   font-weight: 600;
 }
-.ti-time { font-size: 11px; color: #475569; }
-.ti-sep { color: #334155; font-size: 10px; }
+.ti-time { font-size: 11px; color: var(--c-ink-1); }
+.ti-sep { color: var(--c-ink-1); font-size: 10px; }
 
 /* 预警详情网格 */
 .cs-warn-detail-grid {
@@ -1177,40 +1214,40 @@ function relativeTime(isoStr) {
   padding-bottom: 4px;
 }
 .cs-warn-detail-grid::-webkit-scrollbar { width: 4px; }
-.cs-warn-detail-grid::-webkit-scrollbar-thumb { background: #1e3a5f; border-radius: 4px; }
+.cs-warn-detail-grid::-webkit-scrollbar-thumb { background: var(--sys-indigo-deep); border-radius: var(--r-xs); }
 .cs-warn-card {
-  background: rgba(10, 15, 30, 0.9);
-  border-radius: 8px;
+  background: var(--cs-panel);
+  border-radius: var(--r-sm);
   padding: 12px 14px;
-  border: 1px solid rgba(255,255,255,0.06);
+  border: 1px solid var(--cs-hairline);
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
-.card-red { border-color: rgba(239,68,68,0.3); }
-.card-orange { border-color: rgba(249,115,22,0.3); }
-.card-yellow { border-color: rgba(234,179,8,0.2); }
-.card-blue, .card-gray { border-color: rgba(59,130,246,0.2); }
+.card-red { border-color: var(--cs-danger-a30); }
+.card-orange { border-color: var(--cs-warning-a30); }
+.card-yellow { border-color: var(--cs-yellow-a20); }
+.card-blue, .card-gray { border-color: var(--cs-brand-a20); }
 .wcard-top { display: flex; align-items: center; gap: 6px; }
 .wcard-level {
   font-size: 12px;
   padding: 1px 8px;
-  border-radius: 4px;
+  border-radius: var(--r-xs);
   font-weight: 600;
 }
 .wcard-status {
   margin-left: auto;
   font-size: 11px;
-  color: #64748b;
+  color: var(--c-text-3);
 }
-.wcard-title { font-size: 14px; font-weight: 600; color: #e2e8f0; }
-.wcard-desc { font-size: 12px; color: #64748b; line-height: 1.4; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.wcard-title { font-size: 14px; font-weight: 600; color: var(--c-brand-soft); }
+.wcard-desc { font-size: 12px; color: var(--c-text-3); line-height: 1.4; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .wcard-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
   font-size: 11px;
-  color: #475569;
+  color: var(--c-ink-1);
   margin-top: 2px;
 }
 .wcard-footer span { display: flex; align-items: center; gap: 3px; }
@@ -1219,9 +1256,9 @@ function relativeTime(isoStr) {
 .cs-view-devices { display: flex; flex-direction: column; gap: 12px; overflow: hidden; }
 .cs-device-top { display: grid; grid-template-columns: 340px 1fr; gap: 12px; flex-shrink: 0; }
 .cs-rate-panel {
-  background: rgba(10, 15, 30, 0.9);
-  border: 1px solid rgba(59, 130, 246, 0.15);
-  border-radius: 10px;
+  background: var(--cs-panel);
+  border: 1px solid var(--cs-brand-a15);
+  border-radius: var(--r-md);
   padding: 18px;
   display: flex;
   flex-direction: column;
@@ -1233,28 +1270,28 @@ function relativeTime(isoStr) {
 .gauge-arc { transition: stroke-dasharray 0.8s ease; }
 .rate-stats { display: flex; gap: 16px; }
 .rate-stat { display: flex; flex-direction: column; align-items: center; gap: 3px; }
-.rate-online { color: #22c55e; }
-.rate-offline { color: #ef4444; }
-.rate-total { color: #64748b; }
-.rs-num { font-size: 20px; font-weight: 700; color: #f1f5f9; }
-.rs-label { font-size: 11px; color: #64748b; }
+.rate-online { color: var(--c-success); }
+.rate-offline { color: var(--c-danger); }
+.rate-total { color: var(--c-text-3); }
+.rs-num { font-size: 20px; font-weight: 700; color: var(--c-brand-mist); }
+.rs-label { font-size: 11px; color: var(--c-text-3); }
 
 .cs-device-types {
-  background: rgba(10, 15, 30, 0.9);
-  border: 1px solid rgba(59, 130, 246, 0.15);
-  border-radius: 10px;
+  background: var(--cs-panel);
+  border: 1px solid var(--cs-brand-a15);
+  border-radius: var(--r-md);
   overflow: hidden;
   display: flex;
   flex-direction: column;
 }
 .device-type-list { padding: 10px 14px; display: flex; flex-direction: column; gap: 8px; flex: 1; overflow-y: auto; }
 .device-type-list::-webkit-scrollbar { width: 4px; }
-.device-type-list::-webkit-scrollbar-thumb { background: #1e3a5f; border-radius: 4px; }
+.device-type-list::-webkit-scrollbar-thumb { background: var(--sys-indigo-deep); border-radius: var(--r-xs); }
 .device-type-item { display: flex; align-items: center; gap: 10px; }
-.dtype-label { width: 80px; font-size: 12px; color: #94a3b8; flex-shrink: 0; }
-.dtype-bar-wrap { flex: 1; height: 6px; background: rgba(30, 41, 59, 0.8); border-radius: 3px; overflow: hidden; }
-.dtype-bar { height: 100%; background: #3b82f6; border-radius: 3px; transition: width 0.6s ease; }
-.dtype-count { width: 28px; text-align: right; font-size: 12px; color: #e2e8f0; font-variant-numeric: tabular-nums; }
+.dtype-label { width: 80px; font-size: 12px; color: var(--c-text-3); flex-shrink: 0; }
+.dtype-bar-wrap { flex: 1; height: 6px; background: var(--cs-tab-bg); border-radius: 3px; overflow: hidden; }
+.dtype-bar { height: 100%; background: var(--c-brand-hover); border-radius: 3px; transition: width 0.6s ease; }
+.dtype-count { width: 28px; text-align: right; font-size: 12px; color: var(--c-brand-soft); font-variant-numeric: tabular-nums; }
 
 .cs-device-list-grid {
   flex: 1;
@@ -1265,24 +1302,24 @@ function relativeTime(isoStr) {
   padding-bottom: 4px;
 }
 .cs-device-list-grid::-webkit-scrollbar { width: 4px; }
-.cs-device-list-grid::-webkit-scrollbar-thumb { background: #1e3a5f; border-radius: 4px; }
+.cs-device-list-grid::-webkit-scrollbar-thumb { background: var(--sys-indigo-deep); border-radius: var(--r-xs); }
 .cs-device-card {
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 10px 12px;
-  border-radius: 8px;
-  background: rgba(10, 15, 30, 0.9);
-  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: var(--r-sm);
+  background: var(--cs-panel);
+  border: 1px solid var(--cs-hairline);
 }
-.dev-online { border-color: rgba(34, 197, 94, 0.2); }
-.dev-offline { border-color: rgba(239, 68, 68, 0.2); }
-.dev-icon { color: #475569; }
-.dev-online .dev-icon { color: #22c55e; }
-.dev-offline .dev-icon { color: #ef4444; }
+.dev-online { border-color: var(--cs-success-a20); }
+.dev-offline { border-color: var(--cs-danger-a20); }
+.dev-icon { color: var(--c-ink-1); }
+.dev-online .dev-icon { color: var(--c-success); }
+.dev-offline .dev-icon { color: var(--c-danger); }
 .dev-info { flex: 1; min-width: 0; }
-.dev-name { font-size: 13px; color: #cbd5e1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.dev-type { font-size: 11px; color: #475569; margin-top: 2px; }
+.dev-name { font-size: 13px; color: var(--c-brand-tint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dev-type { font-size: 11px; color: var(--c-ink-1); margin-top: 2px; }
 .dev-status-badge {
   display: flex;
   align-items: center;
@@ -1291,11 +1328,11 @@ function relativeTime(isoStr) {
   font-weight: 600;
   flex-shrink: 0;
 }
-.dev-online .dev-status-badge { color: #22c55e; }
-.dev-offline .dev-status-badge { color: #ef4444; }
+.dev-online .dev-status-badge { color: var(--c-success); }
+.dev-offline .dev-status-badge { color: var(--c-danger); }
 
 /* ─── 空状态 ─── */
-.cs-empty { padding: 16px; text-align: center; font-size: 12px; color: #334155; }
+.cs-empty { padding: 16px; text-align: center; font-size: 12px; color: var(--c-ink-1); }
 .cs-empty-large {
   grid-column: 1 / -1;
   display: flex;
@@ -1304,7 +1341,7 @@ function relativeTime(isoStr) {
   justify-content: center;
   gap: 10px;
   padding: 40px;
-  color: #1e3a5f;
+  color: var(--sys-indigo-deep);
   font-size: 14px;
 }
 
@@ -1315,10 +1352,10 @@ function relativeTime(isoStr) {
   justify-content: space-between;
   height: 32px;
   padding: 0 16px;
-  background: rgba(10, 15, 30, 0.95);
-  border-top: 1px solid rgba(59, 130, 246, 0.15);
+  background: var(--cs-panel-deep);
+  border-top: 1px solid var(--cs-brand-a15);
   font-size: 11px;
-  color: #475569;
+  color: var(--c-ink-1);
   flex-shrink: 0;
 }
 .footer-left, .footer-right {
@@ -1326,15 +1363,15 @@ function relativeTime(isoStr) {
   align-items: center;
   gap: 6px;
 }
-.footer-sep { color: #1e3a5f; }
+.footer-sep { color: var(--sys-indigo-deep); }
 .footer-view-indicator { display: flex; gap: 5px; align-items: center; }
 .fvi-dot {
   width: 6px; height: 6px;
   border-radius: 50%;
-  background: #1e3a5f;
+  background: var(--sys-indigo-deep);
   transition: all 0.3s;
 }
-.fvi-dot.active { background: #3b82f6; transform: scale(1.3); }
+.fvi-dot.active { background: var(--c-brand-hover); transform: scale(1.3); }
 
 /* ─── 动画 ─── */
 @keyframes spin {

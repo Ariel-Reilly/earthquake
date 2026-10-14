@@ -160,9 +160,9 @@ onMounted(() => load())
 
     <section class="stat-grid">
       <div class="stat-card"><strong>{{ stats.total }}</strong><span>灾害记录总数</span></div>
-      <div class="stat-card"><strong style="color:#c7553b">{{ stats.critical }}</strong><span>高风险历史事件</span></div>
-      <div class="stat-card"><strong style="color:#d7a546">{{ stats.watch }}</strong><span>关注事件</span></div>
-      <div class="stat-card"><strong style="color:#2a8154">{{ stats.closed }}</strong><span>已闭环</span></div>
+      <div class="stat-card"><strong class="stat-num--danger">{{ stats.critical }}</strong><span>高风险历史事件</span></div>
+      <div class="stat-card"><strong class="stat-num--watch">{{ stats.watch }}</strong><span>关注事件</span></div>
+      <div class="stat-card"><strong class="stat-num--closed">{{ stats.closed }}</strong><span>已闭环</span></div>
     </section>
 
     <section class="filter-bar">
@@ -232,51 +232,55 @@ onMounted(() => load())
 <style scoped>
 .history-hazards-shell { padding: 24px 28px; }
 .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 18px; }
-.page-header h2 { margin: 0; display: flex; gap: 8px; align-items: center; font-size: 18px; color: #1f3e44; }
-.page-header p { margin: 4px 0 0; color: #7a8d89; font-size: 12px; }
-.op-btn { display: flex; gap: 6px; align-items: center; padding: 7px 12px; border: 1px solid #d9e6e1; background: #fff; border-radius: 8px; color: #37555a; font-size: 12px; cursor: pointer; }
+.page-header h2 { margin: 0; display: flex; gap: 8px; align-items: center; font-size: 18px; color: var(--c-text); }
+.page-header p { margin: 4px 0 0; color: var(--c-text-2); font-size: 12px; }
+.op-btn { display: flex; gap: 6px; align-items: center; padding: 7px 12px; border: 1px solid var(--c-separator); background: var(--c-surface); border-radius: var(--r-sm); color: var(--c-text); font-size: 12px; cursor: pointer; }
 
 .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 18px; }
-.stat-card { padding: 14px 16px; background: #fff; border: 1px solid #e9eee9; border-radius: 10px; }
-.stat-card strong { display: block; font-size: 22px; color: #1f3e44; }
-.stat-card span { color: #7a8d89; font-size: 12px; }
+.stat-card { padding: 14px 16px; background: var(--c-surface); border: 1px solid var(--c-brand-soft); border-radius: var(--r-md); }
+.stat-card strong { display: block; font-size: 22px; color: var(--c-text); }
+.stat-card span { color: var(--c-text-2); font-size: 12px; }
 
-.filter-bar { display: flex; gap: 10px; align-items: center; background: #fff; border: 1px solid #e9eee9; border-radius: 10px; padding: 12px 16px; margin-bottom: 14px; }
-.filter-bar .filter-input { flex: 1; padding: 7px 12px; border: 1px solid #d9e6e1; border-radius: 8px; background: #fafdfc; }
+.filter-bar { display: flex; gap: 10px; align-items: center; background: var(--c-surface); border: 1px solid var(--c-brand-soft); border-radius: var(--r-md); padding: 12px 16px; margin-bottom: 14px; }
+.filter-bar .filter-input { flex: 1; padding: 7px 12px; border: 1px solid var(--c-separator); border-radius: var(--r-sm); background: var(--c-surface-2); }
 .filter-bar .filter-input.small { flex: 0 0 140px; }
-.filter-bar select { padding: 7px 12px; border: 1px solid #d9e6e1; border-radius: 8px; background: #fff; }
+.filter-bar select { padding: 7px 12px; border: 1px solid var(--c-separator); border-radius: var(--r-sm); background: var(--c-surface); }
 .ghost-btn.small { padding: 6px 12px; font-size: 12px; }
-.ghost-btn { padding: 7px 12px; border: 1px solid #d9e6e1; background: #fff; border-radius: 8px; color: #37555a; cursor: pointer; font-size: 12px; }
+.ghost-btn { padding: 7px 12px; border: 1px solid var(--c-separator); background: var(--c-surface); border-radius: var(--r-sm); color: var(--c-text); cursor: pointer; font-size: 12px; }
 
 .content-grid { display: grid; grid-template-columns: 280px 1fr; gap: 14px; }
-.distribution-panel, .list-panel { background: #fff; border: 1px solid #e9eee9; border-radius: 10px; padding: 14px 16px; }
-.distribution-panel h3 { margin: 0 0 12px; display: flex; gap: 6px; align-items: center; font-size: 13px; color: #56716e; }
+.distribution-panel, .list-panel { background: var(--c-surface); border: 1px solid var(--c-brand-soft); border-radius: var(--r-md); padding: 14px 16px; }
+.distribution-panel h3 { margin: 0 0 12px; display: flex; gap: 6px; align-items: center; font-size: 13px; color: var(--c-brand-deep); }
 .type-bar { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
 .type-bar li { display: flex; gap: 8px; align-items: center; }
-.type-bar .type-name { width: 60px; font-size: 12px; color: #56716e; }
-.type-bar .track { flex: 1; height: 8px; background: #f4f7f5; border-radius: 4px; overflow: hidden; }
-.type-bar .fill { height: 100%; background: #2f7f80; border-radius: 4px; }
-.type-bar strong { font-size: 12px; color: #1f3e44; min-width: 30px; text-align: right; }
+.type-bar .type-name { width: 60px; font-size: 12px; color: var(--c-brand-deep); }
+.type-bar .track { flex: 1; height: 8px; background: var(--c-bg); border-radius: var(--r-xs); overflow: hidden; }
+.type-bar .fill { height: 100%; background: var(--c-brand); border-radius: var(--r-xs); }
+.type-bar strong { font-size: 12px; color: var(--c-text); min-width: 30px; text-align: right; }
 
-.loading-row, .empty-row { padding: 32px; text-align: center; color: #7a8d89; font-size: 13px; }
+.loading-row, .empty-row { padding: 32px; text-align: center; color: var(--c-text-2); font-size: 13px; }
 
 .hazard-list { list-style: none; margin: 0; padding: 0; max-height: 600px; overflow-y: auto; }
-.hazard-list li { display: flex; gap: 12px; padding: 12px 14px; border-bottom: 1px solid #eef3f1; cursor: pointer; transition: background .12s; }
-.hazard-list li:hover { background: #f4f7f5; }
-.level-dot { flex: 0 0 32px; width: 32px; height: 32px; border-radius: 50%; color: #fff; display: grid; place-items: center; font-weight: 700; }
-.level-dot.orange { background: #c7553b; }
-.level-dot.yellow { background: #d7a546; }
-.level-dot.blue   { background: #5db486; }
+.hazard-list li { display: flex; gap: 12px; padding: 12px 14px; border-bottom: 1px solid var(--c-border-2); cursor: pointer; transition: background .12s; }
+.hazard-list li:hover { background: var(--c-bg); }
+.level-dot { flex: 0 0 32px; width: 32px; height: 32px; border-radius: 50%; color: var(--c-on-brand); display: grid; place-items: center; font-weight: 700; }
+.level-dot.orange { background: var(--c-danger-strong); }
+.level-dot.yellow { background: var(--c-warning-bg); }
+.level-dot.blue   { background: var(--c-brand); }
 .body { flex: 1; min-width: 0; }
 .title { display: flex; gap: 8px; align-items: center; }
-.title strong { color: #1f3e44; font-size: 13px; }
-.title code { color: #7a8d89; font-size: 11px; }
+.title strong { color: var(--c-text); font-size: 13px; }
+.title code { color: var(--c-text-2); font-size: 11px; }
 .level-tag { padding: 1px 6px; border-radius: 3px; font-size: 10px; }
-.level-tag.orange { background: rgba(199,85,59,.12); color: #c7553b; }
-.level-tag.yellow { background: rgba(215,165,70,.18); color: #9b761e; }
-.level-tag.blue { background: rgba(93,180,134,.15); color: #2a8154; }
-.body p { margin: 2px 0; color: #7a8d89; font-size: 12px; }
-.body small { color: #9aacab; font-size: 11px; display: flex; gap: 4px; align-items: center; }
+.level-tag.orange { background: var(--c-danger-bg); color: var(--c-danger-strong); }
+.level-tag.yellow { background: var(--c-warning-bg); color: var(--c-warning-ink); }
+.level-tag.blue { background: var(--c-success-bg); color: var(--c-brand-deep); }
+/* 统计数字强调色（原为模板内联 style，改为 class 以支持暗色主题）*/
+.stat-num--danger { color: var(--c-danger-strong); }
+.stat-num--watch { color: var(--c-warning); }
+.stat-num--closed { color: var(--c-brand-deep); }
+.body p { margin: 2px 0; color: var(--c-text-2); font-size: 12px; }
+.body small { color: var(--c-text-3); font-size: 11px; display: flex; gap: 4px; align-items: center; }
 
 .spin { animation: spin 1s linear infinite; }
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }

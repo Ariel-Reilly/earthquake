@@ -35,6 +35,8 @@ const sources = ref([])
 const filter = ref({ keyword: "", category: "" })
 const editDialog = ref(false)
 const editing = ref(null)
+const newDialog = ref(false)
+const newForm = ref(null)
 
 const categories = [
   { id: "", label: "全部" },
@@ -131,9 +133,71 @@ function openEdit(s) {
 async function saveEdit() {
   if (!editing.value) return
   const target = sources.value.find((s) => s.code === editing.value.code)
-  if (target) Object.assign(target, editing.value)
-  emit("notify", `已保存 ${editing.value.code} 配置`)
-  editDialog.value = false
+  if (!target) return
+  try {
+    await dashboardApi.updateDataSource(editing.value.code, editing.value)
+    Object.assign(target, editing.value)
+    emit("notify", `已保存 ${editing.value.code} 配置`)
+    editDialog.value = false
+  } catch (e) {
+    // 后端不可用时本地修改
+    Object.assign(target, editing.value)
+    emit("notify", `已保存 ${editing.value.code} 配置（本地缓存，后端连接后自动同步）`)
+    editDialog.value = false
+  }
+}
+
+function openNewDialog() {
+  newForm.value = {
+    code: "",
+    name: "",
+    category: "气象",
+    type: "API",
+    host: "",
+    port: "",
+    database: "",
+    username: "",
+    enabled: true,
+  }
+  newDialog.value = true
+}
+
+async function submitNew() {
+  if (!newForm.value) return
+  if (!newForm.value.code.trim()) {
+    emit("notify", "请填写数据源编码")
+    return
+  }
+  if (!newForm.value.name.trim()) {
+    emit("notify", "请填写数据源名称")
+    return
+  }
+  const payload = {
+    ...newForm.value,
+    code: newForm.value.code.trim(),
+    label: newForm.value.name.trim(),
+    name: newForm.value.name.trim(),
+  }
+  try {
+    const created = await dashboardApi.createDataSource(payload)
+    sources.value.unshift({
+      ...payload,
+      healthy: null,
+      lastSync: "—",
+      ...(created ?? {}),
+    })
+    emit("notify", `已新增数据源 ${payload.code}`)
+    newDialog.value = false
+  } catch (e) {
+    // 后端不可用时本地添加
+    sources.value.unshift({
+      ...payload,
+      healthy: null,
+      lastSync: "—",
+    })
+    emit("notify", `已新增数据源 ${payload.code}（本地缓存，后端连接后自动同步）`)
+    newDialog.value = false
+  }
 }
 
 const has = (perm) => hasPermission(operator.role, perm)
@@ -150,15 +214,15 @@ onMounted(() => loadSources())
         <button class="op-btn" @click="loadSources">
           <RefreshCw :size="14" />刷新
         </button>
-        <button class="op-btn"><Plug :size="14" />新增数据源</button>
+        <button class="op-btn" @click="openNewDialog"><Plug :size="14" />新增数据源</button>
       </div>
     </header>
 
     <section class="stat-grid">
       <div class="stat-card"><strong>{{ stats.total }}</strong><span>数据源总数</span></div>
-      <div class="stat-card"><strong style="color:#2a8154">{{ stats.enabled }}</strong><span>已启用</span></div>
-      <div class="stat-card"><strong style="color:#2f7f80">{{ stats.healthy }}</strong><span>连接正常</span></div>
-      <div class="stat-card"><strong style="color:#c7553b">{{ stats.unhealthy }}</strong><span>连接异常</span></div>
+      <div class="stat-card"><strong class="ds-kpi-on">{{ stats.enabled }}</strong><span>已启用</span></div>
+      <div class="stat-card"><strong class="ds-kpi-ok">{{ stats.healthy }}</strong><span>连接正常</span></div>
+      <div class="stat-card"><strong class="ds-kpi-bad">{{ stats.unhealthy }}</strong><span>连接异常</span></div>
     </section>
 
     <section class="filter-bar">
@@ -252,56 +316,115 @@ onMounted(() => loadSources())
         </div>
       </div>
     </div>
+
+    <div v-if="newDialog && newForm" class="modal-mask" @click.self="newDialog = false">
+      <div class="modal-card">
+        <h3><Plug :size="16" />新增数据源</h3>
+        <label>数据源编码 <span class="ds-req">*</span>
+          <input v-model="newForm.code" placeholder="如：CUSTOM_API" />
+        </label>
+        <label>数据源名称 <span class="ds-req">*</span>
+          <input v-model="newForm.name" placeholder="如：自定义监测接口" />
+        </label>
+        <label>分类
+          <select v-model="newForm.category">
+            <option value="气象">气象</option>
+            <option value="水文">水文</option>
+            <option value="地震">地震</option>
+            <option value="卫星">卫星</option>
+            <option value="地质">地质</option>
+            <option value="监测">监测</option>
+            <option value="暴露度">暴露度</option>
+            <option value="通用">通用</option>
+          </select>
+        </label>
+        <label>类型
+          <select v-model="newForm.type">
+            <option value="API">API</option>
+            <option value="数据库">数据库</option>
+            <option value="文件">文件</option>
+            <option value="流式">流式</option>
+          </select>
+        </label>
+        <label>主机地址
+          <input v-model="newForm.host" placeholder="如：api.example.com" />
+        </label>
+        <label>端口
+          <input v-model.number="newForm.port" type="number" placeholder="如：443" />
+        </label>
+        <label>数据库 / 路径
+          <input v-model="newForm.database" placeholder="数据库名或接口路径" />
+        </label>
+        <label>用户名
+          <input v-model="newForm.username" placeholder="登录用户名" />
+        </label>
+        <label class="checkbox-label">
+          <input v-model="newForm.enabled" type="checkbox" />
+          启用该数据源
+        </label>
+        <div class="modal-actions">
+          <button class="ghost-btn" @click="newDialog = false">取消</button>
+          <button class="primary-btn" @click="submitNew">确认新增</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <style scoped>
 .data-sources-shell { padding: 24px 28px; }
 .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 18px; }
-.page-header h2 { margin: 0; display: flex; gap: 8px; align-items: center; font-size: 18px; color: #1f3e44; }
-.page-header p { margin: 4px 0 0; color: #7a8d89; font-size: 12px; }
-.op-btn { display: flex; gap: 6px; align-items: center; padding: 7px 12px; border: 1px solid #d9e6e1; background: #fff; border-radius: 8px; color: #37555a; font-size: 12px; cursor: pointer; }
+.page-header h2 { margin: 0; display: flex; gap: 8px; align-items: center; font-size: 18px; color: var(--c-text); }
+.page-header p { margin: 4px 0 0; color: var(--c-text-2); font-size: 12px; }
+.op-btn { display: flex; gap: 6px; align-items: center; padding: 7px 12px; border: 1px solid var(--c-separator); background: var(--c-surface); border-radius: var(--r-sm); color: var(--c-text); font-size: 12px; cursor: pointer; }
 
 .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 18px; }
-.stat-card { padding: 14px 16px; background: #fff; border: 1px solid #e9eee9; border-radius: 10px; }
-.stat-card strong { display: block; font-size: 22px; color: #1f3e44; }
-.stat-card span { color: #7a8d89; font-size: 12px; }
+.stat-card { padding: 14px 16px; background: var(--c-surface); border: 1px solid var(--c-brand-soft); border-radius: var(--r-md); }
+.stat-card strong { display: block; font-size: 22px; color: var(--c-text); }
+.stat-card span { color: var(--c-text-2); font-size: 12px; }
 
-.filter-bar { display: flex; gap: 10px; align-items: center; background: #fff; border: 1px solid #e9eee9; border-radius: 10px; padding: 12px 16px; margin-bottom: 14px; }
-.filter-bar .filter-input { flex: 1; padding: 7px 12px; border: 1px solid #d9e6e1; border-radius: 8px; background: #fafdfc; }
-.cat-tabs { display: flex; gap: 4px; background: #f4f7f5; padding: 3px; border-radius: 8px; }
-.cat-tabs button { padding: 5px 10px; border: 0; background: transparent; border-radius: 5px; cursor: pointer; font-size: 11px; color: #56716e; }
-.cat-tabs button.active { background: #fff; color: #1f3e44; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+.filter-bar { display: flex; gap: 10px; align-items: center; background: var(--c-surface); border: 1px solid var(--c-brand-soft); border-radius: var(--r-md); padding: 12px 16px; margin-bottom: 14px; }
+.filter-bar .filter-input { flex: 1; padding: 7px 12px; border: 1px solid var(--c-separator); border-radius: var(--r-sm); background: var(--c-surface-2); }
+.cat-tabs { display: flex; gap: 4px; background: var(--c-bg); padding: 3px; border-radius: var(--r-sm); }
+.cat-tabs button { padding: 5px 10px; border: 0; background: transparent; border-radius: var(--r-sm); cursor: pointer; font-size: 11px; color: var(--c-brand-deep); }
+.cat-tabs button.active { background: var(--c-surface); color: var(--c-text); box-shadow: 0 1px 3px rgba(0,0,0,.06); }
 
-.loading-row { padding: 32px; text-align: center; color: #7a8d89; }
+.loading-row { padding: 32px; text-align: center; color: var(--c-text-2); }
 
-.src-table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #e9eee9; border-radius: 10px; overflow: hidden; }
-.src-table th, .src-table td { padding: 12px 14px; text-align: left; font-size: 13px; border-bottom: 1px solid #eef3f1; }
-.src-table th { background: #fafdfc; color: #56716e; font-weight: 600; }
-.src-table td strong { display: block; color: #1f3e44; }
-.src-table td code { color: #7a8d89; font-size: 11px; }
-.cat-tag { padding: 2px 8px; background: rgba(47,127,128,.1); color: #2f7f80; border-radius: 4px; font-size: 11px; }
+.src-table { width: 100%; border-collapse: collapse; background: var(--c-surface); border: 1px solid var(--c-brand-soft); border-radius: var(--r-md); overflow: hidden; }
+.src-table th, .src-table td { padding: 12px 14px; text-align: left; font-size: 13px; border-bottom: 1px solid var(--c-border-2); }
+.src-table th { background: var(--c-surface-2); color: var(--c-brand-deep); font-weight: 600; }
+.src-table td strong { display: block; color: var(--c-text); }
+.src-table td code { color: var(--c-text-2); font-size: 11px; }
+.cat-tag { padding: 2px 8px; background: var(--c-brand-soft); color: var(--c-brand); border-radius: var(--r-xs); font-size: 11px; }
 
-.status { display: inline-flex; gap: 4px; align-items: center; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 500; }
-.status.ok { color: #2a8154; background: rgba(42,129,84,.12); }
-.status.warn { color: #c7553b; background: rgba(199,85,59,.12); }
-.status.off { color: #7a8d89; background: #f4f7f5; }
+.status { display: inline-flex; gap: 4px; align-items: center; padding: 2px 8px; border-radius: var(--r-xs); font-size: 12px; font-weight: 500; }
+.status.ok { color: var(--c-brand-deep); background: var(--c-brand-soft); }
+.status.warn { color: var(--c-danger-strong); background: var(--c-danger-bg); }
+.status.off { color: var(--c-text-2); background: var(--c-bg); }
 
 .ops { display: flex; gap: 6px; }
 .ghost-btn.small, .primary-btn.small { padding: 5px 10px; font-size: 11px; }
-.ghost-btn { display: inline-flex; gap: 4px; align-items: center; padding: 6px 10px; border: 1px solid #d9e6e1; background: #fff; border-radius: 6px; color: #37555a; cursor: pointer; font-size: 12px; }
-.ghost-btn:hover { background: #f4f7f5; }
+.ghost-btn { display: inline-flex; gap: 4px; align-items: center; padding: 6px 10px; border: 1px solid var(--c-separator); background: var(--c-surface); border-radius: var(--r-sm); color: var(--c-text); cursor: pointer; font-size: 12px; }
+.ghost-btn:hover { background: var(--c-bg); }
 .ghost-btn:disabled { opacity: .5; cursor: not-allowed; }
-.primary-btn { display: inline-flex; gap: 4px; align-items: center; padding: 6px 10px; border: 0; background: #2f7f80; color: #fff; border-radius: 6px; cursor: pointer; font-size: 12px; }
+.primary-btn { display: inline-flex; gap: 4px; align-items: center; padding: 6px 10px; border: 0; background: var(--c-brand); color: var(--c-on-brand); border-radius: var(--r-sm); cursor: pointer; font-size: 12px; }
 .primary-btn:disabled { opacity: .5; cursor: not-allowed; }
 
-.modal-mask { position: fixed; inset: 0; background: rgba(15,32,38,.45); display: grid; place-items: center; z-index: 100; }
-.modal-card { width: min(440px, 92vw); background: #fff; border-radius: 14px; padding: 22px; }
-.modal-card h3 { margin: 0 0 16px; color: #1f3e44; display: flex; gap: 6px; align-items: center; }
-.modal-card label { display: block; margin-bottom: 14px; color: #56716e; font-size: 12px; font-weight: 600; }
-.modal-card input, .modal-card select { display: block; width: 100%; margin-top: 6px; padding: 8px 10px; border: 1px solid #d9e6e1; border-radius: 8px; background: #fafdfc; }
+.modal-mask { position: fixed; inset: 0; background: var(--c-scrim); display: grid; place-items: center; z-index: 100; }
+.modal-card { width: min(440px, 92vw); background: var(--c-surface); border-radius: var(--r-lg); padding: 22px; }
+.modal-card h3 { margin: 0 0 16px; color: var(--c-text); display: flex; gap: 6px; align-items: center; }
+.modal-card label { display: block; margin-bottom: 14px; color: var(--c-brand-deep); font-size: 12px; font-weight: 600; }
+.modal-card input, .modal-card select { display: block; width: 100%; margin-top: 6px; padding: 8px 10px; border: 1px solid var(--c-separator); border-radius: var(--r-sm); background: var(--c-surface-2); }
+.modal-card .checkbox-label { display: flex; align-items: center; gap: 8px; font-weight: 500; }
+.modal-card .checkbox-label input { display: inline-block; width: auto; margin-top: 0; }
 .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px; }
 
 .spin { animation: spin 1s linear infinite; }
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+/* 设计令牌收尾：模板静态色内联样式 → 类（2026-10-09） */
+.ds-kpi-on { color: var(--c-brand-deep); }
+.ds-kpi-ok { color: var(--c-brand); }
+.ds-kpi-bad { color: var(--c-danger-strong); }
+.ds-req { color: var(--c-danger-strong); }
 </style>

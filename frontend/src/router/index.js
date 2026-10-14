@@ -128,12 +128,18 @@ const NotificationChannelsPage = () =>
   import(/* webpackChunkName: "system" */ "../views/system/NotificationChannelsPage.vue");
 const CommandScreenPage = () =>
   import(/* webpackChunkName: "screen" */ "../views/screen/CommandScreenPage.vue");
+const WorkbenchPage = () =>
+  import(/* webpackChunkName: "system" */ "../views/system/WorkbenchPage.vue");
+const DataManagePage = () =>
+  import(/* webpackChunkName: "data" */ "../views/data/DataManagePage.vue");
+const WarningConfigPage = () =>
+  import(/* webpackChunkName: "warning" */ "../views/warning/WarningConfigPage.vue");
 
 // 404 组件（inline，避免单独建文件）
 const NotFoundPage = {
   template: `
     <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;font-family:-apple-system,sans-serif;color:#4a5568;">
-      <div style="font-size:96px;font-weight:800;color:#e27d5b;">404</div>
+      <div style="font-size:96px;font-weight:800;color:#cd927e;">404</div>
       <div style="font-size:20px;margin-top:12px;">页面不存在</div>
       <router-link to="/dashboard" style="margin-top:24px;padding:8px 20px;background:#2b6cb0;color:#fff;border-radius:6px;text-decoration:none;">返回首页</router-link>
     </div>
@@ -315,6 +321,11 @@ const router = createRouter({
             },
           ],
         },
+        {
+          path: "warning-config",
+          name: "warning-config",
+          component: WarningConfigPage,
+        },
         { path: "emergency", name: "emergency", component: EmergencyPage },
         {
           path: "resource-dispatch",
@@ -333,6 +344,11 @@ const router = createRouter({
               props: true,
             },
           ],
+        },
+        {
+          path: "data-manage",
+          name: "data-manage",
+          component: DataManagePage,
         },
         {
           path: "data-sources",
@@ -362,6 +378,11 @@ const router = createRouter({
           path: "system-monitor",
           name: "system-monitor",
           component: SystemMonitorPage,
+        },
+        {
+          path: "workbench",
+          name: "workbench",
+          component: WorkbenchPage,
         },
         {
           path: "message-center",

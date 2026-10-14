@@ -60,11 +60,11 @@ async function loadAiRisk() {
 function riskLevelColor(level) {
   const map = {
     CRITICAL: "#e06060",
-    HIGH: "#e0a050",
+    HIGH: "#cbaa76",
     MEDIUM: "#d9c040",
-    LOW: "#6dbfa5",
+    LOW: "#87b096",
   };
-  return map[String(level || "").toUpperCase()] || "#7a8d89";
+  return map[String(level || "").toUpperCase()] || "#76847a";
 }
 
 function riskLevelLabel(level) {
@@ -115,7 +115,7 @@ onMounted(loadData);
             </button>
           </div>
         </div>
-        <div v-if="loading" style="padding: 0 20px 18px; color: #7a8d89">
+        <div v-if="loading" class="u-hint-block">
           加载中...
         </div>
         <template v-else-if="warning">
@@ -156,12 +156,12 @@ onMounted(loadData);
           <div class="chart-card" style="margin: 0 20px 18px">
             <div class="mini-chart-header">
               <strong><Bot :size="16" />AI 融合风险评分</strong>
-              <span v-if="aiRisk?.mock" style="color: #e0a050">启发式降级</span>
-              <span v-else-if="aiRisk" style="color: #6dbfa5">{{
+              <span v-if="aiRisk?.mock" class="u-text-warn">启发式降级</span>
+              <span v-else-if="aiRisk" class="u-text-brand">{{
                 aiRisk.model
               }}</span>
             </div>
-            <div v-if="aiRiskLoading" style="padding: 12px; color: #7a8d89">
+            <div v-if="aiRiskLoading" class="u-hint-box">
               AI 分析中...
             </div>
             <div v-else-if="aiRisk" style="padding: 8px 12px">
@@ -176,8 +176,8 @@ onMounted(loadData);
                         aiRisk.risk_score >= 60
                           ? '#e06060'
                           : aiRisk.risk_score >= 35
-                            ? '#e0a050'
-                            : '#6dbfa5',
+                            ? '#cbaa76'
+                            : '#87b096',
                     }"
                   >
                     {{ aiRisk.risk_score }}<small>%</small>
@@ -195,7 +195,7 @@ onMounted(loadData);
                       :style="{ color: riskLevelColor(aiRisk.risk_level) }"
                       >{{ riskLevelLabel(aiRisk.risk_level) }}</strong
                     >
-                    <span style="color: #7a8d89; font-size: 12px"
+                    <span class="u-hint-12"
                       >置信度 {{ (aiRisk.confidence * 100).toFixed(0) }}%</span
                     >
                   </div>
@@ -210,7 +210,7 @@ onMounted(loadData);
                 </div>
               </div>
             </div>
-            <div v-else style="padding: 12px; color: #7a8d89">
+            <div v-else class="u-hint-box">
               AI 服务不可用，已跳过评分
             </div>
           </div>
@@ -229,7 +229,7 @@ onMounted(loadData);
               <strong v-if="!editMode">{{ warning.title }}</strong>
               <input v-else v-model="form.title" />
               <span v-if="!editMode">{{ warning.desc }}</span>
-              <span v-else style="color: #7a8d89">{{ warning.desc }}</span>
+              <span v-else class="u-text-2">{{ warning.desc }}</span>
               <div class="task-bars">
                 <i
                   v-if="aiRisk"
@@ -240,11 +240,11 @@ onMounted(loadData);
                 ></i>
                 <i v-else style="width: 0%"></i>
               </div>
-              <p v-if="aiRisk" style="color: #57817d">
+              <p v-if="aiRisk" class="u-text-2">
                 AI 融合评分：{{ riskLevelLabel(aiRisk.risk_level) }}（置信度
                 {{ (aiRisk.confidence * 100).toFixed(0) }}%）
               </p>
-              <p v-else style="color: #d88a6a">
+              <p v-else class="u-text-clay">
                 AI 识别服务不可用，未生成风险评分（无虚拟数据）
               </p>
             </div>
@@ -304,7 +304,7 @@ onMounted(loadData);
             >
               <span>{{ file.name }}</span>
               <div class="pie-track">
-                <i style="width: 100%; background: #4f8f99"></i>
+                <i class="u-bar-brand"></i>
               </div>
               <strong>{{ file.size }}</strong>
             </div>
@@ -325,7 +325,7 @@ onMounted(loadData);
               <span class="link-type">{{ item.type }}</span>
               <span class="link-label">{{ item.label }}</span>
               <div class="pie-track">
-                <i style="width: 100%; background: #6dbfa5"></i>
+                <i class="u-bar-brand-hover"></i>
               </div>
               <strong class="link-go">查看 ›</strong>
             </RouterLink>

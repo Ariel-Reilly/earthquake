@@ -18,7 +18,7 @@
  */
 
 <script setup>
-import { computed, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import {
   Radar,
   AlertTriangle,
@@ -42,65 +42,58 @@ import {
   Zap,
 } from "lucide-vue-next";
 import { useRouter } from "vue-router";
+import { dashboardApi } from "../../services/dashboardApi";
+
+defineProps({ searchTerm: { type: String, default: "" }, userRole: { type: String, default: "admin" } });
+const emit = defineEmits(["notify"]);
 
 const router = useRouter();
 const isOnline = ref(navigator.onLine);
 const loading = ref(true);
 const refreshing = ref(false);
 const lastUpdated = ref(null);
+const loadError = ref("");
 
 // ─────────────────────────────────────────────
-// 1. KPI 数据（mock，真实场景由 dashboardApi 拉取）
+// 1. KPI 数据（来自后端真实统计）
+//    - getOverview(): 监测灾害点 / 在线设备 / 活跃预警 / 巡检完成率
+//    - getConfirmationQueueStats(): 待确认数
 // ─────────────────────────────────────────────
 const kpi = ref({
-  pendingConfirm: 3,
-  activeWarnings: 7,
-  emergencyEvents: 2,
-  deviceOnline: 94.2,
-  unreadMessages: 12,
-  pendingApprovals: 5,
+  pendingConfirm: 0,
+  activeWarnings: 0,
+  emergencyEvents: 0,
+  deviceOnline: null,
+  unreadMessages: 0,
+  pendingApprovals: 0,
 });
 
-// 预警列表
-const warnings = ref([
-  {
-    id: "W-2026091301",
-    title: "龙泉驿区山体滑坡预警",
-    level: "orange",
-    levelLabel: "橙色",
-    status: "published",
-    statusLabel: "已发布",
-    time: "14:32",
-    location: "四川省成都市龙泉驿区",
-  },
-  {
-    id: "W-2026091302",
-    title: "青白江区暴雨洪涝预警",
-    level: "yellow",
-    levelLabel: "黄色",
-    status: "draft",
-    statusLabel: "待发布",
-    time: "13:15",
-    location: "四川省成都市青白江区",
-  },
-  {
-    id: "W-2026091208",
-    title: "都江堰市泥石流蓝色预警",
-    level: "blue",
-    levelLabel: "蓝色",
-    status: "published",
-    statusLabel: "已发布",
-    time: "昨天 22:10",
-    location: "四川省成都市都江堰市",
-  },
-]);
+// 预警列表（来自 GET /api/warnings）
+const warnings = ref([]);
 
-// 待确认队列
-const pendingConfirm = ref([
-  { id: "H-021", location: "龙安镇北侧隐患点", type: "滑坡", score: 0.87, time: "10 分钟前" },
-  { id: "H-018", location: "青白江河道东岸", type: "地面沉降", score: 0.72, time: "25 分钟前" },
-  { id: "H-015", location: "都江堰景区入口", type: "崩塌", score: 0.65, time: "1 小时前" },
-]);
+// 待确认队列（来自 GET /api/confirmation/queue）
+const pendingConfirm = ref([]);
+
+/** 预警等级中文标签。 */
+const LEVEL_LABEL = { red: "红色", orange: "橙色", yellow: "黄色", blue: "蓝色" };
+
+/** 预警状态中文标签。 */
+const WARNING_STATUS_LABEL = {
+  published: "已发布",
+  draft: "待发布",
+  resolved: "已解除",
+  closed: "已关闭",
+  ignored: "已忽略",
+};
+
+/** 风险分 → 等级（用于待确认项展示）。 */
+function levelFromScore(score) {
+  if (score == null) return "blue";
+  if (score >= 0.85) return "red";
+  if (score >= 0.7) return "orange";
+  if (score >= 0.5) return "yellow";
+  return "blue";
+}
 
 // ─────────────────────────────────────────────
 // 2. 计算属性
@@ -115,26 +108,123 @@ const levelColor = (level) => ({
 const statusBadge = (status) => ({
   published: { bg: "#c6f6d5", color: "#276749", label: "已发布" },
   draft: { bg: "#feebc8", color: "#975a16", label: "待发布" },
-  resolved: { bg: "#e2e8f0", color: "#4a5568", label: "已解除" },
+  resolved: { bg: "#dde8e0", color: "#4a5568", label: "已解除" },
 }[status] ?? { bg: "#edf2f7", color: "#4a5568", label: status });
 
 // ─────────────────────────────────────────────
 // 3. 生命周期
 // ─────────────────────────────────────────────
+function handleOnline() { isOnline.value = true; }
+function handleOffline() { isOnline.value = false; }
+
 onMounted(async () => {
-  window.addEventListener("online", () => { isOnline.value = true; });
-  window.addEventListener("offline", () => { isOnline.value = false; });
+  window.addEventListener("online", handleOnline);
+  window.addEventListener("offline", handleOffline);
   await loadData();
 });
 
+onBeforeUnmount(() => {
+  window.removeEventListener("online", handleOnline);
+  window.removeEventListener("offline", handleOffline);
+});
+
+/** 相对时间格式化（"10 分钟前"）。 */
+function relativeTime(iso) {
+  if (!iso) return "—";
+  const t = new Date(iso).getTime();
+  if (!Number.isFinite(t)) return "—";
+  const diffMin = Math.floor((Date.now() - t) / 60000);
+  if (diffMin < 1) return "刚刚";
+  if (diffMin < 60) return `${diffMin} 分钟前`;
+  const diffH = Math.floor(diffMin / 60);
+  if (diffH < 24) return `${diffH} 小时前`;
+  return `${Math.floor(diffH / 24)} 天前`;
+}
+
+/** 时刻格式化（HH:mm）。 */
+function clockOf(iso) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
 async function loadData() {
   loading.value = true;
+  loadError.value = "";
   try {
-    // 真实场景：const data = await dashboardApi.getMobileKpi()
-    await new Promise((r) => setTimeout(r, 600));
+    const [overview, confirmStats, warningPage, queue] = await Promise.allSettled([
+      dashboardApi.getOverview(),
+      dashboardApi.getConfirmationQueueStats(),
+      dashboardApi.getWarnings({ page: 1, size: 5 }),
+      dashboardApi.getConfirmationQueue({ page: 1, size: 5 }),
+    ]);
+
+    // KPI：overview 为 [{title, value, unit, desc, color}]
+    if (overview.status === "fulfilled" && Array.isArray(overview.value)) {
+      const cards = overview.value;
+      const findCard = (kw) => cards.find((c) => (c.title ?? "").includes(kw));
+      const onlineCard = findCard("在线监测设备");
+      if (onlineCard) {
+        // value 形如 "12/15"（在线/总数）
+        const [online, total] = String(onlineCard.value ?? "").split("/").map(Number);
+        kpi.value.deviceOnline =
+          Number.isFinite(online) && Number.isFinite(total) && total > 0
+            ? Math.round((online / total) * 1000) / 10
+            : null;
+      }
+      const warnCard = findCard("预警");
+      if (warnCard) kpi.value.activeWarnings = Number(warnCard.value) || 0;
+    }
+
+    // 待确认数
+    if (confirmStats.status === "fulfilled" && confirmStats.value) {
+      const s = confirmStats.value;
+      kpi.value.pendingConfirm = Number(s.pending ?? s.detected ?? s.total ?? 0) || 0;
+    }
+
+    // 应急事件数：取自 /dashboard/summary 的模块计数
+    try {
+      const meta = await dashboardApi.getModuleMeta();
+      kpi.value.emergencyEvents = Number(meta?.modules?.emergencyEvents ?? 0) || 0;
+    } catch {
+      kpi.value.emergencyEvents = 0;
+    }
+
+    // 预警列表
+    if (warningPage.status === "fulfilled") {
+      const list = warningPage.value?.records ?? warningPage.value?.list ?? warningPage.value?.items ?? [];
+      warnings.value = list.map((w) => ({
+        id: String(w.id ?? w.warningCode ?? w.code ?? ""),
+        title: w.title ?? w.content ?? w.warningTitle ?? "未命名预警",
+        level: w.level ?? w.warningLevel ?? "blue",
+        levelLabel: LEVEL_LABEL[w.level ?? w.warningLevel] ?? "未知",
+        status: w.status ?? "draft",
+        statusLabel:
+          w.statusLabel ?? WARNING_STATUS_LABEL[w.status] ?? w.status ?? "未知",
+        time: clockOf(w.publishedAt ?? w.createdAt ?? w.triggeredAt),
+        location: w.regionName ?? w.location ?? w.regionCode ?? "",
+      }));
+    }
+
+    // 待确认队列
+    if (queue.status === "fulfilled") {
+      const list = queue.value?.items ?? queue.value?.records ?? [];
+      pendingConfirm.value = list.slice(0, 5).map((h) => ({
+        id: String(h.id ?? h.hazardCode ?? h.code ?? ""),
+        location: h.location ?? h.name ?? h.regionName ?? h.hazardCode ?? "未知位置",
+        type: h.hazardType ?? h.type ?? "—",
+        score: h.score ?? h.riskScore ?? h.confidence ?? null,
+        time: relativeTime(h.detectedAt ?? h.createdAt ?? h.triggeredAt),
+      }));
+      if (pendingConfirm.value.length && !kpi.value.pendingConfirm) {
+        kpi.value.pendingConfirm = pendingConfirm.value.length;
+      }
+    }
+
     lastUpdated.value = new Date();
-  } catch {
-    // ignore
+  } catch (e) {
+    loadError.value = e?.message ?? "加载失败";
   } finally {
     loading.value = false;
   }
@@ -149,25 +239,42 @@ async function refresh() {
 // ─────────────────────────────────────────────
 // 4. 操作
 // ─────────────────────────────────────────────
-function quickConfirm(item, approve) {
-  // 真实场景：await dashboardApi.confirmHazard(item.id, approve)
-  if (approve) {
+async function quickConfirm(item, approve) {
+  const eventId = item.eventId ?? item.id;
+  try {
+    if (approve) {
+      await dashboardApi.confirmHazard(eventId);
+    } else {
+      await dashboardApi.rejectHazard(eventId, "移动端快捷驳回");
+    }
     pendingConfirm.value = pendingConfirm.value.filter((i) => i.id !== item.id);
     kpi.value.pendingConfirm = Math.max(0, kpi.value.pendingConfirm - 1);
-  } else {
-    pendingConfirm.value = pendingConfirm.value.filter((i) => i.id !== item.id);
+    emit("notify", approve ? "已确认" : "已驳回");
+  } catch (e) {
+    emit("notify", `${approve ? "确认" : "驳回"}失败：${e?.message ?? e}`);
   }
 }
 
-function quickPublish(warning) {
-  warning.status = "published";
-  warning.statusLabel = "已发布";
+async function quickPublish(warning) {
+  try {
+    await dashboardApi.dispatchWarning(warning.id);
+    warning.status = "published";
+    warning.statusLabel = WARNING_STATUS_LABEL.published;
+    emit("notify", "预警已发布");
+  } catch (e) {
+    emit("notify", `发布失败：${e?.message ?? e}`);
+  }
 }
 
-function quickResolve(warning) {
-  warning.status = "resolved";
-  warning.statusLabel = "已解除";
-  kpi.value.activeWarnings = Math.max(0, kpi.value.activeWarnings - 1);
+async function quickResolve(warning) {
+  try {
+    await dashboardApi.resolveWarning(warning.id);
+    warning.status = "resolved";
+    warning.statusLabel = WARNING_STATUS_LABEL.resolved;
+    emit("notify", "预警已解除");
+  } catch (e) {
+    emit("notify", `解除失败：${e?.message ?? e}`);
+  }
 }
 
 function goFullSite() {
@@ -237,7 +344,7 @@ function goVideo() {
           <ShieldCheck :size="18" class="kpi-icon" />
         </div>
         <div class="kpi-card kpi-device" @click="router.push('/dashboard/devices')">
-          <div class="kpi-num">{{ kpi.deviceOnline }}%</div>
+          <div class="kpi-num">{{ kpi.deviceOnline != null ? kpi.deviceOnline + '%' : '—' }}</div>
           <div class="kpi-label">设备在线</div>
           <Wifi :size="18" class="kpi-icon" />
         </div>
@@ -371,8 +478,8 @@ function goVideo() {
 /* ── 基础 ── */
 .mobile-root {
   min-height: 100vh;
-  background: #0f172a;
-  color: #e2e8f0;
+  background: var(--c-text);
+  color: var(--c-brand-soft);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   display: flex;
   flex-direction: column;
@@ -380,8 +487,8 @@ function goVideo() {
 }
 
 .offline-banner {
-  background: #92400e;
-  color: #fef3c7;
+  background: var(--c-warning-ink);
+  color: var(--c-warning-bg);
   font-size: 12px;
   padding: 6px 16px;
   display: flex;
@@ -397,8 +504,8 @@ function goVideo() {
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px;
-  background: #1e293b;
-  border-bottom: 1px solid #334155;
+  background: var(--c-scrim);
+  border-bottom: 1px solid var(--c-ink-1);
   position: sticky;
   top: 0;
   z-index: 10;
@@ -411,18 +518,18 @@ function goVideo() {
   gap: 10px;
 }
 
-.brand-icon { color: #38bdf8; }
+.brand-icon { color: var(--sys-cyan); }
 
 .brand-name {
   font-size: 16px;
   font-weight: 700;
-  color: #f1f5f9;
+  color: var(--c-brand-mist);
   line-height: 1.2;
 }
 
 .brand-sub {
   font-size: 10px;
-  color: #64748b;
+  color: var(--c-text-3);
 }
 
 .header-right {
@@ -433,10 +540,10 @@ function goVideo() {
 .icon-btn {
   width: 36px;
   height: 36px;
-  border-radius: 8px;
-  border: 1px solid #334155;
-  background: #1e293b;
-  color: #94a3b8;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--c-ink-1);
+  background: var(--c-scrim);
+  color: var(--c-text-3);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -445,8 +552,8 @@ function goVideo() {
 }
 
 .icon-btn:active {
-  background: #334155;
-  color: #f1f5f9;
+  background: var(--c-ink-1);
+  color: var(--c-brand-mist);
 }
 
 /* ── 加载 ── */
@@ -457,7 +564,7 @@ function goVideo() {
   align-items: center;
   justify-content: center;
   gap: 12px;
-  color: #64748b;
+  color: var(--c-text-3);
   font-size: 14px;
 }
 
@@ -470,7 +577,7 @@ function goVideo() {
 
 .update-time {
   font-size: 11px;
-  color: #475569;
+  color: var(--c-ink-1);
   margin-bottom: 10px;
   display: flex;
   align-items: center;
@@ -486,22 +593,22 @@ function goVideo() {
 }
 
 .kpi-card {
-  background: #1e293b;
-  border-radius: 12px;
+  background: var(--c-scrim);
+  border-radius: var(--r-lg);
   padding: 14px;
   position: relative;
   overflow: hidden;
   cursor: pointer;
   transition: transform 0.15s;
-  border: 1px solid #334155;
+  border: 1px solid var(--c-ink-1);
 }
 
 .kpi-card:active { transform: scale(0.97); }
 
-.kpi-danger { border-left: 3px solid #ef4444; }
-.kpi-warning { border-left: 3px solid #f59e0b; }
-.kpi-emergency { border-left: 3px solid #dc2626; }
-.kpi-device { border-left: 3px solid #22c55e; }
+.kpi-danger { border-left: 3px solid var(--c-danger); }
+.kpi-warning { border-left: 3px solid var(--c-warning); }
+.kpi-emergency { border-left: 3px solid var(--c-danger-strong); }
+.kpi-device { border-left: 3px solid var(--c-success); }
 
 .kpi-num {
   font-size: 28px;
@@ -517,14 +624,14 @@ function goVideo() {
 
 .kpi-label {
   font-size: 12px;
-  color: #94a3b8;
+  color: var(--c-text-3);
 }
 
 .kpi-icon {
   position: absolute;
   top: 12px;
   right: 12px;
-  color: #334155;
+  color: var(--c-ink-1);
 }
 
 /* ── 快捷操作 ── */
@@ -541,24 +648,24 @@ function goVideo() {
   align-items: center;
   gap: 5px;
   padding: 12px 4px;
-  background: #1e293b;
-  border: 1px solid #334155;
-  border-radius: 10px;
-  color: #94a3b8;
+  background: var(--c-scrim);
+  border: 1px solid var(--c-ink-1);
+  border-radius: var(--r-md);
+  color: var(--c-text-3);
   font-size: 11px;
   cursor: pointer;
   transition: all 0.15s;
 }
 
-.action-btn:active { background: #334155; color: #f1f5f9; }
+.action-btn:active { background: var(--c-ink-1); color: var(--c-brand-mist); }
 
 .action-video { color: #818cf8; border-color: #3730a3; }
 .action-map { color: #34d399; border-color: #065f46; }
 
 .badge {
-  background: #ef4444;
-  color: #fff;
-  border-radius: 10px;
+  background: var(--c-danger);
+  color: var(--c-on-brand);
+  border-radius: var(--r-md);
   padding: 1px 5px;
   font-size: 10px;
   font-weight: 700;
@@ -580,7 +687,7 @@ function goVideo() {
   gap: 6px;
   font-size: 14px;
   font-weight: 600;
-  color: #e2e8f0;
+  color: var(--c-brand-soft);
 }
 
 .link-btn {
@@ -588,7 +695,7 @@ function goVideo() {
   align-items: center;
   gap: 2px;
   font-size: 12px;
-  color: #38bdf8;
+  color: var(--sys-cyan);
   background: none;
   border: none;
   cursor: pointer;
@@ -596,10 +703,10 @@ function goVideo() {
 
 /* ── 确认卡片 ── */
 .confirm-card {
-  background: #1e293b;
-  border: 1px solid #334155;
-  border-left: 3px solid #ef4444;
-  border-radius: 10px;
+  background: var(--c-scrim);
+  border: 1px solid var(--c-ink-1);
+  border-left: 3px solid var(--c-danger);
+  border-radius: var(--r-md);
   padding: 12px;
   margin-bottom: 8px;
 }
@@ -614,7 +721,7 @@ function goVideo() {
 .hazard-id {
   font-size: 13px;
   font-weight: 700;
-  color: #f1f5f9;
+  color: var(--c-brand-mist);
 }
 
 .confirm-score {
@@ -623,12 +730,12 @@ function goVideo() {
   color: #fbbf24;
   background: #451a03;
   padding: 1px 6px;
-  border-radius: 4px;
+  border-radius: var(--r-xs);
 }
 
 .confirm-location {
   font-size: 13px;
-  color: #94a3b8;
+  color: var(--c-text-3);
   margin-bottom: 6px;
 }
 
@@ -636,7 +743,7 @@ function goVideo() {
   display: flex;
   justify-content: space-between;
   font-size: 11px;
-  color: #64748b;
+  color: var(--c-text-3);
   margin-bottom: 8px;
 }
 
@@ -652,7 +759,7 @@ function goVideo() {
   justify-content: center;
   gap: 4px;
   padding: 7px;
-  border-radius: 6px;
+  border-radius: var(--r-sm);
   font-size: 12px;
   font-weight: 600;
   border: none;
@@ -663,7 +770,7 @@ function goVideo() {
 .btn-confirm:active { opacity: 0.7; }
 
 .btn-approve {
-  background: #166534;
+  background: var(--c-success-strong);
   color: #bbf7d0;
 }
 
@@ -674,10 +781,10 @@ function goVideo() {
 
 /* ── 预警卡片 ── */
 .warning-card {
-  background: #1e293b;
-  border: 1px solid #334155;
+  background: var(--c-scrim);
+  border: 1px solid var(--c-ink-1);
   border-left-width: 3px;
-  border-radius: 10px;
+  border-radius: var(--r-md);
   padding: 12px;
   margin-bottom: 8px;
 }
@@ -692,13 +799,13 @@ function goVideo() {
   font-size: 11px;
   font-weight: 600;
   padding: 1px 6px;
-  border-radius: 4px;
+  border-radius: var(--r-xs);
 }
 
 .warning-title {
   font-size: 13px;
   font-weight: 600;
-  color: #f1f5f9;
+  color: var(--c-brand-mist);
   margin-bottom: 5px;
 }
 
@@ -707,10 +814,10 @@ function goVideo() {
   align-items: center;
   gap: 4px;
   font-size: 11px;
-  color: #64748b;
+  color: var(--c-text-3);
 }
 
-.meta-sep { color: #334155; }
+.meta-sep { color: var(--c-ink-1); }
 
 .warning-actions { margin-top: 8px; }
 
@@ -718,10 +825,10 @@ function goVideo() {
   display: flex;
   align-items: center;
   gap: 4px;
-  background: #1d4ed8;
-  color: #dbeafe;
+  background: var(--c-brand-deeper);
+  color: var(--sys-blue-soft);
   border: none;
-  border-radius: 6px;
+  border-radius: var(--r-sm);
   padding: 7px 12px;
   font-size: 12px;
   font-weight: 600;
@@ -734,10 +841,10 @@ function goVideo() {
   display: flex;
   align-items: center;
   gap: 4px;
-  background: #374151;
-  color: #d1d5db;
+  background: var(--c-ink-1);
+  color: var(--c-border);
   border: none;
-  border-radius: 6px;
+  border-radius: var(--r-sm);
   padding: 7px 12px;
   font-size: 12px;
   font-weight: 600;
@@ -753,7 +860,7 @@ function goVideo() {
   align-items: center;
   gap: 8px;
   padding: 24px;
-  color: #475569;
+  color: var(--c-ink-1);
   font-size: 13px;
 }
 
@@ -763,29 +870,29 @@ function goVideo() {
   bottom: 0;
   left: 0;
   right: 0;
-  background: #1e293b;
-  border-top: 1px solid #334155;
+  background: var(--c-scrim);
+  border-top: 1px solid var(--c-ink-1);
   padding: 8px 16px;
   padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
   display: flex;
   align-items: center;
   justify-content: space-between;
   font-size: 11px;
-  color: #475569;
+  color: var(--c-ink-1);
 }
 
 .online-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #22c55e;
+  background: var(--c-success);
 }
 
 .offline-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #ef4444;
+  background: var(--c-danger);
 }
 
 /* ── 动画 ── */
@@ -798,7 +905,7 @@ function goVideo() {
   animation: spin 1s linear infinite;
 }
 
-.text-danger { color: #ef4444; }
-.text-warning { color: #f59e0b; }
-.text-success { color: #22c55e; }
+.text-danger { color: var(--c-danger); }
+.text-warning { color: var(--c-warning); }
+.text-success { color: var(--c-success); }
 </style>

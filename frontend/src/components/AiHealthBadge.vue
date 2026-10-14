@@ -58,7 +58,7 @@ const meta = computed(() => {
   align-items: center;
   gap: 6px;
   padding: 6px 12px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   font-size: 12px;
   font-weight: 600;
   border: 1px solid;
@@ -66,7 +66,7 @@ const meta = computed(() => {
 }
 .ai-health-badge.inline { font-size: 11px; padding: 3px 8px; }
 .sev-ok {
-  color: #166534;
+  color: var(--c-success-strong);
   background: rgba(34,197,94,0.1);
   border-color: rgba(34,197,94,0.3);
 }
@@ -76,7 +76,7 @@ const meta = computed(() => {
   border-color: rgba(249,115,22,0.35);
 }
 .sev-down {
-  color: #991b1b;
+  color: var(--c-danger-strong);
   background: rgba(239,68,68,0.12);
   border-color: rgba(239,68,68,0.4);
   animation: pulse-badge 2.4s ease-in-out infinite;

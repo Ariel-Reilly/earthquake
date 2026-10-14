@@ -179,29 +179,29 @@ onBeforeUnmount(() => {
 
 .btn-primary {
   background: var(--c-warning, #b57c18);
-  color: #ffffff;
+  color: var(--c-on-brand);
 }
 
 .btn-primary:hover {
-  background: #92400e;
+  background: var(--c-warning-ink);
   transform: translateY(-1px);
   box-shadow: 0 6px 16px -4px rgba(181, 124, 24, 0.4);
 }
 
 .btn-secondary {
-  background: #ffffff;
-  color: var(--c-info, #1d6b9a);
+  background: var(--c-surface);
+  color: var(--c-info, #27805a);
   border-color: var(--c-border, #dde8e4);
 }
 
 .btn-secondary:hover {
   background: var(--c-info-bg, rgba(29, 107, 154, 0.08));
-  border-color: var(--c-info, #1d6b9a);
+  border-color: var(--c-info, #27805a);
 }
 
 .btn-ghost {
   background: transparent;
-  color: var(--c-text-2, #4a6367);
+  color: var(--c-text-2, var(--c-ink-1));
   border-color: transparent;
 }
 

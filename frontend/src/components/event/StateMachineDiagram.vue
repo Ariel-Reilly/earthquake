@@ -63,7 +63,7 @@ function pickIcon(name) {
 }
 
 function nodeColor(state) {
-  return state.color ?? "#4f8f99";
+  return state.color ?? "#6f9e7f";
 }
 
 function stateCount(stateId) {
@@ -211,17 +211,17 @@ const SUMMARY = computed(() => {
         <!-- 转移箭头（先画，节点在上层覆盖） -->
         <defs>
           <marker id="sm-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-            <path d="M 0 0 L 10 5 L 0 10 z" fill="#94a3b8" />
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#8a9c90" />
           </marker>
           <marker id="sm-arrow-active" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-            <path d="M 0 0 L 10 5 L 0 10 z" fill="#2b6cb0" />
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#6f9e7f" />
           </marker>
         </defs>
 
         <g v-for="(t, i) in transitionLabelSlots" :key="`arrow-${i}`" class="arrow-group">
           <path
             :d="t.d"
-            :stroke="activeState && (t.fromId === activeState || t.toId === activeState) ? '#2b6cb0' : '#cbd5e0'"
+            :stroke="activeState && (t.fromId === activeState || t.toId === activeState) ? '#6f9e7f' : '#cbd5e0'"
             :stroke-width="activeState && (t.fromId === activeState || t.toId === activeState) ? 1.6 : 1"
             fill="none"
             :marker-end="activeState && (t.fromId === activeState || t.toId === activeState) ? 'url(#sm-arrow-active)' : 'url(#sm-arrow)'"
@@ -267,9 +267,9 @@ const SUMMARY = computed(() => {
     </div>
 
     <div class="sm-legend">
-      <span><span class="dot" style="background:#4f8f99"></span>主链路</span>
+      <span><span class="dot" style="background:#6f9e7f"></span>主链路</span>
       <span><span class="dot" style="background:#e06060"></span>应急进行中</span>
-      <span><span class="dot" style="background:#9baead"></span>终态（CLOSED/REJECTED）</span>
+      <span><span class="dot" style="background:#9aab9f"></span>终态（CLOSED/REJECTED）</span>
       <span class="hint">点击节点筛选该状态的事件</span>
     </div>
   </div>
@@ -277,9 +277,9 @@ const SUMMARY = computed(() => {
 
 <style scoped>
 .state-machine-diagram {
-  background: linear-gradient(180deg, rgba(255,255,255,.92), rgba(247,250,253,.92));
-  border-radius: 12px;
-  border: 1px solid rgba(125, 145, 165, 0.18);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--c-surface) 92%, transparent), color-mix(in srgb, var(--c-surface-2) 92%, transparent));
+  border-radius: var(--r-lg);
+  border: 1px solid var(--c-border);
   padding: 18px 20px 14px;
   box-shadow: 0 6px 20px rgba(46, 67, 93, 0.06);
 }
@@ -293,12 +293,12 @@ const SUMMARY = computed(() => {
 }
 .sm-title strong {
   font-size: 14px;
-  color: #2d3748;
+  color: var(--c-ink-1);
   margin-right: 8px;
 }
 .sm-subtitle {
   font-size: 12px;
-  color: #7a8d89;
+  color: var(--c-text-2);
 }
 .sm-summary {
   display: flex;
@@ -307,11 +307,11 @@ const SUMMARY = computed(() => {
 .chip {
   font-size: 11px;
   padding: 3px 8px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   font-weight: 600;
 }
-.chip.teal { background: rgba(79, 143, 153, 0.12); color: #2f7f80; }
-.chip.gray { background: rgba(122, 141, 137, 0.14); color: #5a6a68; }
+.chip.teal { background: rgba(79, 143, 153, 0.12); color: var(--c-brand); }
+.chip.gray { background: rgba(122, 141, 137, 0.14); color: var(--c-ink-2); }
 
 .sm-canvas-wrap {
   position: relative;
@@ -331,11 +331,11 @@ const SUMMARY = computed(() => {
 }
 .arrow-label {
   font-size: 9.5px;
-  fill: #94a3b8;
+  fill: var(--c-text-3);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-weight: 500;
 }
-.arrow-label.active { fill: #2b6cb0; font-weight: 700; }
+.arrow-label.active { fill: var(--c-brand); font-weight: 700; }
 .sm-nodes {
   position: relative;
   z-index: 2;
@@ -350,12 +350,12 @@ const SUMMARY = computed(() => {
   justify-content: center;
   gap: 1px;
   padding: 4px 6px;
-  background: #ffffff;
-  border: 1.5px solid var(--node-color, #4f8f99);
-  border-radius: 8px;
+  background: var(--c-surface);
+  border: 1.5px solid var(--node-color, var(--c-brand));
+  border-radius: var(--r-sm);
   cursor: pointer;
   transition: all 0.18s ease;
-  color: var(--node-color, #4f8f99);
+  color: var(--node-color, var(--c-brand));
   box-shadow: 0 2px 6px rgba(46, 67, 93, 0.05);
 }
 .sm-node:hover {
@@ -363,10 +363,11 @@ const SUMMARY = computed(() => {
   box-shadow: 0 6px 14px rgba(46, 67, 93, 0.12);
 }
 .sm-node.active {
-  background: var(--node-color, #4f8f99);
-  color: #ffffff;
+  background: var(--node-color, var(--c-brand));
+  color: var(--c-on-brand);
   transform: translateY(-2px) scale(1.04);
-  box-shadow: 0 8px 20px rgba(43, 108, 176, 0.22);
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--c-brand) 22%, transparent)
+    /* = rgba 111,158,127/.22 */;
   border-width: 2px;
 }
 .sm-node.highlighted:not(.terminal):not(.active) {
@@ -393,17 +394,17 @@ const SUMMARY = computed(() => {
   position: absolute;
   top: -8px;
   right: -6px;
-  background: #e06060;
-  color: #fff;
+  background: var(--c-danger);
+  color: var(--c-on-brand);
   font-size: 10px;
   font-weight: 700;
   padding: 1px 6px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   min-width: 18px;
   text-align: center;
   box-shadow: 0 1px 4px rgba(224, 96, 96, 0.4);
 }
-.sm-node.active .node-count { background: #ffffff; color: var(--node-color, #2b6cb0); }
+.sm-node.active .node-count { background: var(--c-surface); color: var(--node-color, var(--c-brand)); }
 .node-code {
   font-size: 8.5px;
   opacity: 0.65;
@@ -415,9 +416,9 @@ const SUMMARY = computed(() => {
   gap: 16px;
   flex-wrap: wrap;
   font-size: 11px;
-  color: #5a6a68;
+  color: var(--c-ink-2);
   padding-top: 10px;
-  border-top: 1px dashed rgba(125, 145, 165, 0.25);
+  border-top: 1px dashed var(--c-border);
   margin-top: 6px;
 }
 .sm-legend .dot {
@@ -430,7 +431,7 @@ const SUMMARY = computed(() => {
 }
 .sm-legend .hint {
   margin-left: auto;
-  color: #94a3b8;
+  color: var(--c-text-3);
   font-style: italic;
 }
 </style>

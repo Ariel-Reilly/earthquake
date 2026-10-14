@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 
 const canvasRef = ref(null)
@@ -17,7 +17,7 @@ onMounted(() => {
   let particles = []
   const mouse = { x: -9999, y: -9999 }
 
-  const COLORS = ['rgba(47, 127, 128, ', 'rgba(93, 180, 134, ', 'rgba(94, 143, 193, ']
+  const COLORS = ['rgba(111, 158, 127, ', 'rgba(93, 180, 134, ', 'rgba(94, 143, 193, ']
 
   function spawn() {
     return {
@@ -114,7 +114,7 @@ onMounted(() => {
       }
       const md = Math.hypot(a.x - mouse.x, a.y - mouse.y)
       if (md < 170) {
-        ctx.strokeStyle = `rgba(47, 127, 128, ${(1 - md / 170) * 0.28})`
+        ctx.strokeStyle = `rgba(111, 158, 127, ${(1 - md / 170) * 0.28})`
         ctx.beginPath()
         ctx.moveTo(a.x, a.y)
         ctx.lineTo(mouse.x, mouse.y)
@@ -202,7 +202,7 @@ onBeforeUnmount(() => {
   position: absolute;
   border-radius: 50%;
   filter: blur(72px);
-  opacity: 0.5;
+  opacity: 0.32;
   will-change: transform;
 }
 
@@ -211,7 +211,7 @@ onBeforeUnmount(() => {
   height: 500px;
   left: -140px;
   top: -140px;
-  background: radial-gradient(circle at 32% 32%, #7fd4bd, #3fa591);
+  background: radial-gradient(circle at 32% 32%, var(--c-brand-tint), var(--c-brand));
   animation: blob-float 26s ease-in-out infinite;
 }
 
@@ -220,7 +220,7 @@ onBeforeUnmount(() => {
   height: 540px;
   right: -180px;
   top: 6%;
-  background: radial-gradient(circle at 60% 40%, #a9c7ea, #6a9fd6);
+  background: radial-gradient(circle at 60% 40%, var(--c-brand-tint), var(--c-brand-hover));
   animation: blob-float 33s ease-in-out infinite reverse;
 }
 
@@ -229,7 +229,7 @@ onBeforeUnmount(() => {
   height: 440px;
   left: 28%;
   bottom: -190px;
-  background: radial-gradient(circle at 50% 50%, #f3cd92, #e9b069);
+  background: radial-gradient(circle at 50% 50%, #c3d9ca, var(--c-brand-tint));
   animation: blob-float 39s ease-in-out infinite;
 }
 
@@ -237,11 +237,11 @@ onBeforeUnmount(() => {
   position: absolute;
   inset: 0;
   background-image:
-    linear-gradient(rgba(47, 127, 128, 0.055) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(47, 127, 128, 0.055) 1px, transparent 1px);
+    linear-gradient(rgba(111, 158, 127, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(111, 158, 127, 0.055) 1px, transparent 1px);
   background-size: 46px 46px;
-  -webkit-mask-image: radial-gradient(circle at 50% 42%, #000 28%, transparent 76%);
-  mask-image: radial-gradient(circle at 50% 42%, #000 28%, transparent 76%);
+  -webkit-mask-image: radial-gradient(circle at 50% 42%, var(--c-overlay-ink) 28%, transparent 76%);
+  mask-image: radial-gradient(circle at 50% 42%, var(--c-overlay-ink) 28%, transparent 76%);
 }
 
 .login-bg-canvas {

@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 
 const canvasRef = ref(null)
@@ -17,7 +17,7 @@ onMounted(() => {
   let particles = []
   const mouse = { x: -9999, y: -9999 }
 
-  const COLORS = ['rgba(47, 127, 128, ', 'rgba(93, 180, 134, ', 'rgba(94, 143, 193, ', 'rgba(214, 169, 96, ']
+  const COLORS = ['rgba(111, 158, 127, ', 'rgba(135, 176, 150, ', 'rgba(157, 192, 170, ', 'rgba(84, 128, 106, ']
 
   function spawn() {
     return {
@@ -105,7 +105,7 @@ onMounted(() => {
         const b = particles[j]
         const d = Math.hypot(a.x - b.x, a.y - b.y)
         if (d < 116) {
-          ctx.strokeStyle = `rgba(87, 140, 138, ${(1 - d / 116) * 0.09})`
+          ctx.strokeStyle = `rgba(111, 158, 127, ${(1 - d / 116) * 0.09})`
           ctx.beginPath()
           ctx.moveTo(a.x, a.y)
           ctx.lineTo(b.x, b.y)
@@ -114,7 +114,7 @@ onMounted(() => {
       }
       const md = Math.hypot(a.x - mouse.x, a.y - mouse.y)
       if (md < 160) {
-        ctx.strokeStyle = `rgba(47, 127, 128, ${(1 - md / 160) * 0.16})`
+        ctx.strokeStyle = `rgba(111, 158, 127, ${(1 - md / 160) * 0.16})`
         ctx.beginPath()
         ctx.moveTo(a.x, a.y)
         ctx.lineTo(mouse.x, mouse.y)
@@ -202,35 +202,36 @@ onBeforeUnmount(() => {
 .dashboard-bg-blob {
   position: absolute;
   border-radius: 50%;
-  filter: blur(86px);
-  opacity: 0.5;
+  filter: blur(72px);
+  opacity: 0.22;
   will-change: transform;
 }
 
+/* 三枚光晕全部贴边收窄，避免侵入内容区造成\"发雾\" */
 .dashboard-bg-blob-1 {
-  width: 540px;
-  height: 540px;
-  left: -170px;
-  top: -130px;
-  background: radial-gradient(circle at 32% 32%, #bfe6da, #8fd3c0 62%, transparent 78%);
+  width: 380px;
+  height: 380px;
+  left: -190px;
+  top: -120px;
+  background: radial-gradient(circle at 60% 60%, var(--c-brand-tint), transparent 70%);
   animation: dashboard-blob-float 28s ease-in-out infinite;
 }
 
 .dashboard-bg-blob-2 {
-  width: 580px;
-  height: 580px;
-  right: -210px;
-  top: 8%;
-  background: radial-gradient(circle at 60% 40%, #d6e4f8, #b2cdf1 62%, transparent 78%);
+  width: 400px;
+  height: 400px;
+  right: -230px;
+  top: 12%;
+  background: radial-gradient(circle at 40% 50%, #cbdccf, transparent 70%);
   animation: dashboard-blob-float 34s ease-in-out infinite reverse;
 }
 
 .dashboard-bg-blob-3 {
-  width: 500px;
-  height: 500px;
-  left: 30%;
-  bottom: -210px;
-  background: radial-gradient(circle at 50% 50%, #f6e4c4, #f0d3a4 62%, transparent 78%);
+  width: 360px;
+  height: 360px;
+  left: 42%;
+  bottom: -200px;
+  background: radial-gradient(circle at 50% 40%, #d2e2d7, transparent 70%);
   animation: dashboard-blob-float 40s ease-in-out infinite;
 }
 

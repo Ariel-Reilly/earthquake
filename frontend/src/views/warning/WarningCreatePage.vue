@@ -93,7 +93,7 @@ const hazardOptions = HAZARD_TYPES
 
 const levelMeta = {
   red:    { label: "红色", color: "#c7553b", desc: "特别重大 / 立即撤离", weight: 4 },
-  orange: { label: "橙色", color: "#d7a546", desc: "重大 / 紧急处置",     weight: 3 },
+  orange: { label: "橙色", color: "#c4a86e", desc: "重大 / 紧急处置",     weight: 3 },
   yellow: { label: "黄色", color: "#e6b34a", desc: "较大 / 注意防范",     weight: 2 },
   blue:   { label: "蓝色", color: "#5d95c1", desc: "一般 / 关注",          weight: 1 },
 }
@@ -358,7 +358,7 @@ onMounted(() => bootstrap())
     </div>
 
     <div v-else class="success-card">
-      <h3><AlertTriangle :size="20" color="#2a8154" />预警已创建</h3>
+      <h3><AlertTriangle :size="20" color="#4a7a5e" />预警已创建</h3>
       <p>预警编号 {{ submitted.id }}，已进入逐级审批流程。</p>
       <div class="actions">
         <button class="ghost-btn" @click="router.push('/dashboard/warnings')">返回预警列表</button>
@@ -371,61 +371,61 @@ onMounted(() => bootstrap())
 <style scoped>
 .warning-create-shell { padding: 24px 28px; }
 .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 18px; }
-.page-header h2 { margin: 4px 0; display: flex; gap: 8px; align-items: center; font-size: 18px; color: #1f3e44; }
-.page-header p { margin: 4px 0 0; color: #7a8d89; font-size: 12px; }
-.back-btn { padding: 4px 10px; border: 1px solid #d9e6e1; background: #fff; border-radius: 6px; cursor: pointer; font-size: 12px; color: #56716e; display: inline-flex; gap: 4px; align-items: center; }
+.page-header h2 { margin: 4px 0; display: flex; gap: 8px; align-items: center; font-size: 18px; color: var(--c-text); }
+.page-header p { margin: 4px 0 0; color: var(--c-text-2); font-size: 12px; }
+.back-btn { padding: 4px 10px; border: 1px solid var(--c-separator); background: var(--c-surface); border-radius: var(--r-sm); cursor: pointer; font-size: 12px; color: var(--c-brand-deep); display: inline-flex; gap: 4px; align-items: center; }
 
 .step-indicator { display: flex; gap: 8px; }
-.step-indicator span { display: flex; gap: 6px; align-items: center; padding: 6px 10px; background: #f4f7f5; border-radius: 16px; font-size: 12px; color: #7a8d89; }
-.step-indicator span code { width: 18px; height: 18px; background: #fff; border-radius: 50%; display: grid; place-items: center; font-size: 10px; color: #56716e; }
-.step-indicator span.active { background: rgba(47,127,128,.12); color: #2f7f80; font-weight: 600; }
-.step-indicator span.active code { background: #2f7f80; color: #fff; }
-.step-indicator span.done { background: rgba(93,180,134,.15); color: #2a8154; }
-.step-indicator span.done code { background: #2a8154; color: #fff; }
+.step-indicator span { display: flex; gap: 6px; align-items: center; padding: 6px 10px; background: var(--c-bg); border-radius: var(--r-lg); font-size: 12px; color: var(--c-text-2); }
+.step-indicator span code { width: 18px; height: 18px; background: var(--c-surface); border-radius: 50%; display: grid; place-items: center; font-size: 10px; color: var(--c-brand-deep); }
+.step-indicator span.active { background: var(--c-brand-light); color: var(--c-brand); font-weight: 600; }
+.step-indicator span.active code { background: var(--c-brand); color: var(--c-on-brand); }
+.step-indicator span.done { background: color-mix(in srgb, var(--c-success) 15%, transparent); color: var(--c-brand-deep); }
+.step-indicator span.done code { background: var(--c-brand-deep); color: var(--c-on-brand); }
 
-.form-card { background: #fff; border: 1px solid #e9eee9; border-radius: 12px; padding: 24px 28px; max-width: 720px; }
-.step-pane label { display: block; margin-bottom: 18px; color: #56716e; font-size: 12px; font-weight: 600; }
-.step-pane input, .step-pane textarea, .step-pane select { display: block; width: 100%; margin-top: 6px; padding: 9px 12px; border: 1px solid #d9e6e1; border-radius: 8px; background: #fafdfc; }
+.form-card { background: var(--c-surface); border: 1px solid var(--c-brand-soft); border-radius: var(--r-lg); padding: 24px 28px; max-width: 720px; }
+.step-pane label { display: block; margin-bottom: 18px; color: var(--c-brand-deep); font-size: 12px; font-weight: 600; }
+.step-pane input, .step-pane textarea, .step-pane select { display: block; width: 100%; margin-top: 6px; padding: 9px 12px; border: 1px solid var(--c-separator); border-radius: var(--r-sm); background: var(--c-surface-2); }
 .step-pane input[type=range] { padding: 0; background: transparent; }
 
 .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 
 .level-pick { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 6px; }
-.level-pick button { padding: 10px; border: 1px solid #d9e6e1; border-radius: 8px; background: #fafdfc; cursor: pointer; text-align: left; }
+.level-pick button { padding: 10px; border: 1px solid var(--c-separator); border-radius: var(--r-sm); background: var(--c-surface-2); cursor: pointer; text-align: left; }
 .level-pick button.active { border-width: 2px; }
 .level-pick button strong { display: block; font-size: 14px; }
-.level-pick button small { display: block; color: #7a8d89; font-size: 10px; margin-top: 2px; }
+.level-pick button small { display: block; color: var(--c-text-2); font-size: 10px; margin-top: 2px; }
 
-.map-stub { padding: 22px; background: #f4f7f5; border-radius: 10px; text-align: center; color: #56716e; }
+.map-stub { padding: 22px; background: var(--c-bg); border-radius: var(--r-md); text-align: center; color: var(--c-brand-deep); }
 .map-stub p { margin: 6px 0 0; font-size: 12px; }
 
 .tpl-list { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px; }
-.tpl-list button { padding: 10px 12px; border: 1px solid #d9e6e1; background: #fafdfc; border-radius: 8px; cursor: pointer; text-align: left; }
-.tpl-list button.active { border-color: #2f7f80; background: rgba(47,127,128,.08); }
-.tpl-list button strong { display: block; color: #1f3e44; font-size: 12px; }
-.tpl-list button small { display: block; color: #7a8d89; font-size: 11px; margin-top: 2px; }
+.tpl-list button { padding: 10px 12px; border: 1px solid var(--c-separator); background: var(--c-surface-2); border-radius: var(--r-sm); cursor: pointer; text-align: left; }
+.tpl-list button.active { border-color: var(--c-brand); background: color-mix(in srgb, var(--c-brand) 8%, transparent); }
+.tpl-list button strong { display: block; color: var(--c-text); font-size: 12px; }
+.tpl-list button small { display: block; color: var(--c-text-2); font-size: 11px; margin-top: 2px; }
 
 .channels { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 6px; }
-.channel-pick { position: relative; padding: 10px 12px; border: 1px solid #d9e6e1; border-radius: 8px; background: #fafdfc; display: flex; flex-direction: column; gap: 2px; cursor: pointer; }
+.channel-pick { position: relative; padding: 10px 12px; border: 1px solid var(--c-separator); border-radius: var(--r-sm); background: var(--c-surface-2); display: flex; flex-direction: column; gap: 2px; cursor: pointer; }
 .channel-pick input[type=checkbox] { position: absolute; top: 8px; right: 8px; }
-.channel-pick.active { border-color: #2f7f80; background: rgba(47,127,128,.06); }
-.channel-pick strong { font-size: 12px; color: #1f3e44; }
-.channel-pick small { color: #7a8d89; font-size: 10px; }
-.channel-pick .rec-tag { position: absolute; bottom: 6px; right: 8px; font-size: 9px; color: #9b761e; padding: 1px 4px; background: rgba(155,118,30,.12); border-radius: 3px; }
+.channel-pick.active { border-color: var(--c-brand); background: color-mix(in srgb, var(--c-brand) 6%, transparent); }
+.channel-pick strong { font-size: 12px; color: var(--c-text); }
+.channel-pick small { color: var(--c-text-2); font-size: 10px; }
+.channel-pick .rec-tag { position: absolute; bottom: 6px; right: 8px; font-size: 9px; color: var(--c-warning-ink); padding: 1px 4px; background: color-mix(in srgb, var(--c-warning-strong) 12%, transparent); border-radius: 3px; }
 
 .summary { list-style: none; padding: 0; margin: 16px 0; display: flex; flex-direction: column; gap: 8px; }
-.summary li { padding: 8px 12px; background: #fafdfc; border-radius: 6px; font-size: 13px; color: #37555a; }
-.preview { background: #f4f7f5; padding: 14px; border-radius: 8px; }
-.preview pre { white-space: pre-wrap; font-family: inherit; color: #37555a; font-size: 13px; line-height: 1.7; margin: 8px 0 0; }
+.summary li { padding: 8px 12px; background: var(--c-surface-2); border-radius: var(--r-sm); font-size: 13px; color: var(--c-text); }
+.preview { background: var(--c-bg); padding: 14px; border-radius: var(--r-sm); }
+.preview pre { white-space: pre-wrap; font-family: inherit; color: var(--c-text); font-size: 13px; line-height: 1.7; margin: 8px 0 0; }
 
-.step-nav { display: flex; gap: 10px; justify-content: flex-end; padding-top: 18px; border-top: 1px dashed #d9e6e1; margin-top: 24px; }
-.primary-btn { display: flex; gap: 6px; align-items: center; padding: 9px 16px; border: 0; background: #2f7f80; color: #fff; border-radius: 8px; cursor: pointer; font-size: 13px; }
+.step-nav { display: flex; gap: 10px; justify-content: flex-end; padding-top: 18px; border-top: 1px dashed var(--c-separator); margin-top: 24px; }
+.primary-btn { display: flex; gap: 6px; align-items: center; padding: 9px 16px; border: 0; background: var(--c-brand); color: var(--c-on-brand); border-radius: var(--r-sm); cursor: pointer; font-size: 13px; }
 .primary-btn:disabled { opacity: .5; }
-.ghost-btn { padding: 9px 16px; border: 1px solid #d9e6e1; background: #fff; border-radius: 8px; color: #37555a; cursor: pointer; font-size: 13px; }
+.ghost-btn { padding: 9px 16px; border: 1px solid var(--c-separator); background: var(--c-surface); border-radius: var(--r-sm); color: var(--c-text); cursor: pointer; font-size: 13px; }
 
-.success-card { max-width: 720px; padding: 32px; background: #fff; border: 1px solid #e9eee9; border-radius: 12px; text-align: center; }
-.success-card h3 { margin: 0; color: #1f3e44; display: flex; gap: 8px; align-items: center; justify-content: center; }
-.success-card p { color: #7a8d89; margin: 10px 0 24px; }
+.success-card { max-width: 720px; padding: 32px; background: var(--c-surface); border: 1px solid var(--c-brand-soft); border-radius: var(--r-lg); text-align: center; }
+.success-card h3 { margin: 0; color: var(--c-text); display: flex; gap: 8px; align-items: center; justify-content: center; }
+.success-card p { color: var(--c-text-2); margin: 10px 0 24px; }
 .success-card .actions { display: flex; gap: 10px; justify-content: center; }
 
 .spin { animation: spin 1s linear infinite; }

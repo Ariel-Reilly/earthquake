@@ -23,20 +23,20 @@ const loading = ref(false)
 const receipts = ref([])
 
 const channelMeta = {
-  SMS: { label: "短信", color: "#4f8f99" },
-  APP: { label: "APP 推送", color: "#2b6cb0" },
-  SCREEN: { label: "大屏", color: "#6dbfa5" },
-  SOUND_LIGHT: { label: "声光", color: "#e0a050" },
+  SMS: { label: "短信", color: "#6f9e7f" },
+  APP: { label: "APP 推送", color: "#6f9e7f" },
+  SCREEN: { label: "大屏", color: "#87b096" },
+  SOUND_LIGHT: { label: "声光", color: "#cbaa76" },
   EMAIL: { label: "邮件", color: "#805ad5" },
   WEBHOOK: { label: "Webhook", color: "#718096" },
 }
 
 const statusMeta = {
-  PENDING: { label: "待发送", icon: Clock, color: "#7a8d89" },
+  PENDING: { label: "待发送", icon: Clock, color: "#76847a" },
   SENT: { label: "已发送", icon: CheckCircle, color: "#38a169" },
-  DELIVERED: { label: "已送达", icon: CheckCircle, color: "#2f7f80" },
+  DELIVERED: { label: "已送达", icon: CheckCircle, color: "#6f9e7f" },
   FAILED: { label: "失败", icon: XCircle, color: "#e53e3e" },
-  RATE_LIMITED: { label: "限流", icon: XCircle, color: "#dd6b20" },
+  RATE_LIMITED: { label: "限流", icon: XCircle, color: "var(--c-warning-ink)" },
 }
 
 async function load() {
@@ -102,8 +102,8 @@ defineExpose({ load, updateReceipts })
         <div
           class="channel-badge"
           :style="{
-            background: (channelMeta[receipt.channel]?.color || '#7a8d89') + '22',
-            color: channelMeta[receipt.channel]?.color || '#7a8d89'
+            background: (channelMeta[receipt.channel]?.color || '#76847a') + '22',
+            color: channelMeta[receipt.channel]?.color || '#76847a'
           }"
         >
           {{ channelMeta[receipt.channel]?.label || receipt.channel }}
@@ -115,9 +115,9 @@ defineExpose({ load, updateReceipts })
           <component
             :is="statusMeta[receipt.status]?.icon || Clock"
             :size="14"
-            :style="{ color: statusMeta[receipt.status]?.color || '#7a8d89' }"
+            :style="{ color: statusMeta[receipt.status]?.color || '#76847a' }"
           />
-          <span :style="{ color: statusMeta[receipt.status]?.color || '#7a8d89' }">
+          <span :style="{ color: statusMeta[receipt.status]?.color || '#76847a' }">
             {{ statusMeta[receipt.status]?.label || receipt.status }}
           </span>
         </div>
@@ -139,9 +139,9 @@ defineExpose({ load, updateReceipts })
 
 <style scoped>
 .receipt-card {
-  background: #fff;
-  border: 1px solid #e9eee9;
-  border-radius: 10px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-brand-soft);
+  border-radius: var(--r-md);
   overflow: hidden;
 }
 
@@ -150,11 +150,11 @@ defineExpose({ load, updateReceipts })
   justify-content: space-between;
   align-items: center;
   padding: 12px 14px;
-  border-bottom: 1px solid #e9eee9;
-  background: #fafdfc;
+  border-bottom: 1px solid var(--c-brand-soft);
+  background: var(--c-surface-2);
   font-size: 13px;
   font-weight: 600;
-  color: #1f3e44;
+  color: var(--c-text);
 }
 
 .stats {
@@ -170,9 +170,9 @@ defineExpose({ load, updateReceipts })
   font-weight: 500;
 }
 
-.stat.sent { color: #38a169; }
-.stat.failed { color: #e53e3e; }
-.stat.pending { color: #7a8d89; }
+.stat.sent { color: var(--c-success); }
+.stat.failed { color: var(--c-danger); }
+.stat.pending { color: var(--c-text-2); }
 
 .loading-state,
 .empty-state {
@@ -181,7 +181,7 @@ defineExpose({ load, updateReceipts })
   justify-content: center;
   gap: 8px;
   padding: 30px;
-  color: #7a8d89;
+  color: var(--c-text-2);
   font-size: 13px;
 }
 
@@ -195,7 +195,7 @@ defineExpose({ load, updateReceipts })
   align-items: center;
   gap: 10px;
   padding: 10px 14px;
-  border-bottom: 1px solid #f0f5f4;
+  border-bottom: 1px solid var(--c-brand-mist);
 }
 
 .receipt-item:last-child {
@@ -203,12 +203,12 @@ defineExpose({ load, updateReceipts })
 }
 
 .receipt-item.failed {
-  background: #fff5f5;
+  background: var(--c-danger-bg);
 }
 
 .channel-badge {
   padding: 3px 8px;
-  border-radius: 4px;
+  border-radius: var(--r-xs);
   font-size: 11px;
   font-weight: 600;
   flex-shrink: 0;
@@ -217,7 +217,7 @@ defineExpose({ load, updateReceipts })
 .receipt-target {
   flex: 1;
   font-size: 12px;
-  color: #37555a;
+  color: var(--c-text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -233,14 +233,14 @@ defineExpose({ load, updateReceipts })
 
 .retry-count {
   font-size: 10px;
-  color: #dd6b20;
+  color: var(--c-warning-ink);
   flex-shrink: 0;
 }
 
 .card-footer {
   padding: 10px 14px;
-  border-top: 1px solid #e9eee9;
-  background: #fafdfc;
+  border-top: 1px solid var(--c-brand-soft);
+  background: var(--c-surface-2);
 }
 
 .retry-btn {
@@ -248,16 +248,16 @@ defineExpose({ load, updateReceipts })
   align-items: center;
   gap: 6px;
   padding: 6px 12px;
-  border: 1px solid #2f7f80;
-  background: #fff;
-  border-radius: 6px;
-  color: #2f7f80;
+  border: 1px solid var(--c-brand);
+  background: var(--c-surface);
+  border-radius: var(--r-sm);
+  color: var(--c-brand);
   font-size: 12px;
   cursor: pointer;
 }
 
 .retry-btn:hover {
-  background: #e8f5f3;
+  background: var(--c-brand-mist);
 }
 
 .spin {

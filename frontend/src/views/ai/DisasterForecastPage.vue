@@ -187,8 +187,8 @@ const riskLevel = computed(() => {
   }
   const t = thresholds[selectedMetric.value] ?? thresholds.default
   if (maxPred >= t.high) return { level: 'HIGH', label: '高风险', color: '#e06060', icon: '🔴' }
-  if (maxPred >= t.medium) return { level: 'MEDIUM', label: '中等风险', color: '#e0a050', icon: '🟡' }
-  return { level: 'LOW', label: '低风险', color: '#4f8f99', icon: '🟢' }
+  if (maxPred >= t.medium) return { level: 'MEDIUM', label: '中等风险', color: '#cbaa76', icon: '🟡' }
+  return { level: 'LOW', label: '低风险', color: '#6f9e7f', icon: '🟢' }
 })
 
 // 表格行高亮阈值：使用峰值百分比，避免在 v-for 行内重复 Math.max(...predictions)
@@ -339,7 +339,7 @@ onMounted(async () => {
         <div class="dfp-kpi-card">
           <div class="dfp-kpi-label">模型</div>
           <div class="dfp-kpi-value">
-            <Bot :size="16" style="color:#4f8f99" />
+            <Bot :size="16" class="dfp-icon-brand" />
             {{ forecastResult.model || '—' }}
           </div>
           <div v-if="forecastResult.degraded" class="dfp-kpi-badge warn">
@@ -352,7 +352,7 @@ onMounted(async () => {
 
         <div class="dfp-kpi-card">
           <div class="dfp-kpi-label">置信度</div>
-          <div class="dfp-kpi-value" style="color:#2b6cb0">
+          <div class="dfp-kpi-value dfp-text-brand">
             {{ ((forecastResult.confidence ?? 0) * 100).toFixed(1) }}%
           </div>
           <div class="dfp-kpi-sub">预测可信程度</div>
@@ -389,9 +389,9 @@ onMounted(async () => {
         <div class="dfp-chart-header">
           <strong><BarChart3 :size="15" /> 预测曲线</strong>
           <span class="dfp-chart-meta">
-            <span class="dfp-legend-dot" style="background:#4f8f99"></span> 历史
-            <span class="dfp-legend-dot" style="background:#2b6cb0"></span> 预测
-            <span class="dfp-legend-dot" style="background:rgba(43,108,176,.15)"></span> 置信区间
+            <span class="dfp-legend-dot dfp-legend-dot--brand"></span> 历史
+            <span class="dfp-legend-dot dfp-legend-dot--brand"></span> 预测
+            <span class="dfp-legend-dot dfp-legend-dot--band"></span> 置信区间
           </span>
         </div>
         <div v-if="chartPaths" class="dfp-svg-wrap">
@@ -408,21 +408,21 @@ onMounted(async () => {
                 :x2="chartPaths.W - chartPaths.PAD.right"
                 :y1="tick.y"
                 :y2="tick.y"
-                stroke="rgba(47,127,128,.12)"
+                stroke="rgba(111,158,127,.12)"
                 stroke-width="1"
               />
             </g>
 
             <path
               :d="chartPaths.bandPath"
-              fill="rgba(43,108,176,.12)"
+              fill="rgba(47,143,82,.12)"
               stroke="none"
             />
 
             <path
               :d="chartPaths.histPath"
               fill="none"
-              stroke="#4f8f99"
+              stroke="#6f9e7f"
               stroke-width="2"
               stroke-dasharray="4,3"
             />
@@ -430,7 +430,7 @@ onMounted(async () => {
             <path
               :d="chartPaths.linePath"
               fill="none"
-              stroke="#2b6cb0"
+              stroke="#6f9e7f"
               stroke-width="2.5"
               stroke-linejoin="round"
             />
@@ -466,7 +466,7 @@ onMounted(async () => {
               :cx="chartPaths.PAD.left + (i / (forecastResult.predictions.length - 1)) * (chartPaths.W - chartPaths.PAD.left - chartPaths.PAD.right)"
               :cy="chartPaths.PAD.top + chartPaths.ch - ((v - predictionStats.paddedMin) / predictionStats.paddedRange) * chartPaths.ch"
               r="3"
-              fill="#2b6cb0"
+              fill="#6f9e7f"
               opacity="0.7"
             />
           </svg>
@@ -519,7 +519,7 @@ onMounted(async () => {
 
     <!-- Empty State -->
     <div v-else-if="!loading" class="dfp-empty">
-      <TrendingUp :size="48" style="color:#c8d5d5" />
+      <TrendingUp :size="48" class="dfp-empty-icon" />
       <p>选择一个设备并设置参数后，点击「开始预测」</p>
       <p class="dfp-empty-sub">基于 LSTM 时序模型对未来 {{ selectedHorizon }} 小时进行风险预测</p>
     </div>
@@ -551,9 +551,9 @@ onMounted(async () => {
   border: none;
   padding: 6px 10px;
   margin: 0 0 0 -10px; /* 让 hover 高亮背景从文字左侧自然起手 */
-  border-radius: 8px;
+  border-radius: var(--r-sm);
   cursor: pointer;
-  color: #24494d;
+  color: var(--c-text);
   font: inherit;
   align-self: flex-start;
   text-decoration: none;
@@ -563,15 +563,15 @@ onMounted(async () => {
     background-color 200ms ease-in-out;
 }
 .dfp-title-btn:hover {
-  background: rgba(79, 143, 153, 0.08);
-  color: #2f7f80;
+  background: var(--c-separator);
+  color: var(--c-brand);
   transform: translateX(4px);
 }
 .dfp-title-btn:focus-visible {
-  outline: 2px solid rgba(79, 143, 153, 0.55);
+  outline: 2px solid var(--c-brand);
   outline-offset: 2px;
-  background: rgba(79, 143, 153, 0.08);
-  color: #2f7f80;
+  background: var(--c-separator);
+  color: var(--c-brand);
   transform: translateX(4px);
 }
 .dfp-title {
@@ -590,7 +590,7 @@ onMounted(async () => {
 .dfp-title-btn:hover .dfp-title-icon,
 .dfp-title-btn:focus-visible .dfp-title-icon {
   transform: rotate(-12deg);
-  color: #2f7f80;
+  color: var(--c-brand);
 }
 .dfp-title-chevron {
   margin-left: 2px;
@@ -624,7 +624,7 @@ onMounted(async () => {
 }
 .dfp-subtitle {
   font-size: 13px;
-  color: #7a8d89;
+  color: var(--c-text-2);
   margin: 0;
   padding: 2px 0 0;
   line-height: 1.55;
@@ -653,9 +653,9 @@ onMounted(async () => {
   flex-wrap: wrap;
   gap: 12px;
   align-items: flex-end;
-  background: #fff;
-  border: 1px solid #e9eee9;
-  border-radius: 12px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-brand-soft);
+  border-radius: var(--r-lg);
   padding: 16px;
   margin-bottom: 16px;
 }
@@ -667,7 +667,7 @@ onMounted(async () => {
 }
 .dfp-label {
   font-size: 11px;
-  color: #7a8d89;
+  color: var(--c-text-2);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: .5px;
@@ -675,31 +675,31 @@ onMounted(async () => {
 .dfp-select,
 .dfp-select-btn {
   padding: 7px 12px;
-  border: 1px solid #d0dcd8;
-  border-radius: 8px;
-  background: #f8fbfb;
+  border: 1px solid var(--c-brand-tint);
+  border-radius: var(--r-sm);
+  background: var(--c-brand-mist);
   font-size: 13px;
-  color: #2c3e3e;
+  color: var(--c-ink-1);
   cursor: pointer;
   min-width: 140px;
   text-align: left;
 }
-.dfp-select:focus { outline: none; border-color: #4f8f99; }
+.dfp-select:focus { outline: none; border-color: var(--c-brand); }
 .dfp-select-wrap { position: relative; }
 .dfp-select-btn {
   display: flex; justify-content: space-between; align-items: center;
-  background: #fff;
+  background: var(--c-surface);
 }
 .dfp-select-wrap.open .dfp-select-btn,
-.dfp-select-btn:hover { border-color: #4f8f99; }
+.dfp-select-btn:hover { border-color: var(--c-brand); }
 .dfp-select-dropdown {
   position: absolute;
   top: calc(100% + 4px);
   left: 0;
   right: 0;
-  background: #fff;
-  border: 1px solid #d0dcd8;
-  border-radius: 8px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-brand-tint);
+  border-radius: var(--r-sm);
   box-shadow: 0 4px 12px rgba(0,0,0,.1);
   z-index: 100;
   max-height: 240px;
@@ -714,42 +714,42 @@ onMounted(async () => {
   cursor: pointer;
   text-align: left;
   width: 100%;
-  border-bottom: 1px solid #f0f5f3;
+  border-bottom: 1px solid var(--c-brand-mist);
 }
-.dfp-select-option:hover { background: #f0f8f6; }
-.dfp-select-option.active { background: #e8f4f2; }
-.dfp-device-name { font-size: 13px; color: #2c3e3e; font-weight: 500; }
-.dfp-device-code { font-size: 11px; color: #7a8d89; }
-.dfp-select-empty { padding: 12px; font-size: 12px; color: #7a8d89; text-align: center; }
+.dfp-select-option:hover { background: var(--c-brand-mist); }
+.dfp-select-option.active { background: var(--c-brand-mist); }
+.dfp-device-name { font-size: 13px; color: var(--c-ink-1); font-weight: 500; }
+.dfp-device-code { font-size: 11px; color: var(--c-text-2); }
+.dfp-select-empty { padding: 12px; font-size: 12px; color: var(--c-text-2); text-align: center; }
 .dfp-horizon-btns { display: flex; gap: 4px; flex-wrap: wrap; }
 .dfp-h-btn {
   padding: 6px 10px;
-  border: 1px solid #d0dcd8;
-  border-radius: 6px;
-  background: #fff;
+  border: 1px solid var(--c-brand-tint);
+  border-radius: var(--r-sm);
+  background: var(--c-surface);
   font-size: 12px;
-  color: #2c3e3e;
+  color: var(--c-ink-1);
   cursor: pointer;
   white-space: nowrap;
 }
-.dfp-h-btn:hover { border-color: #4f8f99; }
-.dfp-h-btn.active { background: #4f8f99; color: #fff; border-color: #4f8f99; }
+.dfp-h-btn:hover { border-color: var(--c-brand); }
+.dfp-h-btn.active { background: var(--c-brand); color: var(--c-on-brand); border-color: var(--c-brand); }
 .dfp-run-btn {
   display: flex;
   align-items: center;
   gap: 6px;
   padding: 8px 20px;
-  background: #2b6cb0;
-  color: #fff;
+  background: var(--c-brand);
+  color: var(--c-on-brand);
   border: none;
-  border-radius: 8px;
+  border-radius: var(--r-sm);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
   margin-left: auto;
 }
-.dfp-run-btn:hover:not(:disabled) { background: #1a4a8a; }
+.dfp-run-btn:hover:not(:disabled) { background: var(--sys-blue-deep); }
 .dfp-run-btn:disabled { opacity: .6; cursor: not-allowed; }
 .spin { animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -760,10 +760,10 @@ onMounted(async () => {
   align-items: center;
   gap: 8px;
   padding: 10px 14px;
-  background: #fff5f5;
-  border: 1px solid #feb2b2;
-  border-radius: 8px;
-  color: #c53030;
+  background: var(--c-danger-bg);
+  border: 1px solid var(--c-danger-soft);
+  border-radius: var(--r-sm);
+  color: var(--c-danger-strong);
   font-size: 13px;
   margin-bottom: 16px;
 }
@@ -776,39 +776,39 @@ onMounted(async () => {
   margin-bottom: 16px;
 }
 .dfp-kpi-card {
-  background: #fff;
-  border: 1px solid #e9eee9;
-  border-radius: 10px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-brand-soft);
+  border-radius: var(--r-md);
   padding: 14px 16px;
-  border-left: 3px solid #4f8f99;
+  border-left: 3px solid var(--c-brand);
 }
-.dfp-kpi-label { font-size: 11px; color: #7a8d89; text-transform: uppercase; font-weight: 600; margin-bottom: 4px; }
+.dfp-kpi-label { font-size: 11px; color: var(--c-text-2); text-transform: uppercase; font-weight: 600; margin-bottom: 4px; }
 .dfp-kpi-value {
   display: flex;
   align-items: center;
   gap: 6px;
   font-size: 16px;
   font-weight: 700;
-  color: #24494d;
+  color: var(--c-text);
 }
-.dfp-kpi-sub { font-size: 11px; color: #7a8d89; margin-top: 2px; }
+.dfp-kpi-sub { font-size: 11px; color: var(--c-text-2); margin-top: 2px; }
 .dfp-kpi-badge {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   padding: 2px 8px;
-  border-radius: 20px;
+  border-radius: var(--r-xl);
   font-size: 11px;
   margin-top: 6px;
 }
-.dfp-kpi-badge.ok { background: #e6f4f0; color: #276749; }
-.dfp-kpi-badge.warn { background: #fffaf0; color: #c05621; }
+.dfp-kpi-badge.ok { background: var(--c-brand-mist); color: var(--c-brand-ink); }
+.dfp-kpi-badge.warn { background: var(--c-warning-bg); color: var(--c-warning-ink); }
 
 /* Chart */
 .dfp-chart-card {
-  background: #fff;
-  border: 1px solid #e9eee9;
-  border-radius: 12px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-brand-soft);
+  border-radius: var(--r-lg);
   padding: 16px;
   margin-bottom: 16px;
 }
@@ -818,19 +818,19 @@ onMounted(async () => {
   justify-content: space-between;
   margin-bottom: 12px;
 }
-.dfp-chart-header strong { font-size: 13px; color: #24494d; display: flex; align-items: center; gap: 6px; }
-.dfp-chart-meta { display: flex; align-items: center; gap: 12px; font-size: 12px; color: #7a8d89; }
+.dfp-chart-header strong { font-size: 13px; color: var(--c-text); display: flex; align-items: center; gap: 6px; }
+.dfp-chart-meta { display: flex; align-items: center; gap: 12px; font-size: 12px; color: var(--c-text-2); }
 .dfp-legend-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; }
 .dfp-svg-wrap { width: 100%; height: 220px; }
 .dfp-svg { width: 100%; height: 100%; }
-.dfp-axis-text { font-size: 10px; fill: #7a8d89; font-family: monospace; }
-.dfp-chart-empty { height: 200px; display: flex; align-items: center; justify-content: center; color: #7a8d89; font-size: 13px; }
+.dfp-axis-text { font-size: 10px; fill: var(--c-text-2); font-family: monospace; }
+.dfp-chart-empty { height: 200px; display: flex; align-items: center; justify-content: center; color: var(--c-text-2); font-size: 13px; }
 
 /* Table */
 .dfp-table-card {
-  background: #fff;
-  border: 1px solid #e9eee9;
-  border-radius: 12px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-brand-soft);
+  border-radius: var(--r-lg);
   overflow: hidden;
 }
 .dfp-table-header {
@@ -838,29 +838,35 @@ onMounted(async () => {
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px;
-  border-bottom: 1px solid #e9eee9;
+  border-bottom: 1px solid var(--c-brand-soft);
 }
-.dfp-table-header strong { font-size: 13px; color: #24494d; }
-.dfp-table-meta { font-size: 12px; color: #7a8d89; }
+.dfp-table-header strong { font-size: 13px; color: var(--c-text); }
+.dfp-table-meta { font-size: 12px; color: var(--c-text-2); }
 .dfp-table-wrap { overflow-x: auto; max-height: 320px; overflow-y: auto; }
 .dfp-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-.dfp-table th { padding: 8px 12px; text-align: left; background: #f8fbfb; color: #56716e; font-weight: 600; border-bottom: 1px solid #e9eee9; white-space: nowrap; position: sticky; top: 0; }
-.dfp-table td { padding: 7px 12px; border-bottom: 1px solid #f0f5f3; color: #2c3e3e; }
-.dfp-step { color: #7a8d89; font-family: monospace; font-size: 11px; }
+.dfp-table th { padding: 8px 12px; text-align: left; background: var(--c-brand-mist); color: var(--c-brand-deep); font-weight: 600; border-bottom: 1px solid var(--c-brand-soft); white-space: nowrap; position: sticky; top: 0; }
+.dfp-table td { padding: 7px 12px; border-bottom: 1px solid var(--c-brand-mist); color: var(--c-ink-1); }
+.dfp-step { color: var(--c-text-2); font-family: monospace; font-size: 11px; }
 .dfp-time { font-family: monospace; font-size: 11px; }
-.dfp-val { font-family: monospace; color: #2b6cb0; font-weight: 600; }
-.dfp-row-high { background: #fff5f5; }
-.dfp-row-mid { background: #fffaf0; }
+.dfp-val { font-family: monospace; color: var(--c-brand); font-weight: 600; }
+.dfp-row-high { background: var(--c-danger-bg); }
+.dfp-row-mid { background: var(--c-warning-bg); }
 .dfp-risk-tag {
   display: inline-block;
   padding: 2px 8px;
-  border-radius: 12px;
+  border-radius: var(--r-lg);
   font-size: 11px;
   font-weight: 600;
 }
-.dfp-risk-tag.high { background: #fed7d7; color: #c53030; }
-.dfp-risk-tag.mid { background: #feebc8; color: #c05621; }
-.dfp-risk-tag.low { background: #e6fffa; color: #276749; }
+.dfp-risk-tag.high { background: var(--c-danger-bg); color: var(--c-danger-strong); }
+.dfp-risk-tag.mid { background: var(--c-warning-bg); color: var(--c-warning-ink); }
+/* 图表图例/图标语义色（原为模板内联 style，改为 class 以支持暗色主题）*/
+.dfp-icon-brand { color: var(--c-brand); }
+.dfp-text-brand { color: var(--c-brand); }
+.dfp-legend-dot--brand { background: var(--c-brand); }
+.dfp-legend-dot--band { background: var(--c-brand-light); }
+.dfp-empty-icon { color: var(--c-text-4); }
+.dfp-risk-tag.low { background: var(--sys-mint-soft); color: var(--c-brand-ink); }
 
 /* Empty */
 .dfp-empty {
@@ -870,11 +876,11 @@ onMounted(async () => {
   justify-content: center;
   padding: 80px 20px;
   gap: 12px;
-  color: #7a8d89;
+  color: var(--c-text-2);
   text-align: center;
 }
-.dfp-empty p { margin: 0; font-size: 15px; color: #56716e; }
-.dfp-empty-sub { font-size: 13px; color: #9baead; }
+.dfp-empty p { margin: 0; font-size: 15px; color: var(--c-brand-deep); }
+.dfp-empty-sub { font-size: 13px; color: var(--c-text-4); }
 
 @media (max-width: 720px) {
   .dfp-root { padding: 12px; }

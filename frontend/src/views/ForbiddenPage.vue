@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import {
@@ -122,38 +122,38 @@ function requestAccess() {
 /* Error page styles now shared in styles.css */
 /* Local overrides only */
 .error-card {
-  border-top: 4px solid var(--c-brand, #2f7f80);
+  border-top: 4px solid var(--c-brand, var(--c-brand));
 }
 
 .error-code {
-  background: linear-gradient(135deg, var(--c-brand, #2f7f80) 0%, #246b6c 100%);
+  background: linear-gradient(135deg, var(--c-brand, var(--c-brand)) 0%, var(--c-brand-hover) 100%);
 }
 
 .btn-primary {
-  background: var(--c-brand, #2f7f80);
-  color: #ffffff;
+  background: var(--c-brand, var(--c-brand));
+  color: var(--c-on-brand);
 }
 
 .btn-primary:hover {
-  background: var(--c-brand-hover, #246b6c);
+  background: var(--c-brand-hover, var(--c-brand-hover));
   transform: translateY(-1px);
-  box-shadow: 0 6px 16px -4px rgba(47, 127, 128, 0.4);
+  box-shadow: 0 6px 16px -4px rgba(111, 158, 127, 0.4);
 }
 
 .btn-secondary {
-  background: #ffffff;
-  color: var(--c-brand, #2f7f80);
+  background: var(--c-surface);
+  color: var(--c-brand, var(--c-brand));
   border-color: var(--c-border, #dde8e4);
 }
 
 .btn-secondary:hover {
-  background: var(--c-brand-light, #eff9f6);
-  border-color: var(--c-brand, #2f7f80);
+  background: var(--c-brand-light, rgba(111,158,127,.08));
+  border-color: var(--c-brand, var(--c-brand));
 }
 
 .btn-ghost {
   background: transparent;
-  color: var(--c-text-2, #4a6367);
+  color: var(--c-text-2, var(--c-ink-1));
   border-color: transparent;
 }
 

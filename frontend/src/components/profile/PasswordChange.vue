@@ -122,37 +122,37 @@ async function submit() {
 
 <style scoped>
 .pwd { display: flex; flex-direction: column; gap: 14px; max-width: 520px; }
-.head { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid var(--dashboard-border, #eef2f7); padding-bottom: 14px; }
+.head { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid var(--dashboard-border, var(--c-brand-mist)); padding-bottom: 14px; }
 .head h3 { margin: 0; font-size: 18px; }
-.head p { margin: 4px 0 0; color: var(--dashboard-muted, #6b7280); font-size: 13px; max-width: 420px; }
-.shield { color: #5b8ef9; }
+.head p { margin: 4px 0 0; color: var(--dashboard-muted, var(--c-text-2)); font-size: 13px; max-width: 420px; }
+.shield { color: var(--c-brand-tint); }
 .row { display: flex; flex-direction: column; gap: 6px; }
-.row label { font-size: 13px; color: var(--dashboard-muted, #4b5563); font-weight: 500; }
+.row label { font-size: 13px; color: var(--dashboard-muted, var(--c-text-2)); font-weight: 500; }
 .input-with-icon { position: relative; display: flex; align-items: center; }
 .input-with-icon input {
-  flex: 1; padding: 8px 38px 8px 12px; border: 1px solid var(--dashboard-border, #e2e8f0);
-  border-radius: 8px; font-size: 14px; background: var(--dashboard-input-bg, #fff);
+  flex: 1; padding: 8px 38px 8px 12px; border: 1px solid var(--dashboard-border, var(--c-brand-soft));
+  border-radius: var(--r-sm); font-size: 14px; background: var(--dashboard-input-bg, var(--c-surface));
 }
-.input-with-icon input:focus { outline: none; border-color: #5b8ef9; box-shadow: 0 0 0 3px rgba(91,142,249,0.15); }
-.icon { position: absolute; right: 8px; background: none; border: none; cursor: pointer; color: var(--dashboard-muted, #94a3b8); padding: 4px; }
-.icon:hover { color: var(--dashboard-text, #1e293b); }
+.input-with-icon input:focus { outline: none; border-color: var(--c-brand-tint); box-shadow: 0 0 0 3px rgba(99,199,127,0.15); }
+.icon { position: absolute; right: 8px; background: none; border: none; cursor: pointer; color: var(--dashboard-muted, var(--c-text-3)); padding: 4px; }
+.icon:hover { color: var(--dashboard-text, var(--c-scrim)); }
 .strength { display: flex; align-items: center; gap: 10px; }
-.bar { flex: 1; height: 4px; background: var(--dashboard-muted-bg, #e5e7eb); border-radius: 4px; overflow: hidden; }
+.bar { flex: 1; height: 4px; background: var(--dashboard-muted-bg, var(--c-separator)); border-radius: var(--r-xs); overflow: hidden; }
 .bar span { display: block; height: 100%; transition: width 0.3s; }
-.bar span[data-level="1"] { background: #ef4444; }
-.bar span[data-level="2"] { background: #f59e0b; }
-.bar span[data-level="3"] { background: #10b981; }
-.bar span[data-level="4"] { background: #059669; }
-small { font-size: 12px; color: var(--dashboard-muted, #64748b); }
-.err { color: #ef4444; }
-.ok { color: #10b981; }
-.msg { padding: 8px 12px; border-radius: 8px; font-size: 13px; }
-.msg.err { background: #fef2f2; color: #b91c1c; }
-.msg.ok { background: #ecfdf5; color: #047857; }
+.bar span[data-level="1"] { background: var(--c-danger); }
+.bar span[data-level="2"] { background: var(--c-warning); }
+.bar span[data-level="3"] { background: var(--c-success); }
+.bar span[data-level="4"] { background: var(--c-success); }
+small { font-size: 12px; color: var(--dashboard-muted, var(--c-text-3)); }
+.err { color: var(--c-danger); }
+.ok { color: var(--c-success); }
+.msg { padding: 8px 12px; border-radius: var(--r-sm); font-size: 13px; }
+.msg.err { background: var(--c-danger-bg); color: var(--c-danger-strong); }
+.msg.ok { background: var(--c-brand-mist); color: var(--c-success-strong); }
 .actions { display: flex; justify-content: flex-end; }
 .primary {
-  background: linear-gradient(135deg, #5b8ef9, #3b82f6); color: white;
-  border: none; padding: 8px 18px; border-radius: 8px;
+  background: linear-gradient(135deg, var(--c-brand-tint), var(--c-brand-hover)); color: white;
+  border: none; padding: 8px 18px; border-radius: var(--r-sm);
   display: inline-flex; align-items: center; gap: 6px;
   cursor: pointer; font-size: 14px;
 }

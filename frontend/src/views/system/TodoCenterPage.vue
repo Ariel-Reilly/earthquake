@@ -81,9 +81,9 @@ const RANGE_OPTIONS = [
 
 const LEVEL_VAR_MAP = {
   red: '#e06060',
-  orange: '#e0a050',
+  orange: '#cbaa76',
   yellow: '#d9c040',
-  blue: '#4f8f99',
+  blue: '#6f9e7f',
 }
 
 function pickLevel(value) {
@@ -96,7 +96,7 @@ function pickLevel(value) {
 }
 
 function levelVar(level) {
-  return LEVEL_VAR_MAP[pickLevel(level)] ?? '#4f8f99'
+  return LEVEL_VAR_MAP[pickLevel(level)] ?? '#6f9e7f'
 }
 
 function levelLabel(level) {
@@ -106,11 +106,11 @@ function levelLabel(level) {
 
 function summaryColor(key) {
   switch (key) {
-    case 'confirmation': return '#e0a050'
-    case 'approval': return '#4f8f99'
+    case 'confirmation': return '#cbaa76'
+    case 'approval': return '#6f9e7f'
     case 'pendingWarnings': return '#e06060'
     case 'openEmergency': return '#d9c040'
-    default: return '#6dbfa5'
+    default: return '#87b096'
   }
 }
 
@@ -339,9 +339,9 @@ function formatTime(value) {
 }
 
 function progressColor(progress) {
-  if (progress >= 80) {return '#6dbfa5'}
-  if (progress >= 50) {return '#4f8f99'}
-  if (progress >= 25) {return '#e0a050'}
+  if (progress >= 80) {return '#87b096'}
+  if (progress >= 50) {return '#6f9e7f'}
+  if (progress >= 25) {return '#cbaa76'}
   return '#e06060'
 }
 
@@ -505,7 +505,7 @@ onBeforeUnmount(() => {
         >
           <div class="approval-pie" :style="{ '--c': levelVar(item.level) }">
             <svg viewBox="0 0 36 36" width="40" height="40">
-              <circle cx="18" cy="18" r="15" fill="none" stroke="#e3ebe7" stroke-width="3" />
+              <circle cx="18" cy="18" r="15" fill="none" stroke="rgba(60,60,67,.10)" stroke-width="3" />
               <circle
                 cx="18"
                 cy="18"
@@ -628,30 +628,30 @@ onBeforeUnmount(() => {
 .todo-center-page { display: flex; flex-direction: column; gap: 15px; }
 
 .summary-card { cursor: pointer; position: relative; }
-.summary-card.active { border-color: var(--accent, #4f8f99); box-shadow: 0 6px 20px rgba(30, 75, 69, .08); }
+.summary-card.active { border-color: var(--accent, var(--c-brand)); box-shadow: 0 6px 20px rgba(0, 0, 0, .08); }
 .summary-arrow {
   position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
-  font-size: 22px; color: #9bb5ac; transition: transform .2s ease;
+  font-size: 22px; color: var(--c-text-3); transition: transform .2s ease;
 }
-.summary-card:hover .summary-arrow { transform: translateY(-50%) translateX(3px); color: var(--accent, #4f8f99); }
+.summary-card:hover .summary-arrow { transform: translateY(-50%) translateX(3px); color: var(--accent, var(--c-brand)); }
 
 .todo-tabs {
   display: flex; gap: 8px; padding: 0 20px 14px;
-  border-bottom: 1px dashed #e3ebe7; flex-wrap: wrap;
+  border-bottom: 1px dashed var(--c-separator); flex-wrap: wrap;
 }
 .todo-tab {
   display: inline-flex; align-items: center; gap: 6px;
-  border: 1px solid #e3ebe7; background: #f6fbf8; color: #4a6760;
-  padding: 7px 14px; border-radius: 999px; cursor: pointer; font-size: 13px;
+  border: 1px solid var(--c-separator); background: var(--c-brand-mist); color: var(--c-ink-1);
+  padding: 7px 14px; border-radius: var(--r-pill); cursor: pointer; font-size: 13px;
   transition: all .2s ease;
 }
-.todo-tab:hover { border-color: #6dbfa5; color: #1e4b45; }
-.todo-tab.active { background: #1e4b45; color: #fff; border-color: #1e4b45; }
+.todo-tab:hover { border-color: var(--c-brand-hover); color: var(--c-brand-deeper); }
+.todo-tab.active { background: var(--c-brand-deeper); color: var(--c-on-brand); border-color: var(--c-brand-deeper); }
 .todo-tab i {
-  font-style: normal; font-size: 11px; padding: 1px 6px; border-radius: 999px;
-  background: rgba(255, 255, 255, .25);
+  font-style: normal; font-size: 11px; padding: 1px 6px; border-radius: var(--r-pill);
+  background: var(--glass-thin);
 }
-.todo-tab:not(.active) i { background: #e3ebe7; color: #4a6760; }
+.todo-tab:not(.active) i { background: var(--c-separator); color: var(--c-ink-1); }
 
 .todo-toolbar {
   display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between;
@@ -659,25 +659,25 @@ onBeforeUnmount(() => {
 }
 .todo-desc {
   display: inline-flex; align-items: center; gap: 6px; margin: 0;
-  color: #5b7770; font-size: 13px;
+  color: var(--c-ink-2); font-size: 13px;
 }
 .todo-filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .todo-filters label {
-  display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #5b7770;
+  display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--c-ink-2);
 }
 .todo-filters select {
-  border: 1px solid #e3ebe7; border-radius: 8px; padding: 5px 8px;
-  background: #fff; color: #1e4b45; font-size: 12px;
+  border: 1px solid var(--c-separator); border-radius: var(--r-sm); padding: 5px 8px;
+  background: var(--c-surface); color: var(--c-brand-deeper); font-size: 12px;
 }
 .todo-filters .keyword-input {
-  position: relative; border: 1px solid #e3ebe7; border-radius: 8px; padding: 4px 8px 4px 24px;
-  background: #fff;
+  position: relative; border: 1px solid var(--c-separator); border-radius: var(--r-sm); padding: 4px 8px 4px 24px;
+  background: var(--c-surface);
 }
-.todo-filters .keyword-input svg { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); color: #9bb5ac; }
+.todo-filters .keyword-input svg { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); color: var(--c-text-3); }
 .todo-filters .keyword-input input {
-  border: none; outline: none; font-size: 12px; min-width: 160px; background: transparent; color: #1e4b45;
+  border: none; outline: none; font-size: 12px; min-width: 160px; background: transparent; color: var(--c-brand-deeper);
 }
-.secondary-btn.ghost { background: transparent; border-color: #d3e2dc; }
+.secondary-btn.ghost { background: transparent; border-color: var(--c-separator); }
 
 .todo-list {
   display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; padding: 16px 20px 20px;
@@ -686,40 +686,40 @@ onBeforeUnmount(() => {
 
 .todo-empty {
   grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 4px; padding: 40px 20px; color: #9bb5ac; text-align: center;
+  gap: 4px; padding: 40px 20px; color: var(--c-text-3); text-align: center;
 }
-.todo-empty p { margin: 4px 0 0; font-size: 14px; color: #4a6760; }
-.todo-empty small { color: #9bb5ac; font-size: 12px; }
+.todo-empty p { margin: 4px 0 0; font-size: 14px; color: var(--c-ink-1); }
+.todo-empty small { color: var(--c-text-3); font-size: 12px; }
 
 .todo-card {
   display: flex; gap: 12px; align-items: stretch;
-  border: 1px solid #e3ebe7; border-radius: 11px; padding: 12px 14px;
-  background: #fff; cursor: pointer; transition: all .2s ease;
+  border: 1px solid var(--c-separator); border-radius: var(--r-md); padding: 12px 14px;
+  background: var(--c-surface); cursor: pointer; transition: all .2s ease;
 }
-.todo-card:hover { border-color: #6dbfa5; box-shadow: 0 6px 18px rgba(30, 75, 69, .06); transform: translateY(-1px); }
+.todo-card:hover { border-color: var(--c-brand-hover); box-shadow: 0 6px 18px rgba(0, 0, 0, .06); transform: translateY(-1px); }
 
 .todo-colorbar {
-  width: 4px; border-radius: 4px; flex-shrink: 0;
+  width: 4px; border-radius: var(--r-xs); flex-shrink: 0;
 }
 .todo-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .todo-title { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.todo-title strong { font-size: 14px; color: #1e4b45; }
+.todo-title strong { font-size: 14px; color: var(--c-brand-deeper); }
 .level-pill {
-  font-size: 11px; padding: 2px 8px; border-radius: 999px;
+  font-size: 11px; padding: 2px 8px; border-radius: var(--r-pill);
   border: 1px solid currentColor; font-weight: 500;
 }
 .category-pill {
-  font-size: 11px; padding: 2px 8px; border-radius: 999px;
-  background: #eef6f3; color: #4a6760; border: 1px solid #d3e2dc;
+  font-size: 11px; padding: 2px 8px; border-radius: var(--r-pill);
+  background: var(--c-brand-soft); color: var(--c-ink-1); border: 1px solid var(--c-separator);
 }
-.unread-dot { color: #e06060; font-size: 12px; }
+.unread-dot { color: var(--c-danger); font-size: 12px; }
 
-.todo-meta { font-size: 12px; color: #5b7770; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
-.todo-meta .dot { color: #c4d4ce; padding: 0 2px; }
-.todo-meta .due { color: #e0a050; }
+.todo-meta { font-size: 12px; color: var(--c-ink-2); display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.todo-meta .dot { color: var(--c-text-4); padding: 0 2px; }
+.todo-meta .due { color: var(--c-warning); }
 
 .todo-status {
-  display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: #6dbfa5;
+  display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--c-brand-hover);
 }
 
 /* v1.7.0 快捷确认按钮（移动端优化） */
@@ -729,7 +729,7 @@ onBeforeUnmount(() => {
   gap: 6px;
   margin-top: 6px;
   padding-top: 6px;
-  border-top: 1px dashed #e3ebe7;
+  border-top: 1px dashed var(--c-separator);
   flex-shrink: 0;
 }
 .todo-card:hover .todo-quick-actions,
@@ -739,19 +739,19 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 3px;
   padding: 3px 10px;
-  border-radius: 5px;
-  border: 1px solid #d1d5db;
-  background: #fff;
-  color: #374151;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--c-border);
+  background: var(--c-surface);
+  color: var(--c-ink-1);
   font-size: 11.5px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.15s;
   white-space: nowrap;
 }
-.quick-btn:hover { background: #f9fafb; }
-.quick-btn.success { background: #15803d; color: #fff; border-color: #15803d; }
-.quick-btn.success:hover { background: #166534; }
+.quick-btn:hover { background: var(--c-surface-2); }
+.quick-btn.success { background: var(--c-success-strong); color: var(--c-on-brand); border-color: var(--c-success-strong); }
+.quick-btn.success:hover { background: var(--c-success-strong); }
 
 @media (max-width: 520px) {
   /* 小屏：卡片竖向排列，让快捷按钮更醒目 */
@@ -781,8 +781,8 @@ onBeforeUnmount(() => {
   border-left: 4px solid; padding-left: 12px; align-items: center;
 }
 .warning-icon {
-  width: 32px; height: 32px; border-radius: 8px;
-  display: inline-flex; align-items: center; justify-content: center; color: #fff;
+  width: 32px; height: 32px; border-radius: var(--r-sm);
+  display: inline-flex; align-items: center; justify-content: center; color: var(--c-on-brand);
   flex-shrink: 0;
 }
 
@@ -792,21 +792,21 @@ onBeforeUnmount(() => {
 }
 .task-side { display: flex; flex-direction: column; gap: 4px; }
 .type-pill {
-  align-self: flex-start; font-size: 11px; padding: 2px 8px; border-radius: 6px;
-  background: #eef6f3; color: #4a6760; border: 1px solid #d3e2dc;
+  align-self: flex-start; font-size: 11px; padding: 2px 8px; border-radius: var(--r-sm);
+  background: var(--c-brand-soft); color: var(--c-ink-1); border: 1px solid var(--c-separator);
 }
-.type-pill.warn { background: #fdf1ee; color: #e06060; border-color: #f0d2c8; }
+.type-pill.warn { background: var(--c-danger-bg); color: var(--c-danger); border-color: var(--c-danger-bg); }
 
 .task-progress { display: flex; flex-direction: column; gap: 4px; }
-.progress-meta { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #5b7770; }
+.progress-meta { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--c-ink-2); }
 .progress-meta strong { font-size: 13px; }
-.progress-meta .status-text { color: #6dbfa5; }
-.progress-meta.sub { font-size: 11px; color: #9bb5ac; }
+.progress-meta .status-text { color: var(--c-brand-hover); }
+.progress-meta.sub { font-size: 11px; color: var(--c-text-3); }
 .progress-bar {
-  height: 6px; border-radius: 999px; background: #eef6f3; overflow: hidden;
+  height: 6px; border-radius: var(--r-pill); background: var(--c-brand-soft); overflow: hidden;
 }
 .progress-bar i {
-  display: block; height: 100%; border-radius: 999px; transition: width .3s ease;
+  display: block; height: 100%; border-radius: var(--r-pill); transition: width .3s ease;
 }
 
 @media (max-width: 720px) {

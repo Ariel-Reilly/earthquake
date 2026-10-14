@@ -54,7 +54,7 @@ onMounted(load)
 
 // ─── 五步流水线定义 ─────────────────────────────
 const STEPS = [
-  { key: 'hazard',      label: '灾害事件', icon: MapPin,        color: '#2b6cb0' },
+  { key: 'hazard',      label: '灾害事件', icon: MapPin,        color: '#6f9e7f' },
   { key: 'inspection',  label: '现场核查', icon: GitBranch,     color: '#7c3aed' },
   { key: 'warning',     label: '预警发布', icon: AlertTriangle, color: '#ea580c' },
   { key: 'emergency',   label: '应急处置', icon: Truck,         color: '#dc2626' },
@@ -164,7 +164,7 @@ function formatTime(t) {
             completed: isStepCompleted(idx),
           }"
         >
-          <div class="step-icon" :style="{ background: isStepActive(idx) ? step.color : (isStepCompleted(idx) ? '#e2e8f0' : '#f1f5f9'), color: isStepActive(idx) ? '#fff' : (isStepCompleted(idx) ? '#16a34a' : '#94a3b8') }">
+          <div class="step-icon" :style="{ background: isStepActive(idx) ? step.color : (isStepCompleted(idx) ? '#dde8e0' : '#f1f6f2'), color: isStepActive(idx) ? '#fff' : (isStepCompleted(idx) ? '#16a34a' : '#8a9c90') }">
             <CheckCircle2 v-if="isStepCompleted(idx)" :size="14" />
             <CircleDot v-else-if="isStepActive(idx)" :size="14" />
             <CircleSlash v-else :size="14" />
@@ -251,9 +251,9 @@ function formatTime(t) {
 
 <style scoped>
 .event-timeline {
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-brand-soft);
+  border-radius: var(--r-md);
   padding: 16px 18px;
   margin-bottom: 16px;
 }
@@ -271,12 +271,12 @@ function formatTime(t) {
   margin: 0;
   font-size: 15px;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--c-scrim);
 }
 .timeline-header h3 small {
   font-weight: 400;
   font-size: 12px;
-  color: #94a3b8;
+  color: var(--c-text-3);
   margin-left: 6px;
 }
 .refresh-btn {
@@ -284,14 +284,14 @@ function formatTime(t) {
   align-items: center;
   gap: 4px;
   padding: 4px 10px;
-  border-radius: 6px;
-  border: 1px solid #e2e8f0;
-  background: #fff;
-  color: #64748b;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--c-brand-soft);
+  background: var(--c-surface);
+  color: var(--c-text-3);
   font-size: 12px;
   cursor: pointer;
 }
-.refresh-btn:hover { border-color: #3b82f6; color: #3b82f6; }
+.refresh-btn:hover { border-color: var(--c-brand-hover); color: var(--c-brand-hover); }
 .refresh-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .timeline-loading {
@@ -299,7 +299,7 @@ function formatTime(t) {
   align-items: center;
   gap: 8px;
   padding: 28px;
-  color: #94a3b8;
+  color: var(--c-text-3);
   font-size: 13px;
   justify-content: center;
 }
@@ -311,9 +311,9 @@ function formatTime(t) {
   list-style: none;
   margin: 0 0 18px;
   padding: 0;
-  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
-  border-radius: 10px;
-  border: 1px solid #e2e8f0;
+  background: linear-gradient(180deg, var(--c-brand-mist) 0%, var(--c-brand-mist) 100%);
+  border-radius: var(--r-md);
+  border: 1px solid var(--c-brand-soft);
   overflow: hidden;
 }
 .step {
@@ -325,7 +325,7 @@ function formatTime(t) {
   position: relative;
   min-width: 0;
 }
-.step.active { background: rgba(59,130,246,0.04); }
+.step.active { background: rgba(76,189,106,0.04); }
 .step.completed { opacity: 0.85; }
 .step-icon {
   display: flex;
@@ -337,21 +337,21 @@ function formatTime(t) {
   flex-shrink: 0;
   transition: all 0.2s;
 }
-.step.active .step-icon { box-shadow: 0 0 0 4px rgba(59,130,246,0.15); }
+.step.active .step-icon { box-shadow: 0 0 0 4px rgba(76,189,106,0.15); }
 .step-content { min-width: 0; flex: 1; }
-.step-label { font-size: 12px; color: #64748b; font-weight: 500; }
-.step.active .step-label { color: #1e293b; font-weight: 700; }
+.step-label { font-size: 12px; color: var(--c-text-3); font-weight: 500; }
+.step.active .step-label { color: var(--c-scrim); font-weight: 700; }
 .step-meta { display: flex; align-items: baseline; gap: 6px; margin-top: 2px; }
 .step-count {
   font-size: 18px;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--c-scrim);
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
-.step.active .step-count { color: #2b6cb0; }
-.step-meta small { font-size: 11px; color: #94a3b8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.step-arrow { color: #cbd5e1; flex-shrink: 0; }
+.step.active .step-count { color: var(--c-brand); }
+.step-meta small { font-size: 11px; color: var(--c-text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.step-arrow { color: var(--c-brand-tint); flex-shrink: 0; }
 
 /* 关联事件 */
 .timeline-relations {
@@ -360,9 +360,9 @@ function formatTime(t) {
   gap: 12px;
 }
 .relation-card {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  background: var(--c-brand-mist);
+  border: 1px solid var(--c-brand-soft);
+  border-radius: var(--r-sm);
   padding: 10px 12px;
 }
 .rel-head {
@@ -371,16 +371,16 @@ function formatTime(t) {
   gap: 6px;
   font-size: 12px;
   font-weight: 600;
-  color: #475569;
+  color: var(--c-ink-1);
   margin-bottom: 6px;
 }
 .rel-head em {
   margin-left: auto;
   font-style: normal;
-  background: #e2e8f0;
-  color: #475569;
+  background: var(--c-brand-soft);
+  color: var(--c-ink-1);
   padding: 1px 7px;
-  border-radius: 10px;
+  border-radius: var(--r-md);
   font-size: 11px;
   font-variant-numeric: tabular-nums;
 }
@@ -393,25 +393,25 @@ function formatTime(t) {
   font-size: 12px;
   padding: 4px 0;
   cursor: pointer;
-  border-bottom: 1px dashed #e2e8f0;
+  border-bottom: 1px dashed var(--c-brand-soft);
 }
-.rel-list li:hover .rel-title { color: #3b82f6; }
+.rel-list li:hover .rel-title { color: var(--c-brand-hover); }
 .rel-list li:last-child { border-bottom: none; }
-.rel-title { color: #334155; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.rel-time { color: #94a3b8; font-size: 11px; white-space: nowrap; }
+.rel-title { color: var(--c-ink-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rel-time { color: var(--c-text-3); font-size: 11px; white-space: nowrap; }
 .rel-status {
   font-size: 10px;
   padding: 1px 6px;
-  border-radius: 4px;
-  background: #e2e8f0;
-  color: #475569;
+  border-radius: var(--r-xs);
+  background: var(--c-brand-soft);
+  color: var(--c-ink-1);
   white-space: nowrap;
 }
-.rel-empty { font-size: 12px; color: #cbd5e1; text-align: center; margin: 6px 0; }
+.rel-empty { font-size: 12px; color: var(--c-brand-tint); text-align: center; margin: 6px 0; }
 .link-btn {
   background: transparent;
   border: none;
-  color: #3b82f6;
+  color: var(--c-brand-hover);
   font-size: 12px;
   cursor: pointer;
   padding: 0;

@@ -29,6 +29,15 @@ function authHeader() {
 }
 
 /**
+ * 本地是否存在「后端可用」的凭据。
+ * 若 localStorage 里残留的是 mock 时代的非 JWT token，
+ * 它会被 authHeader() 静默丢弃，导致请求裸奔 → 后端返回 403。
+ */
+function hasBackendCompatibleToken() {
+  return isBackendCompatibleToken(getAuthToken());
+}
+
+/**
  * 通用 JSON 请求。
  * @param {string} path - 以 / 开头的相对路径 (例: "/hazards")
  * @param {object} options - fetch 选项; body 会被 JSON.stringify
@@ -58,6 +67,21 @@ export async function request(path, options = {}) {
   if (response.status === 401 && !path.startsWith("/auth/")) {
     redirectToLogin();
     throw createApiError(payload?.message || "登录已过期,请重新登录", "401");
+  }
+
+  // 403 的两种成因必须区分，否则用户会卡在「请求失败:403」上无法自救：
+  //   a) 未携带凭据 / 凭据格式不被后端接受 → 应清凭据并回登录页；
+  //   b) 已认证但权限不足（角色不含该 permission）→ 属业务拒绝，不应踢出登录。
+  // 判据：本地是否存在后端可用的 JWT。存在则说明是 (b)，保留会话。
+  if (response.status === 403 && !path.startsWith("/auth/")) {
+    if (!hasBackendCompatibleToken()) {
+      redirectToLogin();
+      throw createApiError("登录凭据已失效,请重新登录", "403");
+    }
+    throw createApiError(
+      payload?.message || "当前账号无权访问该资源",
+      "403",
+    );
   }
 
   if (!response.ok || payload?.code !== 0) {

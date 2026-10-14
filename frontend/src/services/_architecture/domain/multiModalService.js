@@ -6,7 +6,13 @@
 import { request, createApiError, USE_BACKEND } from "../../dashboardApi.js";
 import { withQuery } from "../../../utils/query.js";
 
-const AI_SERVICE_BASE = import.meta.env.VITE_AI_SERVICE_URL || "http://localhost:8000/api";
+// ai-service 监听 8001（路由前缀 /api/ai/multimodal）。原先误写 8000，
+// 且只认单一环境变量名，与其余服务不一致，会导致多模态融合在生产环境连不上 AI 服务。
+const AI_SERVICE_BASE =
+  import.meta.env.VITE_AI_SERVICE_BASE ||
+  import.meta.env.VITE_AI_SERVICE_BASE_URL ||
+  import.meta.env.VITE_AI_SERVICE_URL ||
+  "http://localhost:8001/api/ai";
 
 async function aiServiceRequest(path, options = {}) {
   const url = `${AI_SERVICE_BASE}${path}`;
@@ -129,10 +135,10 @@ export async function getFusionHistory(options = {}) {
  * 模态常量定义
  */
 export const MODAL_TYPES = {
-  SATELLITE: { key: "satellite", label: "卫星影像", color: "#6dbfa5", icon: "Camera" },
+  SATELLITE: { key: "satellite", label: "卫星影像", color: "#9dc0aa", icon: "Camera" },
   FORECAST: { key: "forecast", label: "时序预测", color: "#4f8f99", icon: "TrendingUp" },
   SOCIAL_MEDIA: { key: "social_media", label: "社交媒体舆情", color: "#805ad5", icon: "MessageSquare" },
-  DEVICE: { key: "device", label: "设备数据", color: "#e0a050", icon: "Radio" },
+  DEVICE: { key: "device", label: "设备数据", color: "#cbaa76", icon: "Radio" },
 };
 
 /**
@@ -140,9 +146,9 @@ export const MODAL_TYPES = {
  */
 export const RISK_LEVELS = {
   CRITICAL: { label: "红色预警", color: "#e06060", class: "red" },
-  HIGH: { label: "橙色预警", color: "#e0a050", class: "orange" },
+  HIGH: { label: "橙色预警", color: "#cbaa76", class: "orange" },
   MEDIUM: { label: "黄色预警", color: "#d9c040", class: "yellow" },
-  LOW: { label: "蓝色预警", color: "#6dbfa5", class: "blue" },
+  LOW: { label: "蓝色预警", color: "#9dc0aa", class: "blue" },
 };
 
 /**
@@ -162,7 +168,7 @@ export function getRiskLevelInfo(level) {
  * @returns {Object} 模态信息
  */
 export function getModalInfo(modalKey) {
-  return MODAL_TYPES[modalKey?.toUpperCase()] || { key: modalKey, label: modalKey, color: "#7a8d89" };
+  return MODAL_TYPES[modalKey?.toUpperCase()] || { key: modalKey, label: modalKey, color: "#8a968d" };
 }
 
 /**
@@ -206,7 +212,7 @@ export function mockFusionResult(eventId) {
     eventId,
     fusedScore: 87.5,
     level: "HIGH",
-    levelColor: "#e0a050",
+    levelColor: "#cbaa76",
     confidence: 0.82,
     contributions: {
       satellite: 0.55,

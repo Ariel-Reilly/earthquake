@@ -27,6 +27,7 @@ const rules = ref([])
 const total = ref(0)
 const page = ref(1)
 const size = ref(20)
+const loadError = ref("")
 
 // 过滤选项
 const disasterOptions = [
@@ -63,6 +64,7 @@ const filter = ref({
 
 async function load() {
   loading.value = true
+  loadError.value = ""
   try {
     const { getRules } = await import("../../services/ruleEngineService")
     const result = await getRules({
@@ -74,65 +76,20 @@ async function load() {
     rules.value = result.records || []
     total.value = result.total || 0
   } catch (e) {
+    // 不再静默降级到示例数据：假规则会让用户基于错误前提做判断。
+    // 明确置空并进入错误态，由模板展示"加载失败 + 重试"。
     emit("notify", "加载规则列表失败: " + e.message)
-    // 使用示例数据
-    rules.value = getMockRules()
-    total.value = rules.value.length
+    rules.value = []
+    total.value = 0
+    loadError.value = e.message || "规则列表加载失败"
   } finally {
     loading.value = false
   }
 }
 
-function getMockRules() {
-  return [
-    {
-      id: 1,
-      name: "滑坡橙色预警规则",
-      disasterType: "滑坡",
-      level: "orange",
-      priority: 10,
-      enabled: true,
-      conditions: {
-        operator: "AND",
-        items: [
-          { field: "rainfall_24h", op: ">", value: 50, unit: "mm" },
-          { field: "slope", op: ">", value: 30, unit: "°" },
-        ],
-      },
-      actions: [
-        { type: "CREATE_EVENT", params: {} },
-        { type: "SEND_NOTIFICATION", params: { template: "TPL_LANDSLIDE_ORANGE" } },
-      ],
-      version: 1,
-      updatedAt: "2026-09-10 14:30",
-    },
-    {
-      id: 2,
-      name: "洪水红色预警规则",
-      disasterType: "洪水",
-      level: "red",
-      priority: 20,
-      enabled: true,
-      conditions: {
-        operator: "AND",
-        items: [
-          { field: "rainfall_24h", op: ">", value: 100, unit: "mm" },
-          { field: "water_level", op: ">", value: 30, unit: "m" },
-        ],
-      },
-      actions: [
-        { type: "PUSH_CONFIRM", params: {} },
-        { type: "SEND_NOTIFICATION", params: { template: "TPL_FLOOD_RED" } },
-      ],
-      version: 2,
-      updatedAt: "2026-09-08 09:15",
-    },
-  ]
-}
-
 function levelColor(level) {
-  const colors = { red: "#e06060", orange: "#e0a050", yellow: "#d9c040", blue: "#6dbfa5" }
-  return colors[level] || "#7a8d89"
+  const colors = { red: "#e06060", orange: "#cbaa76", yellow: "#d9c040", blue: "#87b096" }
+  return colors[level] || "#76847a"
 }
 
 function levelLabel(level) {
@@ -193,7 +150,7 @@ defineExpose({ load })
 <template>
   <div class="rule-list">
     <div class="filter-bar">
-      <Filter :size="14" color="#56716e" />
+      <Filter :size="14" color="#4a7a5e" />
       <select v-model="filter.disasterType">
         <option v-for="o in disasterOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
       </select>
@@ -212,6 +169,11 @@ defineExpose({ load })
     <div v-if="loading" class="loading-state">
       <Loader2 :size="16" class="spin" />
       加载规则...
+    </div>
+
+    <div v-else-if="loadError" class="empty-state">
+      <p>规则列表加载失败：{{ loadError }}</p>
+      <button class="retry-btn" @click="load">重试</button>
     </div>
 
     <div v-else-if="rules.length === 0" class="empty-state">
@@ -315,9 +277,9 @@ defineExpose({ load })
 
 <style scoped>
 .rule-list {
-  background: #fff;
-  border: 1px solid #e9eee9;
-  border-radius: 12px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-brand-soft);
+  border-radius: var(--r-lg);
   overflow: hidden;
 }
 
@@ -326,16 +288,16 @@ defineExpose({ load })
   gap: 10px;
   align-items: center;
   padding: 14px 18px;
-  border-bottom: 1px solid #e9eee9;
-  background: #fafdfc;
+  border-bottom: 1px solid var(--c-brand-soft);
+  background: var(--c-surface-2);
   flex-wrap: wrap;
 }
 
 .filter-bar select {
   padding: 7px 10px;
-  border: 1px solid #d9e6e1;
-  border-radius: 8px;
-  background: #fff;
+  border: 1px solid var(--c-separator);
+  border-radius: var(--r-sm);
+  background: var(--c-surface);
   font-size: 13px;
 }
 
@@ -346,7 +308,21 @@ defineExpose({ load })
   justify-content: center;
   gap: 8px;
   padding: 40px;
-  color: #7a8d89;
+  color: var(--c-text-2);
+}
+
+.retry-btn {
+  padding: 4px 12px;
+  border: 1px solid #cfe0dd;
+  border-radius: var(--r-sm);
+  background: var(--c-surface);
+  color: var(--c-brand);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.retry-btn:hover {
+  background: #eef7f5;
 }
 
 .rule-table {
@@ -362,18 +338,18 @@ defineExpose({ load })
 .rule-table td {
   padding: 12px 16px;
   text-align: left;
-  border-bottom: 1px solid #f0f5f4;
+  border-bottom: 1px solid var(--c-brand-mist);
 }
 
 .rule-table th {
-  background: #f8fbfa;
-  color: #6f8482;
+  background: rgba(60,60,67,.04);
+  color: var(--c-text-3);
   font-size: 12px;
   font-weight: 600;
 }
 
 .rule-table tr:hover {
-  background: #fafdfc;
+  background: var(--c-surface-2);
 }
 
 .rule-table tr.disabled {
@@ -381,15 +357,15 @@ defineExpose({ load })
 }
 
 .rule-table td strong {
-  color: #1f3e44;
+  color: var(--c-text);
 }
 
 .disaster-tag {
   display: inline-block;
   padding: 2px 8px;
-  background: #e8f5f3;
-  color: #2f7f80;
-  border-radius: 4px;
+  background: var(--c-brand-mist);
+  color: var(--c-brand);
+  border-radius: var(--r-xs);
   font-size: 12px;
   margin-right: 6px;
 }
@@ -397,7 +373,7 @@ defineExpose({ load })
 .level-pill {
   display: inline-block;
   padding: 2px 8px;
-  border-radius: 12px;
+  border-radius: var(--r-lg);
   font-size: 11px;
   font-weight: 600;
 }
@@ -408,9 +384,9 @@ defineExpose({ load })
   justify-content: center;
   min-width: 24px;
   padding: 2px 8px;
-  background: #f0f5f4;
-  color: #56716e;
-  border-radius: 4px;
+  background: var(--c-brand-mist);
+  color: var(--c-brand-deep);
+  border-radius: var(--r-xs);
   font-size: 12px;
   font-weight: 600;
 }
@@ -423,35 +399,35 @@ defineExpose({ load })
   padding: 2px 8px;
   background: #eff0f8;
   color: #5a67d8;
-  border-radius: 4px;
+  border-radius: var(--r-xs);
   font-size: 12px;
 }
 
 .status-badge {
   display: inline-block;
   padding: 3px 10px;
-  border-radius: 12px;
+  border-radius: var(--r-lg);
   font-size: 11px;
   font-weight: 600;
 }
 
 .status-badge.active {
-  background: #ecf8f2;
-  color: #38a169;
+  background: var(--c-brand-mist);
+  color: var(--c-success);
 }
 
 .status-badge.inactive {
-  background: #f0f5f4;
-  color: #99a7a1;
+  background: var(--c-brand-mist);
+  color: var(--c-text-3);
 }
 
 .version-badge {
   font-size: 11px;
-  color: #99a7a1;
+  color: var(--c-text-3);
 }
 
 .muted {
-  color: #99a7a1;
+  color: var(--c-text-3);
 }
 
 .action-btns {
@@ -467,21 +443,21 @@ defineExpose({ load })
   height: 28px;
   border: none;
   background: transparent;
-  color: #56716e;
-  border-radius: 6px;
+  color: var(--c-brand-deep);
+  border-radius: var(--r-sm);
   cursor: pointer;
 }
 
 .icon-btn:hover {
-  background: #f0f5f4;
+  background: var(--c-brand-mist);
 }
 
 .icon-btn.danger {
-  color: #c7553b;
+  color: var(--c-danger-strong);
 }
 
 .icon-btn.danger:hover {
-  background: #fbecec;
+  background: var(--c-danger-bg);
 }
 
 .pagination {
@@ -490,20 +466,20 @@ defineExpose({ load })
   justify-content: center;
   gap: 16px;
   padding: 14px;
-  border-top: 1px solid #e9eee9;
+  border-top: 1px solid var(--c-brand-soft);
 }
 
 .page-btn {
   padding: 6px 14px;
-  border: 1px solid #d9e6e1;
-  background: #fff;
-  border-radius: 6px;
+  border: 1px solid var(--c-separator);
+  background: var(--c-surface);
+  border-radius: var(--r-sm);
   font-size: 13px;
   cursor: pointer;
 }
 
 .page-btn:hover:not(:disabled) {
-  background: #f4f7f5;
+  background: var(--c-bg);
 }
 
 .page-btn:disabled {
@@ -513,7 +489,7 @@ defineExpose({ load })
 
 .page-info {
   font-size: 13px;
-  color: #56716e;
+  color: var(--c-brand-deep);
 }
 
 .spin {
@@ -530,15 +506,15 @@ defineExpose({ load })
   gap: 4px;
   align-items: center;
   padding: 6px 10px;
-  border: 1px solid #d9e6e1;
-  background: #fff;
-  border-radius: 6px;
-  color: #37555a;
+  border: 1px solid var(--c-separator);
+  background: var(--c-surface);
+  border-radius: var(--r-sm);
+  color: var(--c-text);
   font-size: 12px;
   cursor: pointer;
 }
 
 .ghost-btn:hover {
-  background: #f4f7f5;
+  background: var(--c-bg);
 }
 </style>

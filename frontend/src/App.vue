@@ -1,7 +1,8 @@
-<script setup>
+﻿<script setup>
 import { ref, onMounted, computed } from 'vue'
 import { getRuntimeMode } from './services/dashboardApi'
 import AiAssistant from './components/AiAssistant.vue'
+import ErrorBoundary from './components/ErrorBoundary.vue'
 
 const runtimeMode = ref('unknown')
 const modeLabel = computed(() => {
@@ -24,7 +25,9 @@ onMounted(async () => {
 </script>
 
 <template>
-  <router-view />
+  <ErrorBoundary>
+    <router-view />
+  </ErrorBoundary>
   <!-- AI 智能助手：右下角悬浮 -->
   <AiAssistant />
   <!-- 运行模式指示器：固定左下角，提示当前数据来源 -->
@@ -37,24 +40,26 @@ onMounted(async () => {
 <style>
 .runtime-mode-badge {
   position: fixed;
-  bottom: 12px;
-  left: 12px;
+  bottom: 14px;
+  left: 14px;
   z-index: 9999;
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 10px;
-  border-radius: 14px;
+  padding: 5px 12px;
+  border-radius: var(--r-pill);
   font-size: 11px;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  transition: all 0.2s ease;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "PingFang SC", sans-serif;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  transition: transform .15s ease, box-shadow .15s ease;
   cursor: default;
   user-select: none;
+  -webkit-backdrop-filter: blur(14px) saturate(180%);
+  backdrop-filter: blur(14px) saturate(180%);
 }
 .runtime-mode-badge:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
 }
 .mode-dot {
   width: 7px;
@@ -63,22 +68,23 @@ onMounted(async () => {
   animation: pulse 2s infinite;
 }
 .mode-backend {
-  background: rgba(34, 139, 94, 0.1);
-  color: #228b5e;
-  border: 1px solid rgba(34, 139, 94, 0.3);
+  background: rgba(111, 158, 127, 0.14);
+  color: #1e7a4e;
+  border: 1px solid rgba(111, 158, 127, 0.28);
 }
-.mode-backend .mode-dot { background: #228b5e; }
+.mode-backend .mode-dot { background: var(--c-brand); }
 .mode-mock {
-  background: rgba(224, 160, 80, 0.12);
-  color: #c07d2a;
-  border: 1px solid rgba(224, 160, 80, 0.4);
+  background: rgba(255, 149, 0, 0.16);
+  color: #b35a00;
+  border: 1px solid rgba(255, 149, 0, 0.36);
 }
-.mode-mock .mode-dot { background: #e0a050; }
+.mode-mock .mode-dot { background: var(--c-warning); }
 .mode-unknown {
-  background: rgba(128, 128, 128, 0.1);
-  color: #808080;
-  border: 1px solid rgba(128, 128, 128, 0.3);
+  background: rgba(142, 142, 147, 0.16);
+  color: #6c6c70;
+  border: 1px solid rgba(142, 142, 147, 0.30);
 }
+.mode-unknown .mode-dot { background: var(--sys-gray); }
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.4; }

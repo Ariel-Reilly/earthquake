@@ -17,8 +17,10 @@ import {
   UserCircle,
 } from 'lucide-vue-next'
 import { getAuthUser, getRoleLabel } from '../../stores/auth'
+import { useTheme } from '../../composables/useTheme'
 
 const emit = defineEmits(['notify'])
+const { setTheme, theme } = useTheme()
 
 const tabs = [
   { id: 'general', label: '基本设置', icon: Building2 },
@@ -66,11 +68,18 @@ const settings = reactive({ ...defaults })
 function loadSettings() {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY)
-    if (!raw) return
-    const parsed = JSON.parse(raw)
-    Object.assign(settings, defaults, parsed)
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      Object.assign(settings, defaults, parsed)
+    }
   } catch {
     // 忽略损坏的本地设置
+  }
+  /* 主题以 useTheme 的键为准：本页只保存过默认值时，
+     回填用户实际生效的主题，避免"打开设置页就把主题重置成跟随系统"。 */
+  if (!window.localStorage.getItem('disasterguard_settings')) {
+    const current = theme.value
+    settings.theme = current === 'system' ? 'auto' : current
   }
 }
 
@@ -90,7 +99,9 @@ function persist() {
 
 /**
  * P2-2：应用个人偏好到运行时。
- * - 主题：写入 <html data-theme> 让全局 CSS 切换
+ * - 主题：交给 useTheme() 统一写入 —— 此前直接写 html.dataset.theme，
+ *   而全局 CSS 只认 .theme-dark，导致「深色主题」点了毫无反应；
+ *   现在由 useTheme 同时写 class 与 data-theme，并持久化到统一键。
  * - 语言：写入 localStorage，由后续 i18n 模块读取（当前仅占位）
  * - 默认首页：写入 localStorage；登录跳转时由 auth.js 读取
  * - 紧凑模式：写入 <html data-density>，全局字号 / 间距 -1
@@ -98,9 +109,7 @@ function persist() {
  */
 function applyPreferences() {
   const html = document.documentElement
-  if (settings.theme === 'dark') html.dataset.theme = 'dark'
-  else if (settings.theme === 'light') html.dataset.theme = 'light'
-  else html.removeAttribute('data-theme')
+  setTheme(settings.theme)
   // 紧凑模式
   if (settings.compactMode) html.dataset.density = 'compact'
   else html.removeAttribute('data-density')

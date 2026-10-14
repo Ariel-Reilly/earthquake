@@ -1,38 +1,7 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
 import { useRouter } from "vue-router";
-import {
-  Radar,
-  ShieldAlert,
-  ArrowDownRight,
-  ArrowUpRight,
-  BarChart3,
-  Calendar,
-  CloudRain,
-  Cpu,
-  Crosshair,
-  Database,
-  Download,
-  Gauge,
-  GitCompareArrows,
-  Landmark,
-  LineChart,
-  ListChecks,
-  Loader2,
-  MapPin,
-  MoreHorizontal,
-  Printer,
-  Radio,
-  RefreshCw,
-  Route,
-  Search,
-  SlidersHorizontal,
-  UsersRound,
-  Waves,
-  ChevronDown,
-  ChevronRight,
-  X,
-} from "lucide-vue-next";
+import { ArrowDownRight, ArrowUpRight, BarChart3, Calendar, ChevronDown, ChevronRight, CloudRain, Cpu, Crosshair, Database, Download, Gauge, GitCompareArrows, Landmark, Layers, LineChart, ListChecks, Loader2, MapPin, MoreHorizontal, Printer, Radar, Radio, RefreshCw, Route, Search, ShieldAlert, SlidersHorizontal, UsersRound, Waves, X } from "lucide-vue-next";
 import { dashboardApi } from "../services/dashboardApi";
 import {
   getRealtimeWeather,
@@ -1229,12 +1198,12 @@ watch(selectedPoint, (point) => {
 
 // PRD 1.4 多时相对比 Tab
 // 取与 OverviewPage 当前口径一致的色板，避免视觉割裂。
-const COMPARE_COLOR_BASE = "#4f8f99";
-const COMPARE_COLOR_COMPARE = "#e0a050";
+const COMPARE_COLOR_BASE = "#6f9e7f";
+const COMPARE_COLOR_COMPARE = "#cbaa76";
 const COMPARE_COLOR_RISE = "#e06060";
-const COMPARE_COLOR_FALL = "#6dbfa5";
+const COMPARE_COLOR_FALL = "#87b096";
 const COMPARE_COLOR_NEUTRAL = "#d9c040";
-const COMPARE_COLOR_MUTE = "#7a8d89";
+const COMPARE_COLOR_MUTE = "#76847a";
 const COMPARE_KPI_DEFS = [
   { key: "incidentTotal", label: "事件总数", unit: "起", higherIsBetter: false, nice: 0 },
   { key: "disposalRate", label: "处置率", unit: "%", higherIsBetter: true, nice: 1 },
@@ -1408,8 +1377,8 @@ const compareTrendPoints = computed(() => {
 function buildConicGradient(slices) {
   // 把分类占比转成 CSS conic-gradient，前端纯 CSS 实现"饼图"。
   const total = slices.reduce((sum, s) => sum + (Number(s.value) || 0), 0);
-  if (total <= 0) return "conic-gradient(#e3ebe7 0deg 360deg)";
-  const palette = ["#4f8f99", "#e0a050", "#d9c040", "#6dbfa5", "#7a8d89", "#b27f9a"];
+  if (total <= 0) return "conic-gradient(var(--c-separator) 0deg 360deg)";
+  const palette = ["#6f9e7f", "#cbaa76", "#d9c040", "#87b096", "#76847a", "#b27f9a"];
   let cursor = 0;
   const parts = [];
   slices.forEach((slice, idx) => {
@@ -1421,7 +1390,7 @@ function buildConicGradient(slices) {
     cursor += deg;
   });
   if (cursor < 360) {
-    parts.push(`#e3ebe7 ${cursor.toFixed(2)}deg 360deg`);
+    parts.push(`var(--c-separator) ${cursor.toFixed(2)}deg 360deg`);
   }
   return `conic-gradient(${parts.join(", ")})`;
 }
@@ -2108,7 +2077,7 @@ function toggleCompareLegend(which) {
             <div
               class="progress-ring"
               :style="{
-                background: `conic-gradient(#56b992 0 ${taskProgress.percent}%, #e8f2ee ${taskProgress.percent}% 100%)`,
+                background: `conic-gradient(#6f9e7f 0 ${taskProgress.percent}%, #eef2ee ${taskProgress.percent}% 100%)`,
               }"
             >
               <span>{{ taskProgress.percent }}<small>%</small></span>
@@ -2457,10 +2426,10 @@ function toggleCompareLegend(which) {
                 preserveAspectRatio="none"
                 aria-label="事件趋势对比折线"
               >
-                <line x1="0" y1="60" x2="100" y2="60" stroke="#e3ebe7" stroke-width="0.5" />
-                <line x1="0" y1="45" x2="100" y2="45" stroke="#f1f6f4" stroke-width="0.4" stroke-dasharray="2 2" />
-                <line x1="0" y1="30" x2="100" y2="30" stroke="#f1f6f4" stroke-width="0.4" stroke-dasharray="2 2" />
-                <line x1="0" y1="15" x2="100" y2="15" stroke="#f1f6f4" stroke-width="0.4" stroke-dasharray="2 2" />
+                <line x1="0" y1="60" x2="100" y2="60" stroke="var(--c-separator)" stroke-width="0.5" />
+                <line x1="0" y1="45" x2="100" y2="45" stroke="rgba(60,60,67,.06)" stroke-width="0.4" stroke-dasharray="2 2" />
+                <line x1="0" y1="30" x2="100" y2="30" stroke="rgba(60,60,67,.06)" stroke-width="0.4" stroke-dasharray="2 2" />
+                <line x1="0" y1="15" x2="100" y2="15" stroke="rgba(60,60,67,.06)" stroke-width="0.4" stroke-dasharray="2 2" />
                 <polyline
                   v-if="compareTrendPoints.comparePath && compareLegendVisible.compare"
                   :points="compareTrendPoints.comparePath"
@@ -2506,7 +2475,7 @@ function toggleCompareLegend(which) {
                 ></div>
                 <ul class="compare-pie-legend">
                   <li v-for="(c, idx) in compareCategorySlices.legend" :key="`b-${c.key}`">
-                    <span class="dot" :style="{ background: ['#4f8f99','#e0a050','#d9c040','#6dbfa5','#7a8d89','#b27f9a'][idx % 6] }"></span>
+                    <span class="dot" :style="{ background: ['var(--c-brand)','var(--c-warning)','var(--c-warning-strong)','var(--c-brand-hover)','var(--c-text-2)','#b27f9a'][idx % 6] }"></span>
                     <em>{{ c.label }}</em>
                     <strong>{{ c.base }}</strong>
                   </li>
@@ -2520,7 +2489,7 @@ function toggleCompareLegend(which) {
                 ></div>
                 <ul class="compare-pie-legend">
                   <li v-for="(c, idx) in compareCategorySlices.legend" :key="`c-${c.key}`">
-                    <span class="dot" :style="{ background: ['#4f8f99','#e0a050','#d9c040','#6dbfa5','#7a8d89','#b27f9a'][idx % 6] }"></span>
+                    <span class="dot" :style="{ background: ['var(--c-brand)','var(--c-warning)','var(--c-warning-strong)','var(--c-brand-hover)','var(--c-text-2)','#b27f9a'][idx % 6] }"></span>
                     <em>{{ c.label }}</em>
                     <strong>{{ c.compare }}</strong>
                   </li>
@@ -2729,7 +2698,7 @@ function toggleCompareLegend(which) {
 <style scoped>
 /* =====================================================================
  * 多时相对比 Tab 样式 (PRD 1.4)
- * 颜色基调与 .chart-card / .panel 一致,采用 #2f7f80 / #1f4f4a 作为强调色
+ * 颜色基调与 .chart-card / .panel 一致,采用 var(--c-brand) / var(--c-brand-hover) 作为强调色
  * ===================================================================== */
 
 /* Tab 内容容器 */
@@ -2754,7 +2723,7 @@ function toggleCompareLegend(which) {
 }
 .compare-toolbar-label {
   font-size: 12px;
-  color: #4f6769;
+  color: var(--c-ink-2);
   font-weight: 600;
   letter-spacing: 0.02em;
 }
@@ -2773,23 +2742,23 @@ function toggleCompareLegend(which) {
 }
 .compare-select,
 .compare-input {
-  border: 1px solid #d8e3df;
-  border-radius: 8px;
+  border: 1px solid var(--c-separator);
+  border-radius: var(--r-sm);
   padding: 7px 10px;
   font-size: 13px;
-  background: #fff;
-  color: #1f3e44;
+  background: var(--c-surface);
+  color: var(--c-text);
   min-width: 120px;
   transition: border-color 0.18s ease, box-shadow 0.18s ease;
 }
 .compare-select:focus,
 .compare-input:focus {
   outline: none;
-  border-color: #2f7f80;
-  box-shadow: 0 0 0 3px rgba(47, 127, 128, 0.15);
+  border-color: var(--c-brand);
+  box-shadow: 0 0 0 3px rgba(111, 158, 127, 0.15);
 }
 .compare-input-sep {
-  color: #6e7f7c;
+  color: var(--c-text-3);
   font-size: 12px;
 }
 .compare-btn {
@@ -2797,41 +2766,41 @@ function toggleCompareLegend(which) {
   align-items: center;
   gap: 6px;
   padding: 7px 14px;
-  border: 1px solid #d8e3df;
-  border-radius: 8px;
-  background: #fff;
-  color: #1f3e44;
+  border: 1px solid var(--c-separator);
+  border-radius: var(--r-sm);
+  background: var(--c-surface);
+  color: var(--c-text);
   font-size: 13px;
   cursor: pointer;
   transition: all 0.18s ease;
 }
 .compare-btn:hover:not(:disabled) {
-  border-color: #2f7f80;
-  color: #2f7f80;
-  background: #eff9f6;
+  border-color: var(--c-brand);
+  color: var(--c-brand);
+  background: color-mix(in srgb, var(--c-brand) 8%, transparent);
 }
 .compare-btn:disabled {
   opacity: 0.55;
   cursor: not-allowed;
 }
 .compare-btn-primary {
-  background: linear-gradient(135deg, #2f7f80, #1f4f4a);
-  color: #fff;
+  background: linear-gradient(135deg, var(--c-brand), var(--c-brand-tint));
+  color: var(--c-on-brand);
   border-color: transparent;
   font-weight: 600;
 }
 .compare-btn-primary:hover:not(:disabled) {
-  background: linear-gradient(135deg, #379093, #225a55);
-  color: #fff;
+  background: linear-gradient(135deg, var(--c-brand-hover), var(--c-brand-hover));
+  color: var(--c-on-brand);
   border-color: transparent;
 }
 
 /* 错误提示 */
 .compare-error {
-  background: #fbe9e4;
-  color: #b04a3a;
-  border: 1px solid #f5c8c0;
-  border-radius: 10px;
+  background: var(--c-warning-bg);
+  color: var(--c-danger-strong);
+  border: 1px solid color-mix(in srgb, var(--c-danger) 30%, transparent);
+  border-radius: var(--r-md);
   padding: 10px 14px;
   font-size: 13px;
   margin: 0;
@@ -2842,11 +2811,11 @@ function toggleCompareLegend(which) {
   margin: 0;
   padding: 48px 20px;
   text-align: center;
-  color: #6e7f7c;
+  color: var(--c-text-3);
   font-size: 14px;
-  border: 2px dashed #d8e3df;
-  border-radius: 14px;
-  background: linear-gradient(180deg, #ffffff, #f8fbfa);
+  border: 2px dashed var(--c-separator);
+  border-radius: var(--r-lg);
+  background: linear-gradient(180deg, var(--c-surface), color-mix(in srgb, var(--c-text) 4%, transparent));
 }
 
 /* KPI 矩阵 (并排模式) */
@@ -2856,11 +2825,11 @@ function toggleCompareLegend(which) {
   gap: 12px;
 }
 .compare-kpi-card {
-  border: 1px solid #e3ebe7;
-  background: #fff;
-  border-radius: 13px;
+  border: 1px solid var(--c-separator);
+  background: var(--c-surface);
+  border-radius: var(--r-lg);
   padding: 14px 16px;
-  box-shadow: 0 5px 18px rgba(30, 75, 69, 0.025);
+  box-shadow: 0 5px 18px rgba(0, 0, 0, 0.025);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -2868,7 +2837,7 @@ function toggleCompareLegend(which) {
 }
 .compare-kpi-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 10px 24px rgba(30, 75, 69, 0.08);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.08);
 }
 .compare-kpi-head {
   display: flex;
@@ -2877,15 +2846,15 @@ function toggleCompareLegend(which) {
 }
 .compare-kpi-label {
   font-size: 12px;
-  color: #4f6769;
+  color: var(--c-ink-2);
   font-weight: 600;
 }
 .compare-kpi-unit {
   font-size: 10px;
-  color: #93a39e;
-  background: #f1f5f3;
+  color: var(--c-text-3);
+  background: var(--c-brand-mist);
   padding: 1px 6px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
 }
 .compare-kpi-body {
   display: grid;
@@ -2901,7 +2870,7 @@ function toggleCompareLegend(which) {
 .compare-kpi-base strong,
 .compare-kpi-compare strong {
   font-size: 20px;
-  color: #1f3e44;
+  color: var(--c-text);
   font-weight: 700;
   line-height: 1.1;
 }
@@ -2909,7 +2878,7 @@ function toggleCompareLegend(which) {
 .compare-kpi-compare em {
   font-style: normal;
   font-size: 11px;
-  color: #93a39e;
+  color: var(--c-text-3);
 }
 .compare-kpi-compare-line {
   display: flex;
@@ -2917,7 +2886,7 @@ function toggleCompareLegend(which) {
   gap: 4px;
 }
 .compare-kpi-flat {
-  color: #93a39e;
+  color: var(--c-text-3);
   font-size: 14px;
 }
 .compare-kpi-spark {
@@ -2934,7 +2903,7 @@ function toggleCompareLegend(which) {
   display: flex;
   gap: 12px;
   font-size: 10px;
-  color: #6e7f7c;
+  color: var(--c-text-3);
   align-items: center;
 }
 .compare-kpi-spark-legend .dot {
@@ -2946,10 +2915,10 @@ function toggleCompareLegend(which) {
   vertical-align: middle;
 }
 .compare-kpi-spark-legend .dot-base {
-  background: #2f7f80;
+  background: var(--c-brand);
 }
 .compare-kpi-spark-legend .dot-compare {
-  background: #b04a3a;
+  background: var(--c-danger-strong);
 }
 
 /* 图表区域 (并排 / 叠加 / 差异率) */
@@ -2978,36 +2947,36 @@ function toggleCompareLegend(which) {
   flex-direction: column;
   gap: 4px;
   font-size: 12px;
-  color: #4f6769;
+  color: var(--c-ink-2);
 }
 .compare-trend-chart {
   width: 100%;
   height: 240px;
 }
 .compare-trend-axis {
-  stroke: #d8e3df;
+  stroke: var(--c-separator);
   stroke-width: 1;
 }
 .compare-chart-legend {
   display: flex;
   gap: 12px;
   font-size: 12px;
-  color: #4f6769;
+  color: var(--c-ink-2);
   align-items: center;
   flex-wrap: wrap;
 }
 .compare-legend-btn {
   background: transparent;
-  border: 1px dashed #cbd5e1;
-  border-radius: 6px;
+  border: 1px dashed var(--c-brand-tint);
+  border-radius: var(--r-sm);
   padding: 3px 8px;
   cursor: pointer;
   font-size: 11px;
-  color: #475569;
+  color: var(--c-ink-1);
 }
 .compare-legend-btn:hover {
-  border-color: #2f7f80;
-  color: #2f7f80;
+  border-color: var(--c-brand);
+  color: var(--c-brand);
 }
 
 /* 区域柱图 */
@@ -3028,14 +2997,14 @@ function toggleCompareLegend(which) {
 }
 .compare-region-label {
   font-size: 12px;
-  color: #4f6769;
+  color: var(--c-ink-2);
   display: flex;
   justify-content: space-between;
 }
 .compare-region-track {
   height: 8px;
-  background: #f1f5f3;
-  border-radius: 4px;
+  background: var(--c-brand-mist);
+  border-radius: var(--r-xs);
   overflow: hidden;
   position: relative;
 }
@@ -3051,14 +3020,14 @@ function toggleCompareLegend(which) {
   margin-top: 10px;
 }
 .compare-diff-card {
-  border: 1px solid #e3ebe7;
-  background: #fff;
-  border-radius: 12px;
+  border: 1px solid var(--c-separator);
+  background: var(--c-surface);
+  border-radius: var(--r-lg);
   padding: 12px 14px;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  box-shadow: 0 4px 14px rgba(30, 75, 69, 0.025);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.025);
 }
 .compare-diff-card header {
   display: flex;
@@ -3066,7 +3035,7 @@ function toggleCompareLegend(which) {
   align-items: center;
 }
 .compare-diff-card header strong {
-  color: #1f3e44;
+  color: var(--c-text);
   font-size: 13px;
   font-weight: 600;
 }
@@ -3080,22 +3049,22 @@ function toggleCompareLegend(which) {
   align-items: center;
   gap: 6px;
   font-size: 12px;
-  color: #4f6769;
+  color: var(--c-ink-2);
   margin: 0;
 }
 .compare-diff-numbers .arrow {
-  color: #2f7f80;
+  color: var(--c-brand);
   font-weight: 700;
 }
 .compare-diff-sentence {
   font-size: 12px;
-  color: #6e7f7c;
+  color: var(--c-text-3);
   margin: 0;
 }
 .compare-diff-link {
   background: transparent;
   border: 0;
-  color: #2f7f80;
+  color: var(--c-brand);
   font-size: 12px;
   padding: 0;
   cursor: pointer;
@@ -3105,7 +3074,7 @@ function toggleCompareLegend(which) {
   align-self: flex-start;
 }
 .compare-diff-link:hover {
-  color: #1f4f4a;
+  color: var(--c-brand-hover);
   text-decoration: underline;
 }
 
@@ -3123,18 +3092,18 @@ function toggleCompareLegend(which) {
   flex-direction: column;
   gap: 4px;
   padding: 8px 0;
-  border-bottom: 1px dashed #ecf2ef;
+  border-bottom: 1px dashed var(--c-brand-mist);
 }
 .compare-diff-list li:last-child {
   border-bottom: 0;
 }
 .compare-diff-label {
   font-size: 12px;
-  color: #4f6769;
+  color: var(--c-ink-2);
 }
 .compare-diff-track {
   height: 6px;
-  background: #f1f5f3;
+  background: var(--c-brand-mist);
   border-radius: 3px;
   overflow: hidden;
   position: relative;

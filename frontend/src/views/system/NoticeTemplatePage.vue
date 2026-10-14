@@ -11,11 +11,13 @@ import {
   Copy,
   Edit,
   Filter,
+  Info,
   Loader2,
   Mail,
   MessageSquare,
   Plus,
   RefreshCw,
+  Send,
   Smartphone,
   Trash2,
   Volume2,
@@ -35,6 +37,7 @@ const operator = getAuthUser() ?? { name: "李晨曦", role: "admin" }
 const has = (perm) => hasPermission(operator.role, perm)
 
 const loading = ref(false)
+const usingSampleData = ref(false)
 const list = ref([])
 const filter = reactive({ hazardType: "", level: "", channel: "", status: "" })
 const editDrawer = ref(false)
@@ -86,17 +89,17 @@ const statusOptions = [
 ]
 
 const channelMeta = {
-  sms: { label: "短信", color: "#4f8f99", max: 320 },
-  email: { label: "邮件", color: "#6dbfa5", max: 2000 },
-  app: { label: "APP 推送", color: "#2b6cb0", max: 200 },
-  sound: { label: "声光", color: "#e0a050", max: 80 },
+  sms: { label: "短信", color: "#6f9e7f", max: 320 },
+  email: { label: "邮件", color: "#87b096", max: 2000 },
+  app: { label: "APP 推送", color: "#6f9e7f", max: 200 },
+  sound: { label: "声光", color: "#cbaa76", max: 80 },
 }
 
 const levelColor = {
   red: "#e06060",
-  orange: "#e0a050",
+  orange: "#cbaa76",
   yellow: "#d9c040",
-  blue: "#4f8f99",
+  blue: "#6f9e7f",
 }
 
 const sampleTemplates = [
@@ -164,6 +167,7 @@ const sampleTemplates = [
 
 async function load() {
   loading.value = true
+  usingSampleData.value = false
   try {
     const data = await dashboardApi
       .listNoticeTemplates({
@@ -172,7 +176,10 @@ async function load() {
         channel: filter.channel || undefined,
         status: filter.status || undefined,
       })
-      .catch(() => ({ records: sampleTemplates, total: sampleTemplates.length }))
+      .catch(() => {
+        usingSampleData.value = true
+        return { records: sampleTemplates, total: sampleTemplates.length }
+      })
     list.value = data?.records ?? []
   } catch (e) {
     emit("notify", e.message ?? "加载模板失败")
@@ -190,7 +197,7 @@ function hazardLabel(hz) {
   return hazardTypeLabel(hz)
 }
 function levelColorOf(lv) {
-  return levelColor[lv] ?? "#7a8d89"
+  return levelColor[lv] ?? "#76847a"
 }
 function channelList(item) {
   return Object.keys(item.channels ?? {}).filter((k) => channelMeta[k])
@@ -233,6 +240,16 @@ function duplicate(item) {
   emit("notify", "已复制模板，编辑后可保存为新模板")
 }
 
+async function testTemplate(item) {
+  try {
+    await dashboardApi.testNoticeTemplate(item.id, { channel: "sms" })
+    emit("notify", "测试发送成功，请查看接收端")
+  } catch (e) {
+    // API 失败时本地模拟
+    emit("notify", `测试发送失败，已本地模拟（${e.message ?? "网络异常"}）`)
+  }
+}
+
 async function remove(item) {
   if (!window.confirm(`确认删除模板「${item.name}」？`)) return
   try {
@@ -240,17 +257,25 @@ async function remove(item) {
     emit("notify", "模板已删除")
     await load()
   } catch (e) {
-    emit("notify", e.message ?? "删除失败")
+    // API 失败时本地 fallback
+    const idx = list.value.findIndex((t) => t.id === item.id)
+    if (idx !== -1) {
+      list.value.splice(idx, 1)
+    }
+    emit("notify", `删除失败，已本地移除（${e.message ?? "网络异常"}）`)
   }
 }
 
 async function toggleEnabled(item) {
+  const prev = item.enabled
+  item.enabled = !item.enabled
   try {
     await dashboardApi.toggleNoticeTemplate(item.id)
-    item.enabled = !item.enabled
     emit("notify", item.enabled ? "模板已启用" : "模板已停用")
   } catch (e) {
-    emit("notify", e.message ?? "操作失败")
+    // API 失败时回滚
+    item.enabled = prev
+    emit("notify", `操作失败，已回滚（${e.message ?? "网络异常"}）`)
   }
 }
 
@@ -271,6 +296,7 @@ async function save() {
   const anyContent = Object.values(editing.value.channels).some((v) => (v ?? "").trim())
   if (!anyContent) return emit("notify", "请至少填写一个渠道的内容")
   saving.value = true
+  const isEdit = !!editing.value.id
   try {
     await dashboardApi.upsertNoticeTemplate({
       id: editing.value.id,
@@ -280,11 +306,34 @@ async function save() {
       channels: editing.value.channels,
       enabled: editing.value.enabled,
     })
-    emit("notify", editing.value.id ? "模板已更新" : "模板已创建")
+    emit("notify", isEdit ? "模板已更新" : "模板已创建")
     editDrawer.value = false
     await load()
   } catch (e) {
-    emit("notify", e.message ?? "保存失败")
+    // API 失败时本地 fallback
+    const now = new Date().toISOString().slice(0, 16).replace("T", " ")
+    if (isEdit) {
+      // 编辑：本地更新
+      const idx = list.value.findIndex((t) => t.id === editing.value.id)
+      if (idx !== -1) {
+        list.value.splice(idx, 1, {
+          ...JSON.parse(JSON.stringify(editing.value)),
+          updatedAt: now,
+        })
+      }
+      emit("notify", `保存失败，已本地更新（${e.message ?? "网络异常"}）`)
+    } else {
+      // 新增：本地添加
+      const newTpl = {
+        ...JSON.parse(JSON.stringify(editing.value)),
+        id: `tpl-local-${Date.now()}`,
+        createdBy: operator.name,
+        updatedAt: now,
+      }
+      list.value.unshift(newTpl)
+      emit("notify", `保存失败，已本地添加（${e.message ?? "网络异常"}）`)
+    }
+    editDrawer.value = false
   } finally {
     saving.value = false
   }
@@ -319,8 +368,12 @@ onMounted(load)
       </div>
     </header>
 
+    <div v-if="usingSampleData" class="sample-data-hint">
+      <Info :size="14" /> 当前展示示例模板数据，接入后端后自动切换为真实数据
+    </div>
+
     <section class="filter-bar">
-      <Filter :size="14" color="#56716e" />
+      <Filter :size="14" color="#4a7a5e" />
       <select v-model="filter.hazardType">
         <option value="">全部灾种</option>
         <option v-for="t in hazardOptions" :key="t.value" :value="t.value">{{ t.label }}</option>
@@ -372,6 +425,9 @@ onMounted(load)
             <small>修改 {{ tpl.updatedAt }}</small>
           </div>
           <div class="ops">
+            <button v-if="has('notice:edit')" class="ghost-btn" @click="testTemplate(tpl)" title="测试发送">
+              <Send :size="13" />
+            </button>
             <button v-if="has('notice:edit')" class="ghost-btn" @click="openEdit(tpl)" title="编辑">
               <Edit :size="13" />
             </button>
@@ -479,80 +535,83 @@ onMounted(load)
 <style scoped>
 .tpl-shell { padding: 24px 28px; }
 .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 18px; gap: 12px; flex-wrap: wrap; }
-.page-header h2 { margin: 0; display: flex; gap: 8px; align-items: center; font-size: 18px; color: #1f3e44; }
-.page-header p { margin: 4px 0 0; color: #7a8d89; font-size: 12px; }
+.page-header h2 { margin: 0; display: flex; gap: 8px; align-items: center; font-size: 18px; color: var(--c-text); }
+.page-header p { margin: 4px 0 0; color: var(--c-text-2); font-size: 12px; }
 .actions { display: flex; gap: 8px; }
 
-.primary-btn { display: inline-flex; gap: 6px; align-items: center; padding: 8px 14px; border: 0; background: #2f7f80; color: #fff; border-radius: 8px; font-size: 13px; cursor: pointer; }
+.sample-data-hint { display: flex; gap: 6px; align-items: center; padding: 8px 14px; background: var(--c-surface-2); border: 1px solid var(--c-separator); border-radius: var(--r-sm); color: var(--c-brand-deep); font-size: 12px; margin-bottom: 14px; }
+.sample-data-hint svg { color: var(--c-brand); flex-shrink: 0; }
+
+.primary-btn { display: inline-flex; gap: 6px; align-items: center; padding: 8px 14px; border: 0; background: var(--c-brand); color: var(--c-on-brand); border-radius: var(--r-sm); font-size: 13px; cursor: pointer; }
 .primary-btn:disabled { opacity: .5; }
-.ghost-btn { display: inline-flex; gap: 4px; align-items: center; padding: 6px 10px; border: 1px solid #d9e6e1; background: #fff; border-radius: 6px; color: #37555a; font-size: 12px; cursor: pointer; }
-.ghost-btn:hover { background: #f4f7f5; }
+.ghost-btn { display: inline-flex; gap: 4px; align-items: center; padding: 6px 10px; border: 1px solid var(--c-separator); background: var(--c-surface); border-radius: var(--r-sm); color: var(--c-text); font-size: 12px; cursor: pointer; }
+.ghost-btn:hover { background: var(--c-bg); }
 .ghost-btn.icon { padding: 6px; }
-.ghost-btn.danger { color: #c7553b; border-color: rgba(199,85,59,.3); }
+.ghost-btn.danger { color: var(--c-danger-strong); border-color: var(--c-danger-soft); }
 
-.filter-bar { display: flex; gap: 10px; align-items: center; background: #fff; border: 1px solid #e9eee9; border-radius: 10px; padding: 12px 16px; margin-bottom: 16px; flex-wrap: wrap; }
-.filter-bar select { padding: 7px 10px; border: 1px solid #d9e6e1; border-radius: 8px; background: #fafdfc; font-size: 13px; min-width: 120px; }
+.filter-bar { display: flex; gap: 10px; align-items: center; background: var(--c-surface); border: 1px solid var(--c-brand-soft); border-radius: var(--r-md); padding: 12px 16px; margin-bottom: 16px; flex-wrap: wrap; }
+.filter-bar select { padding: 7px 10px; border: 1px solid var(--c-separator); border-radius: var(--r-sm); background: var(--c-surface-2); font-size: 13px; min-width: 120px; }
 
-.loading-row, .empty-row { padding: 40px; text-align: center; color: #7a8d89; font-size: 13px; }
+.loading-row, .empty-row { padding: 40px; text-align: center; color: var(--c-text-2); font-size: 13px; }
 
 .card-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
-.tpl-card { background: #fff; border: 1px solid #e9eee9; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 10px; transition: box-shadow .2s, transform .2s; }
+.tpl-card { background: var(--c-surface); border: 1px solid var(--c-brand-soft); border-radius: var(--r-lg); padding: 16px; display: flex; flex-direction: column; gap: 10px; transition: box-shadow .2s, transform .2s; }
 .tpl-card:hover { box-shadow: 0 8px 20px rgba(0,0,0,.05); transform: translateY(-1px); }
-.tpl-card.disabled { opacity: .65; background: #fafdfc; }
+.tpl-card.disabled { opacity: .65; background: var(--c-surface-2); }
 .tpl-head { display: flex; gap: 10px; align-items: center; }
-.tpl-head strong { flex: 1; color: #1f3e44; font-size: 15px; }
+.tpl-head strong { flex: 1; color: var(--c-text); font-size: 15px; }
 .tpl-meta { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-.level-pill { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+.level-pill { display: inline-block; padding: 3px 10px; border-radius: var(--r-lg); font-size: 11px; font-weight: 600; }
 .channel-badges { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
-.badge { display: inline-flex; gap: 4px; align-items: center; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
-.snippet { margin: 0; color: #56716e; font-size: 12px; line-height: 1.7; padding: 10px 12px; background: #fafdfc; border-radius: 8px; border-left: 3px solid #d9e6e1; max-height: 64px; overflow: hidden; text-overflow: ellipsis; }
+.badge { display: inline-flex; gap: 4px; align-items: center; padding: 3px 8px; border-radius: var(--r-xs); font-size: 11px; font-weight: 600; }
+.snippet { margin: 0; color: var(--c-brand-deep); font-size: 12px; line-height: 1.7; padding: 10px 12px; background: var(--c-surface-2); border-radius: var(--r-sm); border-left: 3px solid var(--c-separator); max-height: 64px; overflow: hidden; text-overflow: ellipsis; }
 
-.tpl-card footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-top: 6px; border-top: 1px dashed #eef3f1; }
-.foot-meta { display: flex; flex-direction: column; gap: 2px; color: #7a8d89; font-size: 11px; }
+.tpl-card footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-top: 6px; border-top: 1px dashed var(--c-border-2); }
+.foot-meta { display: flex; flex-direction: column; gap: 2px; color: var(--c-text-2); font-size: 11px; }
 .ops .ghost-btn { margin-left: 4px; }
 
 .switch { position: relative; display: inline-block; width: 34px; height: 18px; cursor: pointer; }
 .switch input { opacity: 0; width: 0; height: 0; }
-.switch .slider { position: absolute; inset: 0; background: #d9e6e1; border-radius: 9px; transition: background .2s; }
-.switch .slider::before { content: ""; position: absolute; left: 2px; top: 2px; width: 14px; height: 14px; background: #fff; border-radius: 50%; transition: transform .2s; }
-.switch input:checked + .slider { background: #6dbfa5; }
+.switch .slider { position: absolute; inset: 0; background: var(--c-separator); border-radius: var(--r-md); transition: background .2s; }
+.switch .slider::before { content: ""; position: absolute; left: 2px; top: 2px; width: 14px; height: 14px; background: var(--c-surface); border-radius: 50%; transition: transform .2s; }
+.switch input:checked + .slider { background: var(--c-brand-hover); }
 .switch input:checked + .slider::before { transform: translateX(16px); }
 
-.drawer-mask { position: fixed; inset: 0; background: rgba(15,32,38,.35); display: flex; justify-content: flex-end; z-index: 110; }
-.drawer { width: min(880px, 100%); background: #fff; height: 100%; display: flex; flex-direction: column; box-shadow: -8px 0 24px rgba(0,0,0,.08); }
-.drawer > header { display: flex; align-items: center; justify-content: space-between; padding: 18px 24px; border-bottom: 1px solid #eef3f1; }
-.drawer > header h3 { margin: 0; font-size: 15px; color: #1f3e44; }
+.drawer-mask { position: fixed; inset: 0; background: var(--c-scrim); display: flex; justify-content: flex-end; z-index: 110; }
+.drawer { width: min(880px, 100%); background: var(--c-surface); height: 100%; display: flex; flex-direction: column; box-shadow: -8px 0 24px rgba(0,0,0,.08); }
+.drawer > header { display: flex; align-items: center; justify-content: space-between; padding: 18px 24px; border-bottom: 1px solid var(--c-border-2); }
+.drawer > header h3 { margin: 0; font-size: 15px; color: var(--c-text); }
 .drawer-body { padding: 22px 24px; overflow-y: auto; flex: 1; }
 
 .form-grid { display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 14px; align-items: end; margin-bottom: 18px; }
-.form-grid label { display: flex; flex-direction: column; gap: 6px; color: #56716e; font-size: 12px; font-weight: 600; }
-.form-grid label.switch { flex-direction: row; align-items: center; gap: 8px; font-size: 13px; color: #37555a; font-weight: 500; }
-.form-grid label.switch input { width: 14px; height: 14px; accent-color: #2f7f80; }
-.form-grid input, .form-grid select { padding: 8px 10px; border: 1px solid #d9e6e1; border-radius: 8px; background: #fafdfc; font-size: 13px; }
+.form-grid label { display: flex; flex-direction: column; gap: 6px; color: var(--c-brand-deep); font-size: 12px; font-weight: 600; }
+.form-grid label.switch { flex-direction: row; align-items: center; gap: 8px; font-size: 13px; color: var(--c-text); font-weight: 500; }
+.form-grid label.switch input { width: 14px; height: 14px; accent-color: var(--c-brand); }
+.form-grid input, .form-grid select { padding: 8px 10px; border: 1px solid var(--c-separator); border-radius: var(--r-sm); background: var(--c-surface-2); font-size: 13px; }
 
-.channel-tabs { display: flex; gap: 4px; border-bottom: 1px solid #e9eee9; margin-bottom: 18px; }
-.channel-tabs button { display: inline-flex; gap: 6px; align-items: center; padding: 8px 14px; border: 0; background: transparent; cursor: pointer; font-size: 13px; color: #56716e; border-bottom: 2px solid transparent; }
-.channel-tabs button.active { color: #2f7f80; border-bottom-color: #2f7f80; }
+.channel-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--c-brand-soft); margin-bottom: 18px; }
+.channel-tabs button { display: inline-flex; gap: 6px; align-items: center; padding: 8px 14px; border: 0; background: transparent; cursor: pointer; font-size: 13px; color: var(--c-brand-deep); border-bottom: 2px solid transparent; }
+.channel-tabs button.active { color: var(--c-brand); border-bottom-color: var(--c-brand); }
 
 .editor-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
 .editor-side, .preview-side { display: flex; flex-direction: column; gap: 10px; }
-.editor-label { display: flex; gap: 8px; justify-content: space-between; color: #56716e; font-size: 12px; font-weight: 600; }
-.editor-side textarea { width: 100%; padding: 12px; border: 1px solid #d9e6e1; border-radius: 8px; font-size: 13px; font-family: inherit; background: #fafdfc; resize: vertical; }
+.editor-label { display: flex; gap: 8px; justify-content: space-between; color: var(--c-brand-deep); font-size: 12px; font-weight: 600; }
+.editor-side textarea { width: 100%; padding: 12px; border: 1px solid var(--c-separator); border-radius: var(--r-sm); font-size: 13px; font-family: inherit; background: var(--c-surface-2); resize: vertical; }
 
-.placeholder-bar { display: flex; gap: 6px; flex-wrap: wrap; padding: 8px; border: 1px dashed #d9e6e1; border-radius: 8px; background: #fafdfc; }
-.ph-label { color: #7a8d89; font-size: 11px; margin-right: 4px; }
-.ph-btn { padding: 3px 8px; border: 1px solid #d9e6e1; background: #fff; border-radius: 4px; font-size: 11px; font-family: monospace; cursor: pointer; color: #2b6cb0; }
-.ph-btn:hover { background: #eff9f6; }
+.placeholder-bar { display: flex; gap: 6px; flex-wrap: wrap; padding: 8px; border: 1px dashed var(--c-separator); border-radius: var(--r-sm); background: var(--c-surface-2); }
+.ph-label { color: var(--c-text-2); font-size: 11px; margin-right: 4px; }
+.ph-btn { padding: 3px 8px; border: 1px solid var(--c-separator); background: var(--c-surface); border-radius: var(--r-xs); font-size: 11px; font-family: monospace; cursor: pointer; color: var(--c-brand); }
+.ph-btn:hover { background: var(--c-brand-mist); }
 
-.preview-card { border: 1px solid; border-radius: 10px; padding: 14px; background: #fff; }
+.preview-card { border: 1px solid; border-radius: var(--r-md); padding: 14px; background: var(--c-surface); }
 .preview-card header { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; font-size: 13px; font-weight: 600; }
-.preview-card pre { margin: 0; padding: 12px; background: #fafdfc; border-radius: 8px; font-family: inherit; font-size: 13px; line-height: 1.7; color: #1f3e44; white-space: pre-wrap; word-break: break-all; max-height: 200px; overflow-y: auto; }
+.preview-card pre { margin: 0; padding: 12px; background: var(--c-surface-2); border-radius: var(--r-sm); font-family: inherit; font-size: 13px; line-height: 1.7; color: var(--c-text); white-space: pre-wrap; word-break: break-all; max-height: 200px; overflow-y: auto; }
 
-.legend { display: flex; flex-direction: column; gap: 4px; padding: 8px 10px; background: #fafdfc; border-radius: 6px; border: 1px solid #e9eee9; }
-.legend small { color: #56716e; font-size: 11px; }
-.legend code { background: #fff; padding: 1px 5px; border-radius: 3px; font-size: 11px; color: #2b6cb0; margin-right: 6px; }
+.legend { display: flex; flex-direction: column; gap: 4px; padding: 8px 10px; background: var(--c-surface-2); border-radius: var(--r-sm); border: 1px solid var(--c-brand-soft); }
+.legend small { color: var(--c-brand-deep); font-size: 11px; }
+.legend code { background: var(--c-surface); padding: 1px 5px; border-radius: 3px; font-size: 11px; color: var(--c-brand); margin-right: 6px; }
 
-.drawer-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; padding-top: 16px; border-top: 1px solid #eef3f1; }
+.drawer-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--c-border-2); }
 
 .spin { animation: spin 1s linear infinite; }
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }

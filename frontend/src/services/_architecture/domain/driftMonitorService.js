@@ -6,7 +6,14 @@
 import { request, createApiError, USE_BACKEND } from "../../dashboardApi.js";
 import { withQuery } from "../../../utils/query.js";
 
-const AI_SERVICE_BASE = import.meta.env.VITE_AI_SERVICE_URL || "http://localhost:8000/api";
+// ai-service 监听 8001（与 sentinelService / aiApi 一致）。原先误写 8000，
+// 且只认单一环境变量名 VITE_AI_SERVICE_URL，与其余服务不一致，会导致
+// 漂移监控在生产环境连不上 AI 服务。
+const AI_SERVICE_BASE =
+  import.meta.env.VITE_AI_SERVICE_BASE ||
+  import.meta.env.VITE_AI_SERVICE_BASE_URL ||
+  import.meta.env.VITE_AI_SERVICE_URL ||
+  "http://localhost:8001/api/ai";
 
 async function aiServiceRequest(path, options = {}) {
   const url = `${AI_SERVICE_BASE}${path}`;
@@ -164,7 +171,7 @@ export const DRIFT_LEVELS = {
   NORMAL: { label: "正常", color: "#38a169", class: "teal" },
   SLIGHT: { label: "轻微漂移", color: "#d18f2f", class: "yellow" },
   SIGNIFICANT: { label: "显著漂移", color: "#e53e3e", class: "red" },
-  UNKNOWN: { label: "未知", color: "#7a8d89", class: "gray" },
+  UNKNOWN: { label: "未知", color: "#8a968d", class: "gray" },
 };
 
 /**

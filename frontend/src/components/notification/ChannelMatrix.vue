@@ -34,10 +34,10 @@ const testing = ref(false)
 
 // 渠道元数据
 const channelMeta = {
-  SMS: { label: "短信", icon: MessageSquare, color: "#4f8f99", priority: 1 },
-  APP: { label: "APP 推送", icon: Smartphone, color: "#2b6cb0", priority: 2 },
-  SCREEN: { label: "大屏", icon: Monitor, color: "#6dbfa5", priority: 3 },
-  SOUND_LIGHT: { label: "声光", icon: Volume2, color: "#e0a050", priority: 4 },
+  SMS: { label: "短信", icon: MessageSquare, color: "#6f9e7f", priority: 1 },
+  APP: { label: "APP 推送", icon: Smartphone, color: "#6f9e7f", priority: 2 },
+  SCREEN: { label: "大屏", icon: Monitor, color: "#87b096", priority: 3 },
+  SOUND_LIGHT: { label: "声光", icon: Volume2, color: "#cbaa76", priority: 4 },
   EMAIL: { label: "邮件", icon: Mail, color: "#805ad5", priority: 5 },
   WEBHOOK: { label: "Webhook", icon: Webhook, color: "#718096", priority: 6 },
 }
@@ -312,9 +312,9 @@ function setTemplateId(channel, templateId) {
 
 <style scoped>
 .channel-matrix {
-  background: #fff;
-  border: 1px solid #e9eee9;
-  border-radius: 12px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-brand-soft);
+  border-radius: var(--r-lg);
   overflow: hidden;
 }
 
@@ -323,23 +323,23 @@ function setTemplateId(channel, templateId) {
   justify-content: space-between;
   align-items: center;
   padding: 14px 18px;
-  border-bottom: 1px solid #e9eee9;
-  background: #fafdfc;
+  border-bottom: 1px solid var(--c-brand-soft);
+  background: var(--c-surface-2);
 }
 
 .header-info {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #1f3e44;
+  color: var(--c-text);
   font-weight: 600;
 }
 
 .config-badge {
   padding: 3px 10px;
-  background: #e8f5f3;
-  color: #2f7f80;
-  border-radius: 12px;
+  background: var(--c-brand-mist);
+  color: var(--c-brand);
+  border-radius: var(--r-lg);
   font-size: 12px;
   font-weight: 500;
 }
@@ -355,7 +355,7 @@ function setTemplateId(channel, templateId) {
   justify-content: center;
   gap: 10px;
   padding: 40px;
-  color: #7a8d89;
+  color: var(--c-text-2);
 }
 
 .channel-list {
@@ -367,12 +367,12 @@ function setTemplateId(channel, templateId) {
   align-items: center;
   gap: 14px;
   padding: 12px 14px;
-  border-radius: 8px;
+  border-radius: var(--r-sm);
   transition: background 0.2s;
 }
 
 .channel-item:hover {
-  background: #fafdfc;
+  background: var(--c-surface-2);
 }
 
 .channel-item.disabled {
@@ -389,7 +389,7 @@ function setTemplateId(channel, templateId) {
   justify-content: center;
   width: 38px;
   height: 38px;
-  border-radius: 10px;
+  border-radius: var(--r-md);
   flex-shrink: 0;
 }
 
@@ -400,13 +400,13 @@ function setTemplateId(channel, templateId) {
 
 .channel-info strong {
   display: block;
-  color: #1f3e44;
+  color: var(--c-text);
   font-size: 14px;
 }
 
 .priority {
   font-size: 11px;
-  color: #7a8d89;
+  color: var(--c-text-2);
 }
 
 .channel-template {
@@ -417,14 +417,14 @@ function setTemplateId(channel, templateId) {
 .channel-template select {
   width: 100%;
   padding: 8px 10px;
-  border: 1px solid #d9e6e1;
-  border-radius: 6px;
-  background: #fafdfc;
+  border: 1px solid var(--c-separator);
+  border-radius: var(--r-sm);
+  background: var(--c-surface-2);
   font-size: 13px;
 }
 
 .template-disabled {
-  color: #7a8d89;
+  color: var(--c-text-2);
 }
 
 .switch {
@@ -444,8 +444,8 @@ function setTemplateId(channel, templateId) {
 .switch .slider {
   position: absolute;
   inset: 0;
-  background: #d9e6e1;
-  border-radius: 10px;
+  background: var(--c-separator);
+  border-radius: var(--r-md);
   transition: background 0.2s;
 }
 
@@ -456,13 +456,13 @@ function setTemplateId(channel, templateId) {
   top: 2px;
   width: 16px;
   height: 16px;
-  background: #fff;
+  background: var(--c-surface);
   border-radius: 50%;
   transition: transform 0.2s;
 }
 
 .switch input:checked + .slider {
-  background: #2f7f80;
+  background: var(--c-brand);
 }
 
 .switch input:checked + .slider::before {
@@ -475,9 +475,9 @@ function setTemplateId(channel, templateId) {
   align-items: center;
   padding: 8px 14px;
   border: 0;
-  background: #2f7f80;
-  color: #fff;
-  border-radius: 6px;
+  background: var(--c-brand);
+  color: var(--c-on-brand);
+  border-radius: var(--r-sm);
   font-size: 13px;
   cursor: pointer;
 }
@@ -491,16 +491,16 @@ function setTemplateId(channel, templateId) {
   gap: 4px;
   align-items: center;
   padding: 7px 12px;
-  border: 1px solid #d9e6e1;
-  background: #fff;
-  border-radius: 6px;
-  color: #37555a;
+  border: 1px solid var(--c-separator);
+  background: var(--c-surface);
+  border-radius: var(--r-sm);
+  color: var(--c-text);
   font-size: 12px;
   cursor: pointer;
 }
 
 .ghost-btn:hover {
-  background: #f4f7f5;
+  background: var(--c-bg);
 }
 
 .spin {

@@ -266,7 +266,7 @@ onBeforeUnmount(() => stopAutoRefresh())
           <Loader2 :size="20" class="spin" /> 加载中…
         </div>
         <div v-else-if="!MAP_SVG" class="pmp-empty">
-          <MapPin :size="40" style="color:#c8d5d5" />
+          <MapPin :size="40" class="pmp-empty-ico" />
           <p>暂无人员位置数据</p>
           <p class="pmp-empty-sub">通过下方"位置上报"按钮模拟上报</p>
         </div>
@@ -275,24 +275,24 @@ onBeforeUnmount(() => stopAutoRefresh())
             v-for="(g, i) in MAP_SVG.gridLines"
             :key="'g'+i"
             :x1="g.x1" :y1="g.y1" :x2="g.x2" :y2="g.y2"
-            stroke="rgba(47,127,128,.1)" stroke-width="1" stroke-dasharray="3,4"
+            stroke="rgba(111,158,127,.1)" stroke-width="1" stroke-dasharray="3,4"
           />
           <!-- 中心十字 -->
           <line
             :x1="MAP_SVG.W / 2 - 6" :y1="MAP_SVG.H / 2"
             :x2="MAP_SVG.W / 2 + 6" :y2="MAP_SVG.H / 2"
-            stroke="rgba(43,108,176,.4)" stroke-width="1"
+            stroke="rgba(47,143,82,.4)" stroke-width="1"
           />
           <line
             :x1="MAP_SVG.W / 2" :y1="MAP_SVG.H / 2 - 6"
             :x2="MAP_SVG.W / 2" :y2="MAP_SVG.H / 2 + 6"
-            stroke="rgba(43,108,176,.4)" stroke-width="1"
+            stroke="rgba(47,143,82,.4)" stroke-width="1"
           />
           <!-- 坐标轴标签 -->
-          <text :x="MAP_SVG.PAD.left" :y="MAP_SVG.H - 6" font-size="10" fill="#9baead">东 (E)</text>
-          <text :x="MAP_SVG.W - MAP_SVG.PAD.right - 14" :y="MAP_SVG.H - 6" font-size="10" fill="#9baead">西 (W)</text>
-          <text :x="6" :y="MAP_SVG.PAD.top + 12" font-size="10" fill="#9baead">北 (N)</text>
-          <text :x="6" :y="MAP_SVG.H - MAP_SVG.PAD.bottom - 4" font-size="10" fill="#9baead">南 (S)</text>
+          <text :x="MAP_SVG.PAD.left" :y="MAP_SVG.H - 6" font-size="10" fill="#9aab9f">东 (E)</text>
+          <text :x="MAP_SVG.W - MAP_SVG.PAD.right - 14" :y="MAP_SVG.H - 6" font-size="10" fill="#9aab9f">西 (W)</text>
+          <text :x="6" :y="MAP_SVG.PAD.top + 12" font-size="10" fill="#9aab9f">北 (N)</text>
+          <text :x="6" :y="MAP_SVG.H - MAP_SVG.PAD.bottom - 4" font-size="10" fill="#9aab9f">南 (S)</text>
 
           <g v-for="p in MAP_SVG.points" :key="p.id" @click="selectedPerson = p.id" class="pmp-marker-g">
             <!-- 选中光晕 -->
@@ -300,7 +300,7 @@ onBeforeUnmount(() => stopAutoRefresh())
               v-if="selectedPerson === p.id"
               :cx="p.x" :cy="p.y" r="20"
               fill="none"
-              :stroke="p.offline ? '#e06060' : '#4f8f99'"
+              :stroke="p.offline ? '#e06060' : '#6f9e7f'"
               stroke-width="2"
               opacity="0.5"
             >
@@ -315,22 +315,22 @@ onBeforeUnmount(() => stopAutoRefresh())
             />
             <circle
               :cx="p.x" :cy="p.y" r="10"
-              :fill="p.offline ? '#9baead' : (p.status === '巡检中' ? '#2b6cb0' : '#4f8f99')"
+              :fill="p.offline ? '#9aab9f' : (p.status === '巡检中' ? '#6f9e7f' : '#6f9e7f')"
               stroke="#fff" stroke-width="2"
             />
             <text :x="p.x" :y="p.y + 3" text-anchor="middle" font-size="10" fill="#fff" font-weight="700">
               {{ p.name?.slice(-2) ?? '?' }}
             </text>
             <!-- 名字标签 -->
-            <text :x="p.x" :y="p.y - 16" text-anchor="middle" font-size="11" fill="#24494d" font-weight="600">
+            <text :x="p.x" :y="p.y - 16" text-anchor="middle" font-size="11" fill="#1c1c1e" font-weight="600">
               {{ p.name }}
             </text>
           </g>
         </svg>
         <div class="pmp-legend">
-          <span><span class="pmp-legend-dot" style="background:#2b6cb0"></span>巡检中</span>
-          <span><span class="pmp-legend-dot" style="background:#4f8f99"></span>在线</span>
-          <span><span class="pmp-legend-dot" style="background:#9baead"></span>离线</span>
+          <span><span class="pmp-legend-dot pmp-dot-on"></span>巡检中</span>
+          <span><span class="pmp-legend-dot pmp-dot-on"></span>在线</span>
+          <span><span class="pmp-legend-dot pmp-dot-off"></span>离线</span>
           <span><span class="pmp-legend-ring"></span>选中</span>
         </div>
       </div>
@@ -435,7 +435,7 @@ onBeforeUnmount(() => stopAutoRefresh())
               </div>
               <div class="pmp-person-coord">
                 <span v-if="p.lon && p.lat">{{ p.lon.toFixed(3) }}, {{ p.lat.toFixed(3) }}</span>
-                <span v-else style="color:#9baead">未定位</span>
+                <span v-else class="pmp-unlocated">未定位</span>
               </div>
             </article>
           </div>
@@ -455,24 +455,24 @@ export default { components: { ClipboardCheckIcon } }
 
 /* Header */
 .pmp-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; gap: 12px; }
-.pmp-title { display: flex; align-items: center; gap: 8px; font-size: 18px; font-weight: 700; color: #24494d; margin: 0 0 4px; }
-.pmp-subtitle { font-size: 13px; color: #7a8d89; margin: 0; }
+.pmp-title { display: flex; align-items: center; gap: 8px; font-size: 18px; font-weight: 700; color: var(--c-text); margin: 0 0 4px; }
+.pmp-subtitle { font-size: 13px; color: var(--c-text-2); margin: 0; }
 .pmp-header-actions { display: flex; align-items: center; gap: 12px; }
-.pmp-last-update { display: flex; align-items: center; gap: 4px; font-size: 12px; color: #7a8d89; }
-.pmp-refresh-btn { display: flex; align-items: center; gap: 6px; padding: 7px 14px; background: #f0f8f6; border: 1px solid #d0dcd8; border-radius: 8px; font-size: 13px; color: #56716e; cursor: pointer; }
-.pmp-refresh-btn:hover:not(:disabled) { border-color: #4f8f99; color: #4f8f99; }
-.pmp-error { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: #fff5f5; border: 1px solid #feb2b2; border-radius: 8px; color: #c53030; font-size: 13px; margin-bottom: 16px; }
+.pmp-last-update { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--c-text-2); }
+.pmp-refresh-btn { display: flex; align-items: center; gap: 6px; padding: 7px 14px; background: var(--c-brand-mist); border: 1px solid var(--c-brand-tint); border-radius: var(--r-sm); font-size: 13px; color: var(--c-brand-deep); cursor: pointer; }
+.pmp-refresh-btn:hover:not(:disabled) { border-color: var(--c-brand); color: var(--c-brand); }
+.pmp-error { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: var(--c-danger-bg); border: 1px solid var(--c-danger-soft); border-radius: var(--r-sm); color: var(--c-danger-strong); font-size: 13px; margin-bottom: 16px; }
 
 /* KPIs */
 .pmp-kpis { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-bottom: 16px; }
-.pmp-kpi { background: #fff; border: 1px solid #e9eee9; border-left: 3px solid #4f8f99; border-radius: 10px; padding: 12px 16px; }
-.pmp-kpi-label { font-size: 11px; color: #7a8d89; text-transform: uppercase; font-weight: 600; margin-bottom: 4px; display: flex; align-items: center; gap: 4px; }
-.pmp-kpi-value { font-size: 22px; font-weight: 800; color: #24494d; line-height: 1.1; }
-.kpi-online { border-left-color: #38a169; }
-.kpi-offline { border-left-color: #9baead; }
-.kpi-active { border-left-color: #2b6cb0; }
-.kpi-waiting { border-left-color: #e0a050; }
-.kpi-alert { border-left-color: #e06060; }
+.pmp-kpi { background: var(--c-surface); border: 1px solid var(--c-brand-soft); border-left: 3px solid var(--c-brand); border-radius: var(--r-md); padding: 12px 16px; }
+.pmp-kpi-label { font-size: 11px; color: var(--c-text-2); text-transform: uppercase; font-weight: 600; margin-bottom: 4px; display: flex; align-items: center; gap: 4px; }
+.pmp-kpi-value { font-size: 22px; font-weight: 800; color: var(--c-text); line-height: 1.1; }
+.kpi-online { border-left-color: var(--c-success); }
+.kpi-offline { border-left-color: var(--c-text-4); }
+.kpi-active { border-left-color: var(--c-brand); }
+.kpi-waiting { border-left-color: var(--c-warning); }
+.kpi-alert { border-left-color: var(--c-danger); }
 
 /* Layout */
 .pmp-layout { display: grid; grid-template-columns: 1fr 380px; gap: 16px; }
@@ -480,62 +480,62 @@ export default { components: { ClipboardCheckIcon } }
 .pmp-side { display: flex; flex-direction: column; gap: 16px; }
 
 /* Card */
-.pmp-card { background: #fff; border: 1px solid #e9eee9; border-radius: 12px; padding: 16px; }
+.pmp-card { background: var(--c-surface); border: 1px solid var(--c-brand-soft); border-radius: var(--r-lg); padding: 16px; }
 .pmp-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 8px; }
-.pmp-card-header strong { font-size: 13px; color: #24494d; display: flex; align-items: center; gap: 6px; }
-.pmp-tag-count { background: #2b6cb0; color: #fff; padding: 0 8px; border-radius: 12px; font-size: 11px; font-weight: 700; }
-.pmp-map-meta { font-size: 11px; color: #7a8d89; font-family: monospace; }
+.pmp-card-header strong { font-size: 13px; color: var(--c-text); display: flex; align-items: center; gap: 6px; }
+.pmp-tag-count { background: var(--c-brand); color: var(--c-on-brand); padding: 0 8px; border-radius: var(--r-lg); font-size: 11px; font-weight: 700; }
+.pmp-map-meta { font-size: 11px; color: var(--c-text-2); font-family: monospace; }
 
 /* Map */
 .pmp-map-card { display: flex; flex-direction: column; min-height: 480px; }
-.pmp-map-svg { width: 100%; height: 460px; background: linear-gradient(180deg, #eef7f5 0%, #f8fbfb 100%); border-radius: 8px; border: 1px solid #e9eee9; }
+.pmp-map-svg { width: 100%; height: 460px; background: linear-gradient(180deg, var(--c-brand-mist) 0%, var(--c-brand-mist) 100%); border-radius: var(--r-sm); border: 1px solid var(--c-brand-soft); }
 .pmp-marker-g { cursor: pointer; transition: opacity .15s; }
 .pmp-marker-g:hover { opacity: .8; }
-.pmp-legend { display: flex; gap: 14px; margin-top: 12px; font-size: 12px; color: #56716e; flex-wrap: wrap; }
+.pmp-legend { display: flex; gap: 14px; margin-top: 12px; font-size: 12px; color: var(--c-brand-deep); flex-wrap: wrap; }
 .pmp-legend-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
-.pmp-legend-ring { display: inline-block; width: 12px; height: 12px; border-radius: 50%; border: 2px solid #4f8f99; margin-right: 4px; vertical-align: middle; opacity: .5; }
+.pmp-legend-ring { display: inline-block; width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--c-brand); margin-right: 4px; vertical-align: middle; opacity: .5; }
 
 /* Forms */
 .pmp-form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px 10px; }
 .pmp-form-row { display: flex; flex-direction: column; gap: 3px; }
-.pmp-form-label { font-size: 11px; color: #7a8d89; font-weight: 600; }
-.pmp-input { padding: 6px 10px; border: 1px solid #d0dcd8; border-radius: 6px; font-size: 12px; background: #f8fbfb; color: #2c3e3e; }
-.pmp-input:focus { outline: none; border-color: #4f8f99; background: #fff; }
-.pmp-fill-btn { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; background: #f0f8f6; border: 1px solid #4f8f99; border-radius: 6px; font-size: 11px; cursor: pointer; color: #4f8f99; }
-.pmp-fill-btn:hover:not(:disabled) { background: #e8f4f2; }
+.pmp-form-label { font-size: 11px; color: var(--c-text-2); font-weight: 600; }
+.pmp-input { padding: 6px 10px; border: 1px solid var(--c-brand-tint); border-radius: var(--r-sm); font-size: 12px; background: var(--c-brand-mist); color: var(--c-ink-1); }
+.pmp-input:focus { outline: none; border-color: var(--c-brand); background: var(--c-surface); }
+.pmp-fill-btn { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; background: var(--c-brand-mist); border: 1px solid var(--c-brand); border-radius: var(--r-sm); font-size: 11px; cursor: pointer; color: var(--c-brand); }
+.pmp-fill-btn:hover:not(:disabled) { background: var(--c-brand-mist); }
 .pmp-fill-btn:disabled { opacity: .5; cursor: not-allowed; }
-.pmp-submit-btn { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px; background: #2b6cb0; color: #fff; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; margin-top: 10px; width: 100%; }
-.pmp-submit-btn:hover:not(:disabled) { background: #1a4a8a; }
+.pmp-submit-btn { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px; background: var(--c-brand); color: var(--c-on-brand); border: none; border-radius: var(--r-sm); font-size: 13px; font-weight: 600; cursor: pointer; margin-top: 10px; width: 100%; }
+.pmp-submit-btn:hover:not(:disabled) { background: var(--sys-blue-deep); }
 .pmp-submit-btn:disabled { opacity: .6; cursor: not-allowed; }
-.pmp-report-result { display: flex; align-items: center; gap: 6px; padding: 8px 10px; background: #e6fffa; border-radius: 6px; font-size: 11px; color: #276749; margin-top: 8px; }
-.pmp-report-result b { color: #24494d; font-weight: 700; }
+.pmp-report-result { display: flex; align-items: center; gap: 6px; padding: 8px 10px; background: var(--sys-mint-soft); border-radius: var(--r-sm); font-size: 11px; color: var(--c-brand-ink); margin-top: 8px; }
+.pmp-report-result b { color: var(--c-text); font-weight: 700; }
 
 /* Person list */
 .pmp-list-card { flex: 1; }
 .pmp-person-list { display: flex; flex-direction: column; gap: 6px; max-height: 400px; overflow-y: auto; }
-.pmp-person { display: flex; gap: 10px; padding: 10px; border: 1px solid #e9eee9; border-radius: 8px; cursor: pointer; transition: all .15s; align-items: center; }
-.pmp-person:hover { border-color: #4f8f99; background: #f7fafa; }
-.pmp-person.active { border-color: #2b6cb0; background: #f7faff; }
+.pmp-person { display: flex; gap: 10px; padding: 10px; border: 1px solid var(--c-brand-soft); border-radius: var(--r-sm); cursor: pointer; transition: all .15s; align-items: center; }
+.pmp-person:hover { border-color: var(--c-brand); background: var(--c-surface-2); }
+.pmp-person.active { border-color: var(--c-brand); background: var(--c-surface-2); }
 .pmp-person.offline { opacity: .65; }
-.pmp-person-avatar { width: 32px; height: 32px; background: #e8f4f2; color: #4f8f99; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.pmp-person-avatar.offline { background: #e9eee9; color: #9baead; }
+.pmp-person-avatar { width: 32px; height: 32px; background: var(--c-brand-mist); color: var(--c-brand); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.pmp-person-avatar.offline { background: var(--c-brand-soft); color: var(--c-text-4); }
 .pmp-person-info { flex: 1; min-width: 0; }
-.pmp-person-name { font-size: 13px; font-weight: 600; color: #24494d; display: flex; align-items: center; gap: 6px; }
-.pmp-offline-tag { background: #e9eee9; color: #9baead; font-size: 10px; padding: 1px 6px; border-radius: 8px; font-weight: 600; }
-.pmp-person-meta { display: flex; align-items: center; gap: 4px; font-size: 11px; color: #7a8d89; margin-top: 1px; }
+.pmp-person-name { font-size: 13px; font-weight: 600; color: var(--c-text); display: flex; align-items: center; gap: 6px; }
+.pmp-offline-tag { background: var(--c-brand-soft); color: var(--c-text-4); font-size: 10px; padding: 1px 6px; border-radius: var(--r-sm); font-weight: 600; }
+.pmp-person-meta { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--c-text-2); margin-top: 1px; }
 .pmp-status-dot { width: 6px; height: 6px; border-radius: 50%; }
-.pmp-status-dot.巡检中 { background: #2b6cb0; }
-.pmp-status-dot.在线 { background: #38a169; }
-.pmp-status-dot.待命, .pmp-status-dot.待出发 { background: #e0a050; }
-.pmp-status-text { color: #56716e; }
-.pmp-person-task { font-size: 10px; color: #7a8d89; margin-top: 2px; font-family: monospace; }
-.pmp-person-coord { font-size: 11px; font-family: monospace; color: #2c3e3e; }
+.pmp-status-dot.巡检中 { background: var(--c-brand); }
+.pmp-status-dot.在线 { background: var(--c-success); }
+.pmp-status-dot.待命, .pmp-status-dot.待出发 { background: var(--c-warning); }
+.pmp-status-text { color: var(--c-brand-deep); }
+.pmp-person-task { font-size: 10px; color: var(--c-text-2); margin-top: 2px; font-family: monospace; }
+.pmp-person-coord { font-size: 11px; font-family: monospace; color: var(--c-ink-1); }
 
 /* Loading/Empty */
-.pmp-loading { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 60px; color: #7a8d89; font-size: 13px; }
-.pmp-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 60px 20px; color: #7a8d89; text-align: center; flex: 1; }
-.pmp-empty p { margin: 0; font-size: 13px; color: #56716e; }
-.pmp-empty-sub { font-size: 11px; color: #9baead; }
+.pmp-loading { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 60px; color: var(--c-text-2); font-size: 13px; }
+.pmp-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 60px 20px; color: var(--c-text-2); text-align: center; flex: 1; }
+.pmp-empty p { margin: 0; font-size: 13px; color: var(--c-brand-deep); }
+.pmp-empty-sub { font-size: 11px; color: var(--c-text-4); }
 .spin { animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -544,4 +544,9 @@ export default { components: { ClipboardCheckIcon } }
   .pmp-kpis { grid-template-columns: repeat(3, 1fr); }
   .pmp-form-grid { grid-template-columns: 1fr; }
 }
+/* 设计令牌收尾：模板静态色内联样式 → 类（2026-10-09） */
+.pmp-empty-ico { color: var(--c-text-4); }
+.pmp-dot-on { background: var(--c-brand); }
+.pmp-dot-off { background: var(--c-text-4); }
+.pmp-unlocated { color: var(--c-text-4); }
 </style>

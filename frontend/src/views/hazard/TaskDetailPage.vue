@@ -90,9 +90,9 @@ function clamp(n, lo, hi) { return Number.isNaN(n) ? lo : Math.min(hi, Math.max(
 
 function colorForUsage(value) {
   if (value >= 85) return '#e06060'
-  if (value >= 65) return '#e0a050'
+  if (value >= 65) return '#cbaa76'
   if (value >= 40) return '#d9c040'
-  return '#6dbfa5'
+  return '#87b096'
 }
 
 function formatDate(iso) {
@@ -393,14 +393,14 @@ onMounted(async () => {
               <div class="runtime-card">
                 <small><MemoryStick :size="14" />内存占用</small>
                 <strong>{{ memMB }}<i>MB</i></strong>
-                <div class="bar-track"><i :style="{ width: memPercent + '%', background: '#4f8f99' }"></i></div>
+                <div class="bar-track"><i :style="{ width: memPercent + '%', background: '#6f9e7f' }"></i></div>
                 <span class="runtime-foot">软上限 {{ memMaxMB }} MB</span>
               </div>
               <div class="runtime-card">
                 <small><History :size="14" />已运行时长</small>
                 <strong>{{ elapsedLabel }}</strong>
                 <div class="bar-track">
-                  <i :style="{ width: elapsedPercent + '%', background: runtimeStatusClass === 'status-failed' ? '#e06060' : '#6dbfa5' }"></i>
+                  <i :style="{ width: elapsedPercent + '%', background: runtimeStatusClass === 'status-failed' ? '#e06060' : '#87b096' }"></i>
                 </div>
                 <span class="runtime-foot">吞吐 {{ runtime?.throughput ?? '—' }} 张/分</span>
               </div>
@@ -581,7 +581,7 @@ onMounted(async () => {
             <div class="pie-list">
               <div v-for="file in task.attachments" :key="file.name" class="pie-item">
                 <span>{{ file.name }}</span>
-                <div class="pie-track"><i style="width: 100%; background: #4f8f99"></i></div>
+                <div class="pie-track"><i style="width: 100%; background: #6f9e7f"></i></div>
                 <strong>{{ file.size }}</strong>
               </div>
             </div>
@@ -595,7 +595,7 @@ onMounted(async () => {
               <RouterLink v-for="item in task.linked" :key="`${item.type}-${item.label}`" :to="item.path" class="pie-item link-item">
                 <span class="link-type">{{ item.type }}</span>
                 <span class="link-label">{{ item.label }}</span>
-                <div class="pie-track"><i style="width: 100%; background: #6dbfa5"></i></div>
+                <div class="pie-track"><i style="width: 100%; background: #87b096"></i></div>
                 <strong class="link-go">查看 ›</strong>
               </RouterLink>
             </div>
@@ -617,7 +617,7 @@ onMounted(async () => {
 }
 .detail-main-col,
 .detail-side-col { display: grid; gap: 15px; min-width: 0; align-content: start; }
-.loading-row { padding: 0 20px 18px; color: #7a8d89; font-size: 11px; }
+.loading-row { padding: 0 20px 18px; color: var(--c-text-2); font-size: 11px; }
 
 /* 运行时指标 */
 .runtime-grid {
@@ -630,60 +630,60 @@ onMounted(async () => {
   display: grid;
   gap: 6px;
   padding: 14px;
-  border: 1px solid #e3ebe7;
-  border-radius: 12px;
-  background: linear-gradient(180deg, #fff, #f8fbfa);
+  border: 1px solid var(--c-separator);
+  border-radius: var(--r-lg);
+  background: linear-gradient(180deg, var(--c-surface), color-mix(in srgb, var(--c-text) 4%, transparent));
 }
 .runtime-card small {
   display: inline-flex; align-items: center; gap: 5px;
-  color: #7a8d89; font-size: 10px;
+  color: var(--c-text-2); font-size: 10px;
 }
 .runtime-card strong {
-  display: block; color: #275055; font-size: 22px; font-weight: 700;
+  display: block; color: var(--c-text); font-size: 22px; font-weight: 700;
 }
 .runtime-card strong i {
-  margin-left: 3px; color: #a4b3b0; font-style: normal; font-size: 11px; font-weight: 500;
+  margin-left: 3px; color: var(--c-text-3); font-style: normal; font-size: 11px; font-weight: 500;
 }
-.bar-track { height: 5px; overflow: hidden; border-radius: 3px; background: #e7f0ed; }
+.bar-track { height: 5px; overflow: hidden; border-radius: 3px; background: var(--c-border-2); }
 .bar-track i { display: block; height: 100%; border-radius: inherit; transition: width .4s ease; }
-.runtime-foot { color: #97aead !important; font-size: 9px !important; }
+.runtime-foot { color: var(--c-text-3) !important; font-size: 9px !important; }
 .runtime-summary {
   display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 0 20px 18px;
 }
 .runtime-status, .runtime-retries {
   display: flex; align-items: center; gap: 10px;
-  padding: 12px 14px; border: 1px solid #e3ebe7; border-radius: 11px; background: #fbfdfc;
+  padding: 12px 14px; border: 1px solid var(--c-separator); border-radius: var(--r-md); background: color-mix(in srgb, var(--c-text) 3%, transparent);
 }
-.runtime-status strong { color: #244b50; font-size: 13px; }
-.runtime-status small { color: #7a8d89; font-size: 10px; }
+.runtime-status strong { color: var(--c-text); font-size: 13px; }
+.runtime-status small { color: var(--c-text-2); font-size: 10px; }
 .runtime-retries small {
-  display: inline-flex; align-items: center; gap: 5px; color: #7a8d89; font-size: 10px;
+  display: inline-flex; align-items: center; gap: 5px; color: var(--c-text-2); font-size: 10px;
 }
-.runtime-retries strong { margin-left: auto; color: #e0a050; font-size: 20px; font-weight: 700; }
+.runtime-retries strong { margin-left: auto; color: var(--c-warning); font-size: 20px; font-weight: 700; }
 .runtime-times {
   grid-column: span 2; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
 }
 .runtime-times div {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 8px 12px; border: 1px dashed #e3ebe7; border-radius: 10px; background: #fbfdfc;
+  padding: 8px 12px; border: 1px dashed var(--c-separator); border-radius: var(--r-md); background: color-mix(in srgb, var(--c-text) 3%, transparent);
 }
-.runtime-times span { color: #7a8d89; font-size: 10px; }
-.runtime-times strong { color: #36585b; font-size: 11px; font-weight: 500; }
+.runtime-times span { color: var(--c-text-2); font-size: 10px; }
+.runtime-times strong { color: var(--c-ink-1); font-size: 11px; font-weight: 500; }
 .runtime-error {
   grid-column: span 2; padding: 8px 12px;
-  color: #e06060; border: 1px solid #f6d6d3; border-radius: 9px; background: #fdeeed; font-size: 10px;
+  color: var(--c-danger); border: 1px solid color-mix(in srgb, var(--c-danger) 30%, transparent); border-radius: var(--r-md); background: var(--c-danger-bg); font-size: 10px;
 }
 
 .status-dot {
-  display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #97aead; flex: 0 0 auto;
+  display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--c-text-3); flex: 0 0 auto;
 }
-.status-dot.status-running { background: #6dbfa5; animation: pulse 1.4s ease-in-out infinite; }
-.status-dot.status-success { background: #6dbfa5; }
-.status-dot.status-failed { background: #e06060; }
-.status-dot.status-pending { background: #d9c040; }
-.status-dot.status-paused { background: #7a8d89; }
-.status-dot.status-terminated { background: #e0a050; }
-.status-dot.status-timeout { background: #e06060; }
+.status-dot.status-running { background: var(--c-brand-hover); animation: pulse 1.4s ease-in-out infinite; }
+.status-dot.status-success { background: var(--c-brand-hover); }
+.status-dot.status-failed { background: var(--c-danger); }
+.status-dot.status-pending { background: var(--c-warning-strong); }
+.status-dot.status-paused { background: var(--c-text-2); }
+.status-dot.status-terminated { background: var(--c-warning); }
+.status-dot.status-timeout { background: var(--c-danger); }
 @keyframes pulse {
   0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(109, 191, 165, .55); }
   50% { opacity: .55; box-shadow: 0 0 0 6px rgba(109, 191, 165, 0); }
@@ -692,78 +692,78 @@ onMounted(async () => {
 /* 实时日志 */
 .log-meta {
   display: inline-flex; align-items: center; gap: 6px;
-  padding: 4px 9px; color: #4f8f99; border: 1px solid #dbe6e2; border-radius: 999px; background: #f4f8f7; font-size: 10px;
+  padding: 4px 9px; color: var(--c-brand); border: 1px solid var(--c-separator); border-radius: var(--r-pill); background: var(--c-surface-2); font-size: 10px;
 }
 .log-filter {
   padding: 5px 8px; font-size: 10px;
-  border: 1px solid #dbe6e2; border-radius: 8px; background: #fbfdfc; color: #36585b; outline: none;
+  border: 1px solid var(--c-separator); border-radius: var(--r-sm); background: color-mix(in srgb, var(--c-text) 3%, transparent); color: var(--c-ink-1); outline: none;
 }
 .log-scroller {
   height: 260px; margin: 0 19px; padding: 12px 14px;
-  overflow-y: auto; border: 1px solid #e3ebe7; border-radius: 11px; background: #0e1e22;
+  overflow-y: auto; border: 1px solid var(--c-separator); border-radius: var(--r-md); background: #0e1e22;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11px; line-height: 1.6;
 }
 .log-scroller::-webkit-scrollbar { width: 6px; }
 .log-scroller::-webkit-scrollbar-track { background: transparent; }
 .log-scroller::-webkit-scrollbar-thumb { background: rgba(255,255,255,.18); border-radius: 3px; }
-.log-empty { color: #6c8084; font-size: 11px; text-align: center; padding: 24px 0; }
+.log-empty { color: var(--c-text-3); font-size: 11px; text-align: center; padding: 24px 0; }
 .log-line {
   display: grid; grid-template-columns: 100px 60px 1fr; gap: 10px;
   padding: 1px 0; white-space: pre-wrap; word-break: break-all;
 }
-.log-time { color: #7a9094; }
+.log-time { color: var(--c-text-3); }
 .log-level { text-align: center; font-weight: 700; letter-spacing: .04em; }
-.log-msg { color: #cfd8d8; }
-.log-line.log-info .log-level { color: #4f8f99; }
-.log-line.log-info .log-msg { color: #cfd8d8; }
-.log-line.log-warn .log-level { color: #e0a050; }
+.log-msg { color: var(--c-border); }
+.log-line.log-info .log-level { color: var(--c-brand); }
+.log-line.log-info .log-msg { color: var(--c-border); }
+.log-line.log-warn .log-level { color: var(--c-warning); }
 .log-line.log-warn .log-msg { color: #f0d8b3; }
-.log-line.log-err .log-level { color: #e06060; }
+.log-line.log-err .log-level { color: var(--c-danger); }
 .log-line.log-err .log-msg { color: #f1b4ad; }
-.log-line.log-debug .log-level { color: #7a8d89; }
-.log-line.log-debug .log-msg { color: #97aead; }
+.log-line.log-debug .log-level { color: var(--c-text-2); }
+.log-line.log-debug .log-msg { color: var(--c-text-3); }
 .log-toolbar {
   display: flex; align-items: center; gap: 12px;
-  padding: 10px 19px 14px; border-top: 1px solid #edf2f0;
+  padding: 10px 19px 14px; border-top: 1px solid var(--c-border-2);
 }
-.log-error { margin-left: auto; color: #e06060; font-size: 10px; }
+.log-error { margin-left: auto; color: var(--c-danger); font-size: 10px; }
 
 /* 执行控制 */
 .control-list { display: grid; gap: 10px; padding: 6px 19px 16px; }
 .control-card {
   display: flex; align-items: center; gap: 12px;
-  padding: 12px 14px; border: 1px solid #e3ebe7; border-radius: 11px; background: #fbfdfc;
+  padding: 12px 14px; border: 1px solid var(--c-separator); border-radius: var(--r-md); background: color-mix(in srgb, var(--c-text) 3%, transparent);
 }
-.control-card-yellow { border-left: 3px solid #d9c040; }
-.control-card-red { border-left: 3px solid #e06060; }
-.control-card-blue { border-left: 3px solid #4f8f99; }
+.control-card-yellow { border-left: 3px solid var(--c-warning-strong); }
+.control-card-red { border-left: 3px solid var(--c-danger); }
+.control-card-blue { border-left: 3px solid var(--c-brand); }
 .control-info { flex: 1; min-width: 0; }
 .control-info strong {
-  display: flex; align-items: center; gap: 5px; color: #244b50; font-size: 12px;
+  display: flex; align-items: center; gap: 5px; color: var(--c-text); font-size: 12px;
 }
 .control-info span {
-  display: block; margin-top: 3px; color: #8aa3a0; font-size: 10px;
+  display: block; margin-top: 3px; color: var(--c-text-3); font-size: 10px;
 }
 .danger-btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-  padding: 9px 14px; color: #fff; border: 1px solid #c14f4f; border-radius: 8px;
-  background: #e06060; font-size: 12px; font-weight: 600; cursor: pointer; transition: background .2s ease;
+  padding: 9px 14px; color: var(--c-on-brand); border: 1px solid var(--c-danger-strong); border-radius: var(--r-sm);
+  background: var(--c-danger); font-size: 12px; font-weight: 600; cursor: pointer; transition: background .2s ease;
 }
 .danger-btn:disabled { opacity: .55; cursor: not-allowed; }
-.danger-btn:hover:not(:disabled) { background: #c14f4f; }
+.danger-btn:hover:not(:disabled) { background: var(--c-danger-strong); }
 .confirm-mask {
   position: fixed; inset: 0; z-index: 50;
   display: grid; place-items: center; background: rgba(8, 38, 42, .35); backdrop-filter: blur(2px);
 }
 .confirm-card {
   width: min(420px, 92vw); padding: 18px;
-  border: 1px solid #e3ebe7; border-radius: 12px; background: #fff;
+  border: 1px solid var(--c-separator); border-radius: var(--r-lg); background: var(--c-surface);
   box-shadow: 0 18px 50px rgba(20, 60, 56, .22);
 }
 .confirm-head {
-  display: flex; align-items: center; gap: 8px; color: #e06060; font-size: 14px; font-weight: 700;
+  display: flex; align-items: center; gap: 8px; color: var(--c-danger); font-size: 14px; font-weight: 700;
 }
-.confirm-card p { margin: 10px 0 16px; color: #4d6c6e; font-size: 12px; line-height: 1.7; }
+.confirm-card p { margin: 10px 0 16px; color: var(--c-ink-2); font-size: 12px; line-height: 1.7; }
 .confirm-foot { display: flex; justify-content: flex-end; gap: 10px; }
 .spin { animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }

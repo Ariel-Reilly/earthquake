@@ -45,19 +45,19 @@ const submitting = ref(false);
 const reasonDialog = ref({ open: false, trigger: null, reason: "", error: "" });
 
 const STATE_META = {
-  DETECTED:         { label: "已发现",      color: "#4f8f99", icon: GitBranch,  description: "AI 自动识别或人工上报，待人工复核" },
-  CONFIRMING:       { label: "确认中",      color: "#e0a050", icon: ClipboardCheck, description: "已认领，等待现场复核并签认" },
+  DETECTED:         { label: "已发现",      color: "#6f9e7f", icon: GitBranch,  description: "AI 自动识别或人工上报，待人工复核" },
+  CONFIRMING:       { label: "确认中",      color: "#cbaa76", icon: ClipboardCheck, description: "已认领，等待现场复核并签认" },
   CONFIRMED:        { label: "已确认",      color: "#638fc2", icon: CheckCircle2, description: "签认通过，准备发起预警或应急响应" },
   WARNING_ISSUED:   { label: "预警发布",    color: "#d88561", icon: Bell, description: "预警已发布，进入公众通知阶段" },
   EMERGENCY_ACTIVE: { label: "应急处置",    color: "#e06060", icon: Truck, description: "应急事件进行中，联动救援资源" },
-  CLOSED:           { label: "已关闭",      color: "#9baead", icon: ShieldCheck, description: "处置完成 / 自动解除 / 误报归档" },
-  REJECTED:         { label: "已驳回",      color: "#7a8d89", icon: XCircle, description: "复核不予立项" },
+  CLOSED:           { label: "已关闭",      color: "#9aab9f", icon: ShieldCheck, description: "处置完成 / 自动解除 / 误报归档" },
+  REJECTED:         { label: "已驳回",      color: "#76847a", icon: XCircle, description: "复核不予立项" },
 };
 
 const SOURCE_META = {
   AI_AUTO:     { label: "AI 自动识别",     color: "#638fc2" },
   RULE_ENGINE: { label: "规则引擎触发",   color: "#9b761e" },
-  MANUAL:      { label: "人工现场上报",   color: "#2a8154" },
+  MANUAL:      { label: "人工现场上报",   color: "#4a7a5e" },
 };
 
 const stateMeta = computed(() => STATE_META[props.event?.state] ?? null);
@@ -142,7 +142,7 @@ const lineageNodes = computed(() => {
   if (!props.event) return [];
   const hazardId = props.event.hazard?.id;
   const nodes = [
-    { id: "event",    label: "统一事件",  code: props.event.eventCode, color: "#2b6cb0", icon: GitBranch, clickable: false },
+    { id: "event",    label: "统一事件",  code: props.event.eventCode, color: "#6f9e7f", icon: GitBranch, clickable: false },
     {
       id: "hazard",
       label: "灾害点",
@@ -190,7 +190,7 @@ const onTabClick = (tab) => {
     <div v-if="visible && event" class="event-drawer-backdrop" @click.self="$emit('close')">
       <aside class="event-drawer" role="complementary">
         <!-- Header -->
-        <header class="ed-header" :style="{ background: stateMeta?.color ?? '#4f8f99' }">
+        <header class="ed-header" :style="{ background: stateMeta?.color ?? '#6f9e7f' }">
           <div class="ed-header-meta">
             <span class="eyebrow">UNIFIED EVENT</span>
             <h2>
@@ -398,7 +398,8 @@ const onTabClick = (tab) => {
 .event-drawer-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.35);
+  background: var(--c-scrim)
+    /* = rgba 15,23,42/.35 */;
   backdrop-filter: blur(2px);
   z-index: 200;
   display: flex;
@@ -408,7 +409,7 @@ const onTabClick = (tab) => {
   width: 580px;
   max-width: 92vw;
   height: 100vh;
-  background: #ffffff;
+  background: var(--c-surface);
   display: flex;
   flex-direction: column;
   box-shadow: -16px 0 40px rgba(46, 67, 93, 0.18);
@@ -418,7 +419,7 @@ const onTabClick = (tab) => {
   justify-content: space-between;
   align-items: flex-start;
   padding: 20px 22px 18px;
-  color: #ffffff;
+  color: var(--c-on-brand);
   position: relative;
 }
 .ed-header-meta { flex: 1; min-width: 0; }
@@ -435,7 +436,7 @@ const onTabClick = (tab) => {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #ffffff;
+  color: var(--c-on-brand);
   line-height: 1.3;
 }
 .ed-event-code {
@@ -447,14 +448,14 @@ const onTabClick = (tab) => {
 .ed-event-code code {
   background: rgba(255, 255, 255, 0.18);
   padding: 3px 8px;
-  border-radius: 4px;
+  border-radius: var(--r-xs);
   font-size: 11px;
   font-family: ui-monospace, monospace;
   letter-spacing: 0.5px;
 }
 .state-pill {
   padding: 3px 8px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.5px;
@@ -464,10 +465,10 @@ const onTabClick = (tab) => {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  color: #ffffff;
+  color: var(--c-on-brand);
   background: rgba(255, 255, 255, 0.18);
   padding: 3px 8px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
 }
 .source-tag .dot {
   width: 6px;
@@ -479,8 +480,8 @@ const onTabClick = (tab) => {
   border: none;
   width: 32px;
   height: 32px;
-  border-radius: 6px;
-  color: #ffffff;
+  border-radius: var(--r-sm);
+  color: var(--c-on-brand);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -496,13 +497,13 @@ const onTabClick = (tab) => {
 .ed-section {
   margin-bottom: 22px;
   padding-bottom: 16px;
-  border-bottom: 1px dashed rgba(125, 145, 165, 0.25);
+  border-bottom: 1px dashed var(--c-border);
 }
 .ed-section:last-child { border-bottom: none; padding-bottom: 0; }
 .ed-section-title {
   font-size: 12px;
   font-weight: 700;
-  color: #2d3748;
+  color: var(--c-ink-1);
   margin: 0 0 10px;
   display: flex;
   align-items: center;
@@ -516,40 +517,40 @@ const onTabClick = (tab) => {
   gap: 10px;
 }
 .meta-cell {
-  background: rgba(247, 250, 253, 0.7);
-  border: 1px solid rgba(125, 145, 165, 0.18);
-  border-radius: 6px;
+  background: color-mix(in srgb, var(--c-surface-2) 70%, transparent);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-sm);
   padding: 8px 10px;
 }
 .meta-cell .k {
   display: block;
   font-size: 10.5px;
-  color: #7a8d89;
+  color: var(--c-text-2);
   margin-bottom: 2px;
 }
 .meta-cell .v {
   font-size: 13px;
-  color: #2d3748;
+  color: var(--c-ink-1);
 }
 .meta-cell .v.code {
   font-family: ui-monospace, monospace;
   font-size: 12px;
-  color: #2b6cb0;
+  color: var(--c-brand);
 }
 .state-desc {
   margin: 10px 0 0;
   font-size: 12px;
-  color: #5a6a68;
+  color: var(--c-ink-2);
   background: rgba(79, 143, 153, 0.06);
   padding: 8px 10px;
-  border-radius: 6px;
+  border-radius: var(--r-sm);
   border-left: 3px solid rgba(79, 143, 153, 0.4);
 }
 
 .tabs {
   display: flex;
   gap: 4px;
-  border-bottom: 1px solid rgba(125, 145, 165, 0.18);
+  border-bottom: 1px solid var(--c-border);
   margin-bottom: 12px;
 }
 .tabs button {
@@ -557,7 +558,7 @@ const onTabClick = (tab) => {
   border: none;
   padding: 8px 14px;
   font-size: 13px;
-  color: #5a6a68;
+  color: var(--c-ink-2);
   cursor: pointer;
   border-bottom: 2px solid transparent;
   transition: all 0.15s;
@@ -565,10 +566,10 @@ const onTabClick = (tab) => {
   align-items: center;
   gap: 4px;
 }
-.tabs button:hover:not(:disabled) { color: #2b6cb0; }
+.tabs button:hover:not(:disabled) { color: var(--c-brand); }
 .tabs button.active {
-  color: #2b6cb0;
-  border-bottom-color: #2b6cb0;
+  color: var(--c-brand);
+  border-bottom-color: var(--c-brand);
   font-weight: 600;
 }
 .tabs button:disabled {
@@ -577,29 +578,30 @@ const onTabClick = (tab) => {
 }
 .tabs small {
   font-size: 10.5px;
-  color: #94a3b8;
+  color: var(--c-text-3);
   font-family: ui-monospace, monospace;
 }
-.tabs small.muted { color: #cbd5e0; }
-.tabs button.active small { color: #638fc2; }
+.tabs small.muted { color: var(--c-border); }
+.tabs button.active small { color: var(--sys-blue); }
 
 .tab-content { padding: 4px 0; }
 .kv-row {
   display: flex;
   justify-content: space-between;
   padding: 6px 0;
-  border-bottom: 1px dotted rgba(125, 145, 165, 0.18);
+  border-bottom: 1px dotted var(--c-border);
   font-size: 13px;
 }
-.kv-row .k { color: #7a8d89; }
-.kv-row strong { color: #2d3748; }
+.kv-row .k { color: var(--c-text-2); }
+.kv-row strong { color: var(--c-ink-1); }
 .link-btn {
   margin-top: 12px;
   background: transparent;
-  border: 1px solid rgba(43, 108, 176, 0.4);
-  color: #2b6cb0;
+  border: 1px solid color-mix(in srgb, var(--c-brand) 40%, transparent)
+    /* = rgba 111,158,127/.4 */;
+  color: var(--c-brand);
   padding: 6px 12px;
-  border-radius: 6px;
+  border-radius: var(--r-sm);
   cursor: pointer;
   font-size: 12px;
   display: inline-flex;
@@ -607,11 +609,12 @@ const onTabClick = (tab) => {
   gap: 4px;
   transition: all 0.15s;
 }
-.link-btn:hover { background: rgba(43, 108, 176, 0.08); }
+.link-btn:hover { background: color-mix(in srgb, var(--c-brand) 8%, transparent)
+    /* = rgba 111,158,127/.08 */; }
 .empty {
   padding: 18px 0;
   text-align: center;
-  color: #94a3b8;
+  color: var(--c-text-3);
   font-size: 12px;
 }
 
@@ -629,7 +632,7 @@ const onTabClick = (tab) => {
   gap: 1px;
   padding: 6px 10px;
   border: 1.5px solid;
-  border-radius: 8px;
+  border-radius: var(--r-sm);
   min-width: 92px;
   text-align: center;
   transition: all 0.15s;
@@ -650,48 +653,48 @@ const onTabClick = (tab) => {
 .lineage-label {
   font-size: 11px;
   font-weight: 700;
-  color: #2d3748;
+  color: var(--c-ink-1);
 }
 .lineage-code {
   font-size: 9.5px;
   font-family: ui-monospace, monospace;
-  color: #7a8d89;
+  color: var(--c-text-2);
 }
 .lineage-arrow {
-  color: #cbd5e0;
+  color: var(--c-border);
   flex-shrink: 0;
 }
 .hint {
   font-size: 11px;
-  color: #94a3b8;
+  color: var(--c-text-3);
   margin: 6px 0 0;
   font-style: italic;
 }
 
 .close-section {
-  background: rgba(224, 96, 96, 0.05);
-  border-left: 3px solid #e06060;
+  background: var(--c-danger-bg);
+  border-left: 3px solid var(--c-danger);
   padding-left: 10px;
-  border-radius: 4px;
+  border-radius: var(--r-xs);
 }
 .close-reason {
   font-size: 13px;
-  color: #2d3748;
+  color: var(--c-ink-1);
   margin: 0 0 10px;
   line-height: 1.5;
   background: rgba(255, 255, 255, 0.7);
   padding: 8px 10px;
-  border-radius: 4px;
+  border-radius: var(--r-xs);
 }
 
 .ed-footer {
-  border-top: 1px solid rgba(125, 145, 165, 0.18);
+  border-top: 1px solid var(--c-border);
   padding: 14px 22px 16px;
-  background: rgba(247, 250, 253, 0.6);
+  background: color-mix(in srgb, var(--c-surface-2) 60%, transparent);
 }
 .ed-footer-title {
   font-size: 11px;
-  color: #7a8d89;
+  color: var(--c-text-2);
   margin-bottom: 8px;
   font-weight: 600;
 }
@@ -703,7 +706,7 @@ const onTabClick = (tab) => {
 .action-btn {
   border: 1px solid;
   padding: 6px 14px;
-  border-radius: 6px;
+  border-radius: var(--r-sm);
   cursor: pointer;
   font-size: 12px;
   font-weight: 600;
@@ -713,37 +716,38 @@ const onTabClick = (tab) => {
   gap: 4px;
 }
 .action-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-.action-btn.tone-green { background: #e6f4ee; border-color: #6dbfa5; color: #2a8154; }
-.action-btn.tone-green:hover:not(:disabled) { background: #6dbfa5; color: #ffffff; }
-.action-btn.tone-red { background: rgba(224, 96, 96, 0.08); border-color: #e06060; color: #c7553b; }
-.action-btn.tone-red:hover:not(:disabled) { background: #e06060; color: #ffffff; }
-.action-btn.tone-orange { background: rgba(224, 160, 80, 0.1); border-color: #e0a050; color: #9b761e; }
-.action-btn.tone-orange:hover:not(:disabled) { background: #e0a050; color: #ffffff; }
-.action-btn.tone-blue { background: rgba(99, 143, 194, 0.1); border-color: #638fc2; color: #2b6cb0; }
-.action-btn.tone-blue:hover:not(:disabled) { background: #638fc2; color: #ffffff; }
-.action-btn.tone-gray { background: #f1f5f9; border-color: #cbd5e0; color: #5a6a68; }
-.action-btn.tone-gray:hover:not(:disabled) { background: #cbd5e0; color: #2d3748; }
-.muted { color: #94a3b8; font-size: 12px; font-style: italic; }
+.action-btn.tone-green { background: var(--c-brand-mist); border-color: var(--c-brand-hover); color: var(--c-brand-deep); }
+.action-btn.tone-green:hover:not(:disabled) { background: var(--c-brand-hover); color: var(--c-on-brand); }
+.action-btn.tone-red { background: var(--c-danger-bg); border-color: var(--c-danger); color: var(--c-danger-strong); }
+.action-btn.tone-red:hover:not(:disabled) { background: var(--c-danger); color: var(--c-on-brand); }
+.action-btn.tone-orange { background: rgba(224, 160, 80, 0.1); border-color: var(--c-warning); color: var(--c-warning-ink); }
+.action-btn.tone-orange:hover:not(:disabled) { background: var(--c-warning); color: var(--c-on-brand); }
+.action-btn.tone-blue { background: rgba(99, 143, 194, 0.1); border-color: var(--sys-blue); color: var(--c-brand); }
+.action-btn.tone-blue:hover:not(:disabled) { background: var(--sys-blue); color: var(--c-on-brand); }
+.action-btn.tone-gray { background: var(--c-brand-mist); border-color: var(--c-border); color: var(--c-ink-2); }
+.action-btn.tone-gray:hover:not(:disabled) { background: var(--c-border); color: var(--c-ink-1); }
+.muted { color: var(--c-text-3); font-size: 12px; font-style: italic; }
 
 .reason-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.45);
+  background: var(--c-scrim)
+    /* = rgba 15,23,42/.45 */;
   z-index: 300;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 .reason-modal {
-  background: #ffffff;
+  background: var(--c-surface);
   width: 420px;
-  border-radius: 10px;
+  border-radius: var(--r-md);
   overflow: hidden;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
 }
 .reason-modal header {
   padding: 14px 18px;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--c-brand-soft);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -757,7 +761,7 @@ const onTabClick = (tab) => {
   background: transparent;
   border: none;
   cursor: pointer;
-  color: #7a8d89;
+  color: var(--c-text-2);
 }
 .reason-body {
   padding: 16px 18px;
@@ -765,13 +769,13 @@ const onTabClick = (tab) => {
 .reason-body label {
   display: block;
   font-size: 12px;
-  color: #5a6a68;
+  color: var(--c-ink-2);
   margin-bottom: 6px;
 }
 .reason-body textarea {
   width: 100%;
-  border: 1px solid #cbd5e0;
-  border-radius: 6px;
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-sm);
   padding: 8px 10px;
   font-family: inherit;
   font-size: 13px;
@@ -779,12 +783,13 @@ const onTabClick = (tab) => {
 }
 .reason-body textarea:focus {
   outline: none;
-  border-color: #2b6cb0;
-  box-shadow: 0 0 0 3px rgba(43, 108, 176, 0.1);
+  border-color: var(--c-brand);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--c-brand) 10%, transparent)
+    /* = rgba 111,158,127/.1 */;
 }
 .reason-body .error {
   margin: 6px 0 0;
-  color: #c7553b;
+  color: var(--c-danger-strong);
   font-size: 12px;
 }
 .reason-modal footer {
@@ -792,32 +797,32 @@ const onTabClick = (tab) => {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
-  border-top: 1px solid #e2e8f0;
-  background: rgba(247, 250, 253, 0.6);
+  border-top: 1px solid var(--c-brand-soft);
+  background: color-mix(in srgb, var(--c-surface-2) 60%, transparent);
 }
 .reason-modal footer button {
   border: 1px solid;
   padding: 6px 14px;
-  border-radius: 6px;
+  border-radius: var(--r-sm);
   cursor: pointer;
   font-size: 12px;
   font-weight: 600;
 }
 .reason-modal footer button.ghost {
   background: transparent;
-  border-color: #cbd5e0;
-  color: #5a6a68;
+  border-color: var(--c-border);
+  color: var(--c-ink-2);
 }
 .reason-modal footer button.ghost:hover { background: rgba(203, 213, 224, 0.2); }
 .reason-modal footer button.primary {
-  background: #2b6cb0;
-  border-color: #2b6cb0;
-  color: #ffffff;
+  background: var(--c-brand);
+  border-color: var(--c-brand);
+  color: var(--c-on-brand);
   display: inline-flex;
   align-items: center;
   gap: 4px;
 }
-.reason-modal footer button.primary:hover:not(:disabled) { background: #1e4e84; }
+.reason-modal footer button.primary:hover:not(:disabled) { background: var(--sys-blue-deep); }
 .reason-modal footer button.primary:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .spin { animation: spin 1s linear infinite; }
