@@ -34,7 +34,7 @@ import {
   ThumbsUp,
   TrendingUp,
 } from "lucide-vue-next";
-import { aiApi } from "../../services/_architecture/domain/aiApi";
+import { aiApi } from "../../services/aiApi";
 import { useRouter } from "vue-router";
 import { safeMax } from "../../utils/safeMinMax";
 import {
