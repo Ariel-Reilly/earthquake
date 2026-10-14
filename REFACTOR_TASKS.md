@@ -37,27 +37,46 @@
 
 ## P1 - 本周内完成
 
-### [ ] P1-1 ai-service 训练脚本合并到 scripts/training/
+### [x] P1-1 ai-service 训练脚本合并 → ✅ **已完成（2026-10-14）**
 
-现状（ai-service/scripts/ 根下）：
-- train_comprehensive_xgboost.py
-- train_comprehensive_xgboost_v2.py
-- train_xgboost_fusion_v2.py
-- train_xgboost_fusion_v3.py
+**执行结果**：**8 个训练脚本**移动到 `ai-service/scripts/training/`。
 
-目标结构：
-ai-service/scripts/training/
-├── __init__.py
-├── README.md
-├── train_comprehensive_v1.py
-├── train_comprehensive_v2.py
-├── train_fusion_v2.py
-└── train_fusion_v3.py （当前生产）
+**移动清单**：
+| 原路径 | 新路径 |
+|--------|--------|
+| `scripts/train_comprehensive_xgboost.py` | `scripts/training/train_comprehensive_v1.py` |
+| `scripts/train_comprehensive_xgboost_v2.py` | `scripts/training/train_comprehensive_v2.py` |
+| `scripts/train_xgboost_fusion.py` | `scripts/training/train_fusion_v1.py` |
+| `scripts/train_xgboost_fusion_v2.py` | `scripts/training/train_fusion_v2.py` |
+| `scripts/train_xgboost_fusion_v3.py` | `scripts/training/train_fusion_v3.py` |
+| `scripts/train_crack_yolo.py` | `scripts/training/train_crack_yolo.py` |
+| `scripts/train_isolation_forest.py` | `scripts/training/train_isolation_forest.py` |
+| `scripts/train_lstm_displacement.py` | `scripts/training/train_lstm_displacement.py` |
 
-执行前必做：
-1. 用 git log 确认版本先后
-2. 搜索谁引用这些脚本
-3. 输出引用点清单，等确认
+**附带修复**（5 处 default 路径 bug）：
+- `train_comprehensive_v1.py`（`parent.parent` → `parent.parent.parent`）
+- `train_isolation_forest.py`（同上）
+- `train_lstm_displacement.py`（同上）
+- `train_fusion_v1.py`（同上）
+- `train_crack_yolo.py`（`--models-dir`，同上）
+
+**路径 bug 说明**：原 `parent.parent` 在 `scripts/` 根时正确指向 `ai-service/models/`，
+移动后会自动指向 `scripts/models/`。修正为 3 层 parent 后，
+无论脚本位于 `scripts/` 还是 `scripts/training/` 都能正确输出到 `ai-service/models/`。
+
+**引用更新**：
+- `ai-service/README.md:217,220`
+- `ai-service/app/models/comprehensive_model.py:648`（注释）
+- `ai-service/app/models/xgboost_model.py:93`（注释）
+- `ai-service/models/README.md`（8 处 + CRLF 修复）
+- `ai-service/scripts/README.md`（分类表格）
+
+**新增文档**：
+- `ai-service/scripts/training/README.md`（含 8 个脚本版本一览表）
+
+**遗留问题**（转 P1-5）：
+- 根目录 `models/` 有历史堆积（v2/v3 路径 bug 产物），需单独清理
+
 
 ### [ ] P1-2 backend 散落 DTO 移动到 dto 子包
 
