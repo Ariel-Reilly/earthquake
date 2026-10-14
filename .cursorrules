@@ -1,0 +1,16 @@
+# DISASTERGUARD 项目整理规范
+
+## 上下文说明
+本项目包含多个独立模块：ai-service (AI服务), backend (后端), frontend (前端), hardware-sandbox (硬件沙箱), infra (基础设施), scripts (脚本)。
+它们之间是独立部署或联合运行的，严禁跨模块随意修改代码。
+
+## 注释规范
+- Python: 使用 Google 风格的 Docstring，包含 Args、Returns、Raises
+- TS/JS: 使用 JSDoc，包含 @param、@returns、@throws
+- 统一使用中文注释，解释“为什么这么做”而不是“做了什么”
+- 严禁给显而易见的代码加废话注释
+
+## 执行规范
+- 每次执行任务前，必须先阅读目标目录下的 README.md（如果有）
+- 只处理当前指定的模块，不要跨目录重构
+- 每次修改后，必须输出改动的文件列表和简要说明

@@ -3828,7 +3828,7 @@ pwsh scripts/env/check-ports.ps1
 
 ### 反馈与协作
 
-- **仓库地址**：`D:\DisasterGuard`（当前开发仓库根目录）
+- **仓库地址**：`D:\Projects\DisasterGuard`（当前开发仓库根目录）
 - **配套脚本 / 一键启动**：
   - `start-dev.ps1` / `start-dev.sh` — 跨平台一键启动（后端 / 前端 / AI / Infra / Status / Doctor，详见 §28.4）
   - `scripts/db/gen_data_sql.py` — 重新生成 `data.sql` 种子数据
