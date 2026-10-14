@@ -417,3 +417,30 @@ models_dir = fusion.model_path.parent.parent if fusion.model_path else _Path("./
 |      |      |      |      |
 
 - [x] P2-16 在 README 顶部加 ONBOARDING 入口指引 → ✅ 已完成（2026-10-15）
+
+---
+
+### [~] P2-4 补测试覆盖率 → 🔄 **进行中（2026-10-15）**
+
+**已完成**（2 个关键路径）：
+
+| 测试文件 | 测试数 | 覆盖 |
+|---------|--------|------|
+| `backend/src/test/java/cn/disasterguard/auth/jwt/JwtServiceTest.java` | 13 | 密钥校验 / 签发 / 解析 / 吊销 |
+| `backend/src/test/java/cn/disasterguard/ai/AiServiceClientTest.java` | 16 | `enabled=false` 时 14 个方法的降级契约 |
+
+**backend 测试文件数**：6 → 8
+
+**未完成**（可继续）：
+
+- [ ] `common/exception/` 全局异常测试（`AppException` + `GlobalExceptionHandler`）
+- [ ] `warning/engine/` 规则引擎求值测试
+- [ ] `ai-service` 测试已有 9 个，可补融合引擎
+- [ ] frontend **完全无测试**（引入 vitest 成本 > 收益，暂不做）
+
+**测试策略**：不追求覆盖率数字，只测**高风险路径**（鉴权、降级、业务核心）。
+简单 CRUD / DTO / Entity 不测。
+
+**本轮未做的**：
+- 全局异常（价值相对低）
+- 规则引擎（工作量大，需先分析）
