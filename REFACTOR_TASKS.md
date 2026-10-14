@@ -257,6 +257,28 @@
 移动后补 import。本次 `AiForecastScheduler` 遗漏补
 `import ...AiAnalysisService;` 导致首次编译失败。
 
+### [x] P2-9 Properties 归位 → ✅ **已完成（2026-10-15）**
+
+**执行结果**：2 个 Properties 移动到 `config/`。
+
+| 文件 | 从 | 到 |
+|------|----|----|
+| `AiProperties.java` | `ai/` | `config/` |
+| `JwtProperties.java` | `auth/jwt/` | `config/` |
+
+**引用更新**：
+- `PropertiesConfig.java`（删除 2 个旧 import，同包后不需要）
+- `AiServiceClient.java`（补 `import cn.disasterguard.config.AiProperties;`）
+- `JwtService.java`（补 `import cn.disasterguard.config.JwtProperties;`）
+
+**归位理由**：`config/` 已有 4 个 Properties 类（`AppProperties`、
+`ExternalDataProperties`、`MinioProperties`、`WeatherProperties`），
+本次将剩余 2 个归位，实现 Properties 全统一。
+
+**教训**：批量替换 import 时，**插入新行要匹配原文件的 EOL**。
+PowerShell 硬编码 `\r\n` 在 LF 文件里造成混合行尾，本次已修正。
+未来脚本应检测 EOL：`$eol = if ($raw.Contains("`r`n")) { "`r`n" } else { "`n" }`。
+
 ## 执行记录
 
 | 日期 | 任务 | 提交 | 结果 |
