@@ -1,4 +1,4 @@
-﻿# 重构任务清单
+# 重构任务清单
 
 > 基线分支：refactor/2026-10-14
 > 规则：@.cursor/rules/refactor.mdc
@@ -213,19 +213,59 @@
 
 ## P2 - 迭代优化（暂缓）
 
-- [ ] P2-1 frontend 重组散落组件
-- [ ] P2-2 backend 统一 scheduler 组织
-- [ ] P2-3 frontend 拆分 system 视图
-- [ ] P2-4 补测试覆盖率
-- [ ] P2-5 清理 CSS rgba 注释噪音
-- [ ] P2-6 修复 `frontend-optimization-plan.md` 中 6 处 `computer://` 坏链接
-- [ ] P2-7 清理 `ai-service/app/config.py` 中无用的 `_REPO_MODELS` fallback 分支
-- [ ] P2-8 scheduler 归位（`JwtBlacklistCleanupScheduler` 从 `auth/jwt/` 移到 `auth/scheduler/`）
-- [ ] P2-9 Properties 归位（`AiProperties`、`JwtProperties` 移到 `config/`）
-- [ ] P2-10 `WsTicketRepository` 的 `@Scheduled` 抽取
-- [ ] P2-11 评估为 notificationService / healthService / geocodeService 建薄层
-- [ ] P2-12 SocialMediaPage.vue 的 aiApi 引用改为走 `@/services/aiApi` 薄层
 ---
+
+
+### [x] P2-6 修 computer:// 坏链接 → ✅ **已完成（2026-10-15）**
+
+**执行结果**：7 处 `computer://` 绝对路径改为同目录相对路径。
+
+**修改文件**：`docs/audit/frontend/frontend-optimization-plan.md`
+
+**替换映射**：
+| 原链接 | 改为 |
+|--------|------|
+| `computer://.../frontend-comprehensive-audit-report.md` | `./comprehensive-audit-report.md` |
+| `computer://.../docs/界面合并优化方案.md` | `./ui-merge-plan.md` |
+| `computer://.../frontend/性能审查报告.md` | `./performance-audit-report.md` |
+| `computer://.../frontend-architecture-review.md` | `./architecture-review.md` |
+| `computer://.../frontend/UX_Audit_Report.md` | `./UX_Audit_Report.md` |
+
+**验证**：`Select-String -Pattern "computer://"` 无残留。
+
+---
+
+### [x] P2-7 删死 fallback → ✅ **已完成（2026-10-15）**
+
+**执行结果**：`ai-service/app/config.py` 删除 `_REPO_MODELS` 相关逻辑。
+
+**删除内容**：
+- 第 11 行注释（兼容旧版回退说明）
+- 第 18 行注释尾（缺失时回退）
+- `_REPO_MODELS` 定义
+- `elif _REPO_MODELS.exists()` 分支
+
+**理由**：P1-5 删除根目录 `models/` 后，fallback 永不触发，是死代码。
+
+**验证**：`Select-String -Pattern "_REPO_MODELS"` 无残留。
+
+---
+
+### [x] P2-12 SocialMediaPage 引用改薄层 → ✅ **已完成（2026-10-15）**
+
+**执行结果**：`SocialMediaPage.vue:37` 的 import 改为走薄层。
+
+**修改**：
+
+    // 前
+    import { aiApi } from "../../services/_architecture/domain/aiApi";
+    // 后
+    import { aiApi } from "../../services/aiApi";
+
+**验证**：`npm run build` 成功。
+
+---
+
 
 ### [x] P2-8 Scheduler 归位 → ✅ **部分完成（2026-10-14）**
 
