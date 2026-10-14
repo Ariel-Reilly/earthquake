@@ -16,7 +16,6 @@ import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const SRC_GLOB = 'src/**/*.{js,mjs,ts,vue}';
 const SET_RE = /(?<![\w$])(?:window\.)?setInterval\s*\(/g;
 const CLEAR_RE = /(?<![\w$])(?:window\.)?clearInterval\s*\(([^)]+)\)/g;
 const ASSIGN_RE = /^\s*(?:const|let|var)\s+([\w.$]+)\s*=\s*(?:[\w.]+\.)?setInterval\s*\(/;
