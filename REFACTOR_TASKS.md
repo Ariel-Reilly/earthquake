@@ -325,20 +325,48 @@ PowerShell 硬编码 `\r\n` 在 LF 文件里造成混合行尾，本次已修正
 models_dir = fusion.model_path.parent.parent if fusion.model_path else _Path("./models")
 
 
-### [ ] P2-14 CRLF 规范化（延后）
+### [x] P2-14 CRLF 规范化 → ❌ **已取消（2026-10-15）**
 
-**背景**：部分 Java 文件索引里保留 CRLF，`git diff --check` 反复警告。
-`.gitattributes` 里 `* text=auto` 对**首次加入索引**的文件生效，
-已存在 CRLF 快照的文件不会被自动重写。
+**只读验证结果**：
+- 297 个文件索引中是 CRLF
+- `git add --renormalize .` 会改动 **323 个文件**
+- **42396 行增删**
 
-**方案**：`git add --renormalize .` 一次性规范所有文件行尾。
+**取消原因**：
 
-**风险**：可能产生数百文件的 diff。
+1. **`git blame` 全废** —— 未来追任何代码都指向本次，而非原始提交
+2. **Code review 不可能** —— 323 个文件的 diff 无法审核
+3. **协作者冲突地狱** —— 所有已拉取的分支合并时全部冲突
+4. **连二进制文件都被误伤** —— 8 个 `.ifc` 被改动
+5. **问题已被 `.gitattributes` 缓解** —— `* text=auto` 管新文件，存量重写收益低
+6. 与 P0-1/P0-2/P1-3/P2-11 同一模式
 
-**前提**：在独立分支执行 + 全量构建验证 + 单独 commit。
+**副产物**：验证过程中发现 19 个 `scripts/*.ps1` 工作区/索引行尾不一致，
+已通过 `git checkout -- scripts/` 恢复（无 commit 必要）。
 
-**暂不做**：属于噪音级问题，不影响功能。
+### [ ] P2-15 `.gitattributes` 补全核心代码规则（推荐执行）
 
+**目标**：为 Java / JS / Vue / Python 等核心代码文件**显式**设置 `eol=lf`，
+让未来新增文件自动 LF，**不重写存量**。
+
+**改动**：仅 `.gitattributes` 几行新增。
+
+**零风险** —— 不影响现有文件内容。
+
+**待追加规则**：
+
+    *.java   text eol=lf
+    *.js     text eol=lf
+    *.mjs    text eol=lf
+    *.cjs    text eol=lf
+    *.vue    text eol=lf
+    *.py     text eol=lf
+    *.ts     text eol=lf
+    *.json   text eol=lf
+    *.yml    text eol=lf
+    *.yaml   text eol=lf
+    *.md     text eol=lf
+    *.sql    text eol=lf
 
 
 ## 执行记录
