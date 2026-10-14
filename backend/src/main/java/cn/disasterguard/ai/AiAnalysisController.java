@@ -2,7 +2,7 @@ package cn.disasterguard.ai;
 
 import cn.disasterguard.ai.dto.AiAnalysisRecordDto;
 import cn.disasterguard.ai.service.AiAnalysisService;
-import cn.disasterguard.ai.service.AiForecastScheduler;
+import cn.disasterguard.ai.scheduler.AiForecastScheduler;
 import cn.disasterguard.common.api.ApiResponse;
 import java.util.List;
 import java.util.Map;

@@ -1,4 +1,4 @@
-package cn.disasterguard.device.service;
+package cn.disasterguard.device.scheduler;
 
 import cn.disasterguard.device.repository.DeviceMetricRepository;
 import java.time.OffsetDateTime;

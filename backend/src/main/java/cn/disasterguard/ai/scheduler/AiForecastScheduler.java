@@ -1,7 +1,8 @@
-package cn.disasterguard.ai.service;
+package cn.disasterguard.ai.scheduler;
 
 import cn.disasterguard.ai.AiServiceClient;
 import cn.disasterguard.ai.dto.ForecastResult;
+import cn.disasterguard.ai.service.AiAnalysisService;
 import cn.disasterguard.device.entity.MonitoringDevice;
 import cn.disasterguard.device.repository.DeviceMetricRepository;
 import cn.disasterguard.device.repository.MonitoringDeviceRepository;
