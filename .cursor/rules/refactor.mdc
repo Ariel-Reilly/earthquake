@@ -1,0 +1,46 @@
+﻿---
+description: 目录重构专用规则（仅重构期间生效）
+globs: ["**/*"]
+alwaysApply: true
+---
+
+# 重构执行规则
+
+你正在执行 DisasterGuard 的目录重构任务。必须严格遵守：
+
+## 第一步：永远先确认
+1. 收到任务后先输出执行计划，不要直接改文件。
+2. 计划必须包含：涉及文件清单、修改方式（git mv / 新建 / 删除）、
+   影响面（哪些 import 需要同步改）、验证命令。
+3. 等我说"确认执行"后再动手。
+
+## 第二步：一次只做一件事
+4. 一次只执行 REFACTOR_TASKS.md 里的一个任务。
+5. 完成任务后停下，不要顺手做下一个。
+6. 一个任务涉及文件超过 30 个时，先报告，等我确认后分批。
+
+## 第三步：保护文件
+7. 未经我明确确认，不得删除任何文件或目录。
+8. 移动文件一律用 git mv 保留历史。
+9. 不得覆盖 .gitattributes、.gitignore、pom.xml、
+   package.json、requirements.txt 等配置文件，除非任务明确要求。
+10. 不得执行 git reset --hard、git clean -fd、git push --force。
+
+## 第四步：改完必须自检
+11. 修改后全局搜索旧路径：
+    - backend: 检查 import 与 package 声明
+    - frontend: 检查所有 import
+    - ai-service: 检查 import
+12. 涉及 Java：同步更新 package 声明与 import 语句。
+13. 涉及前端：同步更新所有引用该文件的 .vue / .js。
+14. 输出：修改文件列表、旧路径残留搜索结果、验证命令、验证结果。
+15. 不能运行验证时，说明原因，不要假装通过。
+
+## 第五步：发现异常先报告
+16. 如果发现代码与重构计划不符，先报告，不要擅自调整计划。
+17. 如果发现更好的做法，先提议，等我决策。
+
+## 上下文约束
+- 参考文件：@REFACTOR_TASKS.md、@docs/refactor-plan.md
+- 严格只做当前指定的模块，不要跨模块重构。
+- 注释使用中文，遵循 .cursorrules 规范。
