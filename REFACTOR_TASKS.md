@@ -83,17 +83,44 @@
 原分析中"训练代码不应在业务代码目录"的判断针对的是 `scripts/` 下的独立脚本，
 已由本任务处理。
 
-### [ ] P1-2 backend 散落 DTO 移动到 dto 子包
+### [x] P1-2 backend DTO 归位 → ✅ **已完成（2026-10-14）**
 
-目标：
-- auth/*.java 中 DTO → auth/dto/
-- notification/*.java 中 DTO → notification/dto/
-- dashboard/dao/ZoneDashboardDto.java → dashboard/dto/
+**执行结果**：2 个子任务完成，3 个子任务跳过（已规范）。
 
-每文件必须：
-1. 改 package 声明
-2. 改所有 import
-3. 检查 MyBatis / Jackson 扫描配置
+**P1-2a：auth DTO 移动** ✅（commit aba5d25）
+6 个 DTO 移动到 `auth/dto/`：
+- `LoginRequest.java`
+- `LoginResponse.java`
+- `ChangePasswordRequest.java`
+- `ChangePasswordResponse.java`
+- `UserProfileDto.java`
+- `NotificationPreferenceDto.java`
+
+引用更新：
+- `AuthController.java`（+4 imports）
+- `UserProfileController.java`（+2 imports）
+- `UserProfileService.java`（同包引用转跨包）
+
+**P1-2b：dashboard DTO 移动** ✅（commit cc61d61）
+- `dashboard/dao/ZoneDashboardDto.java` → `dashboard/dto/ZoneDashboardDto.java`
+- `dao/` 目录已删除（空）
+- `ZoneDashboardController.java`（5 个 import 更新）
+- `ZoneDashboardService.java`（5 个 import 更新）
+
+**P1-2c/d/e：跳过** ✅
+- `notification/dto/`：已规范（7 个 DTO 已在 dto/ 子包）
+- `ai/dto/`、`ai/scheduler/`：已规范
+- `event/controller/dto/`：已规范
+
+**原计划中未执行的项**（单开 P1-2-续任务）：
+- scheduler 统一归位（`AiForecastScheduler` 已在 `ai/scheduler/`，`JwtBlacklistCleanupScheduler` 在 `auth/jwt/`）
+- Properties 统一到 `config/`（`AiProperties`、`JwtProperties`）
+- `WsTicketRepository` 的 `@Scheduled` 抽取
+
+**执行方式**：本轮使用**手动 PowerShell 脚本**（非 Cursor Agent）。
+因 Cursor Agent 在 P1-2 第一次执行时偏离指令（移错文件 + 报告失实），
+已 `git restore` 完全回滚后改用手动脚本。脚本化流程更可控，
+将作为后续同类任务的默认方式。
 
 ### [ ] P1-3 frontend services 薄层 re-export 清理
 
@@ -162,6 +189,9 @@
 - [ ] P2-5 清理 CSS rgba 注释噪音
 - [ ] P2-6 修复 `frontend-optimization-plan.md` 中 6 处 `computer://` 坏链接
 - [ ] P2-7 清理 `ai-service/app/config.py` 中无用的 `_REPO_MODELS` fallback 分支
+- [ ] P2-8 scheduler 归位（`JwtBlacklistCleanupScheduler` 从 `auth/jwt/` 移到 `auth/scheduler/`）
+- [ ] P2-9 Properties 归位（`AiProperties`、`JwtProperties` 移到 `config/`）
+- [ ] P2-10 `WsTicketRepository` 的 `@Scheduled` 抽取
 ---
 
 ## 执行记录
