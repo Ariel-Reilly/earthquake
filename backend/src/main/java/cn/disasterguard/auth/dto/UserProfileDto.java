@@ -1,5 +1,4 @@
-package cn.disasterguard.auth;
-
+package cn.disasterguard.auth.dto;
 import java.time.OffsetDateTime;
 
 /**
