@@ -1,9 +1,20 @@
+import importlib
+import logging
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+
+# R3：服务入口此前完全没有 logging 配置——各模型模块用 print() 输出，
+# 没有级别、没有时间戳，生产排查问题（如模型降级、推理失败）时几乎不可用。
+# 这里统一配置一次，后续模块可改为 logger.xxx。
+logging.basicConfig(
+    level=os.environ.get("AI_LOG_LEVEL", "INFO").upper(),
+    format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+)
+logger = logging.getLogger("ai-service")
 
 # .env 加载（必须在读取任何业务环境变量之前完成）
 # 顺序：ai-service/.env（优先,服务专用） → 项目根 .env（共享配置,后到,不覆盖已设置）
@@ -23,6 +34,7 @@ except ImportError:
 from app.routers import (
     anomaly,
     comprehensive,
+    dashboard,
     detection,
     device_health,
     disaster_assessment,
@@ -33,6 +45,7 @@ from app.routers import (
     sentinel,
     social_media,
 )
+# 注意：drift / multimodal 故意不在顶层 import，见下方条件注册处的说明。
 
 
 # 应用 lifespan：启动/关闭 HTTP client（共享 aiohttp session）
@@ -49,10 +62,58 @@ async def lifespan(app: FastAPI):
     # 主动触发 session 创建,让连接池在启动期就绪(避免首请求冷启动)
     await holder.session()
 
+    # R6: 启动期预热所有模型，避免首请求触发模型加载（耗时数秒）
+    await _warmup_models()
+
     try:
         yield
     finally:
         await holder.close()
+
+
+async def _warmup_models() -> None:
+    """
+    预热所有模型：触发单例初始化 + 跑一次最小推理。
+    让首请求直接命中已加载的模型，而非在请求路径里同步加载。
+    """
+    import asyncio
+    from concurrent.futures import ThreadPoolExecutor
+
+    loop = asyncio.get_running_loop()
+    executor = ThreadPoolExecutor(max_workers=6, thread_name_prefix="warmup")
+
+    async def _load_one(name: str, loader):
+        """在 executor 中触发 loader（同步加载）"""
+        try:
+            await loop.run_in_executor(executor, loader)
+            logger.info("[warmup] %s 模型已加载", name)
+        except Exception as e:  # noqa: BLE001
+            logger.warning("[warmup] %s 模型加载失败: %s", name, e)
+
+    def _warmup_yolo():
+        from app.models.yolo_model import get_detector
+        from app.models.comprehensive_model import get_comprehensive_model
+        get_detector()
+        # 顺带触发 comprehensive（COCO 训练 vs 业务 5 类的差异判断只走一次）
+        get_comprehensive_model()
+
+    def _warmup_xgb():
+        from app.models.xgboost_model import get_fusion_model
+        from app.models.lstm_model import get_forecaster
+        from app.models.isolation_forest import get_detector as get_iforest
+        get_fusion_model()
+        get_forecaster()
+        get_iforest()
+
+    try:
+        await asyncio.gather(
+            _load_one("YOLO + Comprehensive", _warmup_yolo),
+            _load_one("Fusion + LSTM + IsolationForest", _warmup_xgb),
+            return_exceptions=True,
+        )
+    finally:
+        executor.shutdown(wait=False)
+        logger.info("[warmup] 模型预热完成")
 
 
 app = FastAPI(
@@ -133,6 +194,29 @@ app.include_router(feedback.router)
 app.include_router(model_info.router)
 app.include_router(social_media.router)
 app.include_router(sentinel.router)
+app.include_router(dashboard.router)
+
+# R3：drift / multimodal 此前从未注册，模块内端点全部不可达。
+# 两者前缀已同步改为 /api/ai/drift 与 /api/ai/multimodal（与后端约定一致，
+# 且不会与 detection 的 /api/ai/detect 冲突）。
+#
+# 采用"延迟导入 + 条件注册"：drift 依赖 scipy（requirements.txt 已声明
+# scipy==1.14.1），正常部署路径上依赖必装——能触发降级的只有坏环境或代码错误。
+# R5 P1-3：只对 ImportError 降级（依赖缺失场景）；其他异常（语法错误、
+# router 变量拼错等代码 bug）直接抛出 fail-fast，避免被静默吞成难查的 404。
+# 降级时记 ERROR 级别（不是 warning）：后端侧这两个模块的端点会全部 404。
+_MODULE_IMPORT_ERRORS: dict[str, str] = {}
+for _name in ("drift", "multimodal"):
+    try:
+        _mod = importlib.import_module(f"app.routers.{_name}")
+        app.include_router(_mod.router)
+        logger.info("路由模块已注册: %s", _name)
+    except ImportError as _exc:
+        _MODULE_IMPORT_ERRORS[_name] = str(_exc)
+        logger.error(
+            "路由模块 %s 注册失败（依赖缺失），相关端点将 404: %s",
+            _name, _exc,
+        )
 
 # 静态文件挂载（必须在 include_router 之后，所有路由尝试匹配后才会落到 static files）
 app.mount("/sentinel_files", StaticFiles(directory=str(_SENTINEL_DIR)), name="sentinel_files")
@@ -140,4 +224,10 @@ app.mount("/sentinel_files", StaticFiles(directory=str(_SENTINEL_DIR)), name="se
 
 @app.get("/api/ai/health", tags=["system"])
 def health():
-    return {"status": "UP", "service": "ai-service"}
+    # R5 P1-3：暴露条件注册的降级状态，让后端/运维可探测"模块没装上"
+    # 而不是只会看到莫名 404。空 dict 表示全部模块正常注册。
+    return {
+        "status": "UP",
+        "service": "ai-service",
+        "unregistered_routers": _MODULE_IMPORT_ERRORS,
+    }

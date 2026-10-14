@@ -33,7 +33,8 @@ class FusionResponse(BaseModel):
 
 
 @router.post("/fusion-risk", response_model=FusionResponse)
-async def fusion_risk(req: FusionRequest):
+# R3 P1-15：改为同步 def，FastAPI 自动走线程池（同上）
+def fusion_risk(req: FusionRequest):
     result = get_fusion_model().score(req.factors)
     return FusionResponse(
         hazard_code=req.hazard_code,

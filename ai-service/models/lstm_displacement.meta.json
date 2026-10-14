@@ -1,0 +1,1 @@
+{"version": "1.0.0", "trained_at": "2026-09-29T04:33:53.914113+00:00", "n_samples": 1000, "val_samples": 200, "input_size": 30, "hidden_size": 64, "output_steps": 7, "epochs": 60, "norm_mean": 3.1189467906951904, "norm_std": 2.4242935180664062}

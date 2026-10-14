@@ -2,21 +2,34 @@
 共享配置模块：从环境变量读取配置，支持通过环境变量覆盖默认值。
 
 主要配置项：
-- MODELS_DIR: 模型文件目录（默认 ai-service/models）
+- MODELS_DIR: 模型文件目录（默认 ai-service/models，模块自包含）
 - SENTINEL_STORAGE_DIR: Sentinel 合成图存储目录
+
+路径解析策略：
+  1. 优先使用环境变量 MODELS_DIR（覆盖最高）
+  2. 否则使用 `<ai-service>/models/`（与代码同目录，自包含部署）
+  3. 兼容旧版：若 ai-service/models 缺失，回退到 repo 根的 models/
 """
 from __future__ import annotations
 
 import os
 from pathlib import Path
 
-# 模型文件目录：优先使用环境变量，兼容旧代码的相对路径推导
+# 模型文件目录：优先环境变量；否则 ai-service/models（自包含）；缺失时回退 repo/models
 _MODELS_DIR_ENV = os.environ.get("MODELS_DIR", "")
-MODELS_DIR = (
-    Path(_MODELS_DIR_ENV)
-    if _MODELS_DIR_ENV
-    else Path(__file__).resolve().parent.parent.parent / "models"
-)
+_SELF_MODELS = Path(__file__).resolve().parent.parent / "models"          # ai-service/models
+_REPO_MODELS = Path(__file__).resolve().parent.parent.parent / "models"   # repo/models
+
+if _MODELS_DIR_ENV:
+    MODELS_DIR = Path(_MODELS_DIR_ENV)
+elif _SELF_MODELS.exists():
+    MODELS_DIR = _SELF_MODELS
+elif _REPO_MODELS.exists():
+    MODELS_DIR = _REPO_MODELS
+else:
+    # 最后兜底：保证目录存在
+    MODELS_DIR = _SELF_MODELS
+    MODELS_DIR.mkdir(parents=True, exist_ok=True)
 
 # 基线数据目录：用于漂移检测
 _BASELINE_DIR_ENV = os.environ.get("BASELINE_DIR", "")
@@ -31,5 +44,5 @@ _SENTINEL_DIR_ENV = os.environ.get("SENTINEL_STORAGE_DIR", "")
 SENTINEL_DIR = (
     Path(_SENTINEL_DIR_ENV)
     if _SENTINEL_DIR_ENV
-    else Path(__file__).resolve().parent.parent.parent / "outputs" / "sentinel"
+    else Path(__file__).resolve().parent.parent / "outputs" / "sentinel"
 )

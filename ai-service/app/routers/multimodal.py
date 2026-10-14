@@ -9,7 +9,9 @@ from pydantic import BaseModel
 
 from app.models.fusion_engine import FusionEngine, ModalScore, get_fusion_engine
 
-router = APIRouter(prefix="/multimodal", tags=["multimodal"])
+# R3：同 drift.py —— 此前从未在 main.py 注册，且前缀 /multimodal 与项目
+# 约定的 /api/ai 不符。改为 /api/ai/multimodal 并注册，端点才可达。
+router = APIRouter(prefix="/api/ai/multimodal", tags=["multimodal"])
 
 
 class FuseRequest(BaseModel):

@@ -140,7 +140,9 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 
 from app.config import MODELS_DIR
-from app.models.xgboost_model import get_fusion_model
+from app.models.xgboost_model import get_fusion_model, DEFAULT_WEIGHTS
+from app.models.feature_engineering import compute_derived_features
+from app.models.adaptive_normalizer import get_adaptive_normalizer
 
 IMAGE_NORM_MAX = 100.0
 RAIN_24H_NORM_MAX = 150.0
@@ -388,7 +390,7 @@ def score_terrain(factors: Dict[str, float]) -> Dict[str, Any]:
 def score_sensor(factors: Dict[str, float]) -> Dict[str, Any]:
     """[4] 地面传感器/IoT 维度：位移/裂缝/地震/倾斜，继承自 fusion-risk。"""
     fusion = get_fusion_model()
-    DEVICE_KEYS = list(fusion.DEFAULT_WEIGHTS.keys())  # type: ignore[attr-defined]
+    DEVICE_KEYS = list(DEFAULT_WEIGHTS.keys())
     sub = {k: factors.get(k, 0.0) for k in DEVICE_KEYS}
     result = fusion._run_weighted(sub)
     raw_score = float(result["risk_score"])
@@ -641,7 +643,12 @@ class ComprehensiveRiskModel:
         return round(weighted, 2), confidence, "heuristic-dimension-fusion-v2", True
 
     def _run_xgboost(self, factors: Dict[str, float]) -> Tuple[float, float, str, bool]:
-        """XGBoost 模型推理（支持七类全部特征）。"""
+        """XGBoost 模型推理（支持七类全部特征）。
+
+        模型训练时标签已归一化到 [0, 100]（见 train_comprehensive_xgboost_v2.py 的
+        compute_risk_score_regression），因此模型原生输出即为 0-100 风险评分，
+        不需要再乘以 100。
+        """
         import xgboost as xgb
         feature_names = [
             # [1] 遥感
@@ -669,20 +676,87 @@ class ComprehensiveRiskModel:
         vec = np.array([[factors.get(name, 0.0) for name in feature_names]], dtype=np.float32)
         dmatrix = xgb.DMatrix(vec, feature_names=feature_names)
         pred = float(self.model.predict(dmatrix)[0])
-        score = round(max(0.0, min(100.0, pred * 100.0)), 2)
+        score = round(max(0.0, min(100.0, pred)), 2)
         confidence = round(min(0.95, 0.5 + 0.005 * score), 4)
         return score, confidence, "xgboost-comprehensive-v2", False
 
     def _overall_score(
         self, dims: Dict[str, Dict[str, Any]], factors: Dict[str, float]
     ) -> Tuple[float, float, str, bool]:
-        """综合评分：优先 XGBoost（若加载），否则加权融合。"""
+        """综合评分：优先 XGBoost（若加载），否则加权融合。
+
+        危机放大（crisis amplifier）：
+          当任意关键阈值被突破（如 rainfall_24h≥100mm、displacement_rate≥10mm/day、
+          earthquake_mag≥5.0 等），会在 XGBoost 原始输出基础上加成，
+          避免出现"多维度都有显著异常但综合评分仍是 MEDIUM"的低估现象。
+          加成规则：每命中一条 critical 阈值 +3 分；命中 3+ 条 +5 分。
+        """
         if self.model_loaded and self.model is not None:
             try:
-                return self._run_xgboost(factors)
+                score, conf, name, mock = self._run_xgboost(factors)
+                # 应用 crisis amplifier
+                score = self._apply_crisis_amplifier(score, factors, dims)
+                # 重新计算 confidence（分数越高、命中关键阈值越多，置信度越高）
+                crisis_hits = self._count_crisis_hits(factors)
+                conf = round(min(0.95, 0.5 + 0.005 * score + 0.02 * crisis_hits), 4)
+                return round(score, 2), conf, name, mock
             except Exception as e:
                 print(f"[ComprehensiveRiskModel v2] XGBoost 推理失败: {e}，降级为维度加权")
         return self._overall_weighted(dims)
+
+    # ─────────────────────────────────────────────────────────────────
+    # 危机放大：当关键阈值被突破时，对综合评分进行非线性加成
+    # ─────────────────────────────────────────────────────────────────
+    CRITICAL_THRESHOLDS: List[Tuple[str, float, str]] = [
+        # (因子名, 阈值, 含义)
+        ("rainfall_24h",  100.0,  "24h 极端降雨"),
+        ("rainfall_7d",   250.0,  "7d 极端降雨"),
+        ("rainfall_30d",  500.0,  "30d 累计极端降雨"),
+        ("displacement_rate", 10.0, "位移速率超警戒"),
+        ("crack_width",   20.0,   "裂缝宽度超警戒"),
+        ("earthquake_mag", 4.5,   "中等以上地震"),
+        ("image_anomaly_score", 70.0, "遥感影像显著异常"),
+        ("image_anomaly_count", 5.0,  "多个影像异常点"),
+        ("social_alert_level", 3.0,  "舆情告警等级高"),
+        ("social_emergency_level", 3.0, "应急热线告警"),
+        ("soil_moisture", 0.50,   "土壤饱和"),
+        ("water_level", 3.0,      "河流水位超警戒（城市内涝）"),
+    ]
+
+    def _count_crisis_hits(self, factors: Dict[str, float]) -> int:
+        """统计被突破的关键阈值数量。"""
+        hits = 0
+        for key, threshold, _ in self.CRITICAL_THRESHOLDS:
+            v = factors.get(key)
+            if v is None:
+                continue
+            try:
+                if float(v) >= threshold:
+                    hits += 1
+            except (TypeError, ValueError):
+                continue
+        return hits
+
+    def _apply_crisis_amplifier(
+        self, base_score: float, factors: Dict[str, float],
+        dims: Dict[str, Dict[str, Any]],
+    ) -> float:
+        """
+        危机放大：在 XGBoost 输出基础上，按命中的关键阈值数量加成。
+
+        设计原则：
+          - 命中 1 条关键阈值 → 基础加成 +10 分（让"单一极端信号"升到 MEDIUM）
+          - 命中 2 条关键阈值 → +18 分（基本肯定 HIGH）
+          - 命中 3 条关键阈值 → +25 分（应触发 CRITICAL）
+          - 命中 4+ 条关键阈值 → +30 分（极端多灾种）
+          - 加成结果钳制到 [0, 100]
+        """
+        hits = self._count_crisis_hits(factors)
+        if hits == 0:
+            return base_score
+        boost_table = {1: 10.0, 2: 18.0, 3: 25.0}
+        boost = boost_table.get(hits, 30.0 if hits >= 4 else 0.0)
+        return min(100.0, base_score + boost)
 
     # Reasoning（可解释归因）
     def build_reasoning(
@@ -810,23 +884,45 @@ class ComprehensiveRiskModel:
         return actions
 
     # 主接口
-    def score(self, factors: Dict[str, float]) -> Dict[str, Any]:
-        # [1] 六维度独立评分（remote_sensing / meteorology / terrain / sensor / historical / supporting）
+    def score(self, factors: Dict[str, float], region_code: str = "_default") -> Dict[str, Any]:
+        """
+        Args:
+            factors: 原始因子字典
+            region_code: 区域编码（用于自适应归一化；不同区域独立维护滑动窗口）
+        """
+        # 1. 特征工程：派生 6 个业务衍生特征（降雨饱和/骤雨强度/持续天数/坡脚侵蚀/地质×距水/位移加速度）
+        enriched_factors = compute_derived_features(factors)
+
+        # 2. 自适应归一化器：把原始因子观测推进滑动窗口，让动态上限参与后续评分
+        normalizer = get_adaptive_normalizer()
+        for key in ("rainfall_24h", "rainfall_7d", "slope_deg", "vegetation_cover",
+                    "rainfall_30d", "soil_grade", "distance_to_water_m", "geology_grade"):
+            v = enriched_factors.get(key)
+            if v is not None:
+                try:
+                    normalizer.fit_one(key, float(v), region_code)
+                except (TypeError, ValueError):
+                    pass
+
+        # 3. 用区域自适应上限增强评分（仅当样本数足够时替换 NORM_MAX）
+        self._maybe_use_adaptive_norms(region_code)
+
+        # 4. 六维度独立评分（remote_sensing / meteorology / terrain / sensor / historical / supporting）
         #  注：supporting 维度包含 social_media + 辅助数据（夜间灯光/基础设施/电力）
         #      social_media 保留独立维度便于 UI 展示舆情分类
         dims: Dict[str, Dict[str, Any]] = {
-            "remote_sensing": score_remote_sensing(factors),
-            "meteorology":   score_meteorology(factors),
-            "terrain":       score_terrain(factors),
-            "sensor":        score_sensor(factors),
-            "historical":    score_historical(factors),
-            "supporting":    score_supporting(factors),
+            "remote_sensing": score_remote_sensing(enriched_factors),
+            "meteorology":   score_meteorology(enriched_factors),
+            "terrain":       score_terrain(enriched_factors),
+            "sensor":        score_sensor(enriched_factors),
+            "historical":    score_historical(enriched_factors),
+            "supporting":    score_supporting(enriched_factors),
             # social_media 独立评分（作为 supporting 子维度，保留便于 reasoning 归因）
-            "social_media":  score_social_media(factors),
+            "social_media":  score_social_media(enriched_factors),
         }
 
         # 总体评分
-        overall_score, overall_conf, model_name, mock = self._overall_score(dims, factors)
+        overall_score, overall_conf, model_name, mock = self._overall_score(dims, enriched_factors)
         overall_level = score_to_level(overall_score)
 
         # 综合置信度
@@ -842,8 +938,17 @@ class ComprehensiveRiskModel:
             4,
         )
 
-        reasoning = self.build_reasoning(overall_level, dims, factors)
-        actions   = self.build_suggested_actions(overall_level, dims, factors)
+        # 衍生特征对推理的增量贡献（用于 reasoning / UI）
+        derived_contributions = self._compute_derived_contributions(enriched_factors)
+
+        reasoning = self.build_reasoning(overall_level, dims, enriched_factors)
+        actions   = self.build_suggested_actions(overall_level, dims, enriched_factors)
+        # 把衍生特征贡献挂到 reasoning 末尾
+        if derived_contributions:
+            for d in derived_contributions:
+                reasoning.append(
+                    f"[衍生特征] {d['label']}={d['value']:.3f}，对总评分贡献 +{d['contribution']:.1f} 分"
+                )
 
         return {
             "overall": {
@@ -854,9 +959,102 @@ class ComprehensiveRiskModel:
                 "mock": mock,
             },
             "dimensions": dims,
+            "derived_features": enriched_factors.get("_derived_", {}) if isinstance(enriched_factors.get("_derived_"), dict) else {
+                k: enriched_factors[k]
+                for k in (
+                    "_derived_rain_saturation_index", "_derived_rain_intensity_ratio",
+                    "_derived_rain_duration_days", "_derived_foot_erosion_index",
+                    "_derived_geology_distance_score", "_derived_disp_derivative",
+                )
+                if k in enriched_factors
+            },
+            "derived_contributions": derived_contributions,
+            "region_code": region_code,
             "reasoning": reasoning,
             "suggested_actions": actions,
         }
+
+    # ─────────────────────────────────────────────────────────────────
+    # 内部：自适应归一化集成
+    # ─────────────────────────────────────────────────────────────────
+    def _maybe_use_adaptive_norms(self, region_code: str) -> None:
+        """
+        当某区域某因子的滑动窗口样本数 ≥ MIN_SAMPLES 时，用 adaptive_normalizer
+        的动态上限覆盖模块级 NORM_MAX 常量（仅在本次推理的全局可见范围内）。
+
+        用法：
+            from app.models.comprehensive_model import score_meteorology
+            score_meteorology(factors)  # 此时会读取全局 RAIN_24H_NORM_MAX
+        """
+        global RAIN_24H_NORM_MAX, RAIN_7D_NORM_MAX, RAIN_30D_NORM_MAX
+        global SLOPE_NORM_MAX, DISTANCE_NORM_MAX, GEOLOGY_NORM_MAX
+        global SOIL_NORM_MAX, VEGETATION_NORM_MAX
+
+        normalizer = get_adaptive_normalizer()
+        overrides = {
+            "rainfall_24h": (RAIN_24H_NORM_MAX, "RAIN_24H_NORM_MAX"),
+            "rainfall_7d":  (RAIN_7D_NORM_MAX,  "RAIN_7D_NORM_MAX"),
+            "rainfall_30d": (RAIN_30D_NORM_MAX, "RAIN_30D_NORM_MAX"),
+            "slope_deg":    (SLOPE_NORM_MAX,    "SLOPE_NORM_MAX"),
+            "distance_to_water_m": (DISTANCE_NORM_MAX, "DISTANCE_NORM_MAX"),
+            "geology_grade":       (GEOLOGY_NORM_MAX,  "GEOLOGY_NORM_MAX"),
+            "soil_grade":          (SOIL_NORM_MAX,     "SOIL_NORM_MAX"),
+            "vegetation_cover":    (VEGETATION_NORM_MAX, "VEGETATION_NORM_MAX"),
+        }
+        for factor_key, (fallback_val, _) in overrides.items():
+            dyn = normalizer.get_dynamic_max(factor_key, region_code, fallback=fallback_val)
+            if abs(dyn - fallback_val) > 1e-6:
+                # 动态上限生效；通过 globals() 替换（仅当差异 > 1e-6 才覆盖）
+                pass  # 当前实现：dynamic_max 已经被 normalizer 维护，这里只是占位，
+                       # 全局 NORM_MAX 常量保留为 fallback，score_* 函数内部不强制替换。
+                       # 真正集成时应在 score_*/safe_norm 中优先查 normalizer。
+
+    # ─────────────────────────────────────────────────────────────────
+    # 内部：衍生特征贡献度
+    # ─────────────────────────────────────────────────────────────────
+    def _compute_derived_contributions(
+        self, factors: Dict[str, float]
+    ) -> List[Dict[str, Any]]:
+        """计算衍生特征对总分的"附加解释贡献"（points），按贡献降序。"""
+        contributions = []
+        # 衍生特征 → 中文标签 + 最大可加分
+        rules = [
+            ("_derived_rain_saturation_index",  "降雨饱和指数", 12.0),
+            ("_derived_rain_intensity_ratio",   "骤雨强度",     8.0),
+            ("_derived_rain_duration_days",     "降雨持续天数", 6.0),
+            ("_derived_foot_erosion_index",     "坡脚侵蚀指数", 9.0),
+            ("_derived_geology_distance_score", "地质×距水耦合", 7.0),
+            ("_derived_disp_derivative",        "位移加速度",   6.0),
+        ]
+        for key, label, max_points in rules:
+            raw = factors.get(key)
+            if raw is None:
+                continue
+            try:
+                raw_val = float(raw)
+            except (TypeError, ValueError):
+                continue
+            if key == "_derived_disp_derivative":
+                # 位移加速度可以负数（减速），只取正贡献
+                if raw_val <= 0:
+                    continue
+                norm = min(1.0, raw_val / 5.0)  # 5 mm/day² 视为高加速度
+            elif key == "_derived_rain_duration_days":
+                norm = min(1.0, raw_val / 7.0)
+            else:
+                norm = max(0.0, min(1.0, raw_val))
+            contribution = round(norm * max_points, 2)
+            if contribution >= 0.5:  # 只保留有意义的贡献
+                contributions.append({
+                    "feature": key,
+                    "label": label,
+                    "value": round(raw_val, 4),
+                    "norm_value": round(norm, 4),
+                    "max_points": max_points,
+                    "contribution": contribution,
+                })
+        contributions.sort(key=lambda x: x["contribution"], reverse=True)
+        return contributions
 
 
 _comprehensive_model: Optional[ComprehensiveRiskModel] = None

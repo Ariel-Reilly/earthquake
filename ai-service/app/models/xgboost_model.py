@@ -88,20 +88,25 @@ class FusionRiskModel:
         return self._run_weighted(factors)
 
     def _run_xgboost(self, factors: Dict[str, float]) -> Dict[str, Any]:
+        """XGBoost 推理。
+
+        v3 模型（train_xgboost_fusion_v3.py）已改为回归输出（reg:squarederror），
+        输出值即为 [0, 100] 连续风险评分，不需要再 * 100。
+        """
         import xgboost as xgb
         # 按照训练时的特征顺序构造向量
         feature_names = list(DEFAULT_WEIGHTS.keys())
         vec = np.array([[factors.get(name, 0.0) for name in feature_names]], dtype=np.float32)
         dmatrix = xgb.DMatrix(vec, feature_names=feature_names)
         pred = float(self.model.predict(dmatrix)[0])
-        # pred 在 [0,1] 区间（sigmoid 输出），放大到 [0,100]
-        score = round(max(0.0, min(100.0, pred * 100.0)), 2)
+        # 模型原生输出 [0, 100] 范围
+        score = round(max(0.0, min(100.0, pred)), 2)
         level = self._score_to_level(score)
         return {
             "risk_level": level,
             "risk_score": score,
             "confidence": round(min(0.95, 0.5 + 0.005 * score), 4),
-            "model": "xgboost-fusion",
+            "model": "xgboost-fusion-v3",
             "mock": False,
         }
 

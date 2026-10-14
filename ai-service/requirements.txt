@@ -29,5 +29,19 @@ scikit-learn==1.5.2
 xgboost==2.1.3
 joblib==1.4.2
 
-# 注意：ultralytics（YOLOv8 训练）仅在 app/training/ 下使用，运行时不需要，
-# 且其依赖体积较大，如需训练请单独安装：pip install ultralytics
+# 注意：ultralytics（YOLOv8 训练）仅在 scripts/download_models.py 中使用，
+# 负责下载 yolov8n.pt 并导出为 ONNX；app/models/yolo_model.py 运行时
+# 只依赖 onnxruntime，不依赖 ultralytics。YOLO 模型大小约 6MB，下载脚本
+# 会缓存到 ~/.ultralytics/；若网络不可达，download_models.py 有备用方案
+# 直接从 GitHub Releases 下载 ONNX（无需 ultralytics）。
+ultralytics==8.3.62
+
+# ---------------------------------------------------------------------------
+# 测试依赖（R3 补充）
+# 此前缺失，导致按 requirements.txt 装完后 tests/ 根本跑不起来：
+#   pytest  —— tests/ 下 8 个测试文件直接 import
+#   httpx   —— fastapi.testclient.TestClient 的底层依赖
+#             （tests/test_api_endpoints.py:17 使用），缺失时 import 即报
+#             "httpx is not installed"
+pytest==8.3.3
+httpx==0.27.2

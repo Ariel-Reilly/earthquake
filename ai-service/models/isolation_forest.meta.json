@@ -1,0 +1,1 @@
+{"version": "1.0.0", "trained_at": "2026-09-29T04:14:11.459048+00:00", "n_samples": 2000, "n_normal": 1800, "n_anomaly": 200, "contamination": 0.1, "n_estimators": 200, "f1_score": 1.0, "feature_names": ["displacement_rate", "crack_width", "tilt_angle", "rainfall", "vibration_freq"]}

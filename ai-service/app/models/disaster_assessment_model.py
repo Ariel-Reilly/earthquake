@@ -808,30 +808,129 @@ class DisasterAssessmentModel:
         historical: Dict[str, Any],
         social_media: Dict[str, Any],
         supporting: Dict[str, Any],
+        dim_has_data: Optional[Dict[str, bool]] = None,
+        v1_components: Optional[Dict[str, Any]] = None,
     ) -> Tuple[float, float, str, bool]:
-        """七维度加权总分。设备缺失时自动把 sensor 权重重新归一化到其余六类。"""
+        """七维度加权总分。
+
+        设备缺失时自动把 sensor 权重重新归一化到其余六类。
+        关键改进：当活跃维度数 ≤ 3 时，按 v1 的"气象 + 地理 + 可选设备"加权
+        （直接用 BASE_WEIGHTS）输出，避免 v2 在数据稀疏时被稀释。
+
+        Args:
+            dim_has_data: 各维度是否有真实用户数据
+            v1_components: 提供 v1 模型所需的 geographic / precipitation / device_score 三个维度
+              （仅在活跃维度 ≤ 3 时生效）
+        """
         weights = dict(BASE_WEIGHTS_V2)
         if not sensor_available:
-            # 把 sensor 权重按比例分给其余六类
             total_others = sum(v for k, v in weights.items() if k != "sensor")
             scale = (total_others + weights["sensor"]) / total_others
             for k in weights:
                 if k != "sensor":
                     weights[k] = (weights[k] / total_others) * scale * total_others
             weights["sensor"] = 0.0
-        weighted = sum([
-            remote_sensing["score"] * weights.get("remote_sensing", 0.0),
-            meteorology["score"]   * weights.get("meteorology",    0.0),
-            terrain["score"]       * weights.get("terrain",        0.0),
-            sensor_score           * weights.get("sensor",         0.0),
-            historical["score"]    * weights.get("historical",     0.0),
-            social_media["score"]  * weights.get("social_media",   0.0),
-            supporting["score"]    * weights.get("supporting",     0.0),
-        ])
-        # 设备缺失时 sensor 权重被清零，仍按剩余 6 个维度统计有效维度数
-        covered = sum(1 for k in weights if (sensor_available or k != "sensor") and weights.get(k, 0.0) > 0)
-        confidence = round(min(0.90, 0.35 + 0.05 * covered), 4)
-        return round(weighted, 2), confidence, "heuristic-seven-dimension-v2", not sensor_available
+
+        # 各维度的实际评分
+        dim_scores: Dict[str, float] = {
+            "remote_sensing": float(remote_sensing.get("score", 0.0) or 0.0),
+            "meteorology":    float(meteorology.get("score", 0.0) or 0.0),
+            "terrain":        float(terrain.get("score", 0.0) or 0.0),
+            "sensor":         float(sensor_score),
+            "historical":     float(historical.get("score", 0.0) or 0.0),
+            "social_media":   float(social_media.get("score", 0.0) or 0.0),
+            "supporting":     float(supporting.get("score", 0.0) or 0.0),
+        }
+
+        # 推断每个维度是否"有真实数据"
+        if dim_has_data is None:
+            dim_has_data = {k: (s > 1.0) for k, s in dim_scores.items()}
+        else:
+            dim_has_data = dict(dim_has_data)
+
+        active_dims = [
+            k for k in dim_scores
+            if dim_has_data.get(k, False) or (k == "sensor" and sensor_available)
+        ]
+        if sensor_available and "sensor" not in active_dims:
+            active_dims.append("sensor")
+
+        active_weight_sum = sum(weights.get(k, 0.0) for k in active_dims)
+        if active_weight_sum <= 0:
+            return 0.0, 0.0, "heuristic-seven-dimension-v2-no-data", True
+
+        # ─── 关键：活跃维度 ≤ 3 时回退 v1 模式（语义与原版兼容）───
+        if len(active_dims) <= 3 and v1_components is not None:
+            geo_score = float(v1_components.get("geographic_score", 0.0) or 0.0)
+            pre_score = float(v1_components.get("precipitation_score", 0.0) or 0.0)
+            dev_score = float(v1_components.get("device_score", 0.0) or 0.0)
+            v1_w = dict(BASE_WEIGHTS)
+            if not sensor_available:
+                v1_w["geographic"] = 0.55
+                v1_w["precipitation"] = 0.45
+                v1_w["device"] = 0.0
+            v1_score = (
+                geo_score * v1_w["geographic"]
+                + pre_score * v1_w["precipitation"]
+                + dev_score * v1_w["device"]
+            )
+            v1_score = round(max(0.0, min(100.0, v1_score)), 2)
+            # v1 置信度：通常 0.85
+            confidence = 0.85
+            return v1_score, confidence, "heuristic-geo-weather-fallback-v2", not sensor_available
+
+        # ─── 正常 v2 路径：七维度加权 ───
+        weighted = sum(dim_scores[k] * weights.get(k, 0.0) for k in active_dims)
+        normalized = weighted / active_weight_sum
+        normalized = round(max(0.0, min(100.0, normalized)), 2)
+
+        covered = len(active_dims)
+        confidence = round(min(0.90, 0.40 + 0.07 * covered), 4)
+        return normalized, confidence, "heuristic-seven-dimension-v2", not sensor_available
+
+    # ─────────────────────────────────────────────────────────────────
+    # 内部：检测维度是否有真实用户数据（用于按有效维度归一化）
+    # ─────────────────────────────────────────────────────────────────
+    def _detect_data_availability(self, factors: Dict[str, float]) -> Dict[str, bool]:
+        """
+        检测 factors 中各维度是否有真实数据传入（不是 None/空）。
+
+        返回 dim_has_data 字典：
+          remote_sensing: image_anomaly_score / image_anomaly_count 任一存在
+          meteorology:    rainfall_24h / rainfall_7d / rainfall_30d / temperature / humidity / soil_moisture 任一存在
+          terrain:        elevation_m / slope_deg / soil_grade / vegetation_cover / distance_to_water_m / geology_grade 任一存在
+          sensor:         displacement_rate / displacement_total / crack_width / earthquake_mag / site_grade 任一存在
+          historical:     historical_count / historical_max_score / exposure_population / exposure_buildings 任一存在
+          social_media:   social_alert_level / social_post_count / social_sentiment_score / social_emergency_level 任一存在
+          supporting:     nighttime_light_index / infrastructure_score / road_access_score / power_status 任一存在
+        """
+        return {
+            "remote_sensing": any(factors.get(k) is not None for k in (
+                "image_anomaly_score", "image_anomaly_count", "image_source", "image_confidence",
+            )),
+            "meteorology": any(factors.get(k) is not None for k in (
+                "rainfall_24h", "rainfall_7d", "rainfall_30d",
+                "temperature", "humidity", "soil_moisture", "water_level",
+            )),
+            "terrain": any(factors.get(k) is not None for k in (
+                "elevation_m", "slope_deg", "soil_grade", "vegetation_cover",
+                "distance_to_water_m", "geology_grade", "geology_label",
+                "aspect_deg", "curvature", "fault_distance_m",
+            )),
+            "sensor": any(factors.get(k) is not None for k in DEVICE_FACTORS),
+            "historical": any(factors.get(k) is not None for k in (
+                "historical_count", "historical_max_score",
+                "exposure_population", "exposure_buildings", "land_use_type",
+            )),
+            "social_media": any(factors.get(k) is not None for k in (
+                "social_alert_level", "social_post_count",
+                "social_sentiment_score", "social_emergency_level",
+            )),
+            "supporting": any(factors.get(k) is not None for k in (
+                "nighttime_light_index", "infrastructure_score",
+                "road_access_score", "power_status",
+            )),
+        }
 
     # 总分
     def _overall_score(
@@ -1155,6 +1254,9 @@ class DisasterAssessmentModel:
         social_media   = self.score_social_media(factors)
         supporting      = self.score_supporting(factors)
 
+        # 检测哪些维度有真实用户数据（用于 _overall_score_v2 按有效维度归一化）
+        dim_has_data = self._detect_data_availability(factors)
+
         # v1.x 总分（向后兼容 API）
         overall_score_v1, model_name_v1, mock_v1 = self._overall_score(
             geographic, precipitation, device_score, device_available
@@ -1162,9 +1264,15 @@ class DisasterAssessmentModel:
         overall_level_v1 = score_to_level(overall_score_v1)
 
         # 总分
+        v1_components = {
+            "geographic_score": geographic["score"],
+            "precipitation_score": precipitation["score"],
+            "device_score": device_score,
+        }
         overall_score_v2, confidence_v2, model_name_v2, mock_v2 = self._overall_score_v2(
             remote_sensing, meteorology, terrain, sensor_score, sensor_available,
-            historical, social_media, supporting,
+            historical, social_media, supporting, dim_has_data=dim_has_data,
+            v1_components=v1_components,
         )
         overall_level_v2 = score_to_level(overall_score_v2)
         concern_v2 = concern_label(overall_level_v2)

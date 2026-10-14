@@ -62,7 +62,8 @@ class DeviceHealthResponse(BaseModel):
 
 
 @router.post("/device-health/score", response_model=DeviceHealthResponse)
-async def device_health_score(req: DeviceHealthRequest):
+# R3 P1-15：改为同步 def，FastAPI 自动走线程池（同上）
+def device_health_score(req: DeviceHealthRequest):
     """对单台设备做 AI 健康评分。"""
     if not req.metrics:
         raise HTTPException(

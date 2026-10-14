@@ -39,6 +39,10 @@ class ComprehensiveRequest(BaseModel):
     last_inspection_at: Optional[str] = Field(
         default=None, description="最近一次现场巡检时间（ISO 8601）"
     )
+    # 可选：区域编码（用于自适应归一化；不同区域独立滑动窗口）
+    region_code: Optional[str] = Field(
+        default=None, description="区域编码（默认 = hazard_code）"
+    )
 
 
 class ComprehensiveResponse(BaseModel):
@@ -53,8 +57,10 @@ class ComprehensiveResponse(BaseModel):
 
 
 @router.post("/comprehensive", response_model=ComprehensiveResponse)
-async def comprehensive(req: ComprehensiveRequest):
+# R3 P1-15：改为同步 def，FastAPI 自动走线程池（避免同步评分阻塞事件循环）
+def comprehensive(req: ComprehensiveRequest):
     factors = dict(req.factors or {})
+    region_code = req.region_code or req.hazard_code or "_default"
     # last_inspection_at 不直接进评分模型，挂在响应里给前端展示
     if not factors:
         raise HTTPException(
@@ -66,7 +72,7 @@ async def comprehensive(req: ComprehensiveRequest):
         )
 
     model = get_comprehensive_model()
-    result = model.score(factors)
+    result = model.score(factors, region_code=region_code)
     return ComprehensiveResponse(
         hazard_code=req.hazard_code,
         overall=result["overall"],
@@ -80,14 +86,12 @@ async def comprehensive(req: ComprehensiveRequest):
 
 @router.get("/comprehensive/status")
 async def comprehensive_status():
+    from app.models.comprehensive_model import DIMENSION_WEIGHTS
     cm = get_comprehensive_model()
     return {
         "model_loaded": cm.is_loaded(),
         "model_path": str(cm.model_path),
-        "dimension_weights": {
-            "image": 0.25,
-            "precipitation": 0.30,
-            "geographic": 0.20,
-            "device": 0.25,
-        },
+        "dimension_weights": DIMENSION_WEIGHTS,
+        "feature_engineering_enabled": True,
+        "adaptive_normalization_enabled": True,
     }

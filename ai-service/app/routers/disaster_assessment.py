@@ -402,7 +402,9 @@ async def detect_regions(req: DetectRegionsRequest):
 
 
 @router.post("/disaster-assessment/score", response_model=DisasterAssessmentResponse)
-async def disaster_assessment_score(req: DisasterAssessmentRequest):
+# R3 P1-15：改为同步 def，FastAPI 自动走线程池（同上）。
+# 注意 detect_batch 被内部 await 调用（:390），故不能改为同步，保持 async。
+def disaster_assessment_score(req: DisasterAssessmentRequest):
     factors = dict(req.factors or {})
     if not factors:
         raise HTTPException(

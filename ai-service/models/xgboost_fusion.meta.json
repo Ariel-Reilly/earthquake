@@ -1,12 +1,12 @@
 {
-  "version": "1.5.0",
-  "trained_at": "2026-09-07T06:25:17.518363+00:00",
-  "samples_total": 2000,
-  "samples_train": 1600,
-  "samples_val": 400,
-  "pos_rate_train": 0.3356,
-  "scale_pos_weight": 1.9795,
-  "best_iteration": 61,
+  "version": "3.0.0",
+  "objective": "reg:squarederror",
+  "output_type": "regression",
+  "trained_at": "2026-09-29T07:53:29.905974+00:00",
+  "n_samples": 8000,
+  "n_train": 6800,
+  "n_val": 1200,
+  "n_features": 7,
   "feature_names": [
     "displacement_rate",
     "displacement_total",
@@ -25,50 +25,15 @@
     "earthquake_mag": 7.0,
     "site_grade": 5.0
   },
-  "feature_importance": [
-    {
-      "feature": "site_grade",
-      "importance": 144.4956
-    },
-    {
-      "feature": "earthquake_mag",
-      "importance": 57.0352
-    },
-    {
-      "feature": "crack_width",
-      "importance": 50.0474
-    },
-    {
-      "feature": "displacement_total",
-      "importance": 29.9591
-    },
-    {
-      "feature": "rainfall_24h",
-      "importance": 13.5276
-    },
-    {
-      "feature": "displacement_rate",
-      "importance": 7.6452
-    },
-    {
-      "feature": "rainfall_7d",
-      "importance": 6.2337
-    }
-  ],
-  "train_metrics": {
-    "accuracy": 1.0,
-    "precision": 1.0,
-    "recall": 1.0,
-    "f1": 1.0,
-    "logloss": 0.0072
+  "device_weights": {
+    "displacement_rate": 0.25,
+    "displacement_total": 0.15,
+    "rainfall_24h": 0.2,
+    "rainfall_7d": 0.12,
+    "crack_width": 0.1,
+    "earthquake_mag": 0.1,
+    "site_grade": 0.08
   },
-  "val_metrics": {
-    "accuracy": 0.995,
-    "precision": 0.9826,
-    "recall": 1.0,
-    "f1": 0.9912,
-    "logloss": 0.0175
-  },
-  "model_path": "D:\\earthquake\\ai-service\\models\\xgboost_fusion.json",
-  "training_seconds": 0.74
+  "best_iteration": 599,
+  "best_score": 0.957973073883485
 }

@@ -10,7 +10,12 @@ from pydantic import BaseModel
 
 from app.models.drift_monitor import DriftMonitor, get_drift_monitor
 
-router = APIRouter(prefix="/drift", tags=["drift"])
+# R3：本模块此前从未在 main.py 注册，且前缀为 /drift，
+# 与项目约定的 /api/ai 不符（后端 AiController 按 /api/ai/drift 调用）。
+# 改为 /api/ai/drift 并在 main.py 注册，端点才可达。
+# 注意：本模块的 /detect 是 /api/ai/drift/detect，
+# 与 detection.py 的 /api/ai/detect 不冲突。
+router = APIRouter(prefix="/api/ai/drift", tags=["drift"])
 
 
 class DetectRequest(BaseModel):
@@ -51,7 +56,8 @@ class BaselineRequest(BaseModel):
 
 
 @router.post("/detect", response_model=DetectResponse)
-async def detect_drift(request: DetectRequest) -> DetectResponse:
+# R3 P1-15：改为同步 def，FastAPI 自动走线程池（同上）
+def detect_drift(request: DetectRequest) -> DetectResponse:
     """
     检测数据漂移
 

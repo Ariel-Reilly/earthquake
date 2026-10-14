@@ -368,7 +368,8 @@ def get_analyzer() -> SocialMediaAnalyzer:
 
 
 @router.post("/social-media/analyze", response_model=SocialMediaAnalysisResponse)
-async def analyze_social_media(req: SocialMediaAnalysisRequest):
+# R3 P1-15：改为同步 def，FastAPI 自动走线程池（避免同步分析阻塞事件循环）
+def analyze_social_media(req: SocialMediaAnalysisRequest):
     """社交媒体文本分析：情感/告警等级/关键词/位置/时间线。
 
     用法示例：
