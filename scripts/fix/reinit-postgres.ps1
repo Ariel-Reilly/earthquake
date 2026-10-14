@@ -23,7 +23,7 @@ docker volume rm disasterguard_postgres_data 2>&1 | Out-Null
 
 Write-Host ''
 Write-Host '=== 2. Bring postgres back up (triggers initdb with compose defaults) ==='
-Set-Location 'D:\DisasterGuard'
+Set-Location 'D:\Projects\DisasterGuard'
 docker compose up -d postgres 2>&1 | Out-Null
 
 Write-Host ''

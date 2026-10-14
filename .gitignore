@@ -1,6 +1,15 @@
 # ===== Node.js / Frontend =====
 frontend/node_modules/
 frontend/dist/
+# 临时构建产物 / 旧版备份（沙箱清理失败时常以 .bak/.prev/.tmpdel 形式滞留）
+frontend/dist.bak*/
+frontend/dist.bak_*/
+frontend/dist.bak_*.toDelete/
+frontend/dist.prev*/
+frontend/dist.prev*.toDelete/
+frontend/dist-*/
+frontend/dist.tmpdel/
+frontend/dist.tmpdel*/
 .DS_Store
 *.log
 npm-debug.log*
@@ -8,6 +17,8 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 frontend/.vite/
+frontend/.tmp-static.log
+frontend/dev*.log
 
 # ===== Java / Maven / Spring Boot =====
 backend/target/
@@ -25,11 +36,13 @@ ai-service/__pycache__/
 ai-service/**/__pycache__/
 ai-service/*.pyc
 ai-service/**/*.pyc
+ai-service/.pytest_cache/
 ai-service/.venv/
 ai-service/venv/
 ai-service/env/
 .pytest_cache/
 **/.pytest_cache/
+# 模型权重 / 训练产物（仓库内禁止提交大文件，运行时由 scripts/download_models.py 拉取）
 ai-service/models/*.pt
 ai-service/models/*.onnx
 ai-service/models/*.pth
@@ -39,6 +52,11 @@ ai-service/models/*.joblib
 ai-service/models/*.bin
 # 训练历史快照（每次训练保留上一版本即可，正式目录只放最新版）
 ai-service/models/history/
+ai-service/models/_torch_cache/
+# ai-service 根目录临时拉取的 yolov8n 系列（download_models.py 输出）
+ai-service/yolov8n.pt
+ai-service/yolov8n.onnx
+ai-service/yolov8n.onnx.data
 # 训练产物可选保留，但 checkpoint 通常较大
 # ai-service/scripts/checkpoints/
 
@@ -131,3 +149,26 @@ Desktop.ini
 # ===== 本地助手 / 临时产物（不入库）=====
 .workbuddy/
 .trae-html-share-packages/
+
+# ===== 临时验证 / 调试目录（不入库）=====
+.tmp-verify/
+.tmp-verify*/
+.tmpdel/
+
+# ===== 一次性 UI 探针截图（不入库，由 scripts/audit/probe-* 写入）=====
+scripts/audit/_shots/
+frontend/scripts/_shots/
+
+# ===== 根目录散落报告 / 截图（已统一归位到 docs/audit/，防止再次外溢）=====
+/frontend-architecture-review.md
+/frontend-comprehensive-audit-report.md
+/frontend-hardcoded-audit-report.md
+/frontend-mock-fake-features-audit.md
+/frontend-unimplemented-features-audit.md
+/frontend/UX_Audit_Report.md
+/frontend/*.md
+/frontend/*.png
+
+# ===== 模型回退目录（ai-service/config.py 兼容旧部署，新副本应放 ai-service/models/）=====
+# 注：保留回退指向但禁止持续堆积；CI 会在 PR 中提示迁移到 ai-service/models/。
+/models/

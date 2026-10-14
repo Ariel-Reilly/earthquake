@@ -2,8 +2,8 @@
 import re
 from collections import defaultdict
 
-SCHEMA_PATH = r'D:\DisasterGuard\backend\src\main\resources\schema.sql'
-DATA_PATH = r'D:\DisasterGuard\backend\src\main\resources\data.sql'
+SCHEMA_PATH = r'D:\Projects\DisasterGuard\backend\src\main\resources\schema.sql'
+DATA_PATH = r'D:\Projects\DisasterGuard\backend\src\main\resources\data.sql'
 
 with open(SCHEMA_PATH, encoding='utf-8') as f:
     raw_schema = f.read()

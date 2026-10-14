@@ -80,3 +80,52 @@
 - `probe-pg4.sh` ~ `probe-pg10.sh` — postgres 鉴权事故的临时探针（已闭环）
 - `probe-pg-default.ps1` / `list-tables2.ps1` — 与已有脚本重复
 - `check-geosentry-refs.ps1` — `cn.geosentry → cn.disasterguard` 包名迁移已完成
+
+## 索引更新
+
+`audit/` 新增的前端探针类脚本（2026-10）：
+
+| 脚本 | 说明 |
+|---|---|
+| `check-frontend-imports.mjs` | 扫所有 `.vue`/`.js` 的 import，统计未使用 / 重复 / 循环。 |
+| `check-frontend-endpoints.mjs` | 校验前端服务调用与后端 Controller 的端点一致性。 |
+| `check-endpoint-parity.mjs` | 同步比对多端点版本（前端 / 后端 / API 网关）。 |
+| `check-missing-imports.mjs` | 列出 ESLint 跳过但可能缺失的依赖。 |
+| `patrol-all-routes.mjs` | 浏览器巡检所有路由，返回可达性 / 首屏耗时矩阵。 |
+| `probe-hnav-responsive.mjs` | 测量 `header nav` 在多个 viewport 下的折叠 / 截断。 |
+| `probe-hnav-tabs.mjs` | 校验 tab 切换的可达性与状态保留。 |
+| `shot-hnav.mjs` | 截图工具（结果落 `audit/_shots/`，已加入 `.gitignore`）。 |
+
+`fix/` 新增的一次性修复（2026-09 ~ 2026-10）：
+
+| 脚本 | 说明 |
+|---|---|
+| `add-controller-preauthorize.mjs` | 批量注入 `@PreAuthorize` 注解到 Controller。 |
+| `add-missing-controller-auth.mjs` | 给缺失权限的 Controller 补 `@PreAuthorize("hasAnyRole(...)")`。 |
+| `check-broken-imports.mjs` | 列出已删除模块仍被引用的位置。 |
+| `de-tealize.py` | 把旧的青色 / teal 主题色批量替换为新的主色。 |
+| `fix-dashboardapi-encoding.mjs` | 修复 `dashboardApi.js` 早期 GBK 编码残留。 |
+| `greenify-styles.py` / `greenify-theme.py` / `greenify-welcome.py` | 绿色化主题的渐进式脚本（按模块逐步迁移）。 |
+| `morandi-downgrade.py` | 把高饱和配色回退到莫兰迪色板（紧急视觉调整）。 |
+| `probe-theme.cjs` | 实时打印当前主题 token 值（调试用）。 |
+| `sync-permission-registry.mjs` | 同步扫描结果到 `PermissionRegistry.java` 的常量定义。 |
+
+`fix/free-8001.bat` 在 Windows 下释放 AI 服务 8001 端口（`taskkill` 包装）。
+
+## 与 frontend/scripts/ 的分工
+
+`scripts/audit/`、`scripts/fix/` 关注**后端 / 全栈**；前端**样式 token / SFC 完整性**等专用脚本在 `frontend/scripts/`：
+
+| 路径 | 关注点 |
+|---|---|
+| `frontend/scripts/tokenize-colors.mjs` | 把硬编码颜色批量替换为 token 引用。 |
+| `frontend/scripts/tokenize-radii.mjs` | 圆角 / 间距 token 化。 |
+| `frontend/scripts/verify-token-integrity.mjs` | 检查 token 引用是否存在循环 / 死链。 |
+| `frontend/scripts/repair-token-cycles.mjs` / `fix-token-cycles.mjs` | 修复 token 循环引用。 |
+| `frontend/scripts/audit-contrast.mjs` | WCAG 对比度审计。 |
+| `frontend/scripts/check-design-consistency.mjs` | 多页面组件风格一致性扫描。 |
+| `frontend/scripts/verify-sfc-integrity.mjs` | 校验 SFC `<template>/<script>/<style>` 完整性。 |
+| `frontend/scripts/audit/check-timer-leaks.mjs` | 扫描 `setInterval` / `setTimeout` 未清理。 |
+
+`frontend/scripts/_shots/`、`frontend/scripts/audit/_shots/` 截图临时目录已加入 `.gitignore`，本仓库不再追踪。
+

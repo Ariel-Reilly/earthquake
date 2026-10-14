@@ -72,6 +72,7 @@ function Write-Ok($msg)   { Write-Host "  [OK] $msg" -ForegroundColor Green }
 function Write-Warn($msg) { Write-Host "  [!] $msg" -ForegroundColor Yellow }
 function Write-Err($msg)  { Write-Host "  [X] $msg" -ForegroundColor Red }
 function Write-Info($msg){ Write-Host "      $msg" -ForegroundColor DarkGray }
+
 # ─── JWT_SECRET 兜底：缺失 / 占位 / 弱值时自动生成并落盘 ───
 # R4 P0-3：`.env.example` 里的 CHANGE_ME 占位字符串被 JwtService 的弱密钥黑名单
 # 明确收录，照抄它必然启动失败（实测）。本函数保证「全新克隆 + 直接跑脚本」可用：
@@ -347,13 +348,25 @@ function Invoke-Backend {
 
   # 环境变量
   $env:SPRING_PROFILES_ACTIVE = $SpringProfile
-  $env:POSTGRES_PORT         = "15432"
-  $env:REDIS_PORT            = "16379"
-  $env:REDIS_HOST            = "127.0.0.1"
-  # REDIS_PASSWORD 从环境变量读取，Load-DotEnv 已从 .env 加载
-  # 如果 .env 未设置则使用 .env 中的 CHANGE_ME 占位值（开发用）
-  $env:REDIS_PASSWORD        = if ([string]::IsNullOrEmpty($env:REDIS_PASSWORD)) { "CHANGE_ME__dev_redis_password_2026" } else { $env:REDIS_PASSWORD }
-  $env:MINIO_ENDPOINT        = "http://127.0.0.1:19000"
+  # R5 P1-2：宿主机直跑（default/dev profile）才注入"容器端口映射"地址。
+  # docker/prod profile 下，环境变量优先级高于 profile yml，无条件注入会把
+  # 容器网主机名（postgres/redis/minio）压回 127.0.0.1 —— 两种场景二选一。
+  if ($SpringProfile -eq "default" -or $SpringProfile -eq "dev") {
+    # PostgreSQL（主机名必须用 127.0.0.1 而非 localhost，Windows Docker Desktop 端口映射绑定 IPv4）
+    $env:POSTGRES_HOST          = "127.0.0.1"
+    $env:POSTGRES_PORT          = "15432"
+    $env:POSTGRES_DB            = "disasterguard"
+    $env:POSTGRES_USER          = "disasterguard"
+    # 兜底口令必须与 docker-compose.yml 的 POSTGRES_PASSWORD 默认值同源，
+    # 否则"不设环境变量"时容器用 CHANGE_ME 初始化、后端却拿另一个口令去连。
+    $env:POSTGRES_PASSWORD      = if ([string]::IsNullOrEmpty($env:POSTGRES_PASSWORD)) { "CHANGE_ME__dev_postgres_password_2026" } else { $env:POSTGRES_PASSWORD }
+    $env:REDIS_HOST             = "127.0.0.1"
+    $env:REDIS_PORT             = "16379"
+    # REDIS_PASSWORD 从环境变量读取，Load-DotEnv 已从 .env 加载
+    # 如果 .env 未设置则使用 .env 中的 CHANGE_ME 占位值（开发用）
+    $env:REDIS_PASSWORD         = if ([string]::IsNullOrEmpty($env:REDIS_PASSWORD)) { "CHANGE_ME__dev_redis_password_2026" } else { $env:REDIS_PASSWORD }
+    $env:MINIO_ENDPOINT        = "http://127.0.0.1:19000"
+  }
   # JWT_SECRET 从环境变量读取，不在脚本中硬编码默认值
   if (-not [string]::IsNullOrEmpty($JwtSecret)) {
     $env:JWT_SECRET = $JwtSecret

@@ -54,7 +54,7 @@ try {
 
 Write-Host ''
 Write-Host '=== 5. Check if a stray .env file overrides the password ==='
-Get-ChildItem -Path 'D:\DisasterGuard' -Filter .env -Force -ErrorAction SilentlyContinue | ForEach-Object {
+Get-ChildItem -Path 'D:\Projects\DisasterGuard' -Filter .env -Force -ErrorAction SilentlyContinue | ForEach-Object {
   Write-Host ('FOUND .env at ' + $_.FullName)
   Get-Content $_.FullName | Where-Object { $_ -match 'POSTGRES' } | ForEach-Object { Write-Host ('  ' + $_) }
 }

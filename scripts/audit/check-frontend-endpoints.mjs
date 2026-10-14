@@ -110,8 +110,11 @@ function collectFrontendCalls() {
   );
 
   const calls = [];
-  // 匹配 request(...) 形式的第一参数（字符串或模板字符串）
-  const callRe = /request\(\s*[`'"]([^`'"]*)[`'"]/g;
+  // 匹配 request(`...`) request('...') request("...") 的第一参数路径（修复 2026-09-22：
+  // 之前用 m.index+300 字符窗口扫描 method:，在密集 API 文件中会跨函数边界，
+  // 把相邻函数的 method: "POST" 误判为本函数的 method。
+  // 改用括号匹配：找到 request( 位置，向后找匹配的 )，只在两者之间扫描 method:。
+  const callRe = /request\s*\(\s*([`'"])([^`'""]*)\1/g;
 
   for (const abs of files) {
     const rel = path.relative(ROOT, abs);
@@ -119,10 +122,29 @@ function collectFrontendCalls() {
     const src = readFileSync(abs, 'utf8');
     let m;
     while ((m = callRe.exec(src)) !== null) {
-      const raw = m[1];
+      const raw = m[2]; // captured path inside the quotes
       if (!raw.startsWith('/')) continue;
-      const window = src.slice(m.index, m.index + 300);
-      const methodM = window.match(/method:\s*["'`](\w+)["'`]/);
+      // 找 request( 的位置（m[0] 匹配 "request('...')" 或 "request("...`")"
+      const parenOpen = m.index + m[0].indexOf('(');
+      // 找匹配的闭括号，处理嵌套的括号/字符串/注释
+      let depth = 0, endPos = -1;
+      outer:
+      for (let i = parenOpen; i < src.length; i++) {
+        const ch = src[i];
+        if (ch === '"' || ch === "'" || ch === '`') {
+          const q = ch;
+          for (i++; i < src.length && src[i] !== q && src[i] !== '\n'; i++) {
+            if (src[i] === '\\') i++;
+          }
+          continue;
+        }
+        if (ch === '/' && src[i + 1] === '/') { for (i++; i < src.length && src[i] !== '\n'; i++) {} continue; }
+        if (ch === '/' && src[i + 1] === '*') { for (i += 2; i < src.length && !(src[i] === '*' && src[i + 1] === '/'); i++) {} i++; continue; }
+        if (ch === '(' || ch === '{' || ch === '[') depth++;
+        else if (ch === ')' || ch === '}' || ch === ']') { depth--; if (depth === 0) { endPos = i; break outer; } }
+      }
+      const optionsStr = endPos > parenOpen ? src.slice(parenOpen, endPos + 1) : '';
+      const methodM = optionsStr.match(/method\s*:\s*["'`](\w+)["'`]/);
       const method = methodM ? methodM[1].toUpperCase() : 'GET';
       let path = raw.split('?')[0];
       // 路径段变量：/${id} -> /{x}（前面紧跟斜杠，是路径的一部分）
@@ -138,6 +160,15 @@ function collectFrontendCalls() {
 }
 
 // ---------------------------------------------------------------- 解析自检
+
+// 括号匹配器是手写解析器，R5 P2-4 建议补 3~5 个内联 fixture 断言覆盖
+// 常见边界（对象字面量里再嵌模板串、箭头函数体中的 `)`、换行/多参数等）。
+// 选 --self-test 运行：既不影响 CI 默认流程，也能在改动解析逻辑时立刻复检。
+if (process.argv.includes('--self-test')) {
+  const { runBracketMatcherSelfTest } = await import('./_bracket_matcher_fixtures.mjs');
+  const ok = runBracketMatcherSelfTest();
+  process.exit(ok ? 0 : 1);
+}
 
 const backend = collectBackendMappings();
 const backendPaths = new Set([...backend.keys()].map(k => k.split(' ')[1]));

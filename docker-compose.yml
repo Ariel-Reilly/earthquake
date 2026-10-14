@@ -124,9 +124,12 @@ services:
       - tdengine_log:/var/log/taos
       - ./infra/tdengine/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
-      test: ["CMD", "tdengine", "-s", "show servers"]
+      # R5 P2-2：口令段跟随 backend 同源的 TDENGINE_PASSWORD（compose 插值，来自 .env），
+      # 用户改 root 口令后 healthcheck 不再永久 unhealthy。默认 taosdata 与镜像一致。
+      test: ["CMD-SHELL", "curl -sf http://localhost:6041/rest/login/root/${TDENGINE_PASSWORD:-taosdata}"]
       interval: 10s
       timeout: 5s
+      # 保留 20 次重试（~200s）：首次拉起 + 初始化可能较慢，10 次会误判 unhealthy
       retries: 20
 
   backend:

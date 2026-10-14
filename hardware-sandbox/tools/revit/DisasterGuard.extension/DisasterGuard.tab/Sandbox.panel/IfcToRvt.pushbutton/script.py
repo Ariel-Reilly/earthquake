@@ -20,7 +20,7 @@ import traceback
 from pyrevit import revit, DB, forms
 
 # hardware-sandbox 仓库内的 3 个 IFC 候选文件
-SANDBOX_ROOT = r"D:\DisasterGuard\hardware-sandbox\examples"
+SANDBOX_ROOT = r"D:\Projects\DisasterGuard\hardware-sandbox\examples"
 IFC_CANDIDATES = [
     (
         "Sandbox 沙盘模型 (1.2 × 0.8 m, 1:2421, VE=2.5)",

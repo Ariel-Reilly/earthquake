@@ -48,6 +48,31 @@ jobs:
       - name: Vite build
         run: npm run build
 
+      # ── 设计令牌完整性门禁（2026-10-09 新增）─────────────────────────────
+      # 背景：批量把 #hex 替换成 var(--token) 时，若脚本未排除「令牌定义行」，
+      # 会写出 `--c-surface: var(--c-surface);`。按 CSS 规范这构成依赖环，
+      # 该属性在 computed-value 阶段 guaranteed-invalid → 浅色主题全站掉色，
+      # 而 build / lint 都不会报错。这条门禁专门挡这种情况。
+      - name: Token integrity (self-reference / dependency cycle)
+        run: npm run check:tokens
+
+      # ⚠ 补上一个真实存在的门禁漏洞：eslint.config.js 只声明了 JS 的 files 段，
+      #   没有 vue pattern，所以 `npm run lint` 会把全部 .vue 静默跳过（exit 0）。
+      #   而 vite build 只编译路由可达的组件。两者叠加 ⇒ 未挂载的 .vue
+      #   即使语法损坏也无人发现（本次就查出一个 IosTabBar.vue 的模板语法错误）。
+      - name: Vue SFC integrity (all .vue compile)
+        run: npm run check:sfc
+
+      # 主题可读性审计：浅色/深色下的文字对比度，报告不阻断
+      - name: Theme contrast report (informational)
+        run: npm run check:a11y
+        continue-on-error: true
+
+      # 设计一致性体检：只报告不阻断（存量偏差已登记，用于观察收敛趋势）
+      - name: Design consistency report (informational)
+        run: npm run check:design
+        continue-on-error: true
+
   # ───────────────────────────────────────────────────────────────────
   # 后端：clean compile（必须 clean，避免 target 中陈旧 class 掩盖错误）
   # ───────────────────────────────────────────────────────────────────
@@ -145,3 +170,6 @@ jobs:
 
       - name: 前端相对路径 import 断链扫描
         run: cd frontend && node ../scripts/fix/check-broken-imports.mjs
+
+      - name: 前端 setInterval 定时器泄漏检查
+        run: cd frontend && node scripts/audit/check-timer-leaks.mjs

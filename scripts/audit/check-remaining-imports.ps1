@@ -1,4 +1,4 @@
-Get-ChildItem -Path 'D:\DisasterGuard\backend\src' -Recurse -Include '*.java','*.kt' -File |
+Get-ChildItem -Path 'D:\Projects\DisasterGuard\backend\src' -Recurse -Include '*.java','*.kt' -File |
   Select-String -Pattern 'cn\.disasterguard\.' |
   ForEach-Object {
     $p = $_.Path
