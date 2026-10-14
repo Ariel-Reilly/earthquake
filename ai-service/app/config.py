@@ -8,24 +8,20 @@
 路径解析策略：
   1. 优先使用环境变量 MODELS_DIR（覆盖最高）
   2. 否则使用 `<ai-service>/models/`（与代码同目录，自包含部署）
-  3. 兼容旧版：若 ai-service/models 缺失，回退到 repo 根的 models/
 """
 from __future__ import annotations
 
 import os
 from pathlib import Path
 
-# 模型文件目录：优先环境变量；否则 ai-service/models（自包含）；缺失时回退 repo/models
+# 模型文件目录：优先环境变量；否则 ai-service/models（自包含）
 _MODELS_DIR_ENV = os.environ.get("MODELS_DIR", "")
 _SELF_MODELS = Path(__file__).resolve().parent.parent / "models"          # ai-service/models
-_REPO_MODELS = Path(__file__).resolve().parent.parent.parent / "models"   # repo/models
 
 if _MODELS_DIR_ENV:
     MODELS_DIR = Path(_MODELS_DIR_ENV)
 elif _SELF_MODELS.exists():
     MODELS_DIR = _SELF_MODELS
-elif _REPO_MODELS.exists():
-    MODELS_DIR = _REPO_MODELS
 else:
     # 最后兜底：保证目录存在
     MODELS_DIR = _SELF_MODELS
