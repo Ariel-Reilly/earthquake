@@ -1,5 +1,4 @@
-package cn.disasterguard.dashboard.dao;
-
+package cn.disasterguard.dashboard.dto;
 import java.time.OffsetDateTime;
 import java.util.List;
 
