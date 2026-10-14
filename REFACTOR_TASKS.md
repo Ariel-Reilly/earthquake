@@ -415,3 +415,5 @@ models_dir = fusion.model_path.parent.parent if fusion.model_path else _Path("./
 | 日期 | 任务 | 提交 | 结果 |
 |------|------|------|------|
 |      |      |      |      |
+
+- [ ] P2-16 在 README 顶部加 ONBOARDING 入口指引（README 已 renormalize 为 LF，可随时做）
