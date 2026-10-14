@@ -77,6 +77,11 @@
 **遗留问题**（转 P1-5）：
 - 根目录 `models/` 有历史堆积（v2/v3 路径 bug 产物），需单独清理
 
+**补充说明**：`ai-service/app/training/` 目录（含 `train_xgboost.py` + `synthetic_data.py`）
+经 P1-5 验证是**应用内训练模块**，被 `/api/ai/model/retrain` API 调用，
+依赖 `app.models.*`，与独立脚本性质不同。**不移动**。
+原分析中"训练代码不应在业务代码目录"的判断针对的是 `scripts/` 下的独立脚本，
+已由本任务处理。
 
 ### [ ] P1-2 backend 散落 DTO 移动到 dto 子包
 
@@ -128,6 +133,26 @@
   `computer://` 绝对路径链接，历史遗留，本次未修
 ---
 
+### [x] P1-5 清理根目录 models/ 堆积 → ✅ **已完成（2026-10-14）**
+
+**执行结果**：
+- **P1-5a**：删除 6 个 `*.backup.*.json` 文件（v2/v3 路径 bug 的历史堆积）
+- **P1-5c**：删除整个根目录 `models/`（与 `ai-service/models/` 内容 100% 一致）
+
+**验证过程**：
+1. 9 个共享文件 md5 全部一致
+2. `config.py` 的 fallback（`_REPO_MODELS`）在正常部署下**永不触发**
+3. `docker-compose` / `Dockerfile` / CI 均不引用根目录 `models/`
+4. 无任何代码引用根目录 `models/`
+
+**注**：原报告称 `app/training/train_xgboost.py:48` 硬编码引用根目录 `models/`，
+**经查证为误判**。该文件 `REPO_ROOT = SCRIPT_DIR.parent.parent` 指向 `ai-service/`，
+实际引用 `ai-service/models/`，正确无误。
+
+**遗留问题**（转 P2-7）：
+- `ai-service/app/config.py` 中 `_REPO_MODELS` 的 fallback 分支已无实际用途，
+  可清理（本次不动，避免改动代码逻辑）
+
 ## P2 - 迭代优化（暂缓）
 
 - [ ] P2-1 frontend 重组散落组件
@@ -136,6 +161,7 @@
 - [ ] P2-4 补测试覆盖率
 - [ ] P2-5 清理 CSS rgba 注释噪音
 - [ ] P2-6 修复 `frontend-optimization-plan.md` 中 6 处 `computer://` 坏链接
+- [ ] P2-7 清理 `ai-service/app/config.py` 中无用的 `_REPO_MODELS` fallback 分支
 ---
 
 ## 执行记录
