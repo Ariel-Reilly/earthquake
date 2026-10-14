@@ -344,16 +344,11 @@ models_dir = fusion.model_path.parent.parent if fusion.model_path else _Path("./
 **副产物**：验证过程中发现 19 个 `scripts/*.ps1` 工作区/索引行尾不一致，
 已通过 `git checkout -- scripts/` 恢复（无 commit 必要）。
 
-### [ ] P2-15 `.gitattributes` 补全核心代码规则（推荐执行）
+### [x] P2-15 `.gitattributes` 补全核心代码规则 → ✅ **已完成（2026-10-15）**
 
-**目标**：为 Java / JS / Vue / Python 等核心代码文件**显式**设置 `eol=lf`，
-让未来新增文件自动 LF，**不重写存量**。
+**执行结果**：为 12 种核心代码扩展名设置 `text eol=lf`。
 
-**改动**：仅 `.gitattributes` 几行新增。
-
-**零风险** —— 不影响现有文件内容。
-
-**待追加规则**：
+**追加规则**：
 
     *.java   text eol=lf
     *.js     text eol=lf
@@ -368,6 +363,12 @@ models_dir = fusion.model_path.parent.parent if fusion.model_path else _Path("./
     *.md     text eol=lf
     *.sql    text eol=lf
 
+**效果**：
+- 未来新增文件自动以 LF 入库
+- 存量文件**不重写**（避免 P2-14 的 323 文件 diff）
+- 与 `.gitattributes` 现有规则（`*.sh text eol=lf`、`*.ps1 text eol=crlf`）配合
+
+**验证**：`git diff .gitattributes` 仅显示追加，无其他改动。
 
 ## 执行记录
 
