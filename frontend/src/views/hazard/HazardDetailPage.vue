@@ -253,7 +253,14 @@ async function refreshAiComprehensive() {
 async function loadData() {
   loading.value = true;
   const data = await dashboardApi.getHazardDetail(route.params.id);
-  point.value = data.item;
+  // 后端 detail() 返回 { item, history, attachments, linked } 四元组；前端模板直接用 point.history / point.linked，
+  // 因此把 history / attachments / linked 平铺进 point，避免再开新的 ref 状态。
+  point.value = {
+    ...data.item,
+    history: data.history ?? [],
+    attachments: data.attachments ?? [],
+    linked: data.linked ?? [],
+  };
   form.value = {
     name: data.item.name,
     type: data.item.type,

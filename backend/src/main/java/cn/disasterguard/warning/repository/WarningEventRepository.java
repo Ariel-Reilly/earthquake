@@ -10,6 +10,9 @@ import org.springframework.data.repository.query.Param;
 public interface WarningEventRepository extends JpaRepository<WarningEvent, Long>, JpaSpecificationExecutor<WarningEvent> {
   boolean existsByWarningCode(String warningCode);
 
+  /** 按隐患编码列出预警，按触发时间倒序（供隐患详情页关联展示）。 */
+  List<WarningEvent> findByHazardCodeOrderByTriggeredAtDesc(String hazardCode);
+
   /**
    * 批量查询：一次性取出指定规则+灾害点组合中所有未关闭预警。
    * NULL-safe：status 为 NULL 时也视作"未关闭"（SQL 中 NULL NOT IN (...) 结果是 NULL，必须显式处理）。

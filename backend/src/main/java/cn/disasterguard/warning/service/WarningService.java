@@ -122,6 +122,19 @@ public class WarningService {
         .toList();
   }
 
+  /**
+   * 隐患详情页用：按隐患编码取该隐患触发的全部预警，按触发时间倒序。
+   * 不分页（隐患单点预警量小），返回 DTO 列表。
+   */
+  public List<WarningDto> listByHazardCode(String hazardCode) {
+    if (hazardCode == null || hazardCode.isBlank()) {
+      return List.of();
+    }
+    return warningRepository.findByHazardCodeOrderByTriggeredAtDesc(hazardCode).stream()
+        .map(this::toDto)
+        .toList();
+  }
+
   public WarningDto getById(Long id) {
     return warningRepository.findById(id).map(this::toDto).orElseThrow(() -> new AppException(404, "未找到预警"));
   }

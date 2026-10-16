@@ -7,7 +7,12 @@ import cn.disasterguard.common.export.HazardExportRow;
 import cn.disasterguard.hazard.dto.HazardDto;
 import cn.disasterguard.hazard.dto.HazardUpsertRequest;
 import cn.disasterguard.hazard.service.HazardService;
+import cn.disasterguard.inspection.dto.InspectionRecordDto;
+import cn.disasterguard.inspection.service.InspectionService;
+import cn.disasterguard.warning.dto.WarningDto;
+import cn.disasterguard.warning.service.WarningService;
 import jakarta.validation.Valid;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -25,12 +30,19 @@ import org.springframework.security.access.prepost.PreAuthorize;
 @RequestMapping("/api/hazards")
 public class HazardController {
 
+  private static final DateTimeFormatter HISTORY_TIME_FORMAT = DateTimeFormatter.ofPattern("MM-dd HH:mm");
+
   private final HazardService hazardService;
   private final ExcelExportService excelExportService;
+  private final WarningService warningService;
+  private final InspectionService inspectionService;
 
-  public HazardController(HazardService hazardService, ExcelExportService excelExportService) {
+  public HazardController(HazardService hazardService, ExcelExportService excelExportService,
+                          WarningService warningService, InspectionService inspectionService) {
     this.hazardService = hazardService;
     this.excelExportService = excelExportService;
+    this.warningService = warningService;
+    this.inspectionService = inspectionService;
   }
 
   @GetMapping
@@ -65,16 +77,38 @@ public class HazardController {
   @PreAuthorize("hasAuthority('hazards:view')")
   public ApiResponse<Map<String, Object>> detail(@PathVariable Long id) {
     HazardDto hazard = hazardService.getById(id);
+    String hazardCode = hazard.hazardCode();
+    List<Map<String, Object>> history = hazardCode == null
+        ? List.of()
+        : inspectionService.listByHazard(hazardCode).stream().map(this::toHistoryItem).toList();
+    List<Map<String, Object>> linked = hazardCode == null
+        ? List.of()
+        : warningService.listByHazardCode(hazardCode).stream().map(this::toLinkedItem).toList();
     return ApiResponse.success(Map.of(
         "item", hazard,
-        "history", List.of(
-            Map.of("time", "今天 09:30", "title", "巡检上报", "desc", "发现位移变化，已同步到预警中心"),
-            Map.of("time", "昨天 16:20", "title", "雨后复查", "desc", "新增裂缝记录已拍照留档"),
-            Map.of("time", "2026-08-08", "title", "风险评估", "desc", "风险等级保持高风险")
-        ),
+        "history", history,
         "attachments", List.of(),
-        "linked", List.of()
+        "linked", linked
     ));
+  }
+
+  /** 把巡检记录转成隐患详情页"巡检历史"面板期望的 {time, title, desc} 三元组。 */
+  private Map<String, Object> toHistoryItem(InspectionRecordDto record) {
+    String inspector = record.inspector() == null ? "" : record.inspector().trim();
+    String title = inspector.isEmpty() ? "巡检记录" : "巡检记录 · " + inspector;
+    String time = record.inspectAt() == null ? "" : record.inspectAt().format(HISTORY_TIME_FORMAT);
+    String note = record.note();
+    String desc = (note == null || note.isBlank()) ? "现场巡检记录" : note;
+    return Map.of("time", time, "title", title, "desc", desc);
+  }
+
+  /** 把预警转成隐患详情页"关联联动"面板期望的 {type, label, path} 三元组，跳转路由见 frontend router。 */
+  private Map<String, Object> toLinkedItem(WarningDto warning) {
+    return Map.of(
+        "type", "预警",
+        "label", warning.title() == null ? "" : warning.title(),
+        "path", "/dashboard/warnings/" + warning.id()
+    );
   }
 
   @PostMapping
