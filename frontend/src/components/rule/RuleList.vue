@@ -66,7 +66,7 @@ async function load() {
   loading.value = true
   loadError.value = ""
   try {
-    const { getRules } = await import("../../services/ruleEngineService")
+    const { getRules } = await import("../../services/_architecture/domain/ruleEngineService")
     const result = await getRules({
       ...filter.value,
       enabled: filter.value.enabled === "" ? undefined : filter.value.enabled === "true",
@@ -99,7 +99,7 @@ function levelLabel(level) {
 
 async function handleToggle(rule) {
   try {
-    const { toggleRule } = await import("../../services/ruleEngineService")
+    const { toggleRule } = await import("../../services/_architecture/domain/ruleEngineService")
     await toggleRule(rule.id)
     rule.enabled = !rule.enabled
     emit("notify", rule.enabled ? "规则已启用" : "规则已停用")
@@ -113,7 +113,7 @@ async function handleToggle(rule) {
 async function handleDelete(rule) {
   if (!confirm(`确认删除规则「${rule.name}」？`)) return
   try {
-    const { deleteRule } = await import("../../services/ruleEngineService")
+    const { deleteRule } = await import("../../services/_architecture/domain/ruleEngineService")
     await deleteRule(rule.id)
     emit("notify", "规则已删除")
     await load()

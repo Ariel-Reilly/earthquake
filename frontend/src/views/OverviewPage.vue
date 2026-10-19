@@ -6,7 +6,7 @@ import { dashboardApi } from "../services/dashboardApi";
 import {
   getRealtimeWeather,
   getWeatherAlertLevel,
-} from "../services/weatherApi";
+} from "../services/_architecture/domain/weatherApi";
 import {
   getAllWeatherProductsLatest,
   getSatelliteCloudLatest,
@@ -15,7 +15,7 @@ import {
   getSnow24hLatest,
   getDroughtLatest,
   WEATHER_LEGENDS,
-} from "../services/weatherService";
+} from "../services/_architecture/domain/weatherService";
 import { createOpenLayersController, gradeAccuracy } from "../services/mapService";
 import { composeSentinelScene, pollSentinelJob, cancelSentinelJob, describeJobStatus } from "../services/sentinelService";
 import { transform } from "ol/proj";

@@ -48,7 +48,7 @@ import {
   mockFusionResult,
   getRiskLevelInfo,
   MODAL_TYPES,
-} from '../../services/multiModalService'
+} from '../../services/_architecture/domain/multiModalService'
 
 const props = defineProps({
   currentTime: { type: String, default: '' },

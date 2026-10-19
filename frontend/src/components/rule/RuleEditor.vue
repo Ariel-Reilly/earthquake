@@ -167,7 +167,7 @@ async function save() {
 
   saving.value = true
   try {
-    const { createRule, updateRule } = await import("../../services/ruleEngineService")
+    const { createRule, updateRule } = await import("../../services/_architecture/domain/ruleEngineService")
     const payload = { ...form }
     if (isEdit.value) {
       await updateRule(props.rule.id, payload)
@@ -187,7 +187,7 @@ async function save() {
 async function test() {
   testing.value = true
   try {
-    const { testRule } = await import("../../services/ruleEngineService")
+    const { testRule } = await import("../../services/_architecture/domain/ruleEngineService")
     const request = {
       ruleId: props.rule?.id,
       conditions: form.conditions,

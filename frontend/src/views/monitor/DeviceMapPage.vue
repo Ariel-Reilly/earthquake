@@ -54,7 +54,7 @@ import {
   regenerateTrajectories,
   statusColor,
   mobilityIcon,
-} from '../../services/deviceMapService'
+} from '../../services/_architecture/domain/deviceMapService'
 
 const emit = defineEmits(['notify'])
 const loading = ref(true)

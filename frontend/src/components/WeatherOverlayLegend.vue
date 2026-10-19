@@ -25,7 +25,7 @@ import {
   AlertTriangle,
   CheckCircle2,
 } from 'lucide-vue-next'
-import { WEATHER_LEGENDS } from '../services/weatherService'
+import { WEATHER_LEGENDS } from '../services/_architecture/domain/weatherService'
 
 const props = defineProps({
   /** 与父组件共享的状态：kind -> { enabled, ok, loading, url, timestamp, error } */

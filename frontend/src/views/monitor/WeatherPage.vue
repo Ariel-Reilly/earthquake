@@ -37,7 +37,7 @@ import {
   getDroughtLatest,
   getSatelliteCloudDiskLatest,
   WEATHER_LEGENDS,
-} from '../../services/weatherService'
+} from '../../services/_architecture/domain/weatherService'
 import { createOpenLayersController } from '../../services/mapService'
 
 const props = defineProps({

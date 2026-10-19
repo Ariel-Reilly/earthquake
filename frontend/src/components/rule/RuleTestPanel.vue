@@ -47,7 +47,7 @@ async function runTest() {
   result.value = null
 
   try {
-    const { testRule } = await import("../../services/ruleEngineService")
+    const { testRule } = await import("../../services/_architecture/domain/ruleEngineService")
     const request = {
       ruleId: props.rule.id,
       inputData: { ...testData },

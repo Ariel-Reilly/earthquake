@@ -12,7 +12,7 @@ import {
   triggerRetrain,
   getRetrainStatus,
   getDriftLevelInfo,
-} from '../../services/driftMonitorService'
+} from '../../services/_architecture/domain/driftMonitorService'
 
 const emit = defineEmits(['notify'])
 
