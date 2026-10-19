@@ -1,5 +1,5 @@
 import { ref, createApp, h } from 'vue'
-import BaseConfirmDialog from '../components/base/BaseConfirmDialog.vue'
+import BaseConfirmDialog from './BaseConfirmDialog.vue'
 
 /**
  * 全局确认对话框 composable

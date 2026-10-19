@@ -8,5 +8,5 @@
     "scripts/**/*.mjs"
   ],
   "project": ["src/**/*.{js,ts,vue}", "tests/**/*.mjs", "scripts/**/*.mjs"],
-  "ignore": ["src/services/mock/**"]
+  "ignore": ["src/services/mock/**", "src/_archive/**"]
 }
