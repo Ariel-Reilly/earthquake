@@ -1,0 +1,12 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "src/main.{js,ts}",
+    "src/App.vue",
+    "vite.config.{js,ts}",
+    "tests/**/*.mjs",
+    "scripts/**/*.mjs"
+  ],
+  "project": ["src/**/*.{js,ts,vue}", "tests/**/*.mjs", "scripts/**/*.mjs"],
+  "ignore": ["src/services/mock/**"]
+}
