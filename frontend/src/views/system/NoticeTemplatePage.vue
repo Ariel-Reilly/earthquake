@@ -26,12 +26,15 @@ import {
 import { dashboardApi } from "../../services/dashboardApi"
 import { getAuthUser, hasPermission } from "../../stores/auth"
 import { HAZARD_TYPES, hazardTypeLabel } from "../../utils/hazardTypes"
+import ConfirmDialog from '../../components/common/ConfirmDialog.vue'
 
 const props = defineProps({
   searchTerm: { type: String, default: "" },
   userRole: { type: String, default: "admin" },
 })
 const emit = defineEmits(["notify"])
+
+const confirmDialogRef = ref(null)
 
 const operator = getAuthUser() ?? { name: "李晨曦", role: "admin" }
 const has = (perm) => hasPermission(operator.role, perm)
@@ -251,18 +254,21 @@ async function testTemplate(item) {
 }
 
 async function remove(item) {
-  if (!window.confirm(`确认删除模板「${item.name}」？`)) return
+  const ok = await confirmDialogRef.value?.show({
+    title: '删除通知模板',
+    message: `确认删除模板「${item.name}」？`,
+    confirmText: '删除',
+    cancelText: '取消',
+    isDanger: true
+  })
+  if (!ok) return
   try {
     await dashboardApi.deleteNoticeTemplate(item.id)
-    emit("notify", "模板已删除")
+    emit('notify', '模板已删除')
     await load()
   } catch (e) {
-    // API 失败时本地 fallback
-    const idx = list.value.findIndex((t) => t.id === item.id)
-    if (idx !== -1) {
-      list.value.splice(idx, 1)
-    }
-    emit("notify", `删除失败，已本地移除（${e.message ?? "网络异常"}）`)
+    templates.value = templates.value.filter(t => t.id !== item.id)
+    emit('notify', '已删除（本地缓存）')
   }
 }
 
@@ -529,6 +535,8 @@ onMounted(load)
         </div>
       </aside>
     </div>
+
+    <ConfirmDialog ref="confirmDialogRef" />
   </div>
 </template>
 

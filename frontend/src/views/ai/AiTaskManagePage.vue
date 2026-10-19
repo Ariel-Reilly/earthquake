@@ -6,6 +6,7 @@
  * 编排 AI 自动巡查节奏 —— 周期调度 / 事件触发；启动后将持续 7x24h 无人值守。
  */
 import { computed, onMounted, reactive, ref, watch } from "vue"
+import ConfirmDialog from '../../components/common/ConfirmDialog.vue'
 import { useRouter } from "vue-router"
 import {
   CalendarDays,
@@ -29,6 +30,7 @@ const props = defineProps({
   userRole: { type: String, default: "admin" },
 })
 const emit = defineEmits(["notify"])
+const confirmDialogRef = ref(null)
 
 const router = useRouter()
 const operator = getAuthUser() ?? { name: "李晨曦", role: "admin" }
@@ -152,7 +154,14 @@ async function runNow(task) {
 }
 
 async function remove(task) {
-  if (!window.confirm(`确认删除任务「${task.name}」？`)) return
+  const ok = await confirmDialogRef.value?.show({
+    title: '确认操作',
+    message: `确认删除任务「${task.name}」？`,
+    confirmText: '确认',
+    cancelText: '取消',
+    isDanger: true
+  })
+  if (!ok) return
   try {
     await dashboardApi.deleteTask(task.id)
     emit("notify", "任务已删除")
@@ -332,6 +341,7 @@ onMounted(() => loadTasks())
       </div>
     </div>
   </div>
+    <ConfirmDialog ref="confirmDialogRef" />
 </template>
 
 <style scoped>

@@ -4,6 +4,7 @@
  * 必填理由、二次确认、解锁真实 /resolve 端点联动 + 自动归档 + 审计留痕。
  */
 import { computed, onMounted, reactive, ref } from 'vue'
+import ConfirmDialog from '../../components/common/ConfirmDialog.vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   AlertTriangle,
@@ -19,6 +20,7 @@ import { dashboardApi } from '../../services/dashboardApi'
 import { getAuthUser, hasPermission } from '../../stores/auth'
 
 const emit = defineEmits(['notify'])
+const confirmDialogRef = ref(null)
 defineProps({ searchTerm: { type: String, default: '' }, userRole: { type: String, default: 'admin' } })
 
 const route = useRoute()
@@ -79,7 +81,14 @@ async function doResolve() {
     submitError.value = '请填写解除理由'
     return
   }
-  if (!window.confirm('解除预警后无法撤销，确认继续？')) return
+  const ok = await confirmDialogRef.value?.show({
+    title: '确认操作',
+    message: '解除预警后无法撤销，确认继续？',
+    confirmText: '确认',
+    cancelText: '取消',
+    isDanger: true
+  })
+  if (!ok) return
   submitting.value = true
   submitError.value = ''
   try {
@@ -159,6 +168,7 @@ onMounted(() => {
       </section>
     </div>
   </div>
+    <ConfirmDialog ref="confirmDialogRef" />
 </template>
 
 <style scoped>

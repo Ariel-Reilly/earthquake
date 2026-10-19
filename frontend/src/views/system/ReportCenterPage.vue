@@ -7,6 +7,7 @@
  * 后端未启用时由 requireBackend / USE_BACKEND 拦截，UI 上层以「暂无数据」占位。
  */
 import { computed, onMounted, reactive, ref, watch } from 'vue'
+import ConfirmDialog from '../../components/common/ConfirmDialog.vue'
 import {
   FileBarChart,
   FileText,
@@ -31,6 +32,7 @@ import {
 import { dashboardApi } from '../../services/dashboardApi'
 
 const emit = defineEmits(['notify'])
+const confirmDialogRef = ref(null)
 
 const CATEGORY_LABEL = { operation: '运营', supervision: '监管', custom: '自定义' }
 const CATEGORY_COLOR = { operation: '#87b096', supervision: '#6f9e7f', custom: '#cbaa76' }
@@ -289,7 +291,14 @@ function editTemplate(item) { emit('notify', `已加载模板「${item.name}」�
 function duplicateTemplate(item) { emit('notify', `已复制模板「${item.name}」`) }
 
 async function deleteTemplate(item) {
-  if (!window.confirm(`确认删除模板「${item.name}」？`)) return
+  const ok = await confirmDialogRef.value?.show({
+    title: '确认操作',
+    message: `确认删除模板「${item.name}」？`,
+    confirmText: '确认',
+    cancelText: '取消',
+    isDanger: true
+  })
+  if (!ok) return
   try {
     await dashboardApi.deleteReportTemplate(item.id)
     emit('notify', '模板已删除')
@@ -733,6 +742,7 @@ defineExpose({ refresh })
       </div>
     </transition>
   </div>
+    <ConfirmDialog ref="confirmDialogRef" />
 </template>
 
 <style scoped>

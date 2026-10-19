@@ -25,12 +25,14 @@ import {
 import { dashboardApi } from "../../services/dashboardApi"
 import { getAuthUser, hasPermission } from "../../stores/auth"
 import { HAZARD_TYPES, hazardTypeLabel } from "../../utils/hazardTypes"
+import ConfirmDialog from "../../components/common/ConfirmDialog.vue"
 
 const props = defineProps({
   searchTerm: { type: String, default: "" },
   userRole: { type: String, default: "admin" },
 })
 const emit = defineEmits(["notify"])
+const confirmDialogRef = ref(null)
 
 const operator = getAuthUser() ?? { name: "李晨曦", role: "admin" }
 const has = (perm) => hasPermission(operator.role, perm)
@@ -245,7 +247,14 @@ async function duplicate(plan) {
 }
 
 async function remove(plan) {
-  if (!window.confirm(`确认删除预案「${plan.name}」？`)) return
+  const ok = await confirmDialogRef.value?.show({
+    title: '删除预案',
+    message: `确认删除预案「${plan.name}」？`,
+    confirmText: '删除',
+    cancelText: '取消',
+    isDanger: true
+  })
+  if (!ok) return
   try {
     await dashboardApi.deletePlan(plan.id)
     emit("notify", "预案已删除")
@@ -579,6 +588,7 @@ onMounted(load)
         </div>
       </div>
     </div>
+    <ConfirmDialog ref="confirmDialogRef" />
   </div>
 </template>
 

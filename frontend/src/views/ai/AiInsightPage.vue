@@ -15,6 +15,7 @@
  *   Python ai-service /api/ai/disaster-assessment/score → 返回三件套 + 三维度明细
  */
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import ConfirmDialog from '../../components/common/ConfirmDialog.vue'
 import {
   AlertTriangle,
   Brain,
@@ -56,6 +57,7 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['notify'])
+const confirmDialogRef = ref(null)
 
 const hazards = ref([])
 const selectedCode = ref('')
@@ -116,7 +118,14 @@ async function handlePublishWarning() {
     return
   }
   const level = RISK_TO_WARNING_LEVEL[riskLevel] ?? 'blue'
-  if (!window.confirm(`按 AI 评估结果（${riskLevel}）为「${hazard.name ?? selectedCode.value}」发布预警？`)) return
+  const ok = await confirmDialogRef.value?.show({
+    title: '确认操作',
+    message: `按 AI 评估结果（${riskLevel}）为「${hazard.name ?? selectedCode.value}」发布预警？`,
+    confirmText: '确认',
+    cancelText: '取消',
+    isDanger: true
+  })
+  if (!ok) return
 
   publishing.value = true
   try {
@@ -787,6 +796,7 @@ onBeforeUnmount(() => {
       </section>
     </div>
   </div>
+    <ConfirmDialog ref="confirmDialogRef" />
 </template>
 
 <style scoped>

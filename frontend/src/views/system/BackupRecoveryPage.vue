@@ -7,11 +7,13 @@
  * - 离线模式（USE_BACKEND=false）由 dashboardApi 内部兜底为空态，UI 不抛错
  */
 import { computed, onMounted, ref } from 'vue'
+import ConfirmDialog from '../../components/common/ConfirmDialog.vue'
 import { Archive, Edit, Filter, HardDrive, Play, Plus, RefreshCw, RotateCcw, ShieldCheck, Trash2, X } from 'lucide-vue-next'
 import PermissionButton from '../../components/PermissionButton.vue'
 import { dashboardApi } from '../../services/dashboardApi'
 
 const emit = defineEmits(['notify'])
+const confirmDialogRef = ref(null)
 const props = defineProps({ userRole: { type: String, default: 'admin' } })
 
 // 顶部 KPI
@@ -137,7 +139,13 @@ async function submitRestore() {
   const rec = restoreDialog.value.record
   if (!rec) return
   if (restoreDialog.value.env === 'prod') {
-    const ok = window.confirm('即将在【生产】环境执行恢复，请确认该操作已审批。是否继续？')
+    const ok = await confirmDialogRef.value?.show({
+    title: '确认操作',
+    message: '即将在【生产】环境执行恢复，请确认该操作已审批。是否继续？',
+    confirmText: '确认',
+    cancelText: '取消',
+    isDanger: true
+  })
     if (!ok) return
   }
   restoreDialog.value.loading = true
@@ -196,7 +204,13 @@ async function runVerify(record) {
 }
 
 async function removeRecord(record) {
-  const ok = window.confirm(`确认删除备份「${record.name}」？此操作不可撤销。`)
+  const ok = await confirmDialogRef.value?.show({
+    title: '确认操作',
+    message: `确认删除备份「${record.name}」？此操作不可撤销。`,
+    confirmText: '确认',
+    cancelText: '取消',
+    isDanger: true
+  })
   if (!ok) return
   try {
     await dashboardApi.deleteBackup(record.id)
@@ -314,7 +328,13 @@ async function toggleStrategyEnabled(item) {
 }
 
 async function deleteStrategy(item) {
-  const ok = window.confirm(`确认删除策略「${item.name}」？`)
+  const ok = await confirmDialogRef.value?.show({
+    title: '确认操作',
+    message: `确认删除策略「${item.name}」？`,
+    confirmText: '确认',
+    cancelText: '取消',
+    isDanger: true
+  })
   if (!ok) return
   try {
     await dashboardApi.deleteBackupStrategy(item.id)
@@ -1048,6 +1068,7 @@ onMounted(async () => {
       </div>
     </Teleport>
   </div>
+    <ConfirmDialog ref="confirmDialogRef" />
 </template>
 
 <style scoped>

@@ -13,6 +13,7 @@
  * 所有 API 调用均通过 dashboardApi 走真实后端；离线时统一 requireBackend 拒绝并落空态。
  */
 import { computed, onMounted, reactive, ref } from 'vue'
+import ConfirmDialog from '../../components/common/ConfirmDialog.vue'
 import {
   Eye,
   History,
@@ -34,6 +35,7 @@ const props = defineProps({
   userRole: { type: String, default: 'admin' },
 })
 const emit = defineEmits(['notify'])
+const confirmDialogRef = ref(null)
 
 const operator = computed(() => getAuthUser() ?? { name: '李晨曦', role: 'admin', username: 'lichenxi' })
 const canView = computed(() => hasPermission(props.userRole || operator.value.role, 'settings:view'))
@@ -126,7 +128,14 @@ async function save2FA() {
 }
 
 async function regenerateCodes() {
-  if (!window.confirm('重新生成后将作废所有旧备用码，确认继续？')) return
+  const ok = await confirmDialogRef.value?.show({
+    title: '确认操作',
+    message: '重新生成后将作废所有旧备用码，确认继续？',
+    confirmText: '确认',
+    cancelText: '取消',
+    isDanger: true
+  })
+  if (!ok) return
   twofaLoading.value = true
   try {
     const res = await dashboardApi.regenerateBackupCodes()
@@ -172,7 +181,14 @@ async function loadLoginHistory() {
 }
 
 async function kickSessionFromHistory(id) {
-  if (!window.confirm('确定将该登录记录关联的会话踢出？')) return
+  const ok = await confirmDialogRef.value?.show({
+    title: '确认操作',
+    message: '确定将该登录记录关联的会话踢出？',
+    confirmText: '确认',
+    cancelText: '取消',
+    isDanger: true
+  })
+  if (!ok) return
   try {
     await dashboardApi.revokeSession(id)
     emit('notify', '已踢出该会话')
@@ -200,7 +216,14 @@ async function loadActiveSessions() {
 }
 
 async function revokeOne(id) {
-  if (!window.confirm('确认登出该设备？')) return
+  const ok = await confirmDialogRef.value?.show({
+    title: '确认操作',
+    message: '确认登出该设备？',
+    confirmText: '确认',
+    cancelText: '取消',
+    isDanger: true
+  })
+  if (!ok) return
   try {
     await dashboardApi.revokeSession(id)
     emit('notify', '已登出该设备')
@@ -213,7 +236,14 @@ async function revokeOne(id) {
 async function revokeAllOthers() {
   const others = (sessions.value.items ?? []).filter((s) => !s.current)
   if (!others.length) return emit('notify', '没有其它活跃会话')
-  if (!window.confirm(`将登出 ${others.length} 个其它设备，确认？`)) return
+  const ok = await confirmDialogRef.value?.show({
+    title: '确认操作',
+    message: `将登出 ${others.length} 个其它设备，确认？`,
+    confirmText: '确认',
+    cancelText: '取消',
+    isDanger: true
+  })
+  if (!ok) return
   for (const s of others) {
     try { await dashboardApi.revokeSession(s.id) } catch {}
   }
@@ -752,6 +782,7 @@ onMounted(() => {
       </section>
     </template>
   </div>
+    <ConfirmDialog ref="confirmDialogRef" />
 </template>
 
 <style scoped>

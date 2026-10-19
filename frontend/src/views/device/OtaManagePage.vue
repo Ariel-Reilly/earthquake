@@ -24,12 +24,14 @@ import {
 } from "lucide-vue-next"
 import { dashboardApi } from "../../services/dashboardApi"
 import { getAuthUser, hasPermission } from "../../stores/auth"
+import ConfirmDialog from "../../components/common/ConfirmDialog.vue"
 
 const props = defineProps({
   searchTerm: { type: String, default: "" },
   userRole: { type: String, default: "admin" },
 })
 const emit = defineEmits(["notify"])
+const confirmDialogRef = ref(null)
 
 const operator = getAuthUser() ?? { name: "李晨曦", role: "admin" }
 const has = (perm) => hasPermission(operator.role, perm)
@@ -275,7 +277,14 @@ async function submitUpload() {
 }
 
 async function removeFirmware(fw) {
-  if (!window.confirm(`确认删除固件 ${fw.version}？该操作不可恢复。`)) return
+  const ok = await confirmDialogRef.value?.show({
+    title: '删除固件',
+    message: `确认删除固件 ${fw.version}？该操作不可恢复。`,
+    confirmText: '删除',
+    cancelText: '取消',
+    isDanger: true
+  })
+  if (!ok) return
   try {
     await dashboardApi.deleteFirmware(fw.id)
     emit("notify", `固件 ${fw.version} 已删除`)
@@ -332,7 +341,14 @@ async function submitNewTask() {
 }
 
 async function cancelTask(task) {
-  if (!window.confirm(`取消任务 ${task.id}？该设备的升级将立即终止。`)) return
+  const ok = await confirmDialogRef.value?.show({
+    title: '取消升级任务',
+    message: `取消任务 ${task.id}？该设备的升级将立即终止。`,
+    confirmText: '确认',
+    cancelText: '取消',
+    isDanger: true
+  })
+  if (!ok) return
   try {
     await dashboardApi.cancelOtaTask(task.id)
     emit("notify", `任务 ${task.id} 已取消`)
@@ -677,6 +693,7 @@ onMounted(loadAll)
         </div>
       </aside>
     </div>
+    <ConfirmDialog ref="confirmDialogRef" />
   </div>
 </template>
 

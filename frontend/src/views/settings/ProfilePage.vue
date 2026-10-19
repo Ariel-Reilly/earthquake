@@ -10,6 +10,7 @@
  * 6. 服务状态 — 各服务连接状态展示（只读）
  */
 import { computed, ref } from 'vue'
+import ConfirmDialog from '../../components/common/ConfirmDialog.vue'
 import { useRouter } from 'vue-router'
 import {
   Bell,
@@ -30,6 +31,7 @@ import ThemeLanguage from '../../components/profile/ThemeLanguage.vue'
 import { clearAuthSession, getAuthUser, getRoleLabel } from '../../stores/auth'
 
 const emit = defineEmits(['notify', 'open-task-modal', 'create-task'])
+const confirmDialogRef = ref(null)
 defineProps({ searchTerm: { type: String, default: '' }, userRole: { type: String, default: 'admin' } })
 
 const router = useRouter()
@@ -51,10 +53,19 @@ const navItems = [
 ]
 
 function logout() {
-  if (!window.confirm('确认注销登录？')) return
-  clearAuthSession()
-  emit('notify', '已退出登录')
-  router.push('/')
+  return (async () => {
+    const ok = await confirmDialogRef.value?.show({
+      title: '确认操作',
+      message: '确认注销登录？',
+      confirmText: '确认',
+      cancelText: '取消',
+      isDanger: true
+    })
+    if (!ok) return
+    clearAuthSession()
+    emit('notify', '已退出登录')
+    router.push('/')
+  })()
 }
 
 // ========== 帮助反馈 ==========
@@ -289,6 +300,7 @@ function runServiceCheck() {
       </main>
     </div>
   </div>
+    <ConfirmDialog ref="confirmDialogRef" />
 </template>
 
 <style scoped>

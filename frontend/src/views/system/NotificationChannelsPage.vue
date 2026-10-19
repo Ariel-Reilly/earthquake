@@ -50,6 +50,7 @@ import {
 } from "../../services/_architecture/domain/notificationService";
 import { USE_BACKEND } from "../../services/dashboardApi";
 import { hasPermission, getAuthUser } from "../../stores/auth";
+import ConfirmDialog from "../../components/common/ConfirmDialog.vue";
 
 const emit = defineEmits(["notify"]);
 
@@ -287,6 +288,7 @@ const editDrawer = ref(false);
 const editingChannel = ref(null);
 const testing = ref({});
 const saving = ref(false);
+const confirmDialogRef = ref(null);
 
 // ── 操作 ──
 function openCreate() {
@@ -390,7 +392,14 @@ async function saveChannel() {
 }
 
 async function deleteChannel(channel) {
-  if (!confirm(`确定停用并移除渠道 "${channel.name}" 的配置？`)) return;
+  const ok = await confirmDialogRef.value?.show({
+    title: '删除渠道',
+    message: `确认删除渠道「${channel.name}」？`,
+    confirmText: '删除',
+    cancelText: '取消',
+    isDanger: true
+  })
+  if (!ok) return
   try {
     // 后端无删除端点，语义上以「禁用」实现下线，避免伪造前端删除
     await persistChannel({ ...channel, enabled: false });
@@ -686,6 +695,9 @@ const channelColor = (type) => {
         </div>
       </div>
     </div>
+
+    <!-- 确认对话框 -->
+    <ConfirmDialog ref="confirmDialogRef" />
   </div>
 </template>
 

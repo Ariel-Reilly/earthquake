@@ -3,6 +3,7 @@
  * 规则列表组件
  */
 import { computed, onMounted, ref, watch } from "vue"
+import ConfirmDialog from '../common/ConfirmDialog.vue'
 import {
   Check,
   Copy,
@@ -273,6 +274,7 @@ defineExpose({ load })
       </button>
     </div>
   </div>
+    <ConfirmDialog ref="confirmDialogRef" />
 </template>
 
 <style scoped>

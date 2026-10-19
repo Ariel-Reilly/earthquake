@@ -5,6 +5,7 @@ import {
 } from 'lucide-vue-next'
 import { dashboardApi } from '../../services/dashboardApi'
 import { ROLE_OPTIONS, hasPermission, getAuthUser } from '../../stores/auth'
+import ConfirmDialog from '../../components/common/ConfirmDialog.vue'
 
 const emit = defineEmits(['notify'])
 defineProps({ searchTerm: { type: String, default: '' }, userRole: { type: String, default: 'admin' } })
@@ -239,8 +240,17 @@ async function save() {
   }
 }
 
+const confirmDialogRef = ref(null)
+
 async function remove(user) {
-  if (!window.confirm(`确认删除用户 ${user.name}？该操作不可撤销。`)) return
+  const ok = await confirmDialogRef.value?.show({
+    title: '删除用户',
+    message: `确认删除用户 ${user.name}？该操作不可撤销。`,
+    confirmText: '删除',
+    cancelText: '取消',
+    isDanger: true
+  })
+  if (!ok) return
   try {
     await dashboardApi.deleteUser(user.id)
     emit('notify', '用户已删除')
@@ -564,6 +574,7 @@ onMounted(async () => {
         </div>
       </div>
     </div>
+    <ConfirmDialog ref="confirmDialogRef" />
   </div>
 </template>
 

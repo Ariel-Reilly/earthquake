@@ -5,6 +5,7 @@
  * 查看 AI 模型推理出的疑似灾害结果，按置信度排序后可一键推送至人工确认或归档为误报。
  */
 import { computed, onMounted, reactive, ref, watch } from "vue"
+import ConfirmDialog from '../../components/common/ConfirmDialog.vue'
 import { BarChart3, Bot, Check, Clock, Cpu, Eye, Filter, Loader2, Send, TrendingUp, X } from "lucide-vue-next"
 import { dashboardApi } from "../../services/dashboardApi"
 import { getAuthUser, hasPermission } from "../../stores/auth"
@@ -15,6 +16,7 @@ const props = defineProps({
   userRole: { type: String, default: "admin" },
 })
 const emit = defineEmits(["notify", "open-task-modal"])
+const confirmDialogRef = ref(null)
 
 const operator = getAuthUser() ?? { name: "李晨曦", role: "admin" }
 
@@ -115,7 +117,14 @@ async function pushToConfirmation(item) {
 }
 
 async function archive(item) {
-  if (!window.confirm(`确认将「${item.name}」归档为误报？`)) return
+  const ok = await confirmDialogRef.value?.show({
+    title: '确认操作',
+    message: `确认将「${item.name}」归档为误报？`,
+    confirmText: '确认',
+    cancelText: '取消',
+    isDanger: true
+  })
+  if (!ok) return
   try {
     emit("notify", `${item.name} 已归档为误报`)
     results.value.items = results.value.items.filter((r) => r.id !== item.id)
@@ -278,6 +287,7 @@ onMounted(() => loadResults())
       </div>
     </div>
   </div>
+    <ConfirmDialog ref="confirmDialogRef" />
 </template>
 
 <style scoped>

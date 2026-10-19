@@ -22,6 +22,7 @@ import {
 } from 'lucide-vue-next'
 import { dashboardApi } from '../../services/dashboardApi'
 import { hasPermission, getAuthUser } from '../../stores/auth'
+import ConfirmDialog from '../../components/common/ConfirmDialog.vue'
 
 const emit = defineEmits(['notify', 'open-task-modal', 'create-task'])
 defineProps({ searchTerm: { type: String, default: '' }, userRole: { type: String, default: 'admin' } })
@@ -29,6 +30,7 @@ defineProps({ searchTerm: { type: String, default: '' }, userRole: { type: Strin
 const route = useRoute()
 const router = useRouter()
 const operator = getAuthUser() ?? { name: '李晨曦', role: 'admin' }
+const confirmDialogRef = ref(null)
 
 // 状态：待确认 / 已确认 / 已驳回 / 已转派 / 全部
 const filterStatus = ref('待确认')
@@ -144,7 +146,15 @@ async function claim(item) {
 
 async function confirm(item) {
   if (!item) return
-  if (!window.confirm(`确认将"${item.name}"纳入正式灾害事件？确认后将进入预警创建环节。`)) return
+  const ok = await confirmDialogRef.value?.show({
+    title: '确认灾害',
+    message: `确认将"${item.name}"纳入正式灾害事件？确认后将进入预警创建环节。`,
+    confirmText: '确认',
+    cancelText: '取消',
+    isDanger: true
+  })
+  if (!ok) return
+  // 保持原有的确认逻辑
   confirmAction.loading = true
   try {
     await dashboardApi.confirmHazard?.(item.id, { operator: operator.name }).catch(() => null)
@@ -520,6 +530,8 @@ onBeforeUnmount(() => {
         </div>
       </div>
     </div>
+
+    <ConfirmDialog ref="confirmDialogRef" />
   </div>
 </template>
 

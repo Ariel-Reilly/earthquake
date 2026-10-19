@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import ConfirmDialog from '../../components/common/ConfirmDialog.vue'
 import { useRoute, useRouter } from "vue-router";
 import {
   ArrowLeft,
@@ -30,6 +31,7 @@ import { hasPermission, getAuthUser } from "../../stores/auth";
 import { safeMax } from "../../utils/safeMinMax";
 
 const emit = defineEmits(['notify'])
+const confirmDialogRef = ref(null)
 
 const route = useRoute();
 const router = useRouter();
@@ -113,7 +115,14 @@ async function confirmItem() {
   if (!isConfirmationMode.value) return
   const id = confirmationEventId.value
   if (id == null) return emit('notify', '缺少事件 ID，无法确认')
-  if (!window.confirm(`确认将"${point.value?.name}"纳入正式灾害档案？确认后将进入预警创建环节。`)) return
+  const ok = await confirmDialogRef.value?.show({
+    title: '确认操作',
+    message: `确认将"${point.value?.name}"纳入正式灾害档案？确认后将进入预警创建环节。`,
+    confirmText: '确认',
+    cancelText: '取消',
+    isDanger: true
+  })
+  if (!ok) return
   confirmationState.value.loadingConfirm = true
   try {
     await dashboardApi.confirmHazard(id, { operator: operatorName.value })
@@ -834,6 +843,7 @@ onBeforeUnmount(() => {
       </section>
     </div>
   </div>
+    <ConfirmDialog ref="confirmDialogRef" />
 </template>
 
 <style scoped>
