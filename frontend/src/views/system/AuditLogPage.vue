@@ -145,11 +145,13 @@ onMounted(() => loadLogs())
           </tr>
         </thead>
         <tbody>
-          <tr v-if="loading">
-            <td colspan="6" class="loading-state">
-              <Loader2 :size="16" class="spin" />加载日志中…
-            </td>
-          </tr>
+          <template v-if="loading">
+            <tr v-for="i in 8" :key="'skeleton-' + i">
+              <td v-for="j in 6" :key="j">
+                <div class="skeleton-bar"></div>
+              </td>
+            </tr>
+          </template>
           <tr v-else-if="!filteredItems.length">
             <td colspan="6" class="empty-state">该时间范围无操作日志</td>
           </tr>
@@ -192,6 +194,20 @@ onMounted(() => loadLogs())
 </template>
 
 <style scoped>
+.skeleton-bar {
+  height: 16px;
+  background: linear-gradient(90deg, rgba(248, 250, 252, 0.05) 25%, rgba(248, 250, 252, 0.1) 50%, rgba(248, 250, 252, 0.05) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s ease-in-out infinite;
+  border-radius: 4px;
+  max-width: 80%;
+}
+
+@keyframes skeleton-loading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
 .audit-shell { display: flex; flex-direction: column; gap: 16px; }
 
 .page-header {

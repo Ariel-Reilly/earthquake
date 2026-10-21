@@ -9,6 +9,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { AlertTriangle, Archive, ArchiveRestore, Bell, FileText, Layers3, MapPin, MessageSquareText, ShieldCheck, UsersRound, Send, CheckCircle2, XCircle, RotateCcw, ShieldAlert, Inbox } from 'lucide-vue-next'
 import PermissionButton from '../../components/PermissionButton.vue'
+import SkeletonList from '../../components/common/SkeletonList.vue'
 import { dashboardApi } from '../../services/dashboardApi'
 
 const emit = defineEmits(['notify'])
@@ -369,7 +370,9 @@ onMounted(loadData)
 
 <template>
   <div>
-    <div v-if="loading" class="panel" style="padding: 24px;">预警数据加载中...</div>
+    <div v-if="loading" class="panel loading-container">
+      <SkeletonList :count="3" layout="vertical" />
+    </div>
     <template v-else>
       <div class="stats-grid">
         <div class="stat-card"><div class="stat-icon orange"><Bell :size="19" /></div><div class="stat-copy"><span>未闭环预警</span><strong>{{ activeWarnings.length }} <small>起</small></strong><em class="negative">需快速处置 <i>重点升级</i></em></div></div>
@@ -572,3 +575,9 @@ onMounted(loadData)
     </template>
   </div>
 </template>
+
+<style scoped>
+.loading-container {
+  padding: 24px;
+}
+</style>

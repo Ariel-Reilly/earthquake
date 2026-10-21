@@ -7,6 +7,7 @@
  */
 import { computed, onMounted, reactive, ref, watch } from "vue"
 import ConfirmDialog from '../../components/common/ConfirmDialog.vue'
+import SkeletonList from '../../components/common/SkeletonList.vue'
 import { useRouter } from "vue-router"
 import {
   CalendarDays,
@@ -244,9 +245,9 @@ onMounted(() => loadTasks())
       </div>
     </section>
 
-    <div v-if="loading" class="loading-row">
-      <Loader2 :size="16" class="spin" />加载任务列表…
-    </div>
+    <template v-if="loading">
+      <SkeletonList :rows="6" />
+    </template>
     <div v-else-if="filteredTasks.length === 0" class="empty-row">
       当前条件下没有任务 —— 点击右上角「新建任务」或上方触发卡片开始
     </div>
@@ -345,6 +346,14 @@ onMounted(() => loadTasks())
 </template>
 
 <style scoped>
+.skeleton-row {
+  padding: 24px;
+  min-height: 240px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 .ai-tasks-shell { padding: 24px 28px; }
 .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 18px; }
 .page-header h2 { margin: 0; display: flex; gap: 8px; align-items: center; font-size: 18px; color: var(--c-text); }

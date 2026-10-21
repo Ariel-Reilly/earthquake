@@ -16,6 +16,7 @@ import {
   PencilLine,
 } from 'lucide-vue-next'
 import PermissionButton from '../../components/PermissionButton.vue'
+import SkeletonList from '../../components/common/SkeletonList.vue'
 import { useHazardList } from '../../composables/useHazardList'
 import { getRealtimeState, onRealtimeUpdate } from '../../services/realtimeService'
 
@@ -156,8 +157,8 @@ function fmtRelTime(iso) {
           <PermissionButton permission="hazards:export" :icon="Database" @click="({ allowed, reason }) => allowed ? emit('notify', '已同步灾害点数据') : emit('notify', reason)">导出</PermissionButton>
         </div>
       </div>
-      <div v-if="loading" style="padding: 0 20px 18px; color: #76847a;">
-        <span><Radio :size="13" class="spin" />AI 监测初始化中…</span>
+      <div v-if="loading" class="loading-container">
+        <SkeletonList :count="4" layout="vertical" />
       </div>
       <template v-else>
         <div class="map-toolbar">
@@ -330,4 +331,9 @@ function fmtRelTime(iso) {
 .event-state-tag[data-state="EMERGENCY_ACTIVE"]  { background: rgba(224, 96, 96, 0.12); color: var(--c-danger); }
 .event-state-tag[data-state="CLOSED"]            { background: rgba(155, 174, 173, 0.18); color: var(--c-ink-2); }
 .event-state-tag[data-state="REJECTED"]          { background: rgba(122, 141, 137, 0.18); color: var(--c-text-2); }
+
+/* 加载状态骨架屏 */
+.loading-container {
+  padding: 0 20px 18px;
+}
 </style>

@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { AlertTriangle, Database, Gauge, Layers3, MapPin, MessageSquareText, Radio, Cpu, Stethoscope, Video, PencilLine, Trash2, Wrench } from 'lucide-vue-next'
 import PermissionButton from '../../components/PermissionButton.vue'
+import SkeletonTable from '../../components/common/SkeletonTable.vue'
 import { dashboardApi } from '../../services/dashboardApi'
 
 const emit = defineEmits(['notify'])
@@ -175,7 +176,9 @@ onMounted(loadData)
 
 <template>
   <div>
-    <div v-if="loading" class="panel" style="padding: 24px;">设备数据加载中...</div>
+    <div v-if="loading" class="panel loading-container">
+      <SkeletonTable :rows="5" :columns="6" />
+    </div>
     <template v-else>
       <div class="stats-grid">
         <div class="stat-card"><div class="stat-icon teal"><Radio :size="19" /></div><div class="stat-copy"><span>在线设备</span><strong>{{ onlineCount }} <small>台</small></strong><em class="positive">高可用 <i>MQTT接入</i></em></div></div>
@@ -364,6 +367,10 @@ onMounted(loadData)
 </template>
 
 <style scoped>
+.loading-container {
+  padding: 24px;
+}
+
 .modal-mask { position: fixed; inset: 0; background: rgba(15, 32, 38, .45); display: grid; place-items: center; z-index: 100; }
 .modal-card { width: min(480px, 92vw); background: var(--c-surface); border-radius: var(--r-lg); padding: 22px; box-shadow: 0 24px 60px rgba(0, 0, 0, .24); }
 .modal-card h3 { margin: 0 0 16px; color: var(--c-text); display: flex; gap: 6px; align-items: center; font-size: 16px; }
