@@ -2,7 +2,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { getRuntimeMode } from './services/dashboardApi'
 import AiAssistant from './components/AiAssistant.vue'
-import ErrorBoundary from './components/ErrorBoundary.vue'
+import ErrorBoundary from './components/common/ErrorBoundary.vue'
 
 const runtimeMode = ref('unknown')
 const modeLabel = computed(() => {

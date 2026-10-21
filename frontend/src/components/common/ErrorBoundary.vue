@@ -65,91 +65,157 @@ function clearError() {
 </template>
 
 <style scoped>
+/**
+ * 错误边界样式（UX_Audit_Report P0-1）
+ * 
+ * 采用深色调 + 品牌色系，符合 DisasterGuard 整体设计语言
+ */
 .error-boundary {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 400px;
+  min-height: 100vh;
   padding: 40px 20px;
-  background: #fef7f5;
+  background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
 }
+
 .error-boundary-content {
-  max-width: 500px;
+  max-width: 560px;
+  padding: 48px;
   text-align: center;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  backdrop-filter: blur(12px);
 }
+
 .error-icon {
-  color: var(--c-danger-strong);
-  margin-bottom: 16px;
+  color: #F97316;
+  margin-bottom: 24px;
+  animation: pulse-icon 2s ease-in-out infinite;
 }
+
+@keyframes pulse-icon {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.8; transform: scale(0.98); }
+}
+
 .error-title {
-  font-size: 20px;
+  font-size: 24px;
   font-weight: 600;
-  color: var(--c-text);
-  margin: 0 0 8px;
+  color: #F8FAFC;
+  margin: 0 0 12px;
+  letter-spacing: -0.02em;
 }
+
 .error-message {
-  color: var(--c-brand-deep);
-  font-size: 14px;
+  color: #CBD5E1;
+  font-size: 15px;
+  line-height: 1.6;
   margin: 0 0 8px;
 }
+
 .error-info {
-  color: #8a9b98;
-  font-size: 12px;
-  margin: 0 0 20px;
+  color: #64748B;
+  font-size: 13px;
+  margin: 0 0 32px;
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
 }
+
 .error-actions {
   display: flex;
   gap: 12px;
   justify-content: center;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
 }
+
 .eb-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 18px;
-  border: 1px solid rgba(60,60,67,.10);
-  background: var(--c-surface);
-  border-radius: var(--r-sm);
-  color: var(--c-text);
-  font-size: 13px;
+  gap: 8px;
+  padding: 10px 20px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  color: #F8FAFC;
+  font-size: 14px;
+  font-weight: 500;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
+
 .eb-btn:hover {
-  background: var(--c-bg);
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
 }
+
+.eb-btn:active {
+  transform: translateY(0);
+}
+
 .eb-btn-primary {
-  background: var(--c-brand);
-  border-color: var(--c-brand);
-  color: var(--c-on-brand);
+  background: #22D3EE;
+  border-color: #22D3EE;
+  color: #0F172A;
 }
+
 .eb-btn-primary:hover {
-  background: #27696a;
+  background: #06B6D4;
+  border-color: #06B6D4;
 }
+
 .error-detail {
   text-align: left;
-  background: var(--c-surface);
-  border: 1px solid var(--c-brand-soft);
-  border-radius: var(--r-sm);
-  padding: 12px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 16px;
 }
+
 .error-detail details summary {
   cursor: pointer;
-  color: var(--c-brand-deep);
-  font-size: 12px;
+  color: #38BDF8;
+  font-size: 13px;
+  font-weight: 500;
   display: flex;
   align-items: center;
   gap: 6px;
+  user-select: none;
 }
+
+.error-detail details summary:hover {
+  color: #22D3EE;
+}
+
 .error-detail pre {
-  margin: 10px 0 0;
+  margin: 12px 0 0;
   font-size: 11px;
-  color: #8a5a4a;
-  background: #fef7f5;
-  padding: 10px;
-  border-radius: var(--r-sm);
+  line-height: 1.5;
+  color: #94A3B8;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 12px;
+  border-radius: 6px;
   overflow-x: auto;
-  max-height: 200px;
+  max-height: 240px;
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+}
+
+.error-detail pre::-webkit-scrollbar {
+  height: 8px;
+}
+
+.error-detail pre::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 4px;
+}
+
+.error-detail pre::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+}
+
+.error-detail pre::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
 }
 </style>

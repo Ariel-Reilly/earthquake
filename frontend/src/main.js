@@ -41,7 +41,42 @@ import './styles.css'
 async function bootstrap() {
   await initBackendMode()
   const pinia = createPinia()
-  createApp(App).use(pinia).use(router).mount('#app')
+  const app = createApp(App)
+  
+  /**
+   * 全局错误处理器（UX_Audit_Report P0-1）
+   * 
+   * 捕获所有组件渲染、生命周期、事件处理器中的未捕获错误。
+   * 与 ErrorBoundary 组件配合，防止整个应用白屏。
+   */
+  app.config.errorHandler = (err, instance, info) => {
+    console.error('[全局错误]', {
+      message: err?.message,
+      stack: err?.stack,
+      component: instance?.$options?.name || instance?.$options?.__name,
+      lifecycle: info
+    })
+    
+    // ErrorBoundary 组件会通过 onErrorCaptured 拦截并展示 UI
+    // 这里只记录日志，不额外弹窗，避免重复提示
+  }
+  
+  /**
+   * 未捕获的 Promise rejection 处理
+   * 
+   * 捕获异步代码中未 catch 的 Promise 错误（如 async/await 忘记 try-catch）
+   */
+  window.addEventListener('unhandledrejection', (event) => {
+    console.error('[未处理的 Promise 错误]', {
+      reason: event.reason,
+      promise: event.promise
+    })
+    
+    // 阻止浏览器默认行为（控制台红色报错）
+    event.preventDefault()
+  })
+  
+  app.use(pinia).use(router).mount('#app')
 }
 
 bootstrap()
