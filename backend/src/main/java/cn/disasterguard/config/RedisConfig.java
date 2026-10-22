@@ -2,9 +2,6 @@ package cn.disasterguard.config;
 
 import io.lettuce.core.ClientOptions;
 import io.lettuce.core.SocketOptions;
-import io.lettuce.core.TimeoutOptions;
-import io.lettuce.core.RedisURI;
-import io.lettuce.core.codec.StringCodec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -17,6 +14,7 @@ import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
@@ -93,5 +91,15 @@ public class RedisConfig {
     template.afterPropertiesSet();
 
     return template;
+  }
+
+  /**
+   * 字符串专用模板：注册申请的验证码 / 邀请码等纯文本键值对使用它，
+   * 避免经过 JSON 序列化后取值时多出一层引号。
+   */
+  @Bean
+  @ConditionalOnMissingBean(StringRedisTemplate.class)
+  public StringRedisTemplate stringRedisTemplate(RedisConnectionFactory connectionFactory) {
+    return new StringRedisTemplate(connectionFactory);
   }
 }

@@ -38,6 +38,15 @@ public class SecurityConfig {
         .authorizeHttpRequests(auth -> auth
             .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html",
                 "/api/system/health", "/api/auth/login").permitAll()
+            // 注册申请链路：只开放「提交申请 + 自查进度」，不开放自助注册。
+            // 账号真正创建发生在管理员审核通过后（RegisterService.approve），
+            // 因此这里放行不会产生未授权建号。
+            // 逐个方法声明而非整段 /api/auth/register/**，避免将来在注册前缀下
+            // 新增写接口时被顺带放开（如 /api/auth/register/reset-password）。
+            .requestMatchers(HttpMethod.GET, "/api/auth/captcha",
+                "/api/auth/register/status").permitAll()
+            .requestMatchers(HttpMethod.POST, "/api/auth/register",
+                "/api/auth/register/send-code").permitAll()
             // WebSocket 握手由 JwtHandshakeInterceptor 在握手层鉴权，Spring Security 放行
             .requestMatchers("/ws").permitAll()
             // 国家气象数据接入：公开资源（NSMC / NMC 不需要鉴权），CORS 由 CorsConfig 接管，限流由 RateLimitFilter 保护

@@ -31,10 +31,23 @@ public class OperationLogAspect {
   /** 请求体记录上限。 */
   private static final int BODY_MAX_LEN = 500;
 
-  /** 敏感字段：命中即整段脱敏，避免明文落库。 */
+  /**
+   * 敏感字段：命中即整段脱敏，避免明文落库。
+   *
+   * <p>允许任意前缀（{@code [a-z0-9_]*}）是为了覆盖 confirmPassword / oldPassword /
+   * newPassword 这类字段 —— 原正则要求键名<b>恰好</b>是 password，导致
+   * "confirmPassword" 完全不命中，注册申请与改密接口会把明文密码写进 operation_log。
+   *
+   * <p>同时纳入注册申请引入的敏感项：idCard（身份证号，PII）、
+   * inviteCode（一次性凭据）、captchaCode / phoneCode / emailCode（短时验证码）。
+   *
+   * <p>键名必须<b>以</b>敏感词结尾（敏感词后紧跟右引号），避免误伤
+   * tokenCount / secretariat 之类的正常业务字段。
+   */
   private static final java.util.regex.Pattern SENSITIVE_KEY =
       java.util.regex.Pattern.compile(
-          "(?i)\"(password|passwd|pwd|secret|token|accessKey|secretKey|access_key|secret_key)\"\\s*:\\s*\"[^\"]*\"");
+          "(?i)\"([a-z0-9_]*(?:password|passwd|pwd|secret|token|accesskey|secretkey|access_key|secret_key"
+              + "|idcard|id_card|invitecode|captchacode|phonecode|emailcode))\"\\s*:\\s*\"[^\"]*\"");
 
   private final OperationLogRepository repository;
   private final JwtService jwtService;

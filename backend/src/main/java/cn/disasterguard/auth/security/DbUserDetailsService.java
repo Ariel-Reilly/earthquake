@@ -20,7 +20,12 @@ import org.springframework.stereotype.Service;
  *
  * <p>从 {@code sys_user} 表加载认证主体，密码哈希由 BCrypt 校验。
  * 当 {@code disasterguard.security.dev-users-enabled=true} 且 DB 未查到用户时，
- * 回退到内存中硬编码的三个开发账号（admin/attendant/maintenance / 密码与 DB 初始化保持一致）。
+ * 回退到内存中硬编码的三个开发账号（admin/attendant/maintenance）。
+ *
+ * <p>密码说明：内存 fallback 账号的明文密码是 {@link #DEV_PASSWORD_PLAIN}（123456），
+ * 与 {@code data.sql} 种子用户的 admin123 <b>刻意不同</b> —— 两者服务于不同场景：
+ * 种子密码供 Docker/DB 初始化后的常规登录，fallback 密码仅在「DB 无该用户」时兜底。
+ * 生产环境禁止开启本开关（见 {@code ProductionConfigValidator}），因此该弱密码不会外泄到生产。
  *
  * <p>安全说明：fallback 账号的密码使用 BCrypt hash，AuthController 统一校验，
  * 避免"任意密码即可登录"的后门问题。
@@ -28,12 +33,17 @@ import org.springframework.stereotype.Service;
 @Service
 public class DbUserDetailsService implements UserDetailsService {
 
-  /** 开发账号的固定明文密码（与 DB 初始化种子数据保持一致）。 */
+  /**
+   * 内存 fallback 开发账号的固定明文密码。
+   *
+   * <p>刻意不等于 data.sql 种子密码（admin123）：种子密码要出现在文档里供人使用，
+   * 而本常量仅服务于「DB 无该用户」的兜底路径，且 prod 禁用该开关，无需对外公开。
+   */
   private static final String DEV_PASSWORD_PLAIN = "123456";
 
   private final SysUserRepository userRepository;
   private final boolean devUsersEnabled;
-  /** BCrypt hash of "123456"，构造时由 PasswordEncoder 生成，确保正确性。 */
+  /** BCrypt hash of DEV_PASSWORD_PLAIN（"123456"），构造时由 PasswordEncoder 生成，确保正确性。 */
   private final String devPasswordHash;
 
   public DbUserDetailsService(SysUserRepository userRepository,
@@ -57,7 +67,7 @@ public class DbUserDetailsService implements UserDetailsService {
     if (devUsersEnabled) {
       String role = guessRole(username);
       if (role != null) {
-        // 使用 BCrypt hash，AuthController 会统一校验密码是否匹配 "123456"
+        // 使用 BCrypt hash，AuthController 会统一校验密码是否匹配 DEV_PASSWORD_PLAIN（123456）
         return buildDetails(username, devPasswordHash, role);
       }
     }

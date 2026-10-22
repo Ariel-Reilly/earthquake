@@ -22,6 +22,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * - /api/weather/** - 每 IP 每分钟 60 请求
  * - /api/sentinel/** - 每 IP 每分钟 30 请求
  * - /swagger-ui/** - 每 IP 每分钟 30 请求
+ * - /api/auth/register/** 与 /api/auth/captcha - 每 IP 每分钟 20 请求
  * - 其他公开端点 - 每 IP 每分钟 100 请求
  */
 @Component
@@ -37,6 +38,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private static final int WEATHER_LIMIT = 60;
     private static final int SENTINEL_LIMIT = 30;
     private static final int SWAGGER_LIMIT = 30;
+    // 注册申请链路是匿名接口（无 JWT），此前不在限流覆盖范围内，
+    // 可被用于刷验证码 / 灌库；这里给出较严的每分钟阈值兜底。
+    private static final int REGISTER_LIMIT = 20;
     private static final int DEFAULT_LIMIT = 100;
 
     @Override
@@ -45,6 +49,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
         // 只对公开端点限流
         return !path.startsWith("/api/weather")
             && !path.startsWith("/api/sentinel")
+            && !path.startsWith("/api/auth/register")
+            && !path.equals("/api/auth/captcha")
             && !path.startsWith("/swagger-ui")
             && !path.startsWith("/v3/api-docs");
     }
@@ -79,6 +85,10 @@ public class RateLimitFilter extends OncePerRequestFilter {
             return SENTINEL_LIMIT;
         } else if (path.startsWith("/swagger-ui") || path.startsWith("/v3/api-docs")) {
             return SWAGGER_LIMIT;
+        } else if (path.startsWith("/api/auth/register") || path.equals("/api/auth/captcha")) {
+            // 与 shouldNotFilter 的放行条件保持一致：这里漏写会让注册接口退化成
+            // DEFAULT_LIMIT（宽松），或反过来把限流加到未受保护的路径上。
+            return REGISTER_LIMIT;
         }
         return DEFAULT_LIMIT;
     }

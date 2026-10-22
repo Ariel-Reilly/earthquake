@@ -56,6 +56,12 @@ public class SecurityConfigProd {
           }
           auth
               .requestMatchers("/api/system/health", "/api/auth/login").permitAll()
+              // 注册申请链路：与 SecurityConfig 保持一致（prod 也必须放行，
+              // 否则 prod 下匿名用户连图形验证码都取不到，功能直接不可用）。
+              .requestMatchers(HttpMethod.GET, "/api/auth/captcha",
+                  "/api/auth/register/status").permitAll()
+              .requestMatchers(HttpMethod.POST, "/api/auth/register",
+                  "/api/auth/register/send-code").permitAll()
               .requestMatchers("/ws").permitAll()
               .requestMatchers("/api/weather/**").permitAll()
               .requestMatchers("/api/sentinel/**").permitAll()

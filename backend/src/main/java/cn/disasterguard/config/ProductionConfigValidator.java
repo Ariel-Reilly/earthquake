@@ -26,8 +26,12 @@ import org.springframework.stereotype.Component;
  *       若只是内网单标签服务名（如 {@code minio}）则仅告警，因为 presigned URL
  *       会以它作为主机名，浏览器解析不了 —— 属「能上传、打不开附件」</li>
  *   <li>{@code JWT_SECRET} 为空 / 长度 < 32 / 命中弱密码</li>
- *   <li>种子用户密码仍为 {@code 123456}（BCrypt hash 匹配检查）</li>
+ *   <li>种子用户密码仍为 {@code admin123}（BCrypt hash 匹配检查）</li>
  *   <li>MINIO secret 强度不足（长度 < 16 或命中常见弱密码）</li>
+ *   <li>{@code DATA_ENCRYPTION_KEY} 为空 / 长度 < 32 / 命中弱密码
+ *       （注册申请新增：加密身份证号，缺失会导致历史密文永久不可解）</li>
+ *   <li>{@code REGISTER_SMS_ENABLED} / {@code REGISTER_EMAIL_ENABLED} 为 true
+ *       （短信/邮件网关未接入，置 true 会让注册接口「假装发送成功」）</li>
  * </ul>
  *
  * <p>dev 环境默认不加载此组件（@Profile("prod")），避免本地开发被阻断。
@@ -38,8 +42,8 @@ public class ProductionConfigValidator {
 
   private static final Logger log = LoggerFactory.getLogger(ProductionConfigValidator.class);
 
-  /** BCrypt("123456") 的 hash（与 data.sql 种子用户一致）。 */
-  private static final String DEFAULT_SEED_PASSWORD_HASH_PREFIX = "$2b$10$e7J";
+  /** BCrypt("admin123") 的 hash 前缀（与 data.sql 种子用户一致）。 */
+  private static final String DEFAULT_SEED_PASSWORD_HASH_PREFIX = "$2b$10$sl2";
 
   private static final Set<String> WEAK_TOKENS = Set.of(
       "password", "password123", "123456", "12345678", "123456789",
@@ -64,6 +68,23 @@ public class ProductionConfigValidator {
 
   @Value("${disasterguard.jwt.secret:}")
   String jwtSecret;
+
+  /**
+   * 注册申请的敏感数据加密密钥（AES-256-GCM）。
+   *
+   * <p>身份证号明文不落库，密文存 sys_user_application.id_card_enc。密钥一旦变更，
+   * 历史申请单的密文将永久无法解密 —— 因此 prod 下必须由环境变量注入且不得使用默认值。
+   */
+  @Value("${disasterguard.security.data-encryption-key:}")
+  String dataEncryptionKey;
+
+  /** 注册短信验证码是否启用（关 = 未接入网关，prod 下验证码接口直接 50301）。 */
+  @Value("${disasterguard.register.sms-enabled:false}")
+  boolean registerSmsEnabled;
+
+  /** 注册邮箱验证码是否启用。 */
+  @Value("${disasterguard.register.email-enabled:false}")
+  boolean registerEmailEnabled;
 
   @Value("${emqx.enabled:true}")
   boolean emqxEnabled;
@@ -184,6 +205,32 @@ public class ProductionConfigValidator {
     // 10) 种子用户密码检查（仅在 DB 中已有用户时触发，空 DB 为首次部署场景，跳过）
     checkSeedUserPasswords(errors);
 
+    // 11) DATA_ENCRYPTION_KEY（注册申请新增）
+    //     身份证号密文（sys_user_application.id_card_enc）靠它解密。留空时
+    //     SensitiveDataCipher 会生成一次性随机密钥，表现为「申请单里的身份证
+    //     重启后永远解不开」，且不会有任何报错 —— 必须在这里 fail-fast。
+    if (isBlank(dataEncryptionKey)) {
+      errors.add("DATA_ENCRYPTION_KEY 为空！prod 下必须设置用于加密身份证号的对称密钥"
+          + "（生成：openssl rand -base64 32）。留空会导致历史申请单的身份证密文永久无法解密。");
+    } else if (dataEncryptionKey.trim().length() < 32) {
+      errors.add("DATA_ENCRYPTION_KEY 长度 < 32（当前 " + dataEncryptionKey.trim().length()
+          + "）。请设置长度 >= 32 的强随机值。");
+    } else if (WEAK_TOKENS.contains(dataEncryptionKey.trim().toLowerCase())) {
+      errors.add("DATA_ENCRYPTION_KEY 命中弱密码模式（当前='" + dataEncryptionKey + "'）。请设置强随机值。");
+    }
+
+    // 12) 注册验证码渠道开关
+    //     开关置 true 表示「已接入短信/邮件网关」。当前项目 SmsSender / EmailSender
+    //     仍是 Mock 实现（仅打日志），若在 prod 打开开关，注册接口会对所有人返回
+    //     「验证码已发送」但用户永远收不到 —— 与未接入网关等价，却伪装成可用，
+    //     因此这里直接阻断，要求先落地真实网关。
+    if (registerSmsEnabled || registerEmailEnabled) {
+      errors.add("REGISTER_SMS_ENABLED / REGISTER_EMAIL_ENABLED 当前不允许在 prod 置为 true："
+          + "短信/邮件网关尚未接入（SmsSender / EmailSender 仍为 Mock 实现）。"
+          + "置 true 会让注册接口返回「验证码已发送」但用户收不到，属于伪装成可用的静默失败。"
+          + "请先落地真实网关后再开启，否则请保持两者为 false（关闭时 prod 明确返回 50301）。");
+    }
+
     if (!errors.isEmpty()) {
       String msg = "prod 配置校验失败（" + errors.size() + " 项）：\n  - " + String.join("\n  - ", errors)
           + "\n请修复环境变量后重启。";
@@ -195,7 +242,7 @@ public class ProductionConfigValidator {
   }
 
   /**
-   * 扫描 sys_user 表中启用账号，若密码 hash 仍为种子值（对应明文 123456），
+   * 扫描 sys_user 表中启用账号，若密码 hash 仍为种子值（对应明文 admin123），
    * 追加到错误列表（阻断启动）。这与其他 6 项 fail-fast 策略保持一致——
    * 种子用户密码为已知默认值，攻击者可直接登录，属于高风险配置。
    *
@@ -217,7 +264,7 @@ public class ProductionConfigValidator {
         }
       }
       if (!offenders.isEmpty()) {
-        errors.add("种子用户密码仍为默认值 '123456'：" + String.join(", ", offenders)
+        errors.add("种子用户密码仍为默认值 'admin123'：" + String.join(", ", offenders)
             + "。请在启动 backend 前修改："
             + "docker exec -i disasterguard-postgres psql -U disasterguard -d disasterguard -c "
             + "\"UPDATE sys_user SET password_hash='<新BCrypt哈希>' WHERE username IN (...);\""
