@@ -1,210 +1,196 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Noto+Sans+SC:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap');
 
 /* ═══════════════════════════════════════════════════════════
-   DESIGN TOKENS  设计系统变量  (iOS 18 Liquid Glass · Green Edition)
+   DESIGN TOKENS  设计系统变量 (莫兰迪绿·统一版)
    ─────────────────────────────────────────────────────────
-   升级要点:
-   1. 完整的 iOS 18 system colors (12 色 + 6 档灰)
-   2. 三档 Liquid Glass (thin / regular / thick) + 高斯模糊组合
-   3. 连续 (squircle) 圆角体系 + iOS 18 软投影
-   4. 自动暗色模式 + .theme-dark 手动开关
-   5. tinted icon 调色板
-   6. ★ 品牌主色为「三层绿」:主绿 / 深绿 / 薄荷浅底
-   ─────────────────────────────────────────────────────────
-   品牌色分层(改色只需改这一段):
-     --c-brand        主绿   —— 按钮、主链接、选中、进度、焦点环
-     --c-brand-deep   深绿   —— 深色底导航、渐变收尾、深色标题
-     --c-brand-soft   浅绿   —— 选中行底、浅色标签底、区块底
-     --c-bg           薄荷浅底 —— 全局页面背景
-   语义色 (红/橙/黄) 刻意不动:预警等级、危险操作必须保持辨识度。
-   ─────────────────────────────────────────────────────────
-   兼容: --c-brand / --c-text / --c-bg / --r-* 等旧 token
-   全部保留,业务页无须改动即可获得 iOS 18 质感。
+   2026-10-21 彻底清理版：
+   - 统一到莫兰迪绿色板（低饱和、高可读性）
+   - 删除所有 iOS 玻璃拟态变量（--ios-*, --glass-*）
+   - 保留兼容性映射（--c-brand → --primary）
+   - 只保留浅色模式，彻底删除暗色模式
    ═══════════════════════════════════════════════════════════ */
 :root {
-  /* ── iOS 18 System Colors (Light) ── */
-  --sys-blue:        #007aff;
-  --sys-blue-soft:   rgba(0, 122, 255, .14);
-  --sys-green:       #6f9e7f;
-  --sys-green-soft:  rgba(111, 158, 127, .14);
-  --sys-indigo:      #5856d6;
-  --sys-indigo-soft: rgba(88, 86, 214, .14);
-  --sys-orange:      #ff9500;
-  --sys-orange-soft: rgba(255, 149, 0, .14);
-  --sys-pink:        #ff2d55;
-  --sys-pink-soft:   rgba(255, 45, 85, .14);
-  --sys-purple:      #af52de;
-  --sys-purple-soft: rgba(175, 82, 222, .14);
-  --sys-red:         #ff3b30;
-  --sys-red-soft:    rgba(255, 59, 48, .14);
-  --sys-teal:        #30b0c7;
-  --sys-teal-soft:   rgba(48, 176, 199, .14);
-  --sys-yellow:      #ffcc00;
-  --sys-yellow-soft: rgba(255, 204, 0, .16);
-  --sys-mint:        #00c7be;
-  --sys-mint-soft:   rgba(0, 199, 190, .14);
-  --sys-cyan:        #5ac8fa;
-  --sys-cyan-soft:   rgba(92, 200, 250, .16);
-  --sys-brown:       #a2845e;
-  --sys-brown-soft:  rgba(162, 132, 94, .14);
-  --sys-blue-deep:   #1e40af;
-  --sys-indigo-deep: #1e3a5f;
+  /* ── 莫兰迪核心色板 (Morandi Green Palette) ── */
+  --primary: #5F7A6B;           /* 主色：镇静、安全 */
+  --primary-hover: #4A6154;     /* 悬停态 */
+  --primary-deep: #385F49;      /* 深底用 */
+  --primary-on: #FFFFFF;        /* 主色之上的文字（浅色模式白字对比度 4.68，达标）*/
+  --alert-on: #1F2B25;          /* 警告色之上的文字（红点徽章深字对比度 5.18）*/
+  
+  --bg-page: #F4F7F5;           /* 页面背景：极浅灰绿 */
+  --bg-card: #FFFFFF;           /* 卡片背景 */
+  --bg-hover: rgba(95, 122, 107, 0.08); /* 悬停层 */
+  --bg-active: rgba(95, 122, 107, 0.10); /* 激活态背景（导航项选中） */
+  --bg-active-hover: rgba(95, 122, 107, 0.14); /* 激活态悬停 */
+  
+  --text-main: #2C3B34;         /* 主文字：深灰绿 */
+  --text-muted: #5F6F68;        /* 次级文字（对比度 4.92） */
+  --text-tertiary: #8FA49A;     /* 三级文字 */
+  
+  --border-color: #D1DCD5;      /* 边框/分割线 */
+  --border-hover: #B8C7BE;      /* 悬停边框 */
+  --grid-line: rgba(184, 199, 190, 0.35); /* 页面网格线：浅色基底 + 0.35 透明度，避免喧宾夺主 */
+  --grid-size: 32px;            /* 网格间距 */
 
-  /* ── iOS 18 System Gray (6 levels) ── */
-  --sys-gray: #8e8e93;
-  --sys-gray-2:      #aeaeb2;
-  --sys-gray-3:      #c7c7cc;
-  --sys-gray-4:      #d1d1d6;
-  --sys-gray-5:      #e5e5ea;
-  --sys-gray-6:      #f2f2f7;
+  /* ── 兼容旧代码变量映射 (防止未迁移页面崩掉) ── */
+  --c-brand: var(--primary);
+  --c-brand-hover: var(--primary-hover);
+  --c-brand-deep: var(--primary-deep);
+  --c-brand-deeper: var(--primary-deep);
+  --c-brand-soft: rgba(95, 122, 107, 0.12);
+  --c-brand-mist: rgba(95, 122, 107, 0.06);
+  --c-brand-on: var(--primary-on);
+  --c-brand-tint: #c8d8ce;
+  --c-brand-ink: #276749;
+  
+  --c-text: var(--text-main);
+  --c-text-2: var(--text-muted);
+  --c-text-3: var(--text-tertiary);
+  --c-text-inv: #ffffff;
 
-  /* ── Brand Colors ★ 莫兰迪绿色体系(三层绿 · 低饱和灰调) ──
-     设计取向:清新、柔和、低饱和。所有主色都掺入灰调(S 值压到 25~35%),
-     避免荧光感;明度(L)抬高以保证浅色底上的可读性。
-     参考:莫兰迪(George Morandi)静物色系 —— 灰绿 / 鼠尾草绿 / 雾灰绿。 */
-  --c-brand: #6f9e7f; /* 主绿 · 鼠尾草绿(柔和低饱和) */
-  --c-brand-hover: #5f8e70; /* 悬停(压深一档) */
-  --c-brand-press:   var(--c-brand-deep);              /* 按下 */
-  --c-brand-deep: #4a7a5e; /* 深绿 · 深底/渐变收尾 */
-  --c-brand-deeper: #385f49; /* 最深绿 · 侧栏底/大屏底 */
-  --c-brand-soft: #eaf1ec; /* 浅绿 · 选中行/浅标签底(雾感) */
-  --c-brand-mist: #f1f6f2; /* 更浅一档 · 区块底 */
-  --c-brand-light:   rgba(111, 158, 127, .12); /* 兼容旧 token */
-  --c-brand-muted:   rgba(111, 158, 127, .16); /* 兼容旧 token */
-  --c-brand-on:      var(--c-surface);              /* 主绿之上的文字色 */
+  /* ── 遗留变量补全（2026-10-21）──
+     这些名字在 200+ 处被引用却从未定义，浏览器会静默丢弃整条声明，
+     表现为文字继承到错误颜色、边框和背景消失。统一在此映射到莫兰迪色板。 */
+  --c-ink-1: var(--text-main);        /* 浅色底上的主文字 */
+  --c-ink-2: #55655d;                 /* 次级文字，白底对比度约 6:1 */
+  --c-on-brand: #ffffff;              /* 品牌深绿 / 深色底上的文字恒为白 */
+  --c-scrim: #1f2b25;                 /* 实色深墨：深色标题、选中态底色；不再兼作遮罩 */
+  --c-overlay: rgba(20, 30, 25, .5);  /* 弹窗 / 抽屉遮罩专用，与 --c-scrim 拆开 */
+  --c-surface-2: #f8faf9;
+  --c-surface-3: #eef3f0;
+  --c-border-2: #e3ebe6;
+  --c-text-4: var(--text-tertiary);
+  --c-brand-light: rgba(95, 122, 107, 0.16);
+  --c-brand-muted: rgba(95, 122, 107, 0.12);
+  --c-brand-press: var(--primary-deep);
+  --c-morandi-clay: #e9e2d8;
+  --r-xs: 4px;
+  --shadow-xs: 0 1px 2px rgba(44, 59, 52, 0.06);
+  --shadow-glass: var(--shadow-lg);
+  --brand-grad-deep: linear-gradient(135deg, var(--primary-deep), var(--primary));
 
-  /* 主绿分层渐变(导航/大标题/图标块) —— 低饱和过渡,无生硬跳色 */
-  --brand-grad:      linear-gradient(135deg, var(--c-brand) 0%, var(--c-brand-deep) 100%);
-  --brand-grad-deep: linear-gradient(135deg, #4a7a5e 0%, #385f49 100%);
-  --brand-ring:      rgba(111, 158, 127, .20);
+  /* 系统强调色（低饱和，soft 用作浅底，deep 用作文字） */
+  --sys-blue: #3e6f94;
+  --sys-blue-soft: rgba(62, 111, 148, 0.12);
+  --sys-blue-deep: #2f5878;
+  --sys-indigo: #5a5fb0;
+  --sys-indigo-soft: rgba(90, 95, 176, 0.12);
+  --sys-indigo-deep: #3f4491;
+  --sys-cyan: #2a8a98;
+  --sys-mint-soft: rgba(95, 160, 130, 0.14);
+  --sys-purple: #7a5fa8;
+  --sys-purple-soft: rgba(122, 95, 168, 0.12);
+  --sys-green: #4e8f68;
+  --sys-gray: #8a9690;
 
-  /* ── Semantic Colors (兼容旧 token) ── */
-  --c-success:      var(--sys-green);
-  --c-success-bg:   var(--sys-green-soft);
-  --c-warning:      var(--sys-orange);
-  --c-warning-bg:   var(--sys-orange-soft);
-  --c-danger:       var(--sys-red);
-  --c-danger-bg:    var(--sys-red-soft);
-  --c-info:         var(--sys-cyan);
-  --c-info-bg:      var(--sys-cyan-soft);
+  /* 毛玻璃底：此前未定义导致背景完全透明 */
+  --glass-thin: rgba(255, 255, 255, 0.6);
+  --glass-regular: rgba(255, 255, 255, 0.8);
+  --glass-thick: rgba(255, 255, 255, 0.92);
+  --glass-blur-regular: blur(20px) saturate(160%);
+  
+  --c-bg: var(--bg-page);
+  --c-surface: var(--bg-card);
+  --c-border: var(--border-color);
+  --c-separator: var(--border-color);
 
-  /* ── Text Colors (iOS Label Hierarchy) ── */
-  --c-text: #1c1c1e;
-  --c-text-2:       rgba(60, 60, 67, .78);
-  --c-text-3:       rgba(60, 60, 67, .52);
-  --c-text-4:       rgba(60, 60, 67, .32);
-  --c-text-inv:     #ffffff;
+  /* ── 导航专用变量 ── */
+  --nav-bg: linear-gradient(180deg, #4a7a5e 0%, #385f49 100%);
+  --nav-bg-flat: #41694f;
+  --nav-text: #f4f7f4;
+  --nav-text-2: rgba(244, 247, 244, .76);
+  --nav-text-3: rgba(244, 247, 244, .52);
+  --nav-separator: rgba(255, 255, 255, .13);
+  --nav-hover: rgba(255, 255, 255, .10);
+  --nav-active: rgba(255, 255, 255, .18);
+  --nav-glass: rgba(65, 105, 79, .84);
 
-  /* ── Background & Surface (iOS systemGroupedBackground · 莫兰迪雾灰绿底) ── */
-  --c-bg: #f4f7f4; /* 全局底 · 雾灰白偏绿 */
-  --c-bg-deep: #eaefeb; /* 更沉一档的分区底 */
-  --c-surface: #ffffff;
-  --c-surface-2:    #f8faf8;
-  --c-surface-3:    #fcfdfc;
-  --c-morandi-warm: #f2f4f1;              /* 暖灰(卡片交替底) */
-  --c-morandi-clay: #e8ece8; /* 灰陶(分隔/浅块) */
-  --c-border:       rgba(60, 60, 67, .16);
-  --c-border-2:     rgba(60, 60, 67, .09);
-  --c-separator:    rgba(60, 60, 67, .11);
-
-  /* ── 语义补充令牌 ★ 2026-10-09 ──
-     迁移硬编码色值时收敛到的目标令牌。此前业务页里的常见色值
-     （var(--c-ink-1) 之类的深灰绿墨色、var(--c-surface)、var(--c-danger) 语义红…）没有对应
-     令牌，只能写死，导致暗色模式无法整体接管。这里一次补齐。 */
-  --c-on-brand:     #ffffff;              /* 品牌色/深色底之上的文字与图标（恒定白）*/
-  --c-on-dark:      #ffffff;              /* 恒定深色面板（指挥大屏/日志终端）上的文字 */
-  --c-surface-ink:  #1c1c1e;              /* 恒定浅色面上的墨色（反向于 --c-text）*/
-  --c-ink-1: #3a4f4a; /* 深墨绿 · 正文/标题（浅色面）*/
-  --c-ink-2: #4d6862; /* 次级墨色 */
-  --c-ink-3: #6b7f7c; /* 三级墨色 */
-  --c-scrim:        rgba(31, 59, 62, .48);/* 模态/抽屉遮罩 */
-  --c-overlay-ink: #000000; /* 深色遮罩上的纯黑 */
-  --c-brand-tint: #c8d8ce; /* 品牌色块更实的一档 */
-  --c-brand-ink: #276749; /* 可读的深绿文字 */
-  --c-warning-strong: #d9c040;
-  --c-warning-ink:    #9b761e;            /* 琥珀底上的深色文字 */
-  --c-danger-strong: #c7553b;
+  /* ── 莫兰迪预警色板 (去荧光高饱和) ── */
+  --alert-high: #C48B8B;        /* 高危·莫兰迪红 */
+  --alert-high-bg: rgba(196, 139, 139, 0.12);
+  --alert-medium: #D4B48B;      /* 中危·莫兰迪橙 */
+  --alert-medium-bg: rgba(212, 180, 139, 0.12);
+  --alert-info: #8BA3C4;        /* 信息·莫兰迪蓝 */
+  --alert-info-bg: rgba(139, 163, 196, 0.12);
+  
+  /* 兼容旧语义色 */
+  --c-success: #6f9e7f;
+  --c-success-bg: rgba(111, 158, 127, 0.14);
   --c-success-strong: #15803d;
-  --c-success-bg:     rgba(52, 199, 89, .14);
-  --c-danger-soft:    rgba(224, 96, 96, .18);
+  --c-warning: #D4B48B;
+  --c-warning-bg: rgba(212, 180, 139, 0.14);
+  --c-warning-strong: #d9c040;
+  --c-warning-ink: #9b761e;
+  --c-danger: #C48B8B;
+  --c-danger-bg: rgba(196, 139, 139, 0.14);
+  --c-danger-soft: rgba(224, 96, 96, .18);
+  --c-danger-strong: #c7553b;
+  --c-info: #8BA3C4;
+  --c-info-bg: rgba(139, 163, 196, 0.14);
+  --c-overlay-ink: #000000;
 
-  /* ── Liquid Glass Tiers  (iOS 18 三档玻璃 · 带极淡绿染) ── */
-  --glass-thin:    rgba(255, 255, 255, .55);
-  --glass-regular: rgba(255, 255, 255, .74);
-  --glass-thick:   rgba(255, 255, 255, .88);
-  --glass-tint:    rgba(111, 158, 127, .03); /* 极淡绿染,避免"加色感" */
+  /* ── 2026-10-21 二次补全：仍被引用却从未定义的令牌 ──
+     缺失时整条声明在计算期失效（圆角变 0、分割线消失、危险按钮无底色）。 */
+  --r-full: 9999px;                   /* 等同 --r-pill，旧写法兼容 */
+  --ios-hairline: var(--border-color);/* 0.5px 分割线颜色 */
+  --ios-red: var(--c-danger-strong);  /* 危险操作色，白字对比度充足 */
+  --z-sidebar: 45;                    /* 高于顶栏(--z-top:40)，低于弹窗(--z-modal:50)；移动端遮罩为 44 */
+  --sidebar-w-icon: 72px;             /* 平板图标态侧栏宽度；缺失时 width 声明整条失效 */
 
-  --glass-blur-thin:    blur(20px) saturate(180%);
-  --glass-blur-regular: blur(30px) saturate(180%);
-  --glass-blur-thick:   blur(40px) saturate(200%);
+  /* ── 8px 间距系统 ── */
+  --sp-4: 4px;
+  --sp-8: 8px;
+  --sp-12: 12px;
+  --sp-16: 16px;
+  --sp-24: 24px;
+  --sp-32: 32px;
+  --sp-48: 48px;
+  --sp-64: 64px;
 
-  /* 兼容旧 token */
-  --c-glass:        var(--glass-regular);
-  --c-glass-strong: var(--glass-thick);
+  /* ── 圆角系统 ── */
+  --r-sm: 6px;
+  --r-md: 8px;
+  --r-lg: 12px;
+  --r-xl: 16px;
+  --r-2xl: 24px;
+  --r-pill: 9999px;
 
-  /* ── Sidebar (Liquid Glass) ── */
-  --sidebar-w:        260px;
-  --sidebar-w-sm:     220px;
-  --sidebar-w-icon:   78px;
-  --sidebar-bg:       var(--glass-regular);
-  --sidebar-border:   rgba(60, 60, 67, .10);
-  --sidebar-text:     #1c1c1e;
+  /* ── 阴影与焦点环 ── */
+  --shadow-card: 0 2px 8px rgba(44, 59, 52, 0.04);
+  --shadow-hover: 0 4px 16px rgba(44, 59, 52, 0.08);
+  --shadow-lg: 0 8px 24px rgba(44, 59, 52, 0.12);
+  --focus-ring: 0 0 0 3px rgba(95, 122, 107, 0.16);
 
-  /* ── Spacing (4px base) ── */
-  --sp-1:  4px;   --sp-2:  8px;   --sp-3:  12px;
-  --sp-4:  16px;  --sp-5:  20px;  --sp-6:  24px;
-  --sp-8:  32px;  --sp-10: 40px;  --sp-12: 48px;
-  --sp-14: 56px;  --sp-16: 64px;
+  /* ── Z-index 层级 ── */
+  --z-base: 1;
+  --z-dropdown: 10;
+  --z-sticky: 20;
+  --z-top: 40;
+  --z-modal: 50;
+  --z-toast: 60;
 
-  /* ── Border Radius  (Squircle 连续圆角 · 2026-10-09 重新对齐) ──
-     分档改为与业务页实际使用的圆角一一对应（4/6/8/10/12/14/18/22/28），
-     这样把全站 1128 处硬编码圆角吸附到令牌时几乎不产生视觉位移。
-     此前令牌是 6/10/14/18/22/28/36，与页面常用的 8/12px 对不上，
-     于是没人用 —— 令牌与实现脱节是设计系统失效的典型形态。 */
-  --r-xs:   4px;   --r-sm:   8px;   --r-md:   12px;
-  --r-lg:   16px;  --r-xl:   20px;  --r-2xl:  24px;
-  --r-3xl:  32px;  --r-pill: 9999px;
-  /* 兼容旧 token */
-  --r-full: var(--r-pill);
-  --r-squircle: 20px;
-
-  /* ── iOS 18 Shadows  (更柔和、更多层) ── */
-  --shadow-2xs: 0 1px 1px rgba(0, 0, 0, .04);
-  --shadow-xs:  0 1px 2px rgba(0, 0, 0, .04), 0 1px 3px rgba(0, 0, 0, .06);
-  --shadow-sm:  0 1px 2px rgba(0, 0, 0, .04), 0 1px 3px rgba(0, 0, 0, .06);
-  --shadow-md:  0 4px 12px rgba(0, 0, 0, .06), 0 8px 24px rgba(0, 0, 0, .06);
-  --shadow-lg:  0 8px 24px rgba(0, 0, 0, .08), 0 16px 48px rgba(0, 0, 0, .08);
-  --shadow-xl:  0 16px 40px rgba(0, 0, 0, .10), 0 24px 64px rgba(0, 0, 0, .12);
-  --shadow-glass: 0 1px 0 rgba(255, 255, 255, .6) inset,
-                  0 0 0 .5px rgba(0, 0, 0, .04),
-                  0 20px 40px rgba(0, 0, 0, .10);
-
-  /* ── Typography  SF Pro 优先, PingFang SC 中文回退 ── */
-  --font:      -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
-               "SF Pro Icons", "Helvetica Neue", "PingFang SC",
-               "Hiragino Sans GB", "Microsoft YaHei", "DM Sans", "Noto Sans SC", sans-serif;
+  /* ── Typography  Inter 优先, PingFang SC 中文回退 ── */
+  --font: -apple-system, BlinkMacSystemFont, "Inter", "SF Pro Text",
+          "Helvetica Neue", "PingFang SC", "Hiragino Sans GB",
+          "Microsoft YaHei", "Noto Sans SC", sans-serif;
   --font-mono: ui-monospace, "SF Mono", "JetBrains Mono",
                "Roboto Mono", Menlo, Consolas, monospace;
-  --text-xs:   11px;  --text-sm:  12px; --text-base: 14px;
-  --text-lg:   15px;  --text-xl:  17px; --text-2xl: 20px;
-  --text-3xl:  24px;  --text-4xl:  30px; --text-5xl: 36px;
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-base: 14px;
+  --text-lg: 15px;
+  --text-xl: 17px;
+  --text-2xl: 20px;
+  --text-3xl: 24px;
+  --text-4xl: 30px;
+  --text-5xl: 36px;
 
-  /* ── Z-Index Scale ── */
-  --z-base:    0;    --z-above:  1;    --z-sticky:  5;
-  --z-sidebar:  10;   --z-overlay: 15;   --z-modal:   20;
-  --z-toast:   30;   --z-top:    40;
-
-  /* ── iOS 18 动画曲线 ── */
-  --ease-ios:   cubic-bezier(.32, .72, 0, 1);
+  /* ── 动画曲线 ── */
+  --ease-ios: cubic-bezier(.32, .72, 0, 1);
   --ease-ios-spring: cubic-bezier(.5, 1.4, .4, 1);
-  --dur-fast:   .18s;
-  --dur-base:   .28s;
-  --dur-slow:   .42s;
-
-  /* ── Responsive Breakpoints (reference only — use in @media) ──
-     xs: 480px  | sm: 640px  | md: 768px
-     lg: 1024px | xl: 1280px | 2xl: 1536px
-  ─────────────────────────────────────────────────────────────── */
+  --dur-fast: .18s;
+  --dur-base: .28s;
+  --dur-slow: .42s;
 
   font: 400 var(--text-base)/1.55 var(--font);
   color: var(--c-text);
@@ -217,350 +203,88 @@
   letter-spacing: -0.01em;
 }
 
-/* ─────────────────────────────────────────────────────────
-   系统级导航配色 (侧边栏 / 顶栏 / 大屏 / 移动端 Tab)
-   莫兰迪取向:不用饱和深绿,改用低饱和「灰绿 / 豆绿」,
-   保留足够明度对比但降低色彩攻击性。
-   ───────────────────────────────────────────────────────── */
-:root {
-  --nav-bg:          linear-gradient(180deg, #4a7a5e 0%, #385f49 100%);
-  --nav-bg-flat:     #41694f;
-  --nav-text:        #f4f7f4;
-  --nav-text-2:      rgba(244, 247, 244, .76);
-  --nav-text-3:      rgba(244, 247, 244, .52);
-  --nav-separator:   rgba(255, 255, 255, .13);
-  --nav-hover:       rgba(255, 255, 255, .10);
-  --nav-active:      rgba(255, 255, 255, .18);
-  --nav-glass:       rgba(65, 105, 79, .84);
-}
-
-/* ─────────────────────────────────────────────────────────
-   iOS ALIAS LAYER  --ios-* 兼容别名
-   组件库 (components/base/*.vue) 使用 --ios-* 命名,
-   这里统一映射到 --c-* / --sys-* 体系,避免两套令牌漂移。
-   ★ 品牌相关别名一律指向绿色,保证「整体绿色」不被旁路。
-   ───────────────────────────────────────────────────────── */
-:root {
-  --ios-blue:        var(--c-brand);
-  --ios-blue-hover:  var(--c-brand-hover);
-  --ios-cyan:        var(--c-brand-hover);
-  --ios-indigo:      var(--sys-indigo);
-  --ios-purple:      var(--c-brand-deep);
-  --ios-pink:        var(--sys-pink);
-  --ios-red:         var(--sys-red);
-  --ios-orange:      var(--sys-orange);
-  --ios-yellow:      var(--sys-yellow);
-  --ios-green:       var(--c-brand);
-  --ios-mint:        var(--sys-mint);
-  --ios-teal:        var(--c-brand-hover);
-
-  --ios-label:       var(--c-text);
-  --ios-label-2:     var(--c-text-2);
-  --ios-label-3:     var(--c-text-3);
-  --ios-label-4:     var(--c-text-4);
-
-  --ios-bg:          var(--c-bg);
-  --ios-bg-elevated: var(--c-surface);
-  --ios-fill-1:      rgba(111, 158, 127, .14);
-  --ios-fill-2:      rgba(111, 158, 127, .09);
-  --ios-fill-3:      rgba(111, 158, 127, .05);
-
-  --ios-glass:        var(--glass-regular);
-  --ios-glass-strong: var(--glass-thick);
-  --ios-thin:         rgba(60, 60, 67, .16);
-  --ios-hairline:     var(--c-separator);
-
-  --ios-radius-sm:   10px;
-  --ios-radius:      14px;
-  --ios-radius-lg:   18px;
-  --ios-radius-xl:   22px;
-  --ios-radius-2xl:  28px;
-  --ios-radius-pill: 9999px;
-
-  --ios-spring:        cubic-bezier(.32, .72, 0, 1);
-  --ios-spring-bounce: cubic-bezier(.34, 1.56, .64, 1);
-}
-
-/* ─────────────────────────────────────────────────────────
-   暗色模式 (iOS 18 Dark)  ★ 2026-10-09 修复「暗色不生效」
-   ─────────────────────────────────────────────────────────
-   修复的问题：切换入口写入的是 <html data-theme="dark">，
-   而这里此前只认 .theme-dark 类名 —— 属性选择器一个都没有，
-   于是「设置 → 个人偏好 → 深色主题」点了完全没反应；
-   同时因为业务页大量写死 var(--c-surface)，即便选到深色也仍是白底黑字。
-   本次同时支持三种触发源，并补齐深色下的全部语义令牌：
-     · [data-theme="dark"]      —— SettingsPage / ThemeLanguage / useTheme 统一写入
-     · .theme-dark              —— 兼容旧类名与直接调用方
-     · prefers-color-scheme     —— 系统跟随（用户显式选浅色时不生效）
-   ───────────────────────────────────────────────────────── */
-@media (prefers-color-scheme: dark) {
-  :root:not(.theme-light):not([data-theme="light"]) {
-    --dark-mode-on: 1;
-  }
-}
-:root.theme-dark,
-:root[data-theme="dark"] {
-  --dark-mode-on: 1;
-}
-
-/* 暗色令牌集中一处定义，三种触发源共用，避免再次出现两份漂移的调色板 */
-@media (prefers-color-scheme: dark) {
-  :root:not(.theme-light):not([data-theme="light"]) {
-    --c-text:        #ffffff;
-    --c-text-2:      rgba(235, 235, 245, .78);
-    --c-text-3:      rgba(235, 235, 245, .52);
-    --c-text-4:      rgba(235, 235, 245, .30);
-    --c-text-inv:    #0b1410;
-
-    --c-bg:          #0b1410;
-    --c-bg-deep:     #0a0f0c;
-    --c-surface:     #14201a;
-    --c-surface-2:   #1b2a22;
-    --c-surface-3:   #22332a;
-    --c-morandi-warm: #182219;
-    --c-morandi-clay: #22302a;
-    --c-border:      rgba(255, 255, 255, .14);
-    --c-border-2:    rgba(255, 255, 255, .08);
-    --c-separator:   rgba(255, 255, 255, .12);
-
-    /* 中性底 / 覆盖层：深色下反转，保证墨色压在浅色上 */
-    --c-on-brand:    #ffffff;   /* 深色下仍为白：品牌绿/红底上的文字必须恒白 */
-    --c-on-dark:     #ffffff;
-    --c-surface-ink: #1c1c1e;
-    --c-scrim:       rgba(0, 0, 0, .58);
-    --c-overlay-ink: #000000;
-    --c-ink-1:       #e8f0ea;
-    --c-ink-2:       #b9cbc0;
-    --c-ink-3:       #8ea497;
-    /* 注意：--c-surface-ink 是「恒定浅色面上的墨色」，深色主题下同样保持深墨色，
-       不能再被覆盖成浅色（否则会与本令牌语义相反）。 */
-    --c-brand-deep:  #5f8e70;
-    --c-brand-deeper: #2c3d33;
-    --c-success-strong: #30d158;
-    --c-danger-soft:    rgba(255, 69, 58, .22);
-
-    --glass-thin:    rgba(20, 32, 26, .55);
-    --glass-regular: rgba(20, 32, 26, .72);
-    --glass-thick:   rgba(20, 32, 26, .86);
-    --glass-tint:    rgba(111, 158, 127, .05);
-
-    --sidebar-bg:    var(--glass-regular);
-    --sidebar-text:  #ffffff;
-
-    /* iOS 18 暗色模式系统色 (略提亮) */
-    --sys-blue:        #0a84ff;
-    --sys-blue-soft:   rgba(10, 132, 255, .20);
-    --sys-green:       #6f9e7f;
-    --sys-green-soft:  rgba(111, 158, 127, .20);
-    --sys-orange:      #ff9f0a;
-    --sys-orange-soft: rgba(255, 159, 10, .20);
-    --sys-red:         #ff453a;
-    --sys-red-soft:    rgba(255, 69, 58, .20);
-    --sys-pink:        #ff375f;
-    --sys-purple:      #bf5af2;
-    --sys-teal:        #40c8e0;
-    --sys-indigo:      #5e5ce6;
-    --sys-yellow:      #ffd60a;
-    --sys-mint:        #66d4cf;
-    --sys-cyan:        #64d2ff;
-    --sys-brown:       #ac8e68;
-    --sys-blue-deep:   #3b82f6;
-    --sys-indigo-deep: #818cf8;
-
-    --c-brand:        var(--sys-green);
-    --c-brand-hover:  #87b096;
-    --c-brand-press:  #6f9e7f;
-    --c-brand-deep:   #4a7a5e;
-    --c-brand-deeper: #3f5348;
-    --c-brand-soft:   rgba(111, 158, 127, .16);
-    --c-brand-mist:   rgba(111, 158, 127, .10);
-    --c-brand-tint:   rgba(111, 158, 127, .22);
-    --c-brand-ink:    #a7cdb6;
-    --c-brand-light:  rgba(111, 158, 127, .16);
-    --c-brand-muted:  rgba(111, 158, 127, .22);
-    --c-brand-on:     #ffffff;
-
-    /* 语义状态：深色底上整体提亮，底色改为低透明叠加 */
-    --c-success:        #34c759;
-    --c-success-strong: #30d158;
-    --c-success-bg:     rgba(52, 199, 89, .16);
-    --c-warning:        #ffd60a;
-    --c-warning-strong: #ff9f0a;
-    --c-warning-ink:    #ffd60a;
-    --c-warning-bg:     rgba(255, 159, 10, .16);
-    --c-danger:         #ff6b60;
-    --c-danger-strong:  #ff453a;
-    --c-danger-bg:      rgba(255, 69, 58, .16);
-
-    --brand-grad:      linear-gradient(135deg, #6f9e7f 0%, #4a7a5e 100%);
-    --brand-grad-deep: linear-gradient(135deg, #4a7a5e 0%, #3f5348 100%);
-    --brand-ring:      rgba(111, 158, 127, .26);
-
-    --shadow-2xs: 0 1px 1px rgba(0, 0, 0, .24);
-    --shadow-xs:  0 1px 2px rgba(0, 0, 0, .28), 0 1px 3px rgba(0, 0, 0, .20);
-    --shadow-sm:  0 1px 2px rgba(0, 0, 0, .28), 0 1px 3px rgba(0, 0, 0, .20);
-    --shadow-md: 0 4px 12px rgba(0, 0, 0, .32), 0 8px 24px rgba(0, 0, 0, .24);
-    --shadow-lg: 0 8px 24px rgba(0, 0, 0, .36), 0 16px 48px rgba(0, 0, 0, .30);
-    --shadow-xl: 0 16px 40px rgba(0, 0, 0, .40), 0 24px 64px rgba(0, 0, 0, .36);
-    --shadow-glass: 0 1px 0 rgba(255, 255, 255, .08) inset,
-                    0 0 0 .5px rgba(255, 255, 255, .06),
-                    0 20px 40px rgba(0, 0, 0, .50);
-  }
-}
-
-:root.theme-dark,
-:root[data-theme="dark"] {
-  --c-text:        #ffffff;
-  --c-text-2:      rgba(235, 235, 245, .78);
-  --c-text-3:      rgba(235, 235, 245, .52);
-  --c-text-4:      rgba(235, 235, 245, .30);
-  --c-text-inv:    #0b1410;
-
-  --c-bg:          #0b1410;
-  --c-bg-deep:     #0a0f0c;
-  --c-surface:     #14201a;
-  --c-surface-2:   #1b2a22;
-  --c-surface-3:   #22332a;
-  --c-morandi-warm: #182219;
-  --c-morandi-clay: #22302a;
-  --c-border:      rgba(255, 255, 255, .14);
-  --c-border-2:    rgba(255, 255, 255, .08);
-  --c-separator:   rgba(255, 255, 255, .12);
-
-  /* 中性底 / 覆盖层：深色下反转，保证墨色压在浅色上 */
-  --c-on-brand:    #ffffff;   /* 深色下仍为白：品牌绿/红底上的文字必须恒白 */
-  --c-on-dark:     #ffffff;
-  --c-surface-ink: #1c1c1e;
-  --c-scrim:       rgba(0, 0, 0, .58);
-  --c-overlay-ink: #000000;
-  --c-ink-1:       #e8f0ea;
-  --c-ink-2:       #b9cbc0;
-  --c-ink-3:       #8ea497;
-  /* 注意：--c-surface-ink 是「恒定浅色面上的墨色」，深色主题下同样保持深墨色，
-     不能再被覆盖成浅色（否则会与本令牌语义相反）。 */
-  --c-brand-deep:  #5f8e70;
-  --c-brand-deeper: #2c3d33;
-  --c-success-strong: #30d158;
-  --c-danger-soft:    rgba(255, 69, 58, .22);
-
-  --glass-thin:    rgba(20, 32, 26, .55);
-  --glass-regular: rgba(20, 32, 26, .72);
-  --glass-thick:   rgba(20, 32, 26, .86);
-  --glass-tint:    rgba(111, 158, 127, .05);
-
-  --sidebar-bg:    var(--glass-regular);
-  --sidebar-text:  #ffffff;
-
-  --sys-blue:        #0a84ff;
-  --sys-blue-soft:   rgba(10, 132, 255, .20);
-  --sys-green:       #6f9e7f;
-  --sys-green-soft:  rgba(111, 158, 127, .20);
-  --sys-orange:      #ff9f0a;
-  --sys-orange-soft: rgba(255, 159, 10, .20);
-  --sys-red:         #ff453a;
-  --sys-red-soft:    rgba(255, 69, 58, .20);
-  --sys-pink:        #ff375f;
-  --sys-purple:      #bf5af2;
-  --sys-teal:        #40c8e0;
-  --sys-indigo:      #5e5ce6;
-  --sys-yellow:      #ffd60a;
-  --sys-mint:        #66d4cf;
-  --sys-cyan:        #64d2ff;
-  --sys-brown:       #ac8e68;
-  --sys-blue-deep:   #3b82f6;
-  --sys-indigo-deep: #818cf8;
-
-  --c-brand:        var(--sys-green);
-  --c-brand-hover:  #87b096;
-  --c-brand-press:  #6f9e7f;
-  --c-brand-deep:   #4a7a5e;
-  --c-brand-deeper: #3f5348;
-  --c-brand-soft:   rgba(111, 158, 127, .16);
-  --c-brand-mist:   rgba(111, 158, 127, .10);
-  --c-brand-tint:   rgba(111, 158, 127, .22);
-  --c-brand-ink:    #a7cdb6;
-  --c-brand-light:  rgba(111, 158, 127, .16);
-  --c-brand-muted:  rgba(111, 158, 127, .22);
-  --c-brand-on:     #ffffff;
-
-  /* 语义状态：深色底上整体提亮，底色改为低透明叠加 */
-  --c-success:        #34c759;
-  --c-success-strong: #30d158;
-  --c-success-bg:     rgba(52, 199, 89, .16);
-  --c-warning:        #ffd60a;
-  --c-warning-strong: #ff9f0a;
-  --c-warning-ink:    #ffd60a;
-  --c-warning-bg:     rgba(255, 159, 10, .16);
-  --c-danger:         #ff6b60;
-  --c-danger-strong:  #ff453a;
-  --c-danger-bg:      rgba(255, 69, 58, .16);
-
-  --brand-grad:      linear-gradient(135deg, #6f9e7f 0%, #4a7a5e 100%);
-  --brand-grad-deep: linear-gradient(135deg, #4a7a5e 0%, #3f5348 100%);
-  --brand-ring:      rgba(111, 158, 127, .26);
-
-  --shadow-2xs: 0 1px 1px rgba(0, 0, 0, .24);
-  --shadow-xs:  0 1px 2px rgba(0, 0, 0, .28), 0 1px 3px rgba(0, 0, 0, .20);
-  --shadow-sm:  0 1px 2px rgba(0, 0, 0, .28), 0 1px 3px rgba(0, 0, 0, .20);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, .32), 0 8px 24px rgba(0, 0, 0, .24);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, .36), 0 16px 48px rgba(0, 0, 0, .30);
-  --shadow-xl: 0 16px 40px rgba(0, 0, 0, .40), 0 24px 64px rgba(0, 0, 0, .36);
-  --shadow-glass: 0 1px 0 rgba(255, 255, 255, .08) inset,
-                  0 0 0 .5px rgba(255, 255, 255, .06),
-                  0 20px 40px rgba(0, 0, 0, .50);
+/* ═══════════════════════════════════════════════════════════
+   界面密度 (紧凑模式)
+   ═══════════════════════════════════════════════════════════ */
+:root[data-density='compact'] {
+  --sp-4: 3px;
+  --sp-8: 6px;
+  --sp-12: 9px;
+  --sp-16: 12px;
+  --sp-24: 18px;
+  --sp-32: 24px;
+  --r-sm: 3px;
+  --r-md: 6px;
+  --r-lg: 10px;
+  --r-xl: 14px;
+  --r-2xl: 18px;
 }
 
 /* ═══════════════════════════════════════════════════════════
-   界面密度 (紧凑模式)
+   深色模式令牌层  (2026-10-21)
    ─────────────────────────────────────────────────────────
-   此前「设置 → 个人偏好 → 紧凑模式」会写入 <html data-density="compact">，
-   但全站 CSS 没有任何 [data-density] 选择器 —— 开关是空转的。
-   这里把密度落到变量上：紧凑档同时收紧间距与圆角，
-   业务页只要用了 --sp-* / --r-* 就会自动跟随。
+   只覆盖令牌，不处理业务页写死的浅色（后续按页面单独优化）。
+   触发条件仅限 useTheme 显式写入的 data-theme="dark" / .theme-dark，
+   不挂 prefers-color-scheme：业务页仍有大量硬编码浅色，
+   让「跟随系统」的用户自动进入半深半浅的混合界面，体验比纯浅色更差。
+   主色在深色下换成浅绿，此时才轮到深字 --primary-on（对比度 6.25）。
    ═══════════════════════════════════════════════════════════ */
-:root[data-density='compact'] {
-  --sp-1: 3px;  --sp-2: 6px;  --sp-3: 9px;
-  --sp-4: 12px; --sp-5: 15px; --sp-6: 18px;
-  --sp-8: 24px; --sp-10: 30px; --sp-12: 36px;
-  --sp-14: 42px; --sp-16: 48px;
+:root[data-theme='dark'],
+:root.theme-dark {
+  --primary: #8EB1A0;
+  --primary-hover: #A5C4B5;
+  --primary-deep: #6F9180;
+  --primary-on: #1F2B25;
+  --alert-on: #1F2B25;
 
-  --r-xs: 3px;  --r-sm:  6px;  --r-md:  10px; --r-lg:  14px;
-  --r-xl:  18px; --r-2xl: 22px; --r-3xl: 28px;
+  --bg-page: #151C18;
+  --bg-card: #1E2822;
+  --bg-hover: rgba(142, 177, 160, 0.12);
+  --bg-active: rgba(142, 177, 160, 0.16);
+  --bg-active-hover: rgba(142, 177, 160, 0.22);
 
-  --sidebar-w:      236px;
-  --sidebar-w-icon: 70px;
+  --text-main: #E6EEE9;
+  --text-muted: #A3B5AB;
+  --text-tertiary: #7E9188;
+
+  --border-color: #2F3C35;
+  --border-hover: #43544A;
+  --grid-line: rgba(142, 177, 160, 0.07);
+
+  --c-ink-2: #B7C6BD;
+  --c-surface-2: #232F28;
+  --c-surface-3: #2A372F;
+  --c-border-2: #2A372F;
+  --c-brand-soft: rgba(142, 177, 160, 0.16);
+  --c-brand-mist: rgba(142, 177, 160, 0.08);
+  --c-brand-muted: rgba(142, 177, 160, 0.16);
+  --c-brand-light: rgba(142, 177, 160, 0.18);
+  --c-brand-tint: #3A5045;
+  --c-brand-ink: #A5C4B5;
+
+  --glass-thin: rgba(30, 40, 34, 0.6);
+  --glass-regular: rgba(30, 40, 34, 0.8);
+  --glass-thick: rgba(30, 40, 34, 0.92);
+
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.28);
+  --shadow-hover: 0 4px 16px rgba(0, 0, 0, 0.36);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.45);
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --focus-ring: 0 0 0 3px rgba(142, 177, 160, 0.28);
+
+  color-scheme: dark;
 }
 
-/* 紧凑档下同步收紧正文行高，避免"只缩间距不缩文字"的割裂感 */
-:root[data-density='compact'] body {
-  line-height: 1.45;
-}
-
-/* ─────────────────────────────────────────────────────────
-   兼容令牌层 (--dashboard-*)
-   ─────────────────────────────────────────────────────────
-   全站有 176 处 var(--dashboard-xxx, 兜底色)，但 6 个令牌名从未被定义，
-   于是全部落回兜底色（var(--c-surface) / var(--c-brand-mist) 之类），涉及 profile / confirmation /
-   route-planning 等 13 个文件 —— 这也是那些页面在深色主题下恒为浅色的原因。
-   这里按语义补齐，并让它随主题自动翻转，避免再出现"有 fallback 就永远走 fallback"。
-   ───────────────────────────────────────────────────────── */
-:root {
-  --dashboard-card-bg: var(--c-surface);
-  --dashboard-input-bg: var(--c-surface);
-  --dashboard-muted-bg: var(--c-surface-2);
-  --dashboard-border: var(--c-separator);
-  --dashboard-text: var(--c-text);
-  --dashboard-muted: var(--c-text-3);
+/* 卡片悬停上浮：仅对支持悬停的设备生效，并尊重「减少动态效果」设置 */
+@media (hover: none), (prefers-reduced-motion: reduce) {
+  .panel:hover,
+  .stat-card:hover {
+    top: 0;
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════
    iOS PRIMITIVES  iOS 原语层
-   ─────────────────────────────────────────────────────────
-   1. .ios-group           inset-grouped 圆角分组容器
-   2. .ios-row             iOS 列表行 (最小高度 44px)
-   3. .ios-navbar          大标题导航栏 (Liquid Glass)
-   4. .ios-tabbar          底部 Tab 栏 (移动端)
-   5. .ios-switch          iOS 开关
    ═══════════════════════════════════════════════════════════ */
 
 /* ── inset-grouped 分组容器 ── */
@@ -568,23 +292,23 @@
   background: var(--c-surface);
   border-radius: var(--r-lg);
   overflow: hidden;
-  box-shadow: var(--shadow-xs);
+  box-shadow: var(--shadow-card);
 }
 .ios-group-title {
-  padding: 0 var(--sp-4) var(--sp-2);
+  padding: 0 var(--sp-16) var(--sp-8);
   font-size: var(--text-xs);
   font-weight: 600;
-  color: var(--c-text-3);
+  color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: .06em;
 }
 .ios-group-footer {
-  padding: var(--sp-2) var(--sp-4) 0;
+  padding: var(--sp-8) var(--sp-16) 0;
   font-size: var(--text-xs);
-  color: var(--c-text-3);
+  color: var(--text-muted);
   line-height: 1.5;
 }
-.ios-group + .ios-group { margin-top: var(--sp-4); }
+.ios-group + .ios-group { margin-top: var(--sp-16); }
 
 /* ── iOS 列表行 ── */
 .ios-row {
@@ -672,10 +396,8 @@
   top: 0;
   z-index: var(--z-sticky);
   padding: var(--sp-3) var(--sp-5) 0;
-  background: var(--glass-thick);
-  -webkit-backdrop-filter: var(--glass-blur-regular);
-  backdrop-filter: var(--glass-blur-regular);
-  border-bottom: 1px solid var(--c-border-2);
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border-color);
 }
 .ios-navbar-compact {
   display: flex;
@@ -713,10 +435,8 @@
   display: flex;
   align-items: stretch;
   padding: 6px 0 max(6px, env(safe-area-inset-bottom));
-  background: var(--glass-thick);
-  -webkit-backdrop-filter: var(--glass-blur-regular);
-  backdrop-filter: var(--glass-blur-regular);
-  border-top: 1px solid var(--c-border-2);
+  background: var(--bg-card);
+  border-top: 1px solid var(--border-color);
 }
 .ios-tabbar-item {
   flex: 1;
@@ -787,7 +507,13 @@ body {
   margin: 0;
   min-width: 320px;
   overflow-x: hidden;
-  background: var(--c-bg);
+  background-color: var(--c-bg);
+  /* 网格画在 body 上，由 MainLayout / ContentArea 透明背景透出；
+     不用 background-attachment: fixed，因为滚动发生在内部容器而非 body */
+  background-image:
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size: var(--grid-size) var(--grid-size);
 }
 
 h1, h2, h3, h4, h5, h6 { margin: 0; font-weight: 700; line-height: 1.3; }
@@ -980,7 +706,15 @@ select.form-input {
 .demo-role-btn:hover { border-color: var(--c-brand); color: var(--c-brand); transform: translateY(-1px); }
 .demo-role-btn.active { border-color: var(--c-brand); color: var(--c-brand); background: var(--c-brand-mist); box-shadow: inset 0 0 0 1px rgba(111, 158, 127,.25); }
 
+/* ═══════════════════════════════════════════════════════════
+   旧版布局样式 (已废弃，由 MainLayout.vue 替代)
+   ─────────────────────────────────────────────────────────
+   注释时间: 2026-10-21
+   原因: 采用新的顶部导航 + 左侧栏布局，不再使用 .app-shell
+   暂时保留以供回溯，后续可完全删除
+   ═══════════════════════════════════════════════════════════
 .app-shell { min-height: 100vh; display: flex; align-items: flex-start; background: var(--c-surface-2); }
+*/
 
 /* ═══════════════════════════════════════════════════════════
    HORIZONTAL NAV SHELL  横向导航布局基座  (2026-10-08)
@@ -1037,250 +771,6 @@ select.form-input {
                 visibility 0s linear 0s;
   }
 }
-/* ═══════════════════════════════════════════════════════════
-   SIDEBAR  侧边栏样式
-   ═══════════════════════════════════════════════════════════ */
-.sidebar {
-  position: fixed;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  z-index: var(--z-sidebar);
-  width: var(--sidebar-w);
-  flex: 0 0 var(--sidebar-w);
-  height: 100vh;
-  overflow: hidden;
-  padding: 20px 0 16px;
-  display: flex;
-  flex-direction: column;
-  color: var(--nav-text);
-  background: var(--nav-bg);
-  transition: width .42s var(--ease-ios, cubic-bezier(.32, .72, 0, 1)),
-              padding .42s var(--ease-ios, cubic-bezier(.32, .72, 0, 1));
-  /* iOS 深色导航:轻柔外投影 + 内侧高光描边 */
-  box-shadow: 4px 0 24px rgba(10, 50, 25, 0.22),
-              inset -1px 0 0 rgba(255, 255, 255, 0.08);
-}
-
-/* 侧边栏顶部装饰线 (绿色渐变,呼应品牌) */
-.sidebar::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(90deg,
-    rgba(255, 255, 255, 0.15) 0%,
-    var(--c-brand-hover) 35%,
-    var(--c-surface) 65%,
-    rgba(255, 255, 255, 0.15) 100%
-  );
-  opacity: 0.9;
-}
-
-.sidebar-content {
-  position: relative;
-  z-index: 1;
-  min-height: 0;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow-y: auto;
-  overflow-x: hidden;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-  width: 100%;
-  box-sizing: border-box;
-  padding: 0 12px;
-}
-
-.sidebar-content::-webkit-scrollbar {
-  display: none;
-  width: 0;
-  height: 0;
-}
-
-.sidebar.collapsed {
-  width: var(--sidebar-w-icon);
-  flex-basis: var(--sidebar-w-icon);
-  padding-left: 0;
-  padding-right: 0;
-}
-
-/* 折叠状态隐藏文本 */
-.sidebar.collapsed .brand-copy,
-.sidebar.collapsed .brand-mark,
-.sidebar.collapsed .workspace-copy,
-.sidebar.collapsed .workspace-switcher > svg,
-.sidebar.collapsed .nav-group-head,
-.sidebar.collapsed .nav-item span,
-.sidebar.collapsed .nav-item em,
-.sidebar.collapsed .sidebar-footer .nav-item span,
-.sidebar.collapsed .online-card span:not(.pulse-dot),
-.sidebar.collapsed .online-card small {
-  transition: opacity .16s ease .1s,
-              max-width .34s cubic-bezier(.34, 1, .64, 1) .08s;
-  opacity: 0 !important;
-  max-width: 0 !important;
-  min-width: 0 !important;
-  overflow: hidden !important;
-  white-space: nowrap;
-  pointer-events: none;
-  display: none !important;
-}
-
-/* 展开状态重置文本样式 */
-.sidebar:not(.collapsed) .brand-copy,
-.sidebar:not(.collapsed) .workspace-copy,
-.sidebar:not(.collapsed) .nav-item span,
-.sidebar:not(.collapsed) .sidebar-footer .nav-item span {
-  max-width: 88px;
-  min-width: 0;
-  display: flex;
-  overflow: hidden;
-  white-space: nowrap;
-}
-
-.sidebar:not(.collapsed) .brand-copy {
-  max-width: 116px;
-}
-
-.sidebar:not(.collapsed) .workspace-copy {
-  max-width: 94px;
-}
-
-.sidebar:not(.collapsed) .nav-item em {
-  max-width: 36px;
-  padding: 0;
-  margin: 0;
-  border: 0;
-}
-
-.sidebar:not(.collapsed) .online-card span:not(.pulse-dot) {
-  max-width: 88px;
-}
-
-.sidebar:not(.collapsed) .online-card small {
-  max-width: 68px;
-}
-
-/* 折叠状态布局调整 */
-.sidebar.collapsed .workspace-switcher > svg {
-  margin-left: 0;
-}
-
-.sidebar.collapsed .brand-mark {
-  padding: 0;
-  margin: 0;
-  border: 0;
-}
-
-.sidebar.collapsed .online-card span:not(.pulse-dot),
-.sidebar.collapsed .online-card small {
-  margin: 0;
-  padding: 0;
-  border: 0;
-}
-
-.sidebar.collapsed .brand {
-  justify-content: center;
-  gap: 0;
-  padding: 0 0 22px;
-}
-
-.sidebar.collapsed .sidebar-collapse-btn {
-  margin-left: 0;
-}
-
-.sidebar.collapsed .workspace-switcher {
-  justify-content: center;
-  gap: 0;
-  padding: 10px 0;
-  border: 0;
-  background: transparent;
-}
-
-.sidebar.collapsed .workspace-avatar {
-  width: 34px;
-  height: 34px;
-  font-size: 13px;
-}
-
-.sidebar.collapsed .nav-item {
-  justify-content: center !important;
-  align-items: center !important;
-  gap: 0 !important;
-  padding-left: 10px !important;
-  padding-right: 10px !important;
-}
-
-.sidebar.collapsed .sidebar-footer .nav-item {
-  justify-content: center !important;
-  align-items: center !important;
-}
-
-.sidebar.collapsed .nav-item svg,
-.sidebar.collapsed .nav-item [class*="lucide"] {
-  width: 20px !important;
-  height: 20px !important;
-  flex: 0 0 20px !important;
-}
-
-.sidebar.collapsed .nav-item:not(.active):hover {
-  transform: none;
-}
-
-.sidebar.collapsed .nav-item.active::before {
-  left: 0;
-  top: 26%;
-  bottom: 26%;
-}
-
-.sidebar.collapsed .online-card {
-  justify-content: center;
-  gap: 0;
-  margin-top: 14px;
-  padding: 10px 0;
-  background: transparent;
-}
-
-/* 折叠按钮 */
-.sidebar-collapse-btn {
-  width: 28px;
-  height: 28px;
-  margin-left: auto;
-  display: grid;
-  place-items: center;
-  color: var(--c-text-3);
-  border: 0;
-  border-radius: var(--r-sm);
-  background: transparent;
-  cursor: pointer;
-  transition: background .2s,
-              color .2s,
-              transform .3s cubic-bezier(.34, 1.4, .4, 1);
-  flex-shrink: 0;
-}
-
-.sidebar-collapse-btn svg {
-  transition: transform .4s cubic-bezier(.34, 1.4, .4, 1);
-}
-
-.sidebar.collapsed .sidebar-collapse-btn svg {
-  transform: rotate(180deg);
-}
-
-.sidebar-collapse-btn:hover {
-  color: var(--c-on-brand);
-  background: rgba(255, 255, 255, 0.12);
-  transform: scale(1.05);
-}
-
-.sidebar-collapse-btn:active {
-  transform: scale(0.95);
-}
-
 /* 品牌区域 */
 .brand {
   gap: 10px;
@@ -4081,8 +3571,13 @@ h2, h3, p { margin: 0; }
 }
 
 /* ═══════════════════════════════════════════════════════════
-   TOPBAR POLISH  顶栏优化
-   ═══════════════════════════════════════════════════════════ */
+   旧版 TOPBAR 样式 (已废弃)
+   ─────────────────────────────────────────────────────────
+   废弃原因: 使用新的 MainNav 组件替代
+   保留供回溯参考
+   ═══════════════════════════════════════════════════════════
+*/
+/*
 .topbar {
   position: relative;
   z-index: 1;
@@ -4097,6 +3592,7 @@ h2, h3, p { margin: 0; }
   -webkit-backdrop-filter: var(--glass-blur-regular);
   backdrop-filter: var(--glass-blur-regular);
 }
+*/
 
 /* ═══════════════════════════════════════════════════════════
    iOS TAB BAR RESPONSIVE  底部 Tab 栏响应式
@@ -4154,7 +3650,8 @@ h2, h3, p { margin: 0; }
   max-width: 1440px;
   margin: 0 auto;
   padding: 32px 36px 56px;
-  background: var(--c-bg);
+  /* 透明以透出 body 网格；body 已是同一底色，视觉上无差异 */
+  background: transparent;
 }
 
 .content-grid {
@@ -4178,14 +3675,21 @@ h2, h3, p { margin: 0; }
 
 .panel {
   overflow: hidden;
+  /* 上浮用 top 偏移而非 transform：transform 会让卡片内 position:fixed 的弹窗/抽屉
+     改以卡片为定位基准，悬停时整体错位 */
+  top: 0;
+  transition:
+    top .22s cubic-bezier(.25, .9, .35, 1),
+    box-shadow .22s ease,
+    border-color .22s ease;
 }
 
 .panel:hover {
+  top: -2px;
   box-shadow:
     0 1px 2px rgba(44, 61, 51, .05),
     0 12px 32px rgba(44, 61, 51, .08);
   border-color: var(--c-border);
-  transform: none;   /* iOS 不做卡片位移,改为阴影加深 */
 }
 
 /* ── 3. 统计卡:贴近 iOS 大数字排版 ── */
@@ -4194,10 +3698,15 @@ h2, h3, p { margin: 0; }
   padding: 18px 16px;
   gap: var(--sp-3);
   border-radius: var(--r-lg);
-  transition: box-shadow .22s ease, border-color .22s ease;
+  top: 0;
+  transition:
+    top .22s cubic-bezier(.25, .9, .35, 1),
+    box-shadow .22s ease,
+    border-color .22s ease;
 }
 
 .stat-card:hover {
+  top: -2px;
   transform: none;
   box-shadow:
     0 1px 2px rgba(44, 61, 51, .05),
@@ -5047,19 +4556,11 @@ a,
   letter-spacing: -.02em;
 }
 
-/* ── 3. 层级阴影:三档统一(卡片 / 浮层 / 弹窗) ── */
-:root {
-  --ios-shadow-1: 0 1px 2px rgba(44, 61, 51, .04),
-                  0 8px 24px rgba(44, 61, 51, .05);
-  --ios-shadow-2: 0 2px 6px rgba(44, 61, 51, .06),
-                  0 16px 40px rgba(44, 61, 51, .10);
-  --ios-shadow-3: 0 4px 12px rgba(44, 61, 51, .08),
-                  0 32px 72px rgba(44, 61, 51, .16);
-}
+/* ── 3. 层级阴影:统一使用顶部 :root 的 --shadow-* 变量 ── */
 .modal-card,
 .modal-content,
 .dialog {
-  box-shadow: var(--ios-shadow-3);
+  box-shadow: var(--shadow-lg);
   border-radius: var(--r-xl);
 }
 .dropdown-menu,
@@ -5067,7 +4568,7 @@ a,
 .search-popover,
 .notification-popover,
 .filter-popover {
-  box-shadow: var(--ios-shadow-2);
+  box-shadow: var(--shadow-hover);
 }
 
 /* ── 4. 标题排版:字重/字距贴近 SF Pro Display ── */
@@ -5261,6 +4762,87 @@ select:focus {
 :root[data-density='compact'] .table { font-size: 12.5px !important; }
 
 
+/* ═══════════════════════════════════════════════════════════
+   WEBKIT 自定义滚动条  (Mac 风格极简 · 莫兰迪绿)
+   ─────────────────────────────────────────────────────────
+   设计目标：
+   1. 极简 Mac 风格 —— 宽 8px，轨道透明，不占视觉空间
+   2. 莫兰迪绿滑块 —— rgba(95, 122, 107, 0.3)，与品牌色保持一致
+   3. 悬浮响应 —— 悬浮时滑块加深至 0.6 透明度
+   4. 平滑圆角 —— 4px 圆角，符合整体设计语言
+   
+   作用范围：
+   仅针对布局中需要独立滚动的容器，避免影响全局滚动条。
+   - .main-layout-content：右侧主内容区
+   - .sidebar-nav：左侧导航栏
+   - .content-body：内容主体区
+   - .modal-body：模态框内容区
+   - .drawer-body：抽屉内容区
+   - [data-scrollable]：其他自定义滚动容器
+   ═══════════════════════════════════════════════════════════ */
 
+/* 滚动条整体宽度（纵向）和高度（横向） */
+.main-layout-content::-webkit-scrollbar,
+.sidebar-nav::-webkit-scrollbar,
+.content-body::-webkit-scrollbar,
+.modal-body::-webkit-scrollbar,
+.drawer-body::-webkit-scrollbar,
+[data-scrollable]::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
 
+/* 滚动条轨道（完全透明，不占视觉空间） */
+.main-layout-content::-webkit-scrollbar-track,
+.sidebar-nav::-webkit-scrollbar-track,
+.content-body::-webkit-scrollbar-track,
+.modal-body::-webkit-scrollbar-track,
+.drawer-body::-webkit-scrollbar-track,
+[data-scrollable]::-webkit-scrollbar-track {
+  background: transparent;
+}
 
+/* 滚动条滑块（莫兰迪灰绿色 · 圆角 4px） */
+.main-layout-content::-webkit-scrollbar-thumb,
+.sidebar-nav::-webkit-scrollbar-thumb,
+.content-body::-webkit-scrollbar-thumb,
+.modal-body::-webkit-scrollbar-thumb,
+.drawer-body::-webkit-scrollbar-thumb,
+[data-scrollable]::-webkit-scrollbar-thumb {
+  background: rgba(95, 122, 107, 0.3);
+  border-radius: 4px;
+  border: 2px solid transparent; /* 给滑块留出内边距，避免紧贴边缘 */
+  background-clip: content-box; /* 背景不延伸到 border 区域 */
+}
+
+/* 滚动条滑块悬浮状态（加深至 0.6 透明度） */
+.main-layout-content::-webkit-scrollbar-thumb:hover,
+.sidebar-nav::-webkit-scrollbar-thumb:hover,
+.content-body::-webkit-scrollbar-thumb:hover,
+.modal-body::-webkit-scrollbar-thumb:hover,
+.drawer-body::-webkit-scrollbar-thumb:hover,
+[data-scrollable]::-webkit-scrollbar-thumb:hover {
+  background: rgba(95, 122, 107, 0.6);
+  background-clip: content-box;
+}
+
+/* 滚动条滑块激活状态（点击拖动时，再加深一档） */
+.main-layout-content::-webkit-scrollbar-thumb:active,
+.sidebar-nav::-webkit-scrollbar-thumb:active,
+.content-body::-webkit-scrollbar-thumb:active,
+.modal-body::-webkit-scrollbar-thumb:active,
+.drawer-body::-webkit-scrollbar-thumb:active,
+[data-scrollable]::-webkit-scrollbar-thumb:active {
+  background: rgba(95, 122, 107, 0.8);
+  background-clip: content-box;
+}
+
+/* 滚动条角落（横向和纵向滚动条交汇处，保持透明） */
+.main-layout-content::-webkit-scrollbar-corner,
+.sidebar-nav::-webkit-scrollbar-corner,
+.content-body::-webkit-scrollbar-corner,
+.modal-body::-webkit-scrollbar-corner,
+.drawer-body::-webkit-scrollbar-corner,
+[data-scrollable]::-webkit-scrollbar-corner {
+  background: transparent;
+}

@@ -68,6 +68,9 @@ export const ROLE_MENU_MAP = {
     '/dashboard/zone', '/dashboard/workbench', '/dashboard/help',
     '/dashboard/social-media', '/dashboard/warning-config', '/dashboard/data-manage',
     '/dashboard/notification-channels',
+    // 注册申请审核：后端 AdminApplicationController 用 @PreAuthorize("hasRole('ADMIN')") 判定，
+    // 这里同样只放进 admin，前端菜单不向 system_admin 等角色暴露入口。
+    '/admin/applications',
   ],
   attendant: [
     '/dashboard', '/dashboard/real-time-map', '/dashboard/satellite-compare',
@@ -164,7 +167,7 @@ export const ROLE_PERMISSION_MAP = {
     'datasource:view','datasource:config','datasource:create','datasource:edit','datasource:delete',
     'sync:view','sync:manage',
     'analytics:view','analytics:export','history:view','history:export',
-    'users:view','users:create','users:edit','users:delete','roles:view','roles:edit',
+    'users:view','users:create','users:edit','users:delete','roles:view','roles:edit','users:approve',
     'rules:view','rules:edit','rules:create','rules:delete','audit:view','audit:export','monitor:view',
     'backup:view','backup:manage','settings:view','settings:edit',
     'reports:view','reports:create','reports:delete','data:catalog:view',

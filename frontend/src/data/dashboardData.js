@@ -76,6 +76,9 @@ export const dashboardMenu = [
   { path: '/dashboard/rule-engine',          label: '规则引擎',     icon: 'Sparkles',    group: 'system', order: 7 },
   { path: '/dashboard/personnel',            label: '人员管理',     icon: 'UserCheck',   group: 'system', order: 8 },
   { path: '/dashboard/user-management',      label: '用户与权限',   icon: 'Users',       group: 'system', order: 9 },
+  // 注册申请审核：只有 ROLE_MENU_MAP.admin 含此路径，MainLayout 按 allowedPaths 过滤后
+  // 仅 admin 侧栏可见。紧邻「用户与权限」，与账号管理是同一件事的两半。
+  { path: '/admin/applications',             label: '注册审核',     icon: 'ClipboardCheck', group: 'system', order: 9.5 },
   { path: '/dashboard/audit-log',            label: '日志审计',     icon: 'ScrollText',  group: 'system', order: 10 },
   { path: '/dashboard/system-monitor',       label: '系统监控',     icon: 'Radar',       group: 'system', order: 11 },
   { path: '/dashboard/account-security',     label: '账号安全',     icon: 'ShieldCheck', group: 'system', order: 12 },
@@ -112,6 +115,7 @@ export const moduleMeta = {
   '/dashboard/workbench':              { title: '我的工作台' },
   '/dashboard/history-hazards':        { title: '历史灾害库' },
   '/dashboard/user-management':        { title: '用户与权限' },
+  '/admin/applications':              { title: '注册申请审核' },
   '/dashboard/audit-log':              { title: '日志审计' },
   '/dashboard/system-monitor':         { title: '系统监控' },
   '/dashboard/message-center':         { title: '消息中心' },

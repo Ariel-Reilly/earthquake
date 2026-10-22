@@ -9,7 +9,7 @@ import {
   redirectToLogin,
 } from "../stores/auth";
 import WelcomePage from "../views/WelcomePage.vue";
-import DashboardLayout from "../layouts/DashboardLayout.vue";
+import DashboardLayout from "../layouts/MainLayout.vue"; // 使用新版 MainLayout
 
 // 懒加载所有页面组件（首屏只加载 Layout 和 WelcomePage）
 // 使用直接返回 import() 即可,Vue Router 4 自动按路由级代码分割,
@@ -134,6 +134,11 @@ const DataManagePage = () =>
   import(/* webpackChunkName: "data" */ "../views/data/DataManagePage.vue");
 const WarningConfigPage = () =>
   import(/* webpackChunkName: "warning" */ "../views/warning/WarningConfigPage.vue");
+// 注册 / 审核：匿名注册页不进首屏 chunk，审核页归入 system 分包
+const RegisterPage = () =>
+  import(/* webpackChunkName: "register" */ "../views/RegisterPage.vue");
+const AdminApplicationsPage = () =>
+  import(/* webpackChunkName: "system" */ "../views/AdminApplicationsPage.vue");
 
 // 404 组件（inline，避免单独建文件）
 const NotFoundPage = {
@@ -206,6 +211,9 @@ const routePermissionMap = {
   "social-media": "ai:forecast:view",
   "help-center": "settings:view",
   "notification-channels": "notice:view",
+  // 注册申请审核。后端判据是 hasRole('ADMIN')，前端用独立的 users:approve 权限码：
+  // 该码只加在 ROLE_PERMISSION_MAP.admin，因此非 admin 走到这里会被拦到 403。
+  "admin-applications": "users:approve",
 };
 
 const router = createRouter({
@@ -238,6 +246,14 @@ const router = createRouter({
       redirect: () => {
         return { path: "/", query: { login: "true" } }
       },
+      meta: { public: true },
+    },
+    {
+      // 注册申请页：匿名可访问（后端 SecurityConfig 对 /api/auth/register* 是 permitAll）。
+      // meta 不设 requiresAuth，登录与未登录都能进来。
+      path: "/register",
+      name: "register",
+      component: RegisterPage,
       meta: { public: true },
     },
     {
@@ -559,6 +575,23 @@ const router = createRouter({
       ],
     },
     {
+      // 注册申请审核挂在 /admin 下而不是 /dashboard 下，但仍复用同一套 MainLayout：
+      // 它只对 admin 开放，放进 /dashboard 会让 canAccessPath 的前缀匹配
+      // 把 system_admin 等角色的 /dashboard 权限误判为可达。
+      // 真正的访问控制来自 routePermissionMap["admin-applications"] = users:approve，
+      // 该权限码只存在于 ROLE_PERMISSION_MAP.admin，其余角色会被守卫拦到 403。
+      path: "/admin",
+      component: DashboardLayout,
+      meta: { requiresAuth: true },
+      children: [
+        {
+          path: "applications",
+          name: "admin-applications",
+          component: AdminApplicationsPage,
+        },
+      ],
+    },
+    {
       path: "/:pathMatch(.*)*",
       name: "not-found",
       component: NotFoundPage,
@@ -592,6 +625,7 @@ router.beforeEach((to) => {
 
   const token = getAuthToken();
   if (!token || isTokenExpired()) {
+    console.warn("路由被拦截(未登录或 token 过期):", to.path);
     if (token && isTokenExpired()) {redirectToLogin();}
     return { path: "/", query: { login: "true", redirect: to.fullPath } };
   }
@@ -600,6 +634,7 @@ router.beforeEach((to) => {
   if (!canAccessPath(role, to.path)) {
     // 角色完全无此模块路径权限：跳 403 而非静默回首页，便于用户感知被限制
     if (to.path.startsWith("/dashboard/") && to.path !== getHomePathByRole(role)) {
+      console.warn("路由被拦截(角色无路径权限):", to.path, "role =", role);
       return { path: "/dashboard/error/403", query: { from: to.fullPath, reason: "no-path" } };
     }
   }
@@ -607,6 +642,7 @@ router.beforeEach((to) => {
   const routePermission = routePermissionMap[to.name];
   if (routePermission && !hasPermission(role, routePermission)) {
     // 角色有路径访问权但无操作权限：跳 403，告知具体原因
+    console.warn("路由被拦截(缺少权限码):", to.path, "required =", routePermission, "role =", role);
     return {
       path: "/dashboard/error/403",
       query: { from: to.fullPath, reason: "no-permission", required: routePermission, role },

@@ -75,6 +75,63 @@ function normalizePaged(payload, fallback = []) {
 }
 
 // withQuery 已迁移到 utils/query.js
+
+/**
+ * 统一事件状态 → 会签队列页签文案。
+ *
+ * 后端把状态存成英文枚举（unified_event.state），界面按中文页签展示，
+ * 映射集中在这里，避免各处散落 if-else。
+ */
+const QUEUE_STATE_STATUS = {
+  DETECTED: "待确认",
+  CONFIRMING: "已认领",
+  CONFIRMED: "已确认",
+  REJECTED: "已驳回",
+  CLOSED: "已关闭",
+  WARNING_ISSUED: "已发布预警",
+  EMERGENCY_ACTIVE: "应急处置中",
+};
+
+/**
+ * 会签队列项 → 前端视图模型。
+ *
+ * 后端 GET /confirmation/queue 返回 hazardName/hazardType/riskLevel/state，
+ * 而界面按 name/type/level/status 取值，缺这层映射时队列在后端模式下整片显示为空。
+ * mock 侧已经使用前端约定的字段名，因此这里对两侧统一做一次归一化。
+ *
+ * @param {object} raw 后端或 mock 返回的原始队列项
+ * @returns {object} 前端视图模型
+ */
+function normalizeQueueItem(raw) {
+  if (!raw) {return null;}
+  const state = raw.state ?? "";
+  const transferred = raw.transferred === true;
+  // 转派后事件仍是「确认中」，靠转派记录把它与「已认领」区分开
+  const status =
+    raw.status ??
+    (state === "CONFIRMING" && transferred
+      ? "已转派"
+      : QUEUE_STATE_STATUS[state] ?? "待确认");
+  return {
+    ...raw,
+    hazardCode: raw.hazardCode ?? raw.code ?? "",
+    name: raw.name ?? raw.hazardName ?? raw.title ?? "",
+    type: raw.type ?? raw.hazardType ?? "",
+    level: raw.level ?? raw.riskLevel ?? "",
+    status,
+    assignee: raw.assignee ?? null,
+    transferred,
+    transferredTo: raw.transferredTo ?? null,
+    confidence: raw.confidence ?? null,
+    aiScore: raw.aiScore ?? raw.riskScore ?? null,
+    reason: raw.reason ?? "",
+    discoveredAt: raw.discoveredAt ?? raw.createdAt ?? null,
+    regionCode: raw.regionCode ?? "",
+    longitude: raw.longitude ?? raw.lon ?? null,
+    latitude: raw.latitude ?? raw.lat ?? null,
+  };
+}
+
 /**
  * fallback(): 统一兜底数据源
  * - USE_BACKEND=false 时从 mock.seed.SEED_BASE 读取/克隆
@@ -551,6 +608,8 @@ export const dashboardApi = {
       return {
         ...r,
         aiScore: ai?.riskScore ?? null,
+        // 队列列表要展示 AI 置信度，落库的综合分析里带这个字段
+        confidence: r.confidence ?? ai?.confidence ?? null,
         aiLevel: ai?.riskLevel ?? null,
         aiAnalyzedAt: ai?.analyzedAt ?? null,
         aiDisasterType: ai?.disasterType ?? null,
@@ -613,9 +672,12 @@ export const dashboardApi = {
   getConfirmationQueue: async (params = {}) => {
     if (USE_BACKEND) {
       const data = await request(`/confirmation/queue${withQuery(params)}`);
-      return data ?? { items: [], total: 0, pending: 0 };
+      const items = (data?.items ?? []).map(normalizeQueueItem).filter(Boolean);
+      return { ...(data ?? {}), items, total: data?.total ?? items.length };
     }
-    return response(mock.workflow.getConfirmationQueueMock());
+    const mockData = await response(mock.workflow.getConfirmationQueueMock());
+    const items = (mockData?.items ?? []).map(normalizeQueueItem).filter(Boolean);
+    return { ...(mockData ?? {}), items, total: mockData?.total ?? items.length };
   },
 
   getConfirmationQueueStats: async () => {
@@ -822,6 +884,106 @@ export const dashboardApi = {
   getPermissionMatrix: async () => {
     requireBackend("权限矩阵");
     return request("/roles/permission-matrix");
+  },
+
+  /* ── 注册申请 ─────────────────────────────────────────────
+   * 匿名接口（captcha / send-code / register / register-status）
+   * 统一传 auth:false：这些调用发生在登录之前，本地可能还残留着已过期
+   * 的 token，带上它只会让请求平白多一次无意义的鉴权。
+   * 管理端接口（getApplications / approve / reject）则是后端
+   * @PreAuthorize("hasRole('ADMIN')") 保护的，必须携带 JWT。
+   */
+
+  /**
+   * 获取图形验证码。
+   * @returns {Promise<{captchaId: string, imageBase64: string}>}
+   * @throws {Error} 后端不可达时抛出
+   */
+  getCaptcha: async () => {
+    requireBackend("图形验证码");
+    return request("/auth/captcha", { auth: false });
+  },
+
+  /**
+   * 下发短信 / 邮箱验证码。
+   *
+   * @param {'phone'|'email'} type - 通道类型
+   * @param {string} target - 手机号或邮箱地址
+   * @returns {Promise<any>} 后端固定返回 null
+   * @throws {Error} 通道未启用时后端返回 50301（网关未接入）
+   */
+  sendRegisterCode: async (type, target) => {
+    requireBackend("短信验证码");
+    return request("/auth/register/send-code", {
+      method: "POST",
+      auth: false,
+      body: JSON.stringify({ type, target }),
+    });
+  },
+
+  /**
+   * 提交注册申请（仅落库待审核，不会直接建号）。
+   * @param {object} payload - 字段见后端 RegisterRequest
+   * @returns {Promise<any>}
+   */
+  registerRequest: async (payload) => {
+    requireBackend("注册申请");
+    return request("/auth/register", {
+      method: "POST",
+      auth: false,
+      body: JSON.stringify(payload),
+    });
+  },
+
+  /**
+   * 查询某用户名的申请状态。
+   *
+   * @param {string} username - 登录用户名
+   * @returns {Promise<{status: string, rejectReason: string, createdAt: string}|null>}
+   *          该用户名没有任何申请记录时后端返回 null
+   */
+  getRegisterStatus: async (username) => {
+    requireBackend("注册状态");
+    return request(`/auth/register/status${withQuery({ username })}`, { auth: false });
+  },
+
+  /* ── 注册申请审核（admin） ── */
+
+  /**
+   * 分页查询注册申请（后端 status 用中文：待审核 / 已通过 / 已拒绝）。
+   * @param {{status?: string, keyword?: string, page?: number, size?: number}} params
+   * @returns {Promise<{records: any[], total: number, page: number, size: number, pages: number}>}
+   */
+  getApplications: async (params = {}) => {
+    requireBackend("注册申请审核");
+    const data = await request(`/admin/applications${withQuery(params)}`);
+    return normalizePaged(data, { items: [] });
+  },
+
+  /**
+   * 审核通过：后端据此创建系统用户。
+   * @param {number|string} id - 申请 ID
+   * @returns {Promise<any>}
+   */
+  approveApplication: async (id) => {
+    requireBackend("审核通过");
+    return request(`/admin/applications/${encodeURIComponent(id)}/approve`, {
+      method: "POST",
+    });
+  },
+
+  /**
+   * 审核拒绝。
+   * @param {number|string} id - 申请 ID
+   * @param {string} reason - 拒绝原因（后端必填，最长 255）
+   * @returns {Promise<any>}
+   */
+  rejectApplication: async (id, reason) => {
+    requireBackend("审核拒绝");
+    return request(`/admin/applications/${encodeURIComponent(id)}/reject`, {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+    });
   },
 
   getAuditLogs: async (params = {}) => {

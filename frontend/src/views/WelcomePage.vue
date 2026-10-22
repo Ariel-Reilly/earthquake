@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, onBeforeUnmount, ref, reactive, watch } from "vue";
+import { computed, nextTick, onMounted, onBeforeUnmount, ref, reactive, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useBodyScrollLock } from "../composables/useBodyScrollLock";
 import {
@@ -10,6 +10,7 @@ import {
   Bot,
   ChevronDown,
   ChevronRight,
+  Database,
   Globe,
   Layers,
   Lock,
@@ -26,6 +27,8 @@ import {
   Zap,
   X,
   User,
+  Users,
+  Wrench,
   Eye,
   EyeOff,
   LogIn,
@@ -43,6 +46,164 @@ const scrollY = ref(0);
 const openFaq = ref(0);
 const showMobileNav = ref(false);
 
+/* ====== 视差滚动 ====== */
+const heroFxRef = ref(null);
+let rafId = null;
+
+function updateParallax() {
+  if (!heroFxRef.value) return;
+  const rect = heroFxRef.value.getBoundingClientRect();
+  const scrollDist = Math.max(0, -rect.top);
+  const parallaxY = Math.min(scrollDist * 0.3, 300);
+  heroFxRef.value.style.setProperty('--parallax-y', `${parallaxY}px`);
+  rafId = null;
+}
+
+function onParallaxScroll() {
+  if (rafId) return;
+  rafId = requestAnimationFrame(updateParallax);
+}
+
+/* ====== KPI 数字动画与趋势指示 ====== */
+const KPI_TARGETS = { monitors: 128, devices: 346, alerts: 12, rate: 95 };
+const kpiNumbers = reactive({ monitors: 0, devices: 0, alerts: 0, rate: 0 });
+const kpiTrend = reactive({
+  devices: 'up',
+  alerts: 'down',
+});
+const kpiPulse = ref(0);
+let kpiInterval = null;
+let kpiCounted = false;
+let kpiCounting = false;
+/** 计数是异步的：计数期间用户可能已滚走，结束后需据此决定是否再启动跳动定时器 */
+let kpiWanted = false;
+
+/**
+ * 首次进入视口时的快速滚动计数。
+ * 时长压到 900ms（统计条为 1600ms），让预览窗口的数字"一进来就在跑"。
+ * 计数期间不启动随机跳动，否则 clamp 会把还没涨到位的数字拉回区间。
+ * @returns {Promise<void>} 计数完成后 resolve
+ */
+function countUpKpi() {
+  return new Promise((resolve) => {
+    const duration = 900;
+    const start = performance.now();
+    function step(now) {
+      const progress = Math.min((now - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      Object.keys(KPI_TARGETS).forEach((k) => {
+        kpiNumbers[k] = Math.round(KPI_TARGETS[k] * eased);
+      });
+      if (progress < 1) requestAnimationFrame(step);
+      else resolve();
+    }
+    requestAnimationFrame(step);
+  });
+}
+
+async function startKpiAnimation() {
+  kpiWanted = true;
+  if (kpiInterval || kpiCounting) return;
+  if (!kpiCounted) {
+    kpiCounting = true;
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduced) Object.assign(kpiNumbers, KPI_TARGETS);
+    else await countUpKpi();
+    kpiCounted = true;
+    kpiCounting = false;
+    if (reduced) return;
+  }
+  if (!kpiWanted || kpiInterval) return;
+  kpiInterval = setInterval(() => {
+    const devChange = Math.random() > 0.5 ? 1 : -1;
+    kpiNumbers.devices = Math.max(340, Math.min(350, kpiNumbers.devices + devChange));
+    kpiTrend.devices = devChange > 0 ? 'up' : 'down';
+    const alertChange = Math.random() > 0.6 ? 1 : -1;
+    kpiNumbers.alerts = Math.max(10, Math.min(15, kpiNumbers.alerts + alertChange));
+    kpiTrend.alerts = alertChange > 0 ? 'up' : 'down';
+    kpiPulse.value++;
+  }, 2400);
+}
+
+function stopKpiAnimation() {
+  kpiWanted = false;
+  if (kpiInterval) {
+    clearInterval(kpiInterval);
+    kpiInterval = null;
+  }
+}
+
+/* ====== 终端日志流动效 ====== */
+/** 递增 id 作为 v-for 的 key：日志池里的条目会被重复取用，不能用内容当 key */
+let logSeq = 0;
+/*
+ * 日志条目用结构化字段（tag / text / value / badge）而不是在模板里拆字符串，
+ * 这样改文案不会悄悄破坏高亮位置。
+ */
+const terminalLogs = ref(
+  [
+    { type: 'prompt', text: '$ hazard.monitor --realtime' },
+    { type: 'comment', text: '// 位移传感器 · 在线 346 / 离线 2' },
+    { type: 'warn', tag: 'WARNING', text: '牛栏湾滑坡 · 位移超阈值', badge: '高' },
+    { type: 'info', text: 'AI 置信度', value: '94.7%' },
+  ].map((l) => ({ ...l, id: ++logSeq })),
+);
+let logInterval = null;
+const logPool = [
+  { type: 'info', text: '累计降雨', value: '32 mm' },
+  { type: 'warn', tag: 'WARNING', text: '大坪坡崩塌 · 雨量激增', badge: '中' },
+  { type: 'info', text: '倾斜仪异常 · 已触发复核', value: 'T-0412' },
+  { type: 'comment', text: '// 巡检任务 · 已派发 3 / 待完成 1' },
+  { type: 'info', text: 'GPS 轨迹核查通过', value: '牛栏湾' },
+];
+
+function startLogStream() {
+  if (logInterval) return;
+  logInterval = setInterval(() => {
+    const randomLog = logPool[Math.floor(Math.random() * logPool.length)];
+    terminalLogs.value.push({ ...randomLog, id: ++logSeq });
+    if (terminalLogs.value.length > 6) terminalLogs.value.shift();
+  }, 2600);
+}
+
+function stopLogStream() {
+  if (logInterval) {
+    clearInterval(logInterval);
+    logInterval = null;
+  }
+}
+
+/* ====== 全流程状态机（自动推进 + 可点击切换） ====== */
+const flowSteps = [
+  { label: "隐患发现", desc: "传感器越限或人工上报，自动建档" },
+  { label: "预警研判", desc: "规则引擎与 AI 模型联合判定风险等级" },
+  { label: "任务派发", desc: "按责任区推送处置任务，GPS 打卡留痕" },
+  { label: "解除警报", desc: "复核通过后闭环归档，全程可追溯" },
+];
+const flowActive = ref(1);
+let flowTimer = null;
+
+function startFlow() {
+  if (flowTimer) return;
+  // 减弱动态效果偏好下不自动轮播，保留手动点击
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  flowTimer = setInterval(() => {
+    flowActive.value = (flowActive.value + 1) % flowSteps.length;
+  }, 2200);
+}
+
+function stopFlow() {
+  if (flowTimer) {
+    clearInterval(flowTimer);
+    flowTimer = null;
+  }
+}
+
+/** 点击后直接定位到该步骤；悬停时已暂停轮播，所以这里不用重置计时器 */
+function selectFlow(index) {
+  flowActive.value = index;
+}
+
 /* ====== 登录弹窗 ====== */
 const showLoginModal = ref(false);
 // 打开登录弹窗时锁定 body 滚动，避免背后页面继续滚动
@@ -52,7 +213,7 @@ const loginError = ref("");
 const showPassword = ref(false);
 const remember = ref(true);
 const capsLockOn = ref(false);
-const loginForm = reactive({ username: "admin", password: "123456", role: "admin" });
+const loginForm = reactive({ username: "admin", password: "admin123", role: "admin" });
 const REMEMBER_KEY = "disasterguard_remembered_username";
 
 watch(
@@ -136,28 +297,6 @@ const stats = [
   { value: 99.9, suffix: "%", label: "系统可用性", icon: ShieldCheck },
 ];
 const animatedStats = reactive(stats.map((s) => ({ ...s, current: 0 })));
-
-/* ====== 核心能力卡片 ====== */
-const capabilities = [
-  {
-    icon: Bot,
-    title: "不止一种算法",
-    desc: "孤立森林、XGBoost 与多级规则引擎组合，针对不同数据特征选择最优模型，更快、更准地识别异常。",
-    tag: "AI 融合",
-  },
-  {
-    icon: Radar,
-    title: "全流程闭环",
-    desc: "从灾害点管理、巡检任务、GPS 打卡到预警研判、派发处置，覆盖地质灾害防治完整链条。",
-    tag: "全流程",
-  },
-  {
-    icon: Globe,
-    title: "多端协同",
-    desc: "Web 大屏、移动端 H5 与实时 WebSocket 推送，PC 指挥与野外现场巡检均可即时掌握风险动态。",
-    tag: "多终端",
-  },
-];
 
 /* ====== 工作流行 ====== */
 const workflows = [
@@ -299,19 +438,350 @@ function animateStats() {
   });
 }
 
+/* ====== 顶部导航 Mega Menu ====== */
+/** 悬停延迟（毫秒）：过滤鼠标快速划过导航时的误触发，避免面板反复闪烁 */
+const MEGA_HOVER_DELAY = 150;
+/** 与样式里 `@media (max-width: 980px)` 的移动端断点互补，保证两处判断一致 */
+const DESKTOP_QUERY = "(min-width: 981px)";
+
+/**
+ * 菜单数据：每个一级菜单对应三列——左侧功能分组、中间图文说明、右侧推荐卡片。
+ * 文案复用页面已有内容，target 指向页面现有锚点，避免新增页面外的承诺。
+ * promo 使用 action: "login" 时会唤起登录弹窗，否则按 target 滚动。
+ */
+const megaMenus = [
+  {
+    key: "features",
+    label: "核心能力",
+    href: "#features",
+    groups: [
+      {
+        heading: "AI 智能研判",
+        items: [
+          { icon: Bot, title: "多算法融合", desc: "孤立森林、XGBoost 与多级规则引擎组合，按数据特征选择最优模型", target: "#features" },
+          { icon: Bell, title: "分级预警", desc: "按风险等级分级推送，从预警生成到处置关闭全程留痕", target: "#workflow" },
+        ],
+      },
+      {
+        heading: "全流程防治",
+        items: [
+          { icon: Radar, title: "全流程闭环", desc: "灾害点管理、巡检任务、GPS 打卡到预警研判与处置", target: "#features" },
+          { icon: Globe, title: "多端协同", desc: "Web 大屏、移动端 H5 与 WebSocket 实时推送", target: "#features" },
+        ],
+      },
+    ],
+    story: {
+      heading: "平台亮点",
+      icon: Bot,
+      title: "不止一种算法",
+      desc: "孤立森林、XGBoost 与多级规则引擎组合，更快、更准地识别异常。",
+      points: ["物联网 + AI 融合", "多级规则引擎", "企业级安全防护"],
+    },
+    promo: {
+      badge: "推荐",
+      icon: ShieldAlert,
+      title: "体验实时监测总览",
+      desc: "登录演示账号，查看灾害点、设备与预警的实时态势。",
+      cta: "进入系统",
+      action: "login",
+    },
+  },
+  {
+    key: "workflow",
+    label: "工作流程",
+    href: "#workflow",
+    groups: [
+      {
+        heading: "监测与感知",
+        items: [
+          { icon: MapPin, title: "灾害点管理", desc: "滑坡、崩塌、泥石流隐患点全生命周期追踪与空间可视化", target: "#workflow" },
+          { icon: Radio, title: "设备监测", desc: "位移、雨量、倾斜等传感数据经 MQTT 实时接入", target: "#workflow" },
+        ],
+      },
+      {
+        heading: "研判与决策",
+        items: [
+          { icon: Bell, title: "智能预警", desc: "规则引擎 + AI 辅助研判，按风险等级分级推送", target: "#workflow" },
+          { icon: BarChart3, title: "数据统计", desc: "多维统计图表与 Excel 导出，为应急决策提供数据支撑", target: "#workflow" },
+        ],
+      },
+    ],
+    story: {
+      heading: "从感知到处置",
+      icon: Layers,
+      title: "全链路智能化工作流",
+      desc: "覆盖灾害点管理、巡检任务、GPS 打卡到预警研判、派发处置的完整防治链条。",
+      points: ["秒级入库 TDengine", "分级预警推送", "处置全程留痕"],
+    },
+    promo: {
+      badge: "演示",
+      icon: Bell,
+      title: "查看实时预警",
+      desc: "了解预警如何从生成流转到处置关闭。",
+      cta: "登录查看",
+      action: "login",
+    },
+  },
+  {
+    key: "architecture",
+    label: "系统架构",
+    href: "#architecture",
+    groups: [
+      {
+        heading: "三层架构",
+        items: [
+          { icon: Satellite, title: "感知层", desc: "IoT 传感器 · MQTT 接入", target: "#architecture" },
+          { icon: Server, title: "平台层", desc: "规则引擎 · AI 模型 · 时序库", target: "#architecture" },
+          { icon: Globe, title: "应用层", desc: "预警 · 巡检 · 应急 · 大屏", target: "#architecture" },
+        ],
+      },
+      {
+        heading: "数据存储",
+        items: [
+          { icon: Database, title: "双存储保障", desc: "PostgreSQL（含 PostGIS）存业务数据，TDengine 存时序数据", target: "#architecture" },
+        ],
+      },
+    ],
+    story: {
+      heading: "数据贯通",
+      icon: Server,
+      title: "端到端监测架构",
+      desc: "感知层 → 平台层 → 应用层，全链路数据贯通。",
+      points: ["MQTT 实时接入", "PostgreSQL + TDengine 双存储", "JWT 与设备级鉴权"],
+    },
+    promo: {
+      badge: "FAQ",
+      icon: Database,
+      title: "数据如何存储？",
+      desc: "查看常见问题中关于存储与导出的解答。",
+      cta: "查看常见问题",
+      target: "#faq",
+    },
+  },
+  {
+    key: "roles",
+    label: "角色方案",
+    href: "#roles",
+    groups: [
+      {
+        heading: "平台角色",
+        items: [
+          { icon: Users, title: "系统管理员", desc: "全面掌控平台配置与数据治理", target: "#roles" },
+          { icon: Bell, title: "值班员", desc: "实时预警处置、态势跟踪与任务协调", target: "#roles" },
+          { icon: Wrench, title: "运维员", desc: "设备运维、现场巡检与 GPS 签到", target: "#roles" },
+        ],
+      },
+      {
+        heading: "权限治理",
+        items: [
+          { icon: Lock, title: "多角色权限矩阵", desc: "精细控制各角色可访问的模块与操作，操作可审计", target: "#roles" },
+        ],
+      },
+    ],
+    story: {
+      heading: "协同工作",
+      icon: Users,
+      title: "多角色协同工作",
+      desc: "管理员、值班员、运维员各司其职，支撑地质灾害防治全团队协作。",
+      points: ["管理员统一配置权限", "值班员实时处置预警", "运维员现场巡检打卡"],
+    },
+    promo: {
+      badge: "推荐",
+      icon: Zap,
+      title: "进入值班工作台",
+      desc: "使用演示账号体验值班员视角。",
+      cta: "登录系统",
+      action: "login",
+    },
+  },
+];
+
+const headerRef = ref(null);
+const megaPanelRef = ref(null);
+const isDesktop = ref(true);
+/** 当前展开的菜单 key；null 表示收起 */
+const activeMega = ref(null);
+const megaVisible = computed(() => isDesktop.value && activeMega.value !== null);
+
+let megaTimer = null;
+let desktopMql = null;
+/** Esc 后程序化把焦点还给触发器时，需要避免 focus 事件把面板重新打开 */
+let suppressFocusOpen = false;
+
 const navScrolled = computed(() => scrollY.value > 24);
 
+/** 清除悬停计时器，保证同一时刻只有一个待执行的开/关动作 */
+function clearMegaTimer() {
+  if (megaTimer) {
+    clearTimeout(megaTimer);
+    megaTimer = null;
+  }
+}
+
+/**
+ * 延迟展开指定菜单。
+ * 延迟用于过滤鼠标快速划过；每次调用都会取消上一个待执行动作，
+ * 因此扫过多个触发器时只有最后停留的那个会展开。
+ * @param {string} key 菜单 key
+ */
+function scheduleOpenMega(key) {
+  if (!isDesktop.value) return;
+  clearMegaTimer();
+  megaTimer = setTimeout(() => {
+    activeMega.value = key;
+    megaTimer = null;
+  }, MEGA_HOVER_DELAY);
+}
+
+/** 延迟收起；鼠标从触发器移入面板的间隙内会被 cancel 掉，不会闪退 */
+function scheduleCloseMega() {
+  clearMegaTimer();
+  if (activeMega.value === null) return;
+  megaTimer = setTimeout(() => {
+    activeMega.value = null;
+    megaTimer = null;
+  }, MEGA_HOVER_DELAY);
+}
+
+/** 立即收起，用于点击菜单项、Esc、点击外部等明确的关闭意图 */
+function closeMega() {
+  clearMegaTimer();
+  activeMega.value = null;
+}
+
+/**
+ * 键盘聚焦触发器时立即展开。
+ * 仅响应 :focus-visible，避免鼠标点击后获得的焦点绕过 150ms 延迟。
+ * @param {FocusEvent} event 焦点事件
+ * @param {string} key 菜单 key
+ */
+function onTriggerFocus(event, key) {
+  if (suppressFocusOpen || !isDesktop.value) return;
+  if (!event.target.matches?.(":focus-visible")) return;
+  clearMegaTimer();
+  activeMega.value = key;
+}
+
+/**
+ * 触屏设备没有 hover，首次点击只展开面板，再次点击才跳转；
+ * 鼠标点击则直接关闭面板并沿用锚点的默认跳转。
+ * @param {PointerEvent} event 点击事件
+ * @param {string} key 菜单 key
+ */
+function onTriggerClick(event, key) {
+  showMobileNav.value = false;
+  if (!isDesktop.value) return;
+  if (event.pointerType === "touch" || event.pointerType === "pen") {
+    if (activeMega.value !== key) {
+      event.preventDefault();
+      clearMegaTimer();
+      activeMega.value = key;
+      return;
+    }
+  }
+  closeMega();
+}
+
+/** 触发器上按 ↓ 时展开并把焦点移到面板第一个链接，符合菜单的键盘习惯 */
+async function onTriggerArrowDown(event, key) {
+  if (!isDesktop.value) return;
+  event.preventDefault();
+  clearMegaTimer();
+  activeMega.value = key;
+  await nextTick();
+  megaPanelRef.value
+    ?.querySelector(".mega-grid.is-active a, .mega-grid.is-active button")
+    ?.focus();
+}
+
+/**
+ * 面板内菜单项/推荐卡片的统一点击处理。
+ * @param {{ target?: string, action?: string }} item 菜单项或推荐卡片
+ */
+function onMegaItem(item) {
+  closeMega();
+  showMobileNav.value = false;
+  if (item.action === "login") {
+    showLoginModal.value = true;
+    return;
+  }
+  if (item.target) {
+    document.querySelector(item.target)?.scrollIntoView({ behavior: "smooth" });
+  }
+}
+
+/** Esc 关闭面板并把焦点还给触发器，避免键盘用户丢失位置 */
+function onGlobalKeydown(event) {
+  if (event.key !== "Escape" || activeMega.value === null) return;
+  const key = activeMega.value;
+  closeMega();
+  const trigger = headerRef.value?.querySelector(`[data-mega-key="${key}"]`);
+  if (trigger && headerRef.value.contains(document.activeElement)) {
+    suppressFocusOpen = true;
+    trigger.focus();
+    suppressFocusOpen = false;
+  }
+}
+
+/** 点击导航之外的区域（含触屏）时收起面板 */
+function onGlobalPointerdown(event) {
+  if (activeMega.value === null) return;
+  if (headerRef.value && !headerRef.value.contains(event.target)) closeMega();
+}
+
+/** Tab 键把焦点移出整个导航时收起；relatedTarget 为空（点击不可聚焦区域）时不处理 */
+function onHeaderFocusout(event) {
+  const next = event.relatedTarget;
+  if (next && headerRef.value && !headerRef.value.contains(next)) closeMega();
+}
+
+/** 视口缩到移动端断点时同步状态并收起面板，移动端仍使用原有的抽屉菜单 */
+function syncDesktop() {
+  isDesktop.value = desktopMql.matches;
+  if (!isDesktop.value) closeMega();
+}
+
 onMounted(() => {
+  desktopMql = window.matchMedia(DESKTOP_QUERY);
+  syncDesktop();
+  desktopMql.addEventListener("change", syncDesktop);
+  window.addEventListener("keydown", onGlobalKeydown);
+  window.addEventListener("pointerdown", onGlobalPointerdown);
+
   observer.value = new IntersectionObserver(
     (entries) => {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
           entry.target.classList.add("is-visible");
+          // 统计条数字动画（仅触发一次）
           if (
             entry.target.dataset.statSection === "true" &&
             !animatedStats[0].current
           ) {
             animateStats();
+          }
+          // KPI 数字动画（进入视口时启动）
+          if (entry.target.dataset.kpiSection === "true") {
+            startKpiAnimation();
+          }
+          // 深色区块终端日志流（进入视口时启动）
+          if (entry.target.dataset.darkSection === "true") {
+            startLogStream();
+          }
+          // 全流程状态机自动推进
+          if (entry.target.dataset.flowSection === "true") {
+            startFlow();
+          }
+        } else {
+          // 离开视口时停止动画，避免后台空转
+          if (entry.target.dataset.kpiSection === "true") {
+            stopKpiAnimation();
+          }
+          if (entry.target.dataset.darkSection === "true") {
+            stopLogStream();
+          }
+          if (entry.target.dataset.flowSection === "true") {
+            stopFlow();
           }
         }
       });
@@ -321,6 +791,7 @@ onMounted(() => {
   sections.value = document.querySelectorAll(".reveal");
   sections.value.forEach((el) => observer.value.observe(el));
   window.addEventListener("scroll", onScroll, { passive: true });
+  window.addEventListener("scroll", onParallaxScroll, { passive: true });
 });
 
 onBeforeUnmount(() => {
@@ -329,6 +800,15 @@ onBeforeUnmount(() => {
     observer.value.disconnect();
   }
   window.removeEventListener("scroll", onScroll);
+  window.removeEventListener("scroll", onParallaxScroll);
+  window.removeEventListener("keydown", onGlobalKeydown);
+  window.removeEventListener("pointerdown", onGlobalPointerdown);
+  stopKpiAnimation();
+  stopLogStream();
+  stopFlow();
+  if (rafId) cancelAnimationFrame(rafId);
+  desktopMql?.removeEventListener("change", syncDesktop);
+  clearMegaTimer();
 });
 </script>
 
@@ -340,9 +820,16 @@ onBeforeUnmount(() => {
     </div>
 
     <!-- 顶部导航 -->
-    <header class="topnav" :class="{ scrolled: navScrolled }">
+    <header
+      ref="headerRef"
+      class="topnav"
+      :class="{ scrolled: navScrolled, 'mega-open': megaVisible }"
+      @mouseenter="clearMegaTimer"
+      @mouseleave="scheduleCloseMega"
+      @focusout="onHeaderFocusout"
+    >
       <div class="topnav-inner">
-        <button class="brand" @click="scrollToTop">
+        <button class="brand" @click="scrollToTop" @mouseenter.stop="scheduleCloseMega">
           <span class="brand-mark"><MountainSnow :size="20" /></span>
           <span class="brand-copy">
             <strong>御灾智巡</strong>
@@ -351,14 +838,27 @@ onBeforeUnmount(() => {
         </button>
 
         <nav class="nav-links" :class="{ open: showMobileNav }">
-          <a href="#features" @click="showMobileNav = false">核心能力</a>
-          <a href="#workflow" @click="showMobileNav = false">工作流程</a>
-          <a href="#architecture" @click="showMobileNav = false">系统架构</a>
-          <a href="#roles" @click="showMobileNav = false">角色方案</a>
-          <a href="#faq" @click="showMobileNav = false">常见问题</a>
+          <a
+            v-for="m in megaMenus"
+            :key="m.key"
+            :href="m.href"
+            class="nav-trigger"
+            :class="{ active: megaVisible && activeMega === m.key }"
+            :data-mega-key="m.key"
+            aria-haspopup="true"
+            :aria-expanded="megaVisible && activeMega === m.key"
+            @mouseenter="scheduleOpenMega(m.key)"
+            @focus="onTriggerFocus($event, m.key)"
+            @click="onTriggerClick($event, m.key)"
+            @keydown.down="onTriggerArrowDown($event, m.key)"
+          >
+            {{ m.label }}
+            <ChevronDown class="nav-chevron" :size="14" aria-hidden="true" />
+          </a>
+          <a href="#faq" @mouseenter="scheduleCloseMega" @click="showMobileNav = false">常见问题</a>
         </nav>
 
-        <div class="topnav-actions">
+        <div class="topnav-actions" @mouseenter.stop="scheduleCloseMega">
           <button class="nav-cta" @click="goLogin()">
             进入系统 <ArrowRight :size="14" />
           </button>
@@ -373,35 +873,123 @@ onBeforeUnmount(() => {
           </button>
         </div>
       </div>
+
+      <!-- Mega Menu 下拉面板：wrap 常驻并忽略指针事件，只有面板本身响应鼠标 -->
+      <div class="mega-wrap">
+        <Transition name="mega">
+          <div
+            v-if="megaVisible"
+            ref="megaPanelRef"
+            class="mega-panel"
+            role="region"
+            aria-label="导航菜单"
+          >
+            <div
+              v-for="m in megaMenus"
+              :key="m.key"
+              class="mega-grid"
+              :class="{ 'is-active': activeMega === m.key }"
+              :aria-hidden="activeMega !== m.key"
+            >
+              <!-- 左列：功能列表 -->
+              <div class="mega-col mega-col-list">
+                <section v-for="g in m.groups" :key="g.heading" class="mega-group">
+                  <h4 class="mega-heading">{{ g.heading }}</h4>
+                  <ul>
+                    <li v-for="it in g.items" :key="it.title">
+                      <a
+                        class="mega-item"
+                        :href="it.target"
+                        :tabindex="activeMega === m.key ? 0 : -1"
+                        @click.prevent="onMegaItem(it)"
+                      >
+                        <span class="mega-item-icon"><component :is="it.icon" :size="18" /></span>
+                        <span class="mega-item-body">
+                          <strong>{{ it.title }}</strong>
+                          <small>{{ it.desc }}</small>
+                        </span>
+                      </a>
+                    </li>
+                  </ul>
+                </section>
+              </div>
+
+              <!-- 中列：图文说明 -->
+              <div class="mega-col mega-col-story">
+                <h4 class="mega-heading">{{ m.story.heading }}</h4>
+                <div class="mega-story-visual" aria-hidden="true">
+                  <component :is="m.story.icon" :size="34" />
+                </div>
+                <h5 class="mega-story-title">{{ m.story.title }}</h5>
+                <p class="mega-story-desc">{{ m.story.desc }}</p>
+                <ul class="mega-story-points">
+                  <li v-for="p in m.story.points" :key="p"><Zap :size="12" />{{ p }}</li>
+                </ul>
+              </div>
+
+              <!-- 右列：推荐卡片 -->
+              <div class="mega-col mega-col-promo">
+                <button
+                  type="button"
+                  class="mega-promo"
+                  :tabindex="activeMega === m.key ? 0 : -1"
+                  @click="onMegaItem(m.promo)"
+                >
+                  <span class="mega-promo-badge">{{ m.promo.badge }}</span>
+                  <span class="mega-promo-icon"><component :is="m.promo.icon" :size="22" /></span>
+                  <strong>{{ m.promo.title }}</strong>
+                  <small>{{ m.promo.desc }}</small>
+                  <span class="mega-promo-cta">{{ m.promo.cta }} <ArrowRight :size="14" /></span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </Transition>
+      </div>
     </header>
 
     <!-- Hero -->
     <section class="hero">
+      <!-- 动效背景层：雷达波纹 / 扫描光束 / 漂浮光点。装饰性，不参与交互 -->
+      <div ref="heroFxRef" class="hero-fx" aria-hidden="true">
+        <div class="hero-radar">
+          <span class="radar-wave" />
+          <span class="radar-wave" style="animation-delay: 1.6s" />
+          <span class="radar-wave" style="animation-delay: 3.2s" />
+          <span class="radar-core" />
+        </div>
+        <span class="scan-beam beam-1" />
+        <span class="scan-beam beam-2" />
+        <div class="hero-dots">
+          <i v-for="n in 14" :key="n" :class="'hd hd-' + n" />
+        </div>
+      </div>
+
       <div class="hero-inner">
         <span class="hero-badge reveal">
           <ShieldAlert :size="12" />
           地质灾害全流程智能监测预警平台
         </span>
 
-        <h1 class="hero-title reveal">
-          智能感知 · <span class="gradient-text">精准预警</span> · 高效应急
+        <h1 class="hero-title reveal" style="--delay: 0.1s">
+          智能感知 · <span class="gradient-text shine-text">精准预警</span> · 高效应急
         </h1>
 
-        <p class="hero-desc reveal">
-          御灾智巡是一站式地质灾害防治平台——融合 IoT 传感器、AI
-          模型与多级规则引擎，覆盖灾害点管理、风险研判、预警发布与应急处置全流程，让地质灾害防治更科学、更高效。
+        <p class="hero-desc reveal" style="--delay: 0.2s">
+          从物理世界的每一次微震，到云端算力的毫秒级研判。一站式地质灾害防治平台，为生命安全争取黄金时间。
         </p>
 
-        <div class="hero-cta reveal">
+        <div class="hero-cta reveal" style="--delay: 0.3s">
           <button class="btn-primary" @click="goLogin()">
-            立即进入系统 <ArrowRight :size="16" />
+            <span class="btn-label">立即进入系统</span>
+            <span class="btn-arrow-pulse"><ArrowRight :size="16" /></span>
           </button>
           <button class="btn-ghost" @click="scrollToContent">
             了解平台功能 <ChevronDown :size="15" />
           </button>
         </div>
 
-        <div class="hero-trust reveal">
+        <div class="hero-trust reveal" style="--delay: 0.4s">
           <span class="hero-trust-item">物联网 + AI 融合</span>
           <span class="hero-trust-item">多级规则引擎</span>
           <span class="hero-trust-item">企业级安全防护</span>
@@ -409,7 +997,7 @@ onBeforeUnmount(() => {
       </div>
 
       <!-- 终端样式的产品预览 -->
-      <div class="hero-preview reveal">
+      <div class="hero-preview reveal" style="--delay: 0.2s" data-kpi-section="true">
         <div class="preview-frame">
           <div class="frame-bar">
             <span class="dot dot-r" /><span class="dot dot-y" /><span class="dot dot-g" />
@@ -437,19 +1025,19 @@ onBeforeUnmount(() => {
               <div class="preview-top">
                 <div class="preview-kpi">
                   <small>监测点</small>
-                  <strong>128</strong>
+                  <strong>{{ kpiNumbers.monitors }}<em class="trend up">↑</em></strong>
                 </div>
                 <div class="preview-kpi">
                   <small>在线设备</small>
-                  <strong>346</strong>
+                  <strong :key="'d' + kpiPulse" class="flash">{{ kpiNumbers.devices }}<em class="trend" :class="kpiTrend.devices">{{ kpiTrend.devices === 'up' ? '↑' : '↓' }}</em></strong>
                 </div>
                 <div class="preview-kpi">
                   <small>今日预警</small>
-                  <strong class="warn">12</strong>
+                  <strong :key="'a' + kpiPulse" class="warn flash">{{ kpiNumbers.alerts }}<em class="trend" :class="kpiTrend.alerts">{{ kpiTrend.alerts === 'up' ? '↑' : '↓' }}</em></strong>
                 </div>
                 <div class="preview-kpi">
                   <small>处置率</small>
-                  <strong class="good">95%</strong>
+                  <strong class="good">{{ kpiNumbers.rate }}%<em class="trend up">↑</em></strong>
                 </div>
               </div>
 
@@ -498,27 +1086,129 @@ onBeforeUnmount(() => {
       </div>
     </section>
 
-    <!-- 核心能力 -->
-    <section id="features" class="section features-section">
+    <!-- 核心能力（左右交替图文） -->
+    <section id="features" class="section features-alt-section">
       <div class="section-head reveal">
         <span class="eyebrow">CAPABILITIES</span>
         <h2>超越一揽子方案</h2>
-        <p>融合 AI、物联网与工程防治实践，为地质风险场景量身打造</p>
+        <p>融合 AI、物联网与工程防治实践,为地质风险场景量身打造</p>
       </div>
 
-      <div class="cards-grid">
-        <article
-          v-for="(c, i) in capabilities"
-          :key="i"
-          class="card reveal"
-          :class="{ purple: i === 0, green: i === 2 }"
-          :style="{ '--delay': i * 0.1 + 's' }"
-        >
-          <span class="card-icon" :class="{ purple: i === 0, green: i === 2 }"><component :is="c.icon" :size="22" /></span>
-          <span class="card-tag">{{ c.tag }}</span>
-          <h3>{{ c.title }}</h3>
-          <p>{{ c.desc }}</p>
-        </article>
+      <!-- 模块一：左文右图 —— AI 融合 -->
+      <div class="feature-alt-row reveal">
+        <div class="feature-alt-copy">
+          <span class="eyebrow">AI FUSION</span>
+          <h3>多源数据融合，不止是算法组合</h3>
+          <p>
+            孤立森林、XGBoost 与多级规则引擎组合，按数据特征动态选择最优模型。
+            不只是把模型堆在一起，而是让每一个模型都在最擅长的场景发挥作用。
+          </p>
+        </div>
+        <div class="feature-alt-visual">
+          <div class="aurora-chart" role="img" aria-label="多模型融合研判示意图：孤立森林、XGBoost、规则引擎三条曲线汇聚为一条融合研判曲线">
+            <div class="aurora-wave wave-1" />
+            <div class="aurora-wave wave-2" />
+            <div class="aurora-wave wave-3" />
+            <div class="aurora-grid" />
+            <svg class="aurora-svg" viewBox="0 0 400 220" preserveAspectRatio="none" aria-hidden="true">
+              <path class="ln ln-a" d="M0 150 C40 130 70 170 110 140 S180 90 230 120 S320 150 400 100" />
+              <path class="ln ln-b" d="M0 170 C50 160 90 120 140 135 S210 170 260 130 S340 90 400 120" />
+              <path class="ln ln-c" d="M0 130 C60 150 100 100 150 110 S230 140 280 95 S350 80 400 90" />
+              <path class="ln ln-fuse" d="M0 145 C60 138 100 118 150 118 S230 128 280 104 S350 88 400 96" />
+            </svg>
+            <div class="aurora-legend">
+              <span><i class="lg lg-a" />孤立森林</span>
+              <span><i class="lg lg-b" />XGBoost</span>
+              <span><i class="lg lg-c" />规则引擎</span>
+              <span class="lg-fuse"><i class="lg lg-f" />融合研判</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 模块二：左图右文 —— 全流程闭环 -->
+      <!-- DOM 里文字在前、图在后（移动端堆叠顺序一致，读屏顺序也自然），桌面端用 row-reverse 把图换到左侧 -->
+      <div class="feature-alt-row reversed reveal" data-flow-section="true">
+        <div class="feature-alt-copy">
+          <span class="eyebrow">CLOSED LOOP</span>
+          <h3>从隐患发现，到解除警报，一切尽在掌控</h3>
+          <p>
+            覆盖灾害点管理、巡检任务、GPS 打卡到预警研判、派发处置的完整防治链条。
+            每一个状态流转都有据可查，让应急决策有据可依。
+          </p>
+        </div>
+        <div class="feature-alt-visual">
+          <div
+            class="state-machine"
+            role="group"
+            aria-label="处置流程状态机"
+            @mouseenter="stopFlow"
+            @mouseleave="startFlow"
+          >
+            <div v-for="(s, i) in flowSteps" :key="s.label" class="state-step">
+              <div v-if="i > 0" class="state-link" :class="{ filled: i <= flowActive }" />
+              <button
+                type="button"
+                class="state-node"
+                :class="{ active: i === flowActive, done: i < flowActive }"
+                :aria-current="i === flowActive ? 'step' : undefined"
+                @click="selectFlow(i)"
+              >
+                <span class="state-index">{{ String(i + 1).padStart(2, '0') }}</span>
+                <span class="state-text">
+                  <strong>{{ s.label }}</strong>
+                  <small>{{ s.desc }}</small>
+                </span>
+                <i v-if="i < flowActive" class="state-check" aria-hidden="true">✓</i>
+                <i v-else-if="i === flowActive" class="state-spinner" aria-hidden="true" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 深色指挥中心区块（整屏宽，深莫兰迪绿背景） -->
+    <section class="section dark-command-section reveal" data-dark-section="true">
+      <div class="dark-inner">
+        <div class="dark-copy">
+          <span class="eyebrow eyebrow-light">COMMAND CENTER</span>
+          <h2 class="dark-h2">指挥中枢 · 实时接收 · 全程追踪</h2>
+          <p class="dark-desc">
+            从隐患发现到预警研判、从任务派发到解除警报，每一步都在掌控之中。
+            深度集成 AI 模型与多级规则引擎，让研判更智能、决策更及时。
+          </p>
+          <ul class="dark-list">
+            <li><span class="glow-dot" />秒级入库 TDengine</li>
+            <li><span class="glow-dot" />分级预警推送</li>
+            <li><span class="glow-dot" />处置全程留痕</li>
+          </ul>
+        </div>
+        <div class="dark-visual">
+          <div class="terminal-dark">
+            <div class="terminal-bar-dark">
+              <span class="dot dot-r" />
+              <span class="dot dot-y" />
+              <span class="dot dot-g" />
+              <span>command · 实时指挥</span>
+            </div>
+            <div class="terminal-body-dark">
+              <div v-for="log in terminalLogs" :key="log.id" class="code-line">
+                <span v-if="log.type === 'prompt'" class="prompt">{{ log.text }}</span>
+                <span v-else-if="log.type === 'comment'" class="comment">{{ log.text }}</span>
+                <template v-else-if="log.type === 'warn'">
+                  <span class="keyword">{{ log.tag }}</span> {{ log.text }}
+                  <span v-if="log.badge" class="badge-high" :class="{ mid: log.badge === '中' }">{{ log.badge }}</span>
+                </template>
+                <template v-else>
+                  <span class="info-tag">INFO</span> {{ log.text }}
+                  <span v-if="log.value" class="num">{{ log.value }}</span>
+                </template>
+              </div>
+              <div class="code-line anim-blink"><span class="prompt">█</span></div>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -730,7 +1420,7 @@ onBeforeUnmount(() => {
           <button class="btn-primary btn-light" @click="goLogin()">
             登录系统 <ArrowRight :size="16" />
           </button>
-          <small class="cta-hint">演示账号 admin / 123456 · 可选值守员与维护员角色</small>
+          <small class="cta-hint">默认管理员：admin / admin123（若未连接数据库，内存兜底密码为 123456）</small>
         </div>
       </div>
     </section>
@@ -809,6 +1499,11 @@ onBeforeUnmount(() => {
               <button class="primary-btn login-btn" type="submit" :disabled="loginLoading">
                 <LogIn :size="16" />{{ loginLoading ? "登录中..." : "进入系统" }}
               </button>
+
+              <!-- 注册入口：本系统不开放自助注册，跳到申请页走审核流程 -->
+              <p class="login-register">
+                还没有账号？<RouterLink to="/register">申请注册</RouterLink>
+              </p>
             </form>
           </div>
         </div>
@@ -1010,6 +1705,299 @@ onBeforeUnmount(() => {
 .nav-burger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
 .nav-burger.open span:nth-child(2) { opacity: 0; }
 .nav-burger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+/* ====== Mega Menu ====== */
+/* 展开时导航条与面板共用同一套磨砂底，视觉上连成一体 */
+.topnav.mega-open {
+  background: color-mix(in srgb, var(--c-surface) 82%, transparent);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border-bottom-color: var(--border-color);
+}
+.nav-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.nav-chevron {
+  opacity: .55;
+  transition: transform .3s cubic-bezier(0.32, 0.72, 0, 1), opacity .2s;
+}
+.nav-trigger.active {
+  color: var(--c-brand-deep);
+  background: color-mix(in srgb, var(--c-brand) 8%, transparent);
+}
+.nav-trigger.active .nav-chevron {
+  transform: rotate(180deg);
+  opacity: 1;
+}
+.nav-trigger:focus-visible,
+.mega-item:focus-visible,
+.mega-promo:focus-visible {
+  outline: 2px solid var(--c-brand);
+  outline-offset: 2px;
+}
+
+/* wrap 忽略指针事件：面板两侧的空白不会拦截下方 Hero 的点击 */
+.mega-wrap {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  padding: 0 28px;
+  pointer-events: none;
+}
+.mega-panel {
+  --mega-ease: cubic-bezier(0.32, 0.72, 0, 1);
+  --mega-dur: 300ms;
+  /* 面板内部自成一套浅色令牌并带写死的兜底值：
+     不依赖全局未定义变量（--c-ink-1 / --c-on-brand），也不受外层继承色或深色主题影响 */
+  --mega-bg: var(--bg-card, #ffffff);
+  --mega-border: var(--border-color, #d1dcd5);
+  --mega-text: var(--text-main, #2c3b34);
+  --mega-text-muted: #55655d;   /* 白底对比度 ≥ 5.5:1 */
+  --mega-heading: #5b6a63;      /* 实色代替 opacity，保证小号大写标题可读 */
+  --mega-brand: var(--primary, #5f7a6b);
+  --mega-brand-deep: var(--primary-deep, #385f49);
+  --mega-brand-soft: rgba(95, 122, 107, 0.12);
+  --mega-on-brand: #ffffff;
+  color-scheme: light;
+  color: var(--mega-text);
+  position: relative;
+  width: min(1120px, 100%);
+  margin-top: 8px;
+  padding: 28px 32px;
+  background: #ffffff;
+  background-color: var(--mega-bg);
+  border: 1px solid var(--mega-border);
+  border-radius: var(--r-xl);
+  box-shadow: 0 1px 2px rgba(44, 59, 52, .04), 0 16px 40px -12px rgba(44, 59, 52, .14);
+  pointer-events: auto;
+  /* 所有菜单叠在同一网格单元里，面板高度取最高者，切换菜单时不会跳动 */
+  display: grid;
+}
+/* 透明桥接区：覆盖导航条与面板之间的 8px 缝隙，鼠标斜向移入时不会触发收起 */
+.mega-panel::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -12px;
+  height: 12px;
+}
+.mega-grid {
+  grid-area: 1 / 1;
+  display: grid;
+  grid-template-columns: 1.35fr 1fr .9fr;
+  gap: 40px;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-6px);
+  transition:
+    opacity 200ms var(--mega-ease),
+    transform 200ms var(--mega-ease),
+    visibility 0s linear 200ms;
+}
+.mega-grid.is-active {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  transition:
+    opacity 260ms var(--mega-ease) 60ms,
+    transform 260ms var(--mega-ease) 60ms,
+    visibility 0s;
+}
+.mega-col { min-width: 0; }
+
+.mega-heading {
+  margin: 0 0 4px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .14em;
+  color: var(--mega-heading);
+}
+.mega-group + .mega-group { margin-top: 16px; }
+.mega-group ul,
+.mega-story-points {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.mega-item {
+  display: grid;
+  grid-template-columns: 36px 1fr;
+  gap: 14px;
+  padding: 12px 0;
+  color: inherit;
+  text-decoration: none;
+  border-radius: var(--r-md);
+}
+.mega-item-icon {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  color: var(--mega-brand-deep);
+  border-radius: var(--r-md);
+  background: var(--mega-brand-soft);
+  transition: color .2s, background .2s;
+}
+.mega-item-body strong {
+  display: block;
+  color: var(--mega-text);
+  font-size: 14px;
+  font-weight: 700;
+  transition: color .2s;
+}
+.mega-item-body small {
+  display: block;
+  margin-top: 3px;
+  color: var(--mega-text-muted);
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+.mega-item:hover .mega-item-body strong { color: var(--mega-brand-deep); }
+.mega-item:hover .mega-item-icon {
+  color: var(--mega-on-brand);
+  background: var(--mega-brand);
+}
+
+/* 中列：图文说明 */
+.mega-col-story {
+  padding: 0 32px;
+  border-left: 1px solid var(--mega-border);
+  border-right: 1px solid var(--mega-border);
+}
+.mega-story-visual {
+  height: 108px;
+  margin: 12px 0 16px;
+  display: grid;
+  place-items: center;
+  color: var(--mega-brand-deep);
+  border-radius: var(--r-lg);
+  background:
+    linear-gradient(var(--c-brand-mist) 1px, transparent 1px) 0 0 / 22px 22px,
+    linear-gradient(90deg, var(--c-brand-mist) 1px, transparent 1px) 0 0 / 22px 22px,
+    linear-gradient(135deg, var(--c-brand-soft), var(--c-brand-mist));
+}
+.mega-story-title {
+  margin: 0;
+  color: var(--mega-text);
+  font-size: 16px;
+  font-weight: 700;
+}
+.mega-story-desc {
+  margin: 8px 0 0;
+  color: var(--mega-text-muted);
+  font-size: 13px;
+  line-height: 1.65;
+}
+.mega-story-points { margin-top: 14px; }
+.mega-story-points li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  color: var(--mega-text);
+  font-size: 12.5px;
+}
+.mega-story-points svg { color: var(--mega-brand); flex: none; }
+
+/* 右列：推荐卡片，深莫兰迪绿底形成视觉焦点 */
+.mega-col-promo { display: flex; }
+.mega-promo {
+  position: relative;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 22px;
+  color: #ffffff;
+  text-align: left;
+  border: 0;
+  border-radius: var(--r-lg);
+  background-color: #385f49;
+  background-image: linear-gradient(145deg, var(--mega-brand-deep), var(--mega-brand));
+  cursor: pointer;
+  overflow: hidden;
+  transition: transform .25s cubic-bezier(0.32, 0.72, 0, 1), box-shadow .25s;
+}
+.mega-promo::after {
+  content: "";
+  position: absolute;
+  right: -40px;
+  bottom: -40px;
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .08);
+}
+.mega-promo:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px -8px color-mix(in srgb, var(--c-brand-deep) 55%, transparent);
+}
+.mega-promo-badge {
+  padding: 2px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, .18);
+}
+.mega-promo-icon {
+  margin-top: 6px;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-md);
+  background: rgba(255, 255, 255, .16);
+}
+.mega-promo strong { color: #ffffff; font-size: 16px; font-weight: 700; }
+.mega-promo small {
+  color: rgba(255, 255, 255, .86);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+.mega-promo-badge,
+.mega-promo-icon { color: #ffffff; }
+.mega-promo-cta {
+  margin-top: auto;
+  padding-top: 12px;
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* 展开/收起：自上向下展开 + 透明度，300ms，cubic-bezier(0.32, 0.72, 0, 1) */
+.mega-enter-active,
+.mega-leave-active {
+  transition:
+    opacity 300ms cubic-bezier(0.32, 0.72, 0, 1),
+    transform 300ms cubic-bezier(0.32, 0.72, 0, 1),
+    clip-path 300ms cubic-bezier(0.32, 0.72, 0, 1);
+  transform-origin: top center;
+}
+.mega-enter-from,
+.mega-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
+  /* 底部收起、两侧与顶部留出余量，避免裁掉阴影与桥接区 */
+  clip-path: inset(-40px -40px 100% -40px);
+}
+.mega-enter-to,
+.mega-leave-from {
+  opacity: 1;
+  transform: none;
+  clip-path: inset(-40px -40px -40px -40px);
+}
 
 /* ====== Hero ====== */
 .hero {
@@ -2677,6 +3665,690 @@ onBeforeUnmount(() => {
     /* = rgba 15,34,24/.06 */;
 }
 
+/* =====================================================================
+   视觉升级 · Hero 动效层
+   视差原理：--parallax-y 由脚本按滚动距离写入 .hero-fx；
+   这些图层随页面正常上滚，再被 translate 反向"拖住"，净速度小于前景文字。
+   固定背景(.bg)不做位移，避免露出空白边缘。
+   ===================================================================== */
+.hero-fx {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.hero-inner,
+.hero-preview {
+  position: relative;
+  z-index: 1;
+}
+
+/* 雷达波纹：以标题区为圆心，从中心缓慢扩散并消失 */
+.hero-radar {
+  position: absolute;
+  left: 50%;
+  top: 340px;
+  width: 0;
+  height: 0;
+  translate: 0 calc(var(--parallax-y, 0px) * 1);
+}
+.radar-wave {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1100px;
+  height: 1100px;
+  margin: -550px 0 0 -550px;
+  border: 1.5px solid rgba(142, 177, 160, 0.3);
+  border-radius: 50%;
+  background: radial-gradient(circle, transparent 58%, rgba(142, 177, 160, 0.07) 100%);
+  opacity: 0;
+  will-change: transform, opacity;
+  animation: radar-expand 6.4s cubic-bezier(0.2, 0.6, 0.3, 1) infinite;
+}
+.radar-core {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 420px;
+  height: 420px;
+  margin: -210px 0 0 -210px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(142, 177, 160, 0.22), transparent 68%);
+  will-change: transform, opacity;
+  animation: core-breathe 4.8s ease-in-out infinite;
+}
+@keyframes radar-expand {
+  0% { transform: scale(0.12); opacity: 0; }
+  12% { opacity: 0.85; }
+  100% { transform: scale(1); opacity: 0; }
+}
+@keyframes core-breathe {
+  0%, 100% { transform: scale(0.9); opacity: 0.55; }
+  50% { transform: scale(1.1); opacity: 1; }
+}
+
+/* 卫星扫描光束：斜向光带自左向右扫过 */
+.scan-beam {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 180px;
+  background: linear-gradient(90deg, transparent, rgba(142, 177, 160, 0.17), transparent);
+  opacity: 0;
+  will-change: transform, opacity;
+  animation: beam-sweep 10s linear infinite;
+}
+.scan-beam.beam-2 {
+  width: 90px;
+  animation-duration: 13s;
+  animation-delay: 4.5s;
+}
+@keyframes beam-sweep {
+  0% { transform: translate3d(-30vw, 0, 0) skewX(-18deg); opacity: 0; }
+  10%, 90% { opacity: 1; }
+  100% { transform: translate3d(115vw, 0, 0) skewX(-18deg); opacity: 0; }
+}
+
+/* 漂浮光点：每个点用独立的 --p 视差系数，制造前后层次 */
+.hero-dots {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -260px; /* 向上多留出位移余量，避免视差下移后顶部露空 */
+  bottom: 0;
+}
+.hd {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  width: var(--s, 6px);
+  height: var(--s, 6px);
+  border-radius: 50%;
+  background: #8eb1a0;
+  box-shadow: 0 0 12px 2px rgba(142, 177, 160, 0.55);
+  opacity: 0;
+  translate: 0 calc(var(--parallax-y, 0px) * var(--p, 1));
+  will-change: transform, opacity;
+  animation: dot-float var(--t, 7s) ease-in-out var(--d, 0s) infinite;
+}
+@keyframes dot-float {
+  0%, 100% { transform: translateY(0); opacity: 0.2; }
+  50% { transform: translateY(-20px); opacity: 0.9; }
+}
+.hd-1 { --x: 8%; --y: 24%; --s: 5px; --p: 0.6; --t: 7s; --d: -1s; }
+.hd-2 { --x: 17%; --y: 52%; --s: 8px; --p: 1.5; --t: 9s; --d: -4s; }
+.hd-3 { --x: 27%; --y: 18%; --s: 4px; --p: 0.8; --t: 6s; --d: -2s; }
+.hd-4 { --x: 36%; --y: 64%; --s: 6px; --p: 1.2; --t: 8s; --d: -5s; }
+.hd-5 { --x: 44%; --y: 12%; --s: 4px; --p: 0.5; --t: 7.5s; --d: -3s; }
+.hd-6 { --x: 56%; --y: 70%; --s: 7px; --p: 1.6; --t: 9.5s; --d: -6s; }
+.hd-7 { --x: 63%; --y: 22%; --s: 5px; --p: 0.7; --t: 6.5s; --d: -1.5s; }
+.hd-8 { --x: 72%; --y: 48%; --s: 9px; --p: 1.4; --t: 10s; --d: -7s; }
+.hd-9 { --x: 81%; --y: 16%; --s: 4px; --p: 0.6; --t: 7s; --d: -2.5s; }
+.hd-10 { --x: 88%; --y: 58%; --s: 6px; --p: 1.1; --t: 8.5s; --d: -4.5s; }
+.hd-11 { --x: 93%; --y: 34%; --s: 5px; --p: 0.9; --t: 6.8s; --d: -3.5s; }
+.hd-12 { --x: 4%; --y: 72%; --s: 6px; --p: 1.3; --t: 9s; --d: -6.5s; }
+.hd-13 { --x: 49%; --y: 40%; --s: 3px; --p: 0.4; --t: 5.8s; --d: -0.5s; }
+.hd-14 { --x: 76%; --y: 80%; --s: 5px; --p: 1.5; --t: 8s; --d: -5.5s; }
+
+/* 标题中间四字：莫兰迪绿渐变底 + 发光扫过。
+   高光与绿色底是同一个 background-clip:text 的两层背景，所以光只会出现在字形内，不会溢出成方块 */
+.shine-text {
+  background:
+    linear-gradient(110deg, transparent 35%, rgba(255, 255, 255, 0.9) 50%, transparent 65%) no-repeat,
+    linear-gradient(135deg, var(--c-brand-deep) 0%, var(--c-brand) 55%, #8eb1a0 100%);
+  background-size: 250% 100%, 100% 100%;
+  background-position: 130% 0, 0 0;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  filter: drop-shadow(0 0 16px rgba(142, 177, 160, 0.45));
+  animation: title-shine 3.8s ease-in-out 1.2s infinite;
+}
+@keyframes title-shine {
+  0% { background-position: 130% 0, 0 0; }
+  45%, 100% { background-position: -30% 0, 0 0; }
+}
+
+/* 主按钮：加厚的多层阴影 + 悬停微光扫过 + 脉冲箭头 */
+.hero-cta .btn-primary {
+  padding: 16px 32px;
+  font-size: 17px;
+  box-shadow:
+    0 22px 44px -8px color-mix(in srgb, var(--c-brand-deep) 55%, transparent),
+    0 8px 16px color-mix(in srgb, var(--c-brand) 35%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.28);
+}
+.hero-cta .btn-primary:hover {
+  box-shadow:
+    0 28px 56px -8px color-mix(in srgb, var(--c-brand-deep) 65%, transparent),
+    0 10px 20px color-mix(in srgb, var(--c-brand) 45%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.34);
+}
+.btn-primary::before {
+  background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, 0.42) 50%, transparent 65%);
+  transform: translateX(-120%);
+  transition: transform 0.75s cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+.btn-primary:hover::before { transform: translateX(120%); }
+.btn-arrow-pulse {
+  display: inline-flex;
+  animation: arrow-nudge 1.4s ease-in-out infinite;
+}
+.btn-primary:hover .btn-arrow-pulse { animation-duration: 0.7s; }
+@keyframes arrow-nudge {
+  0%, 100% { transform: translateX(0); opacity: 1; }
+  50% { transform: translateX(5px); opacity: 0.8; }
+}
+
+/* =====================================================================
+   视觉升级 · 伪浏览器窗口 / KPI
+   ===================================================================== */
+.preview-frame {
+  box-shadow:
+    0 20px 40px rgba(0, 0, 0, 0.1),
+    0 1px 3px rgba(0, 0, 0, 0.05),
+    0 48px 110px -24px rgba(31, 43, 37, 0.32),
+    0 14px 36px -10px color-mix(in srgb, var(--c-brand) 18%, transparent),
+    0 0 0 1px rgba(255, 255, 255, 0.5) inset;
+}
+.preview-kpi strong {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-top: 8px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 32px;
+  font-variant-numeric: tabular-nums; /* 等宽数字，滚动时不会左右抖动 */
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+.preview-kpi strong.flash { animation: kpi-flash 0.9s ease-out; }
+@keyframes kpi-flash {
+  0% { text-shadow: 0 0 0 rgba(142, 177, 160, 0); transform: translateY(0); }
+  25% { text-shadow: 0 0 14px rgba(142, 177, 160, 0.9); transform: translateY(-2px); }
+  100% { text-shadow: 0 0 0 rgba(142, 177, 160, 0); transform: translateY(0); }
+}
+/* ↑↓ 指示器：绿色，持续轻微跳动；上下方向的位移方向不同 */
+.trend {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+  font-size: 15px;
+  font-style: normal;
+  font-weight: 800;
+  color: #6f9e7f;
+  display: inline-block;
+}
+.trend.up { animation: trend-up 1.1s ease-in-out infinite; }
+.trend.down { animation: trend-down 1.1s ease-in-out infinite; }
+@keyframes trend-up {
+  0%, 100% { transform: translateY(1px); opacity: 0.7; }
+  50% { transform: translateY(-3px); opacity: 1; }
+}
+@keyframes trend-down {
+  0%, 100% { transform: translateY(-1px); opacity: 0.7; }
+  50% { transform: translateY(3px); opacity: 1; }
+}
+
+/* =====================================================================
+   视觉升级 · 功能模块左右交替
+   用 flex + row-reverse 交替，DOM 顺序始终是"文字在前"，
+   这样移动端堆叠与读屏顺序一致，也不需要 direction:rtl 带来的文本对齐副作用
+   ===================================================================== */
+.features-alt-section { padding-bottom: 40px; }
+.feature-alt-row {
+  display: flex;
+  align-items: center;
+  gap: 72px;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 56px 0;
+}
+.feature-alt-row.reversed { flex-direction: row-reverse; }
+.feature-alt-copy,
+.feature-alt-visual { flex: 1 1 0; min-width: 0; }
+.feature-alt-copy { text-align: left; }
+.feature-alt-copy .eyebrow {
+  display: inline-block;
+  padding: 5px 12px;
+  color: var(--c-brand-deep);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  border: 1px solid color-mix(in srgb, var(--c-brand) 20%, transparent);
+  border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--c-brand) 8%, transparent);
+}
+.feature-alt-copy h3 {
+  margin: 20px 0 0;
+  color: var(--c-text);
+  font-size: clamp(28px, 3.6vw, 42px);
+  line-height: 1.18;
+  letter-spacing: -0.03em;
+  font-weight: 800;
+}
+.feature-alt-copy p {
+  margin: 20px 0 0;
+  color: var(--c-ink-1);
+  font-size: 17px;
+  line-height: 1.75;
+}
+
+/* 极光 / 全息图表：深色玻璃面板 + 漂移的模糊光斑 + 多模型曲线汇聚 */
+.aurora-chart {
+  position: relative;
+  height: 340px;
+  border: 1px solid rgba(142, 177, 160, 0.28);
+  border-radius: var(--r-xl);
+  background: linear-gradient(160deg, #1f2b25 0%, #26362e 100%);
+  box-shadow: 0 24px 60px -18px rgba(31, 43, 37, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+  overflow: hidden;
+  isolation: isolate;
+}
+.aurora-wave {
+  position: absolute;
+  width: 70%;
+  height: 70%;
+  border-radius: 50%;
+  filter: blur(46px);
+  opacity: 0.55;
+  will-change: transform, opacity;
+  animation: aurora-shift 9s ease-in-out infinite;
+  z-index: -1;
+}
+.wave-1 { left: -15%; top: -20%; background: rgba(142, 177, 160, 0.55); }
+.wave-2 { right: -20%; top: 10%; background: rgba(111, 158, 127, 0.4); animation-delay: -3s; animation-duration: 11s; }
+.wave-3 { left: 20%; bottom: -35%; background: rgba(184, 207, 196, 0.32); animation-delay: -6s; animation-duration: 13s; }
+@keyframes aurora-shift {
+  0%, 100% { transform: translate3d(-8%, -4%, 0) scale(1); opacity: 0.45; }
+  50% { transform: translate3d(12%, 8%, 0) scale(1.18); opacity: 0.75; }
+}
+.aurora-grid {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(rgba(142, 177, 160, 0.09) 1px, transparent 1px) 0 0 / 32px 32px,
+    linear-gradient(90deg, rgba(142, 177, 160, 0.09) 1px, transparent 1px) 0 0 / 32px 32px;
+  -webkit-mask-image: radial-gradient(ellipse at center, #000 30%, transparent 78%);
+  mask-image: radial-gradient(ellipse at center, #000 30%, transparent 78%);
+}
+.aurora-svg {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 22px;
+  width: 100%;
+  height: 240px;
+}
+.aurora-svg .ln {
+  fill: none;
+  stroke-linecap: round;
+  stroke-width: 1.6;
+  vector-effect: non-scaling-stroke;
+}
+.ln-a { stroke: rgba(184, 207, 196, 0.5); stroke-dasharray: 5 7; animation: dash-flow 3.2s linear infinite; }
+.ln-b { stroke: rgba(142, 177, 160, 0.5); stroke-dasharray: 5 7; animation: dash-flow 4.2s linear infinite reverse; }
+.ln-c { stroke: rgba(111, 158, 127, 0.55); stroke-dasharray: 5 7; animation: dash-flow 5.2s linear infinite; }
+.ln-fuse {
+  stroke: #dce9e1;
+  stroke-width: 2.6;
+  stroke-dasharray: 520;
+  stroke-dashoffset: 520;
+  filter: drop-shadow(0 0 7px rgba(142, 177, 160, 0.95));
+  animation: fuse-draw 5s ease-in-out infinite;
+}
+@keyframes dash-flow { to { stroke-dashoffset: -48; } }
+@keyframes fuse-draw {
+  0% { stroke-dashoffset: 520; opacity: 0.4; }
+  55%, 85% { stroke-dashoffset: 0; opacity: 1; }
+  100% { stroke-dashoffset: 0; opacity: 0.4; }
+}
+.aurora-legend {
+  position: absolute;
+  left: 20px;
+  right: 20px;
+  bottom: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  color: rgba(255, 255, 255, 0.72);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+}
+.aurora-legend span { display: inline-flex; align-items: center; gap: 7px; }
+.aurora-legend .lg-fuse { color: #dce9e1; font-weight: 700; }
+.lg { width: 14px; height: 3px; border-radius: 2px; }
+.lg-a { background: rgba(184, 207, 196, 0.8); }
+.lg-b { background: rgba(142, 177, 160, 0.8); }
+.lg-c { background: rgba(111, 158, 127, 0.9); }
+.lg-f { background: #dce9e1; box-shadow: 0 0 8px rgba(142, 177, 160, 0.9); }
+
+/* 状态机 / 时间轴：可点击，悬停暂停自动推进 */
+.state-machine {
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--r-xl);
+  background: linear-gradient(160deg, var(--c-surface), var(--c-surface-2));
+  box-shadow: 0 20px 48px -16px rgba(31, 43, 37, 0.2), 0 1px 3px rgba(31, 43, 37, 0.06);
+}
+.state-node {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  padding: 16px 18px;
+  text-align: left;
+  font: inherit;
+  color: var(--c-text-2);
+  border: 1px solid var(--border-color);
+  border-radius: var(--r-lg);
+  background: var(--c-surface);
+  cursor: pointer;
+  transition: background 0.35s, border-color 0.35s, box-shadow 0.35s, transform 0.35s;
+}
+.state-node:hover { border-color: color-mix(in srgb, var(--c-brand) 50%, transparent); }
+.state-node:focus-visible { outline: 2px solid var(--c-brand); outline-offset: 2px; }
+.state-node.active {
+  border-color: var(--c-brand);
+  background: linear-gradient(135deg, var(--c-brand-soft), var(--c-surface));
+  box-shadow: 0 10px 26px -10px color-mix(in srgb, var(--c-brand) 55%, transparent);
+  transform: translateX(6px);
+}
+.state-node.done { background: var(--c-brand-mist); }
+.state-index {
+  flex: none;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--c-text-3);
+}
+.state-node.active .state-index,
+.state-node.done .state-index { color: var(--c-brand-deep); }
+.state-text { flex: 1; min-width: 0; }
+.state-text strong { display: block; color: var(--c-text); font-size: 16px; font-weight: 700; }
+.state-text small { display: block; margin-top: 3px; color: var(--c-text-3); font-size: 13px; line-height: 1.5; }
+.state-check { flex: none; color: var(--c-success); font-size: 18px; font-style: normal; font-weight: 800; }
+.state-spinner {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  border: 2px solid color-mix(in srgb, var(--c-brand) 25%, transparent);
+  border-top-color: var(--c-brand);
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.state-link {
+  width: 2px;
+  height: 14px;
+  margin-left: 30px;
+  background: var(--border-color);
+  transition: background 0.5s;
+}
+.state-link.filled { background: var(--c-brand); }
+
+/* =====================================================================
+   视觉升级 · 深色指挥中心区块（全宽）
+   .reveal 的整体上浮会让全宽色块顶部露出缝隙，所以这里取消色块自身的位移，
+   改为让内部的文字列与终端分别错峰上浮。
+   ===================================================================== */
+.section.dark-command-section {
+  max-width: none;
+  margin: 72px 0 0;
+  padding: 120px 28px;
+  color: #ffffff;
+  background:
+    radial-gradient(ellipse 60% 70% at 78% 40%, rgba(142, 177, 160, 0.14), transparent 70%),
+    linear-gradient(rgba(142, 177, 160, 0.05) 1px, transparent 1px) 0 0 / 48px 48px,
+    linear-gradient(90deg, rgba(142, 177, 160, 0.05) 1px, transparent 1px) 0 0 / 48px 48px,
+    #1f2b25;
+  border-top: 1px solid rgba(142, 177, 160, 0.22);
+  border-bottom: 1px solid rgba(142, 177, 160, 0.22);
+}
+.dark-command-section.reveal {
+  opacity: 1;
+  transform: none;
+  transition: none;
+}
+.dark-copy,
+.dark-visual {
+  opacity: 0;
+  transform: translateY(30px);
+  transition:
+    opacity 0.8s cubic-bezier(0.2, 0.7, 0.3, 1),
+    transform 0.8s cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+.dark-visual { transition-delay: 0.18s; }
+.dark-command-section.is-visible .dark-copy,
+.dark-command-section.is-visible .dark-visual {
+  opacity: 1;
+  transform: translateY(0);
+}
+.dark-inner {
+  max-width: 1120px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 1.05fr;
+  gap: 72px;
+  align-items: center;
+}
+.eyebrow-light {
+  display: inline-block;
+  padding: 5px 12px;
+  color: #8eb1a0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  border: 1px solid rgba(142, 177, 160, 0.4);
+  border-radius: var(--r-pill);
+  text-shadow: 0 0 12px rgba(142, 177, 160, 0.6);
+}
+.dark-h2 {
+  margin: 20px 0 0;
+  color: #ffffff;
+  font-size: clamp(30px, 4vw, 46px);
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  font-weight: 800;
+}
+.dark-desc {
+  margin: 20px 0 0;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 17px;
+  line-height: 1.75;
+}
+.dark-list {
+  display: grid;
+  gap: 14px;
+  margin: 32px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.dark-list li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 500;
+}
+.glow-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #8eb1a0;
+  box-shadow: 0 0 12px 2px rgba(142, 177, 160, 0.7);
+  animation: glow-pulse 2.4s ease-in-out infinite;
+}
+@keyframes glow-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+.terminal-dark {
+  position: relative;
+  border: 1px solid rgba(142, 177, 160, 0.32);
+  border-radius: var(--r-xl);
+  background: rgba(18, 27, 22, 0.88);
+  box-shadow:
+    0 30px 70px -20px rgba(0, 0, 0, 0.6),
+    0 0 40px -8px rgba(142, 177, 160, 0.22),
+    0 0 0 1px rgba(142, 177, 160, 0.06) inset;
+  overflow: hidden;
+}
+.terminal-dark::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #8eb1a0, transparent);
+  opacity: 0.8;
+}
+.terminal-bar-dark {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  color: rgba(255, 255, 255, 0.62);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  background: rgba(0, 0, 0, 0.32);
+  border-bottom: 1px solid rgba(142, 177, 160, 0.16);
+}
+.terminal-bar-dark .dot { width: 11px; height: 11px; border-radius: 50%; }
+.terminal-bar-dark span:last-child { margin-left: 10px; }
+.terminal-body-dark {
+  min-height: 264px; /* 固定高度：日志滚动时整块不会上下抖动 */
+  padding: 20px 22px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13.5px;
+  line-height: 1.8;
+  color: #d3e0d9;
+  overflow: hidden;
+}
+.code-line {
+  margin-bottom: 4px;
+  word-break: break-word;
+  animation: log-in 0.5s cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+@keyframes log-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+/* 终端配色：全部落在莫兰迪绿 / 薄荷 / 灰的色域内 */
+.prompt { color: #8eb1a0; font-weight: 700; }
+.comment { color: rgba(255, 255, 255, 0.42); font-style: italic; }
+.keyword { color: #8eb1a0; font-weight: 700; letter-spacing: 0.04em; }
+.info-tag { color: rgba(255, 255, 255, 0.5); font-weight: 600; letter-spacing: 0.04em; }
+.num { color: #b8cfc4; font-weight: 700; }
+.badge-high {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 8px;
+  color: #1f2b25; /* 深字配莫兰迪红底，对比度约 5:1 */
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 18px;
+  border-radius: var(--r-pill);
+  background: #c48b8b;
+}
+.badge-high.mid { background: #d4b48b; }
+.anim-blink { animation: blink 1.1s step-end infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+
+/* =====================================================================
+   视觉升级 · 响应式与降级
+   ===================================================================== */
+@media (max-width: 980px) {
+  /* 同时覆盖 .reversed，否则 row-reverse 会让移动端图在文字上方 */
+  .feature-alt-row,
+  .feature-alt-row.reversed {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 36px;
+    padding: 36px 0;
+  }
+  .dark-inner {
+    grid-template-columns: 1fr;
+    gap: 48px;
+  }
+  .section.dark-command-section { padding: 88px 24px; }
+}
+
+/* 低端手机：去掉大面积模糊与持续动画，只保留静态氛围 */
+@media (max-width: 767px) {
+  .scan-beam,
+  .radar-wave:nth-of-type(n + 3),
+  .hd:nth-child(n + 7) {
+    display: none;
+  }
+  .radar-wave {
+    width: 640px;
+    height: 640px;
+    margin: -320px 0 0 -320px;
+  }
+  .radar-core {
+    width: 260px;
+    height: 260px;
+    margin: -130px 0 0 -130px;
+    animation: none;
+    opacity: 0.7;
+  }
+  .hero-radar { top: 300px; }
+  .aurora-wave {
+    filter: blur(28px);
+    animation: none;
+    opacity: 0.5;
+    will-change: auto;
+  }
+  .wave-3 { display: none; }
+  .aurora-chart { height: 300px; }
+  .ln-a,
+  .ln-b,
+  .ln-c { animation: none; }
+  .preview-kpi strong { font-size: 26px; }
+  .terminal-body-dark { font-size: 12.5px; min-height: 240px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .radar-wave,
+  .radar-core,
+  .scan-beam,
+  .hd,
+  .shine-text,
+  .btn-arrow-pulse,
+  .trend,
+  .preview-kpi strong.flash,
+  .aurora-wave,
+  .ln-a,
+  .ln-b,
+  .ln-c,
+  .state-spinner,
+  .glow-dot,
+  .code-line,
+  .anim-blink {
+    animation: none;
+  }
+  /* 动画关掉后这些元素要保持可见的静态形态 */
+  .radar-wave { opacity: 0.25; transform: scale(0.6); }
+  .hd { opacity: 0.5; }
+  .ln-fuse { animation: none; stroke-dashoffset: 0; }
+  .dark-copy,
+  .dark-visual {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .state-node { transition: none; }
+}
+
 /* ====== Reveal ====== */
 .reveal {
   opacity: 0;
@@ -2711,6 +4383,11 @@ onBeforeUnmount(() => {
   }
   .nav-burger {
     display: inline-flex;
+  }
+  /* 移动端沿用原抽屉菜单，不渲染 Mega Menu */
+  .nav-chevron,
+  .mega-wrap {
+    display: none;
   }
   .cards-grid,
   .roles-grid {
@@ -2784,6 +4461,14 @@ onBeforeUnmount(() => {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .mega-enter-active,
+  .mega-leave-active,
+  .mega-grid,
+  .mega-grid.is-active {
+    transition: opacity 120ms linear;
+    transform: none;
+    clip-path: none;
+  }
   .reveal {
     opacity: 1;
     transform: none;
@@ -2816,7 +4501,7 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--c-scrim)
+  background: var(--c-overlay)
     /* = rgba 15,34,24/.65 */;
   backdrop-filter: blur(12px) saturate(180%);
   -webkit-backdrop-filter: blur(12px) saturate(180%);
@@ -3015,6 +4700,22 @@ onBeforeUnmount(() => {
   gap: 8px;
   font-size: 15px;
 }
+
+/* 注册入口：和「记住账号」一样低调，只做一条可点的补充路径 */
+.login-register {
+  margin: 14px 0 0;
+  text-align: center;
+  font-size: 12px;
+  color: var(--c-text-4);
+}
+
+.login-register a {
+  color: var(--c-brand);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.login-register a:hover { text-decoration: underline; }
 
 /* 弹窗动画 */
 .modal-enter-active,

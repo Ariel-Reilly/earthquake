@@ -6,7 +6,7 @@
  *   const data = await request('/hazards');
  *
  * 行为约定:
- *   - 自动从 stores/auth 注入 Authorization header
+ *   - 自动从 stores/auth 注入 Authorization header（options.auth=false 时跳过）
  *   - 自动解析 JSON 响应 (payload 期望 { code: 0, data, message })
  *   - 401 状态码自动重定向到登录页 (排除 /auth/* 自身)
  *   - 业务错误统一抛出 createApiError, 由 error.code 判定
@@ -40,14 +40,18 @@ function hasBackendCompatibleToken() {
 /**
  * 通用 JSON 请求。
  * @param {string} path - 以 / 开头的相对路径 (例: "/hazards")
- * @param {object} options - fetch 选项; body 会被 JSON.stringify
+ * @param {object} options - fetch 选项; body 会被 JSON.stringify,
+ *        额外支持 auth:false 表示匿名调用（不注入 Authorization 头）
  * @returns {Promise<any>} 后端 payload.data
  */
 export async function request(path, options = {}) {
-  const { body, headers: extraHeaders, ...rest } = options;
+  const { body, headers: extraHeaders, auth = true, ...rest } = options;
   const headers = {
     "Content-Type": "application/json",
-    ...authHeader(),
+    // 匿名接口（注册申请 / 图形验证码）显式传 auth:false，避免把一个可能已过期
+    // 或无效的 token 送到后端。后端对这些端点是 permitAll，带不带头都能过，
+    // 但不带更干净，也不会因为坏 token 触发一次无意义的鉴权失败。
+    ...(auth ? authHeader() : {}),
     ...(extraHeaders ?? {}),
   };
   const init = {
