@@ -92,7 +92,12 @@ public class UnifiedEventEntity {
   @Column(name = "close_reason", length = 512)
   private String closeReason;
 
-  /** 关闭人 / 驳回人 */
+  /**
+   * 当前持有人 / 最后操作人。
+   *
+   * <p>每次状态流转（认领、确认、驳回）都会写入操作人，使「我已认领」筛选
+   * 和转派来源人有据可查；终态（CLOSED / REJECTED）时它同时表示关闭人/驳回人。
+   */
   @Column(name = "closed_by", length = 64)
   private String closedBy;
 

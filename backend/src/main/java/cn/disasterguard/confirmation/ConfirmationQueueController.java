@@ -14,10 +14,9 @@ import java.time.OffsetDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -85,30 +84,38 @@ public class ConfirmationQueueController {
   }
 
   /**
-   * 待确认队列列表（含灾害详情，按风险等级优先级排序）。
+   * 待确认队列列表（含灾害详情，按最近更新时间倒序）。
    * GET /api/confirmation/queue
    *
    * @param page    页码（从 1 开始）
    * @param size    每页条数
    * @param keyword 事件号/标题模糊搜索
+   * @param status  状态页签：待确认/已认领/已转派/已确认/已驳回/已关闭/全部；
+   *                缺省等同「待确认」（尚未结论的事件）
    */
   @GetMapping("/queue")
   @PreAuthorize("hasAuthority('confirmation:view')")
   public ApiResponse<Map<String, Object>> queue(
       @RequestParam(defaultValue = "1") int page,
       @RequestParam(defaultValue = "10") int size,
-      @RequestParam(required = false) String keyword
+      @RequestParam(required = false) String keyword,
+      @RequestParam(required = false) String status
   ) {
-    // 查询待确认状态的事件（DETECTED + CONFIRMING）—— 内存过滤避免 Example API
-    List<UnifiedEventEntity> allPending = new java.util.ArrayList<>();
-    allPending.addAll(unifiedEventRepository.findByState(EventState.DETECTED));
-    allPending.addAll(unifiedEventRepository.findByState(EventState.CONFIRMING));
+    QueueScope scope = resolveScope(status);
+    List<UnifiedEventEntity> candidates = scope.states().stream()
+        .flatMap(st -> unifiedEventRepository.findByState(st).stream())
+        .toList();
+
+    // 转派记录决定「已认领」还是「已转派」，批量取一次避免 N+1
+    Map<String, EventTransfer> latestTransfer = latestTransfersByEvent(candidates);
+
     final String kw = keyword == null ? "" : keyword.trim().toLowerCase();
-    List<UnifiedEventEntity> filtered = allPending.stream()
+    List<UnifiedEventEntity> filtered = candidates.stream()
         .filter(e -> kw.isBlank()
             || (e.getEventCode() != null && e.getEventCode().toLowerCase().contains(kw))
             || (e.getTitle() != null && e.getTitle().toLowerCase().contains(kw))
             || (e.getHazardCode() != null && e.getHazardCode().toLowerCase().contains(kw)))
+        .filter(e -> scope.matchesTransfer(latestTransfer.get(e.getEventCode())))
         .sorted((a, b) -> {
           var ta = a.getUpdatedAt() == null ? a.getCreatedAt() : a.getUpdatedAt();
           var tb = b.getUpdatedAt() == null ? b.getCreatedAt() : b.getUpdatedAt();
@@ -125,7 +132,7 @@ public class ConfirmationQueueController {
     int fromIndex = Math.min((safePage - 1) * safeSize, total);
     int toIndex = Math.min(fromIndex + safeSize, total);
     List<Map<String, Object>> items = filtered.subList(fromIndex, toIndex).stream()
-        .map(this::toQueueItem)
+        .map(e -> toQueueItem(e, latestTransfer.get(e.getEventCode())))
         .collect(Collectors.toList());
 
     Map<String, Object> pageResult = new LinkedHashMap<>();
@@ -135,6 +142,74 @@ public class ConfirmationQueueController {
     pageResult.put("size", safeSize);
     pageResult.put("pages", Math.max(1, (int) Math.ceil(total / (double) safeSize)));
     return ApiResponse.success(pageResult);
+  }
+
+  /**
+   * 队列页签的检索范围。
+   *
+   * @param states         覆盖的事件状态集合
+   * @param transferredOnly true=只保留已转派，false=只保留未转派，null=不按转派筛选
+   */
+  private record QueueScope(Set<EventState> states, Boolean transferredOnly) {
+    /**
+     * 按转派记录筛选事件。
+     *
+     * @param transfer 事件的最新转派记录，无转派时为 null
+     * @return 是否保留
+     */
+    boolean matchesTransfer(EventTransfer transfer) {
+      if (transferredOnly == null) {
+        return true;
+      }
+      return transferredOnly == (transfer != null);
+    }
+  }
+
+  /**
+   * 把前端页签名解析为检索范围。
+   *
+   * @param status 页签名，可为空
+   * @return 对应的检索范围
+   */
+  private QueueScope resolveScope(String status) {
+    String s = status == null ? "" : status.trim();
+    return switch (s) {
+      case "已认领" -> new QueueScope(Set.of(EventState.CONFIRMING), Boolean.FALSE);
+      case "已转派" -> new QueueScope(Set.of(EventState.CONFIRMING), Boolean.TRUE);
+      case "已确认" -> new QueueScope(Set.of(EventState.CONFIRMED), null);
+      case "已驳回" -> new QueueScope(Set.of(EventState.REJECTED), null);
+      case "已关闭" -> new QueueScope(Set.of(EventState.CLOSED), null);
+      case "全部" -> new QueueScope(Set.of(EventState.values()), null);
+      // 缺省与「待确认」同义：尚未给出结论的事件
+      default -> new QueueScope(Set.of(EventState.DETECTED, EventState.CONFIRMING), null);
+    };
+  }
+
+  /**
+   * 取每个事件最新的一条转派记录。
+   *
+   * @param events 事件集合
+   * @return 事件号 → 最新转派记录（从未转派过的事件不在结果中）
+   */
+  private Map<String, EventTransfer> latestTransfersByEvent(List<UnifiedEventEntity> events) {
+    List<String> codes = events.stream()
+        .map(UnifiedEventEntity::getEventCode)
+        .filter(Objects::nonNull)
+        .distinct()
+        .toList();
+    if (codes.isEmpty()) {
+      return Map.of();
+    }
+    Map<String, EventTransfer> latest = new LinkedHashMap<>();
+    for (EventTransfer t : transferRepository.findByEventIdIn(codes)) {
+      latest.merge(t.getEventId(), t, (older, newer) ->
+          newer.getTransferredAt() != null
+              && (older.getTransferredAt() == null
+                  || newer.getTransferredAt().isAfter(older.getTransferredAt()))
+                  ? newer
+                  : older);
+    }
+    return latest;
   }
 
   // 下面是 claim / transfer / confirm / reject 等接口
@@ -222,8 +297,15 @@ public class ConfirmationQueueController {
     transfer.setFromUser(fromUser);
     transfer.setToUser(toUser);
     transfer.setReason(reason);
+    transfer.setOperator(fromUser);
     transfer.setTransferredAt(OffsetDateTime.now());
     transferRepository.save(transfer);
+
+    // 事件持有人改为接收人，否则队列里的 assignee 仍指向原持有人，
+    // 前端「已转派」页签与"谁该处理"都会指错人。
+    event.setClosedBy(toUser);
+    event.setUpdatedAt(OffsetDateTime.now());
+    unifiedEventRepository.save(event);
 
     // UnifiedEventEntity 没有独立的 assignedTo 字段，转派信息在 EventTransfer 表中通过最新记录追踪
     Map<String, Object> result = new LinkedHashMap<>();
@@ -339,7 +421,7 @@ public class ConfirmationQueueController {
   /**
    * 将 UnifiedEventEntity 转换为队列项（含灾害详情）。
    */
-  private Map<String, Object> toQueueItem(UnifiedEventEntity event) {
+  private Map<String, Object> toQueueItem(UnifiedEventEntity event, EventTransfer transfer) {
     Map<String, Object> item = new LinkedHashMap<>();
     item.put("id", event.getId());
     item.put("eventCode", event.getEventCode());
@@ -349,6 +431,11 @@ public class ConfirmationQueueController {
     item.put("state", event.getState().name());
     item.put("discoveredAt", event.getCreatedAt() != null ? event.getCreatedAt().toString() : null);
     item.put("updatedAt", event.getUpdatedAt() != null ? event.getUpdatedAt().toString() : null);
+    // 当前持有人：认领/确认/驳回时写入，转派后为接收人
+    item.put("assignee", event.getClosedBy());
+    // 是否发生过转派：前端据此区分「已认领」与「已转派」
+    item.put("transferred", transfer != null);
+    item.put("transferredTo", transfer != null ? transfer.getToUser() : null);
 
     // 填充灾害详情（从 hazard_point 表查询）
     if (event.getHazardCode() != null) {

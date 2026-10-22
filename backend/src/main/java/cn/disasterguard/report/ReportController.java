@@ -1,20 +1,26 @@
 package cn.disasterguard.report;
 
 import cn.disasterguard.common.api.ApiResponse;
+import cn.disasterguard.hazard.entity.HazardPoint;
+import cn.disasterguard.hazard.repository.HazardPointRepository;
 import cn.disasterguard.report.entity.ReportHistory;
 import cn.disasterguard.report.entity.ReportSubscription;
 import cn.disasterguard.report.entity.ReportTemplate;
 import cn.disasterguard.report.repository.ReportHistoryRepository;
 import cn.disasterguard.report.repository.ReportSubscriptionRepository;
 import cn.disasterguard.report.repository.ReportTemplateRepository;
+import cn.disasterguard.warning.entity.WarningEvent;
+import cn.disasterguard.warning.repository.WarningEventRepository;
 import jakarta.annotation.PostConstruct;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -50,6 +56,8 @@ public class ReportController {
   private final ReportTemplateRepository templateRepo;
   private final ReportHistoryRepository historyRepo;
   private final ReportSubscriptionRepository subscriptionRepo;
+  private final HazardPointRepository hazardRepo;
+  private final WarningEventRepository warningRepo;
 
   /** id 计数器：启动时以库内最大 id 初始化，新增记录用 incrementAndGet。 */
   private final AtomicLong templateIdGen = new AtomicLong();
@@ -58,10 +66,14 @@ public class ReportController {
 
   public ReportController(ReportTemplateRepository templateRepo,
                           ReportHistoryRepository historyRepo,
-                          ReportSubscriptionRepository subscriptionRepo) {
+                          ReportSubscriptionRepository subscriptionRepo,
+                          HazardPointRepository hazardRepo,
+                          WarningEventRepository warningRepo) {
     this.templateRepo = templateRepo;
     this.historyRepo = historyRepo;
     this.subscriptionRepo = subscriptionRepo;
+    this.hazardRepo = hazardRepo;
+    this.warningRepo = warningRepo;
   }
 
   @PostConstruct
@@ -126,7 +138,7 @@ public class ReportController {
       long id = reportIdGen.incrementAndGet();
       Map<String, Object> report = new LinkedHashMap<>();
       report.put("id", id);
-      report.put("templateId", (long) (i % 4 + 1001));
+      report.put("templateId", (long) (i % 4 + 1));
       report.put("templateName", names[i % 4]);
       report.put("status", i <= 2 ? "SUCCESS" : (i == 3 ? "RUNNING" : "FAILED"));
       report.put("triggeredBy", "system");
@@ -219,15 +231,94 @@ public class ReportController {
     if (entity == null) {
       return ApiResponse.fail(404, "模板不存在: " + templateId);
     }
+
+    // ── 查询真实统计数据 ───────────────────────────────────────────────
+    OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+    // 昨日 00:00:00 ~ 今日 00:00:00（日报时间范围）
+    OffsetDateTime todayStart = now.toLocalDate().atStartOfDay().atOffset(ZoneOffset.UTC);
+    OffsetDateTime weekStart = todayStart.minusDays(7);
+    OffsetDateTime monthStart = todayStart.minusDays(30);
+
+    // 灾害点统计：全量 + 本周新增
+    long totalHazards = hazardRepo.count();
+    Specification<HazardPoint> weekSpec = (root, query, cb) ->
+        cb.greaterThanOrEqualTo(root.get("discoveredAt"), weekStart);
+    long weekHazards = hazardRepo.count(weekSpec);
+
+    // 预警统计：全量各等级
+    List<Object[]> warningLevelStats = warningRepo.countByLevel();
+    Map<String, Long> warningLevelMap = new LinkedHashMap<>();
+    long totalWarnings = 0;
+    for (Object[] row : warningLevelStats) {
+      String level = row[0] != null ? row[0].toString() : "未知";
+      long cnt = ((Number) row[1]).longValue();
+      warningLevelMap.put(level, cnt);
+      totalWarnings += cnt;
+    }
+
+    // 预警处置状态统计
+    List<Object[]> warningStatusStats = warningRepo.countByStatus();
+    Map<String, Long> warningStatusMap = new LinkedHashMap<>();
+    for (Object[] row : warningStatusStats) {
+      String status = row[0] != null ? row[0].toString() : "未知";
+      long cnt = ((Number) row[1]).longValue();
+      warningStatusMap.put(status, cnt);
+    }
+
+    // 按月预警趋势（最近 6 个月）
+    Specification<WarningEvent> sixMonthSpec = (root, query, cb) ->
+        cb.greaterThanOrEqualTo(root.get("triggeredAt"), todayStart.minusMonths(6));
+    List<WarningEvent> sixMonthWarnings = warningRepo.findAll(sixMonthSpec);
+    Map<String, Long> monthlyTrend = new LinkedHashMap<>();
+    for (WarningEvent w : sixMonthWarnings) {
+      if (w.getTriggeredAt() == null) continue;
+      String ym = w.getTriggeredAt().toLocalDate().toString().substring(0, 7); // yyyy-MM
+      monthlyTrend.merge(ym, 1L, Long::sum);
+    }
+
+    // ── 组装报告数据 ───────────────────────────────────────────────────
     long reportId = reportIdGen.incrementAndGet();
     Map<String, Object> template = entity.getPayload();
-    template.put("lastRunAt", OffsetDateTime.now().toString());
+    String templateName = template.getOrDefault("name", "未知模板").toString();
+    String category = template.getOrDefault("category", "").toString();
+
+    // 更新模板最近运行时间
+    template.put("lastRunAt", now.toString());
     entity.setPayload(template);
     templateRepo.save(entity);
+
     Map<String, Object> report = new LinkedHashMap<>();
     report.put("reportId", reportId);
-    report.put("status", "RUNNING");
-    report.put("startedAt", OffsetDateTime.now().toString());
+    report.put("templateId", templateId);
+    report.put("templateName", templateName);
+    report.put("category", category);
+    report.put("status", "SUCCESS");
+    report.put("triggeredBy", "manual");
+    report.put("triggeredAt", now.toString());
+    report.put("finishedAt", now.toString());
+    report.put("timeRange", Map.of(
+        "start", weekStart.toString(),
+        "end", now.toString(),
+        "period", category
+    ));
+    report.put("recordCount", totalHazards + totalWarnings);
+    report.put("hazardStats", Map.of(
+        "total", totalHazards,
+        "thisWeek", weekHazards,
+        "thisMonth", hazardRepo.count(
+            (root, query, cb) -> cb.greaterThanOrEqualTo(root.get("discoveredAt"), monthStart))
+    ));
+    report.put("warningStats", Map.of(
+        "total", totalWarnings,
+        "byLevel", warningLevelMap,
+        "byStatus", warningStatusMap,
+        "trendMonthly", monthlyTrend
+    ));
+    report.put("generatedAt", now.toString());
+
+    // 同步写入历史记录
+    saveHistory(reportId, report);
+
     return ApiResponse.success(report);
   }
 

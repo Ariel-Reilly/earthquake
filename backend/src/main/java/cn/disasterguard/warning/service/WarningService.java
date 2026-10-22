@@ -458,6 +458,7 @@ public class WarningService {
 
   private String cssClass(String level) {
     if (level == null) return "blue";
+    if (level.contains("红")) return "red";
     if (level.contains("橙")) return "orange";
     if (level.contains("黄")) return "yellow";
     return "blue";

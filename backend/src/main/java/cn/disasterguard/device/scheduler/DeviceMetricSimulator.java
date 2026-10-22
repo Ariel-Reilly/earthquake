@@ -8,7 +8,6 @@ import cn.disasterguard.hazard.entity.HazardPoint;
 import cn.disasterguard.hazard.repository.HazardPointRepository;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;

@@ -1,6 +1,5 @@
 package cn.disasterguard.dashboard.service;
 
-import cn.disasterguard.common.api.PageResponse;
 import cn.disasterguard.dashboard.dto.DashboardDtos.ChartData;
 import cn.disasterguard.dashboard.dto.DashboardDtos.OverviewCard;
 import cn.disasterguard.dashboard.dto.DashboardDtos.RegionRisk;

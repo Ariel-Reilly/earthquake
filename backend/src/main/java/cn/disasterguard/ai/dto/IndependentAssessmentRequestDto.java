@@ -6,7 +6,6 @@ import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotEmpty;
 import java.util.List;
-import java.util.Map;
 
 /**
  * v1.7.0：全国独立测算请求 DTO。

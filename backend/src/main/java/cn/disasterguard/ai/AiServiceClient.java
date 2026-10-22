@@ -11,7 +11,6 @@ import cn.disasterguard.ai.dto.DisasterAssessmentResponseDto;
 import cn.disasterguard.ai.dto.FeedbackRequestDto;
 import cn.disasterguard.ai.dto.ForecastResult;
 import cn.disasterguard.ai.dto.FusionRiskResult;
-import cn.disasterguard.ai.dto.IndependentAssessmentRequestDto;
 import cn.disasterguard.ai.dto.IndependentAssessmentResponseDto;
 import java.util.HashMap;
 import java.util.List;

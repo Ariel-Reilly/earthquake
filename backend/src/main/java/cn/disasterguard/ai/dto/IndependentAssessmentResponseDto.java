@@ -3,7 +3,6 @@ package cn.disasterguard.ai.dto;
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.util.List;
-import java.util.Map;
 
 /**
  * v1.7.0：全国独立测算响应 DTO。

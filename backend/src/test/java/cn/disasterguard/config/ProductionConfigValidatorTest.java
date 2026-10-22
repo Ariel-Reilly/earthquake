@@ -40,6 +40,11 @@ class ProductionConfigValidatorTest {
     validator.minioAccessKey = "disasterguard";
     validator.minioSecret = "a-strong-minio-secret-value-1234";
     validator.minioEndpoint = minioEndpoint;
+    // 注册申请相关配置同样要给合法值，否则新增的 fail-fast 校验会先于
+    // MINIO_ENDPOINT 校验抛错，导致本文件断言的语义被掩盖。
+    validator.dataEncryptionKey = "bVFtZUNhdG9naWNrZXlGb3JUZXN0U2VjcmV0MzJCeXRlcw==";
+    validator.registerSmsEnabled = false;
+    validator.registerEmailEnabled = false;
     return validator;
   }
 
@@ -84,5 +89,43 @@ class ProductionConfigValidatorTest {
   void privateIpHost_passes() {
     assertThatCode(() -> validatorWith("http://10.0.0.8:9000").validate())
         .doesNotThrowAnyException();
+  }
+
+  /**
+   * 身份证加密密钥缺失必须阻断启动。
+   *
+   * <p>留空时 {@code SensitiveDataCipher} 会生成一次性随机密钥，表现为
+   * 「申请单里的身份证重启后永远解不开」且全程无报错 —— 只能在启动期拦。
+   */
+  @Test
+  void blankDataEncryptionKey_isRejected() {
+    ProductionConfigValidator validator = validatorWith("https://minio.example.com");
+    validator.dataEncryptionKey = "";
+    assertThatThrownBy(() -> validator.validate())
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("DATA_ENCRYPTION_KEY");
+  }
+
+  /** 密钥长度不足 32 位同样不可接受 —— 弱密钥等于没有加密。 */
+  @Test
+  void shortDataEncryptionKey_isRejected() {
+    ProductionConfigValidator validator = validatorWith("https://minio.example.com");
+    validator.dataEncryptionKey = "too-short-key";
+    assertThatThrownBy(() -> validator.validate())
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("DATA_ENCRYPTION_KEY");
+  }
+
+  /**
+   * 验证码渠道开关置 true 会让注册接口「假装发送成功」但用户收不到，
+   * 因此在网关尚未接入的当前状态下必须阻断启动。
+   */
+  @Test
+  void registerChannelEnabled_isRejected() {
+    ProductionConfigValidator validator = validatorWith("https://minio.example.com");
+    validator.registerSmsEnabled = true;
+    assertThatThrownBy(() -> validator.validate())
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("REGISTER_SMS_ENABLED");
   }
 }

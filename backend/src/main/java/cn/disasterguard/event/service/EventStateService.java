@@ -177,9 +177,11 @@ public class EventStateService {
     entity.setLastTransitionAt(now);
     entity.setLastTrigger(trigger.name());
 
-    // 终态写入关闭/驳回原因
+    // 记录当前持有人：认领、确认、驳回、转派都要能追溯到具体的人。
+    // 之前只在终态写入，导致「我已认领」列表和转派来源人（fromUser）永远取不到值。
+    entity.setClosedBy(operator);
+    // 关闭/驳回原因只有终态才有意义
     if (newState.isTerminal()) {
-      entity.setClosedBy(operator);
       entity.setCloseReason(reason);
     }
     repository.save(entity);
