@@ -746,7 +746,7 @@ onMounted(loadAll)
 
 .loading-row, .empty-row { padding: 28px; text-align: center; color: var(--c-text-2); font-size: 13px; }
 
-.modal-mask { position: fixed; inset: 0; background: var(--c-scrim); display: grid; place-items: center; z-index: 100; padding: 20px; }
+.modal-mask { position: fixed; inset: 0; background: var(--c-overlay); display: grid; place-items: center; z-index: 100; padding: 20px; }
 .modal-card { width: min(480px, 100%); max-height: 90vh; overflow-y: auto; background: var(--c-surface); border-radius: var(--r-lg); padding: 24px; }
 .modal-card.wide { width: min(560px, 100%); }
 .modal-card h3 { margin: 0 0 16px; color: var(--c-text); font-size: 16px; }
@@ -772,7 +772,7 @@ onMounted(loadAll)
 
 .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 4px; }
 
-.drawer-mask { position: fixed; inset: 0; background: var(--c-scrim); display: flex; justify-content: flex-end; z-index: 110; }
+.drawer-mask { position: fixed; inset: 0; background: var(--c-overlay); display: flex; justify-content: flex-end; z-index: 110; }
 .drawer { width: min(440px, 92vw); background: var(--c-surface); height: 100%; display: flex; flex-direction: column; box-shadow: -8px 0 24px rgba(0,0,0,.08); }
 .drawer > header { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px; border-bottom: 1px solid var(--c-border-2); }
 .drawer > header h3 { margin: 0; font-size: 15px; color: var(--c-text); }

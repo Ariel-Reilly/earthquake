@@ -917,7 +917,7 @@ onBeforeUnmount(() => {
 /* 弹窗遮罩 */
 .mask {
   position: fixed; inset: 0;
-  background: var(--c-scrim); /* 原 rgba(0,0,0,.4) 遮罩 */
+  background: var(--c-overlay); /* 原 rgba(0,0,0,.4) 遮罩 */
   display: flex; align-items: center; justify-content: center;
   z-index: 9999;
 }

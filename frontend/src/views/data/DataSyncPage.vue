@@ -588,7 +588,7 @@ async function toggleTask(taskId, currentStatus) {
 .ds-overlay {
   position: fixed;
   inset: 0;
-  background: var(--c-scrim);
+  background: var(--c-overlay);
   z-index: 199;
 }
 

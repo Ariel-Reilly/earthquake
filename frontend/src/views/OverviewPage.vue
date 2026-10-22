@@ -31,7 +31,7 @@ import PersonnelRouteDrawer from "../components/PersonnelRouteDrawer.vue";
 import WeatherOverlayLegend from "../components/WeatherOverlayLegend.vue";
 
 const props = defineProps({
-  currentTime: { type: String, required: true },
+  currentTime: { type: String, default: () => new Date().toLocaleString('zh-CN') },
   userRole: { type: String, default: "admin" },
 });
 

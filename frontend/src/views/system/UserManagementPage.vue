@@ -6,6 +6,7 @@ import {
 import { dashboardApi } from '../../services/dashboardApi'
 import { ROLE_OPTIONS, hasPermission, getAuthUser } from '../../stores/auth'
 import ConfirmDialog from '../../components/common/ConfirmDialog.vue'
+import { useEscapeClose } from '../../composables/useEscapeClose'
 
 const emit = defineEmits(['notify'])
 defineProps({ searchTerm: { type: String, default: '' }, userRole: { type: String, default: 'admin' } })
@@ -241,6 +242,12 @@ async function save() {
 }
 
 const confirmDialogRef = ref(null)
+
+// ESC 键关闭编辑弹窗
+useEscapeClose(() => { editDialog.value = false }, editDialog)
+
+// ESC 键关闭密码重置弹窗
+useEscapeClose(() => { resetDialog.value = false }, resetDialog)
 
 async function remove(user) {
   const ok = await confirmDialogRef.value?.show({
@@ -676,7 +683,7 @@ onMounted(async () => {
   border-top: 1px solid var(--c-brand-mist); font-size: 11px; color: var(--c-text-4);
 }
 
-.mask { position: fixed; inset: 0; background: var(--c-scrim); display: flex; align-items: center; justify-content: center; z-index: 99; }
+.mask { position: fixed; inset: 0; background: var(--c-overlay); display: flex; align-items: center; justify-content: center; z-index: 99; }
 .dialog { background: var(--c-surface); padding: 22px 26px; border-radius: var(--r-lg); width: 540px; max-width: 95vw; box-shadow: 0 10px 40px rgba(0,0,0,.18); }
 .dialog h3 { margin: 0 0 14px; color: var(--c-scrim); }
 .form-grid {

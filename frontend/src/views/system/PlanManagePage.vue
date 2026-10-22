@@ -638,7 +638,7 @@ onMounted(load)
 
 .loading-row, .empty-row { padding: 32px; text-align: center; color: var(--c-text-2); font-size: 13px; }
 
-.drawer-mask { position: fixed; inset: 0; background: var(--c-scrim); display: flex; justify-content: flex-end; z-index: 110; }
+.drawer-mask { position: fixed; inset: 0; background: var(--c-overlay); display: flex; justify-content: flex-end; z-index: 110; }
 .drawer { width: min(560px, 100%); background: var(--c-surface); height: 100%; display: flex; flex-direction: column; box-shadow: -8px 0 24px rgba(0,0,0,.08); }
 .drawer > header { display: flex; align-items: center; justify-content: space-between; padding: 18px 22px; border-bottom: 1px solid var(--c-border-2); }
 .drawer > header h3 { margin: 0; font-size: 15px; color: var(--c-text); }
@@ -668,7 +668,7 @@ onMounted(load)
 
 .drawer-actions { display: flex; gap: 10px; justify-content: flex-end; padding-top: 16px; border-top: 1px solid var(--c-border-2); }
 
-.modal-mask { position: fixed; inset: 0; background: var(--c-scrim); display: grid; place-items: center; z-index: 120; padding: 20px; }
+.modal-mask { position: fixed; inset: 0; background: var(--c-overlay); display: grid; place-items: center; z-index: 120; padding: 20px; }
 .modal-card { width: min(420px, 100%); background: var(--c-surface); border-radius: var(--r-lg); padding: 22px; }
 .modal-card h3 { margin: 0 0 12px; color: var(--c-text); font-size: 15px; }
 .confirm-text { color: var(--c-brand-deep); font-size: 13px; line-height: 1.7; margin: 0 0 18px; }

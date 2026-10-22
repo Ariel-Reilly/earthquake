@@ -585,7 +585,7 @@ onMounted(load)
 .switch input:checked + .slider { background: var(--c-brand-hover); }
 .switch input:checked + .slider::before { transform: translateX(16px); }
 
-.drawer-mask { position: fixed; inset: 0; background: var(--c-scrim); display: flex; justify-content: flex-end; z-index: 110; }
+.drawer-mask { position: fixed; inset: 0; background: var(--c-overlay); display: flex; justify-content: flex-end; z-index: 110; }
 .drawer { width: min(880px, 100%); background: var(--c-surface); height: 100%; display: flex; flex-direction: column; box-shadow: -8px 0 24px rgba(0,0,0,.08); }
 .drawer > header { display: flex; align-items: center; justify-content: space-between; padding: 18px 24px; border-bottom: 1px solid var(--c-border-2); }
 .drawer > header h3 { margin: 0; font-size: 15px; color: var(--c-text); }

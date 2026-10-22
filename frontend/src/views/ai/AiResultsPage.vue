@@ -348,7 +348,7 @@ onMounted(() => loadResults())
 .ghost-btn.danger { color: var(--c-danger-strong); border-color: var(--c-danger-bg); }
 .op-btn { display: flex; gap: 6px; align-items: center; padding: 7px 12px; border: 1px solid var(--c-separator); background: var(--c-surface); border-radius: var(--r-sm); color: var(--c-text); font-size: 12px; cursor: pointer; }
 
-.modal-mask { position: fixed; inset: 0; background: var(--c-scrim); display: grid; place-items: center; z-index: 100; }
+.modal-mask { position: fixed; inset: 0; background: var(--c-overlay); display: grid; place-items: center; z-index: 100; }
 .modal-card { width: min(560px, 92vw); background: var(--c-surface); border-radius: var(--r-lg); padding: 22px; }
 .modal-card.large { width: min(760px, 92vw); }
 .modal-card header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }

@@ -19,6 +19,7 @@ import PermissionButton from '../../components/PermissionButton.vue'
 import SkeletonList from '../../components/common/SkeletonList.vue'
 import { useHazardList } from '../../composables/useHazardList'
 import { getRealtimeState, onRealtimeUpdate } from '../../services/realtimeService'
+import { useEscapeClose } from '../../composables/useEscapeClose'
 
 const props = defineProps({
   searchTerm: { type: String, default: '' },
@@ -44,6 +45,9 @@ const {
 const sourceFilter = ref('all')  // 'all' | 'AI_MONITOR' | 'MANUAL'
 const aiMonitorCount = ref(0)
 const lastAiDetectedAt = ref(null)
+
+// ESC 键关闭抽屉
+useEscapeClose(closeDrawer, drawerOpen)
 
 const filteredBySource = computed(() => {
   if (sourceFilter.value === 'all') return filteredHazards.value
@@ -145,7 +149,8 @@ function fmtRelTime(iso) {
 </script>
 
 <template>
-  <div class="content-grid">
+  <div class="hazards-page-root">
+    <div class="content-grid">
     <section class="panel warning-panel">
       <div class="panel-header compact">
         <div>
@@ -309,9 +314,15 @@ function fmtRelTime(iso) {
       </div>
     </div>
   </div>
+  </div>
 </template>
 
 <style scoped>
+.hazards-page-root {
+  width: 100%;
+  height: 100%;
+}
+
 .event-state-tag {
   display: inline-block;
   margin-left: 8px;

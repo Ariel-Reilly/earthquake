@@ -463,7 +463,7 @@ ul { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: col
 
 /* 弹窗 */
 .modal-mask {
-  position: fixed; inset: 0; background: var(--c-scrim); z-index: 999;
+  position: fixed; inset: 0; background: var(--c-overlay); z-index: 999;
   display: flex; align-items: center; justify-content: center;
 }
 .modal {

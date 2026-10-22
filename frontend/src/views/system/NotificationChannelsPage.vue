@@ -1124,7 +1124,7 @@ const channelColor = (type) => {
 .drawer-overlay {
   position: fixed;
   inset: 0;
-  background: var(--c-scrim);
+  background: var(--c-overlay);
   z-index: 100;
   display: flex;
   justify-content: flex-end;

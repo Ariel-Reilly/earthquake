@@ -203,7 +203,8 @@ onMounted(() => loadTasks())
 </script>
 
 <template>
-  <div class="ai-tasks-shell">
+  <div class="ai-tasks-page-root">
+    <div class="ai-tasks-shell">
     <header class="page-header">
       <div>
       </div>
@@ -341,11 +342,17 @@ onMounted(() => loadTasks())
         </div>
       </div>
     </div>
-  </div>
     <ConfirmDialog ref="confirmDialogRef" />
+    </div>
+  </div>
 </template>
 
 <style scoped>
+.ai-tasks-page-root {
+  width: 100%;
+  height: 100%;
+}
+
 .skeleton-row {
   padding: 24px;
   min-height: 240px;
@@ -392,7 +399,7 @@ onMounted(() => loadTasks())
 .ops { white-space: nowrap; }
 .ops .ghost-btn { margin-right: 4px; }
 
-.modal-mask { position: fixed; inset: 0; background: var(--c-scrim); display: grid; place-items: center; z-index: 100; }
+.modal-mask { position: fixed; inset: 0; background: var(--c-overlay); display: grid; place-items: center; z-index: 100; }
 .modal-card { width: min(480px, 92vw); background: var(--c-surface); border-radius: var(--r-lg); padding: 24px; }
 .modal-card h3 { margin: 0 0 16px; color: var(--c-text); }
 .modal-card label { display: block; margin-bottom: 14px; color: var(--c-brand-deep); font-size: 12px; font-weight: 600; }

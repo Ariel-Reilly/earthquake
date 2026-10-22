@@ -68,6 +68,7 @@ import AppFeedback from '../components/AppFeedback.vue'
 import ServiceHealthBanner from '../components/ServiceHealthBanner.vue'
 import AnimatedSidebarBackground from '../components/AnimatedSidebarBackground.vue'
 import AnimatedDashboardBackground from '../components/AnimatedDashboardBackground.vue'
+import { MainNav } from '../components/navigation'
 import { dashboardApi, logoutRequest } from '../services/dashboardApi'
 import { stopRealtimeSync } from '../services/realtimeService'
 import { startAiHealthCheck, stopAiHealthCheck } from '../services/_architecture/core/healthService'
@@ -120,6 +121,9 @@ const visibleMenu = computed(() =>
   dashboardMenu.filter((item) => getAllowedMenuPaths(user.value.role).includes(item.path))
 )
 
+// 允许访问的路径列表（用于导航组件权限过滤）
+const allowedPaths = computed(() => getAllowedMenuPaths(user.value.role))
+
 // 按 NAV_GROUPS 分组后的菜单（仅保留当前角色可见的）
 const groupedMenu = computed(() => {
   const map = new Map()
@@ -130,7 +134,11 @@ const groupedMenu = computed(() => {
   }
   return [...map.values()]
     .filter((g) => g.items.length)
-    .map((g) => ({ ...g, items: g.items.sort((a, b) => (a.order ?? 0) - (b.order ?? 0)) }))
+    .map((g) => ({ 
+      ...g, 
+      items: g.items.sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
+      itemCount: g.items.length 
+    }))
 })
 
 const iconComponentMap = {
@@ -329,6 +337,13 @@ async function runAction(action, { loadingText, successText, failureText }) {
 }
 
 function goTo(path) {
+  router.push(path)
+  showSearch.value = false
+  showNotifications.value = false
+}
+
+// 处理主导航的路由跳转
+function handleNavNavigate(path) {
   router.push(path)
   showSearch.value = false
   showNotifications.value = false
@@ -838,49 +853,28 @@ onBeforeUnmount(() => {
       <div v-show="mobileSidebarOpen" class="sidebar-overlay" :class="{ 'is-visible': mobileSidebarOpen }" @click="closeMobileSidebar" />
 
       <!-- ═══════════════════════════════════════════════════════════
-           顶部横向导航栏（桌面端主导航）
-           第一行：品牌 + 6 个分组 Tab + 全局操作
-           第二行：当前分组下的菜单项（横向可滚动）
+           新版二级导航栏（桌面端主导航）
+           - 一级菜单项带滑动下划线指示器
+           - 悬停时预览二级面板内容
+           - 点击时展开/切换分组
            ═══════════════════════════════════════════════════════════ -->
-      <header class="hnav">
-        <div class="hnav-top">
-          <div class="hnav-brand" title="御灾智巡" @click="goTo('/dashboard')">
+      <header class="nav-header">
+        <div class="nav-header-inner">
+          <!-- 品牌区域 -->
+          <div class="nav-brand" title="御灾智巡" @click="goTo('/dashboard')">
             <div class="brand-mark"><MountainSnow :size="19" :stroke-width="2.4" /></div>
             <div class="brand-copy"><strong>御灾智巡</strong><span>YuZaiGuard v1.8</span></div>
           </div>
 
-          <!-- 一级导航：分组 Tab -->
-          <nav class="hnav-groups" role="tablist" aria-label="主导航分组">
-            <button
-              v-for="group in groupedMenu"
-              :key="group.id"
-              type="button"
-              role="tab"
-              class="hnav-group"
-              :class="{ active: !showAllGroups && isGroupActive(group.id) }"
-              :aria-selected="!showAllGroups && isGroupActive(group.id)"
-              @click="selectGroup(group.id)"
-            >
-              <component :is="pickIcon(group.icon)" :size="16" />
-              <span>{{ group.label }}</span>
-              <em class="hnav-group-count">{{ group.items.length }}</em>
-            </button>
-            <span class="hnav-groups-sep" aria-hidden="true"></span>
-            <button
-              type="button"
-              role="tab"
-              class="hnav-group hnav-group-all"
-              :class="{ active: showAllGroups }"
-              :aria-selected="showAllGroups"
-              title="在一页中平铺全部功能"
-              @click="selectGroup(ALL_GROUPS)"
-            >
-              <component :is="pickIcon('LayoutList')" :size="16" />
-              <span>全部功能</span>
-              <em class="hnav-group-count">{{ visibleMenu.length }}</em>
-            </button>
-          </nav>
+          <!-- 二级导航组件 -->
+          <MainNav
+            :groups="groupedMenu"
+            :allowed-paths="allowedPaths"
+            :badges="dynamicBadges"
+            @navigate="handleNavNavigate"
+          />
 
+          <!-- 右侧操作区 -->
           <div class="top-actions">
             <PermissionButton
               v-if="hasPermission(user.role, 'overview:export')"
@@ -926,42 +920,6 @@ onBeforeUnmount(() => {
               </div>
               <button class="icon-btn user-logout-btn" title="退出登录" @click="openLogoutModal"><LogOut :size="15" /></button>
             </div>
-          </div>
-        </div>
-
-        <!-- 二级导航：当前分组下的菜单项（keyed 容器 → 切换分组时重放上滑动画） -->
-        <div v-if="activeGroup" :key="activeGroup.id" class="hnav-sub hnav-sub-anim">
-          <div class="hnav-sub-title">
-            <component :is="pickIcon(activeGroup.icon)" :size="14" />
-            <span>{{ activeGroup.label }}</span>
-          </div>
-          <div
-            ref="hnavItemsRef"
-            class="hnav-items"
-            role="tablist"
-            :aria-label="`${activeGroup.label} 菜单`"
-            @wheel.passive="hnavHoldScroll"
-            @touchstart.passive="hnavHoldScroll"
-          >
-            <button
-              v-for="item in activeGroup.items"
-              :key="item.path"
-              type="button"
-              role="tab"
-              class="hnav-item"
-              :class="{ active: isItemActive(item.path), danger: item.danger }"
-              :aria-selected="isItemActive(item.path)"
-              :title="item.label"
-              @click="goTo(item.path)"
-            >
-              <component :is="pickIcon(item.icon)" :size="16" />
-              <span>{{ item.label }}</span>
-              <em
-                v-if="dynamicBadges[item.path] && +dynamicBadges[item.path] > 0"
-                class="hnav-badge"
-              >{{ dynamicBadges[item.path] }}</em>
-              <em v-else-if="item.badge" class="hnav-badge new">{{ item.badge }}</em>
-            </button>
           </div>
         </div>
       </header>
@@ -1622,8 +1580,165 @@ onBeforeUnmount(() => {
 
 /* ── 断点：≤768px 移动端 —— 横向导航整体隐藏, 改走抽屉 + 底部 Tab ── */
 @media (max-width: 768px) {
-  .hnav { display: none; }
+  .nav-header { display: none; }
   /* 面包屑条保留, 兼任移动端顶栏(汉堡按钮在其中) */
   .topbar-sub { padding: 0 14px; }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   新版二级导航栏样式 (2026-10-21)
+   - nav-header: 主容器
+   - MainNav 组件内部样式在组件中定义
+   ═══════════════════════════════════════════════════════════ */
+
+/* 导航头部容器 */
+.nav-header {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-top, 40);
+  flex-shrink: 0;
+  background: linear-gradient(180deg, var(--c-brand-deep) 0%, var(--nav-bg-flat) 58%, var(--c-brand-deeper) 100%);
+  box-shadow: 0 6px 22px rgba(44, 61, 51, .16), inset 0 -1px 0 rgba(255, 255, 255, .08);
+}
+
+.nav-header-inner {
+  display: flex;
+  align-items: stretch;
+  min-height: 62px;
+  padding: 0 22px;
+  gap: 14px;
+}
+
+/* 品牌区域 */
+.nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  cursor: pointer;
+  border-radius: var(--r-lg);
+  padding: 5px 8px 5px 5px;
+  transition: background .2s var(--ease-ios, ease);
+}
+.nav-brand:hover { background: rgba(255, 255, 255, .10); }
+.nav-brand .brand-mark {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-md);
+  background: linear-gradient(150deg, var(--c-brand-hover) 0%, var(--c-brand) 55%, var(--c-brand-deep) 100%);
+  box-shadow: 0 4px 14px rgba(20, 45, 30, .26), inset 0 1px 0 rgba(255, 255, 255, .3);
+  color: var(--c-on-brand);
+}
+.nav-brand .brand-copy { display: flex; flex-direction: column; line-height: 1.15; }
+.nav-brand .brand-copy strong { font-size: 14.5px; font-weight: 700; letter-spacing: .01em; color: var(--c-on-brand); }
+.nav-brand .brand-copy span { font-size: 10px; color: rgba(244, 247, 244, .62); }
+
+/* 右侧操作区 */
+.nav-header .top-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+.nav-header .icon-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .10);
+  color: rgba(255, 255, 255, .86);
+  border: 0;
+}
+.nav-header .icon-btn:hover { background: rgba(255, 255, 255, .20); color: var(--c-on-brand); }
+.nav-header .notification-btn i {
+  background: var(--c-danger, var(--c-danger));
+  box-shadow: 0 0 0 2px rgba(65, 105, 79, .9);
+}
+.nav-header .user-profile {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding-left: 10px;
+  margin-left: 2px;
+  border-left: 1px solid rgba(255, 255, 255, .16);
+}
+.nav-header .user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--c-on-brand);
+  background: linear-gradient(140deg, var(--c-brand-hover), var(--c-brand-deep));
+  box-shadow: 0 2px 8px rgba(20, 45, 30, .3);
+}
+.nav-header .user-info { display: flex; flex-direction: column; line-height: 1.2; }
+.nav-header .user-info strong { font-size: 12.5px; font-weight: 600; color: var(--c-on-brand); }
+.nav-header .user-info span { font-size: 10.5px; color: rgba(244, 247, 244, .62); }
+.nav-header .user-logout-btn { width: 30px; height: 30px; background: transparent; }
+.nav-header .user-logout-btn:hover { background: rgba(255, 255, 255, .18); color: var(--c-on-brand); }
+
+/* 次按钮(导出报告) */
+.nav-header .topbar-action.ios-btn.secondary,
+.nav-header .topbar-action.secondary {
+  background: rgba(255, 255, 255, .12);
+  color: var(--c-on-brand);
+  border: .5px solid rgba(255, 255, 255, .22);
+  box-shadow: none;
+}
+.nav-header .topbar-action.ios-btn.secondary:hover,
+.nav-header .topbar-action.secondary:hover {
+  background: rgba(255, 255, 255, .22);
+  color: var(--c-on-brand);
+}
+
+/* 主按钮(创建巡检任务) */
+.nav-header .topbar-action.ios-btn.primary,
+.nav-header .topbar-action.primary {
+  background: var(--c-bg);
+  color: var(--c-brand-deeper);
+  border-color: transparent;
+  font-weight: 650;
+  box-shadow: 0 2px 10px rgba(15, 35, 22, .22);
+}
+.nav-header .topbar-action.ios-btn.primary:hover,
+.nav-header .topbar-action.primary:hover {
+  background: var(--c-surface);
+  color: #2c4d3b;
+}
+
+/* 纯图标按钮 */
+.nav-header .topbar-action.icon-only {
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  padding: 0;
+  border-radius: 50%;
+  display: inline-grid;
+  place-items: center;
+  gap: 0;
+}
+.nav-header .topbar-action.icon-only svg { width: 17px; height: 17px; }
+.nav-header .topbar-action.icon-only:active { transform: scale(.94); }
+
+/* 响应式断点 */
+@media (max-width: 1200px) {
+  .nav-header-inner {
+    padding: 0 16px;
+    gap: 12px;
+  }
+}
+
+@media (max-width: 1024px) {
+  .nav-brand .brand-copy { display: none; }
+  .nav-header .user-info { display: none; }
+}
+
+@media (max-width: 768px) {
+  .nav-header { display: none; }
 }
 </style>

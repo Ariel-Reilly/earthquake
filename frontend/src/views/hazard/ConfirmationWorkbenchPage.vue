@@ -63,9 +63,23 @@ const statusTabs = [
 const has = (perm) => hasPermission(operator.role, perm)
 
 const filteredItems = computed(() => {
-  const items = queue.value.items ?? []
-  if (filterStatus.value === '已认领') {
-    return items.filter((i) => i.assignee === operator.name && !['已确认', '已驳回', '已转派'].includes(i.status))
+  let items = queue.value.items ?? []
+  const tab = filterStatus.value
+  if (tab === '待确认') {
+    // 后端已按「尚未给出结论」筛选过，这里不能再按 status 过滤，
+    // 否则同为「确认中」的已认领/已转派事件会被一并滤掉。
+  } else if (tab === '已认领') {
+    // 页签语义是「我已认领」：后端给出确认中的事件，这里再按当前用户二次筛选
+    items = items.filter((i) => i.status === '已认领' && i.assignee === operator.name)
+  } else if (tab) {
+    items = items.filter((i) => i.status === tab)
+  }
+  // 类型与等级后端不参与过滤，在前端按归一化后的字段筛选
+  if (filterType.value) {
+    items = items.filter((i) => i.type === filterType.value)
+  }
+  if (filterLevel.value) {
+    items = items.filter((i) => i.level === filterLevel.value)
   }
   return items
 })
@@ -88,18 +102,22 @@ function canReject(item) {
 async function loadQueue() {
   loading.value = true
   try {
-    const data = await dashboardApi.getConfirmationQueue({
-      status: filterStatus.value === '已认领' ? '待确认' : filterStatus.value || undefined,
-      type: filterType.value || undefined,
-      level: filterLevel.value || undefined,
-      keyword: searchKeyword.value || undefined,
-    })
-    queue.value = data ?? { items: [], total: 0, pending: 0 }
-    if (!selected.value && queue.value.items.length) {
-      selectItem(queue.value.items[0])
+    const [data, aiList] = await Promise.all([
+      dashboardApi.getConfirmationQueue({
+        status: filterStatus.value || undefined,
+        keyword: searchKeyword.value || undefined,
+      }),
+      // AI 置信度与风险分数不在队列接口里，批量取一次落库的综合分析结果。
+      // 取不到只影响这两项展示，不影响队列本身，因此单独兜底。
+      dashboardApi.getAiComprehensiveAll?.().catch(() => []),
+    ])
+    const items = dashboardApi.attachAiScores(data?.items ?? [], aiList ?? [])
+    queue.value = { ...(data ?? {}), items, total: data?.total ?? items.length }
+    if (!selected.value && items.length) {
+      selectItem(items[0])
     } else if (selected.value) {
       // 同步刷新右侧详情
-      const fresh = queue.value.items.find((i) => i.id === selected.value?.id)
+      const fresh = items.find((i) => i.id === selected.value?.id)
       if (fresh) selected.value = fresh
     }
   } catch (e) {
@@ -130,13 +148,44 @@ async function selectItem(item) {
   }
 }
 
+/**
+ * 执行会签类操作并统一处理失败反馈。
+ *
+ * <p>这四个操作用 `.catch(() => null)` 吞掉后端异常后仍继续改本地状态，
+ * 导致后端拒绝（比如"仅允许认领待确认状态的事件"）时界面照样显示"已认领"，
+ * 值班员会据此误判任务已闭环而漏做处置。这里改为：只有后端明确返回成功
+ * 才更新本地状态，失败时保留原状态并提示后端给出的原因。
+ *
+ * @param {() => Promise<any>} apiCall 后端接口调用
+ * @param {string} actionLabel 操作名称，用于错误提示
+ * @returns {Promise<object|null>} 后端返回的业务数据；失败时为 null
+ */
+async function runConfirmationAction(apiCall, actionLabel) {
+  try {
+    const res = await apiCall()
+    // 后端四个接口成功时都会带非空 data；拿不到数据说明接口未按约定实现，不能当作成功。
+    if (res === undefined || res === null) {
+      emit('notify', `${actionLabel}失败：接口未返回结果`)
+      return null
+    }
+    return res
+  } catch (e) {
+    emit('notify', `${actionLabel}失败：${e?.message ?? e}`)
+    return null
+  }
+}
+
 async function claim(item) {
   if (!item) return
   claimAction.loading = true
   try {
-    await dashboardApi.claimConfirmation?.(item.id, operator.name).catch(() => null)
-    // mock：本地立刻改
-    item.assignee = operator.name
+    const res = await runConfirmationAction(
+      () => dashboardApi.claimConfirmation(item.id, operator.name),
+      '认领'
+    )
+    // 失败时保持原状态，等待用户重试
+    if (!res) return
+    item.assignee = res.assignedTo ?? operator.name
     item.status = '已认领'
     emit('notify', `已认领 ${item.name}`)
   } finally {
@@ -154,14 +203,16 @@ async function confirm(item) {
     isDanger: true
   })
   if (!ok) return
-  // 保持原有的确认逻辑
   confirmAction.loading = true
   try {
-    await dashboardApi.confirmHazard?.(item.id, { operator: operator.name }).catch(() => null)
+    const res = await runConfirmationAction(
+      () => dashboardApi.confirmHazard(item.id, { operator: operator.name }),
+      '确认'
+    )
+    // 失败时状态保持"已认领"，用户可稍后重试
+    if (!res) return
     item.status = '已确认'
     emit('notify', `已确认 ${item.name}，可创建预警`)
-  } catch (e) {
-    emit('notify', e.message ?? '确认失败')
   } finally {
     confirmAction.loading = false
   }
@@ -178,12 +229,15 @@ async function submitReject() {
   if (!rejectAction.reason.trim()) return emit('notify', '请填写驳回原因')
   rejectAction.loading = true
   try {
-    await dashboardApi.rejectHazard?.(selected.value.id, { reason: rejectAction.reason, operator: operator.name }).catch(() => null)
+    const res = await runConfirmationAction(
+      () => dashboardApi.rejectHazard(selected.value.id, { reason: rejectAction.reason, operator: operator.name }),
+      '驳回'
+    )
+    // 失败时保留弹窗，让用户修正原因后重试
+    if (!res) return
     selected.value.status = '已驳回'
     emit('notify', '已驳回该 AI 推断')
     rejectDialog.value = false
-  } catch (e) {
-    emit('notify', e.message ?? '驳回失败')
   } finally {
     rejectAction.loading = false
   }
@@ -201,13 +255,16 @@ async function submitTransfer() {
   if (!transferAction.toUser.trim()) return emit('notify', '请选择转派对象')
   transferAction.loading = true
   try {
-    await dashboardApi.transferConfirmation?.(selected.value.id, transferAction.toUser, transferAction.reason).catch(() => null)
+    const res = await runConfirmationAction(
+      () => dashboardApi.transferConfirmation(selected.value.id, transferAction.toUser, transferAction.reason),
+      '转派'
+    )
+    // 失败时保留弹窗，让用户重试
+    if (!res) return
     selected.value.status = '已转派'
-    selected.value.assignee = transferAction.toUser
+    selected.value.assignee = res.toUser ?? transferAction.toUser
     emit('notify', `已转派给 ${transferAction.toUser}`)
     transferDialog.value = false
-  } catch (e) {
-    emit('notify', e.message ?? '转派失败')
   } finally {
     transferAction.loading = false
   }
@@ -674,7 +731,7 @@ onBeforeUnmount(() => {
 .similar-list li { font-size: 12px; padding: 6px 9px; background: var(--c-surface-2); border: 1px solid var(--c-brand-soft); border-radius: var(--r-sm); margin-bottom: 5px; }
 .muted { color: var(--c-text-4); font-size: 12px; margin: 6px 0 0; line-height: 1.55; }
 
-.mask { position: fixed; inset: 0; background: var(--c-scrim); /* 原 rgba(0,0,0,.4) 遮罩 */ display: flex; align-items: center; justify-content: center; z-index: 99; }
+.mask { position: fixed; inset: 0; background: var(--c-overlay); /* 原 rgba(0,0,0,.4) 遮罩 */ display: flex; align-items: center; justify-content: center; z-index: 99; }
 .dialog { background: var(--c-surface); padding: 22px 26px; border-radius: var(--r-lg); width: 460px; max-width: 95vw; box-shadow: 0 10px 40px rgba(0,0,0,.18); }
 .dialog h3 { margin: 0 0 12px; color: var(--c-scrim); }
 .dialog label { display: block; margin-bottom: 12px; color: var(--c-ink-1); font-size: 13px; }

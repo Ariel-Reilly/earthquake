@@ -822,7 +822,7 @@ defineExpose({ refresh })
 .chip.active { background: var(--c-brand-deeper); color: var(--c-on-brand); border-color: var(--c-brand-deeper); }
 
 /* 弹窗 */
-.modal-mask { position: fixed; inset: 0; background: var(--c-scrim); display: flex; align-items: center; justify-content: center; z-index: 9999; padding: 20px; }
+.modal-mask { position: fixed; inset: 0; background: var(--c-overlay); display: flex; align-items: center; justify-content: center; z-index: 9999; padding: 20px; }
 .modal-card { background: var(--c-surface); border-radius: var(--r-lg); width: 100%; max-width: 440px; box-shadow: 0 20px 60px rgba(0, 0, 0, .18); overflow: hidden; }
 .modal-card.wide { max-width: 560px; }
 .modal-header { padding: 14px 18px; border-bottom: 1px solid var(--c-brand-soft); display: flex; align-items: center; justify-content: space-between; }
@@ -919,7 +919,7 @@ defineExpose({ refresh })
 
 .drawer-summary { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: var(--c-ink-2); background: var(--c-brand-soft); padding: 6px 10px; border-radius: var(--r-sm); }
 .drawer-footer { padding: 12px 18px; border-top: 1px solid var(--c-brand-soft); display: flex; justify-content: flex-end; gap: 8px; }
-.drawer-mask { position: fixed; inset: 0; background: var(--c-scrim); z-index: 98; }
+.drawer-mask { position: fixed; inset: 0; background: var(--c-overlay); z-index: 98; }
 
 /* 过渡 */
 .drawer-enter-active, .drawer-leave-active { transition: transform .25s ease, opacity .25s ease; }

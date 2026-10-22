@@ -994,7 +994,7 @@ defineExpose({ refresh })
 
 /* 弹窗 */
 .modal-mask {
-  position: fixed; inset: 0; background: var(--c-scrim);
+  position: fixed; inset: 0; background: var(--c-overlay);
   display: flex; align-items: center; justify-content: center;
   z-index: 9999; padding: 20px;
 }
@@ -1037,7 +1037,7 @@ defineExpose({ refresh })
     border-radius: 0; z-index: 99;
   }
   .drawer-mask {
-    display: block; position: fixed; inset: 0; background: var(--c-scrim);
+    display: block; position: fixed; inset: 0; background: var(--c-overlay);
     z-index: 98;
   }
 }

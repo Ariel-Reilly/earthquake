@@ -814,7 +814,7 @@ onMounted(async () => {
 .mini-bar { display: block; width: 4px; border-radius: 1px; }
 .loading-row, .empty-row { padding: 36px 14px; text-align: center; color: var(--c-text-2); font-size: 12px; background: var(--c-surface); border: 1px dashed var(--c-border-2); border-radius: var(--r-md); }
 
-.drawer-mask { position: fixed; inset: 0; background: var(--c-scrim); display: flex; justify-content: flex-end; z-index: 100; }
+.drawer-mask { position: fixed; inset: 0; background: var(--c-overlay); display: flex; justify-content: flex-end; z-index: 100; }
 .drawer-card { width: min(560px, 96vw); height: 100vh; background: var(--c-surface-2); display: flex; flex-direction: column; box-shadow: -8px 0 24px rgba(0,0,0,.08); }
 .drawer-head { display: flex; justify-content: space-between; align-items: flex-start; padding: 18px 22px; border-bottom: 1px solid var(--c-border-2); }
 .drawer-head h3 { margin: 0; color: var(--c-text); font-size: 16px; display: flex; gap: 8px; align-items: center; }

@@ -11,6 +11,7 @@ import { AlertTriangle, Archive, ArchiveRestore, Bell, FileText, Layers3, MapPin
 import PermissionButton from '../../components/PermissionButton.vue'
 import SkeletonList from '../../components/common/SkeletonList.vue'
 import { dashboardApi } from '../../services/dashboardApi'
+import { useEscapeClose } from '../../composables/useEscapeClose'
 
 const emit = defineEmits(['notify'])
 const props = defineProps({ userRole: { type: String, default: 'admin' } })
@@ -338,6 +339,9 @@ function cancelCloseDialog() {
   closeDialog.value.open = false
   closeDialog.value.error = ''
 }
+
+// ESC 键关闭弹窗
+useEscapeClose(cancelCloseDialog, () => closeDialog.value.open)
 
 /* ===================== 兼容旧调用入口（内部走弹窗） ===================== */
 
