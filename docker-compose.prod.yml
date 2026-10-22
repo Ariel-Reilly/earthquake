@@ -61,6 +61,14 @@ services:
       # ISO 8601 Duration 格式。原先这里写 JWT_EXPIRE_MINUTES，但 Java 侧无任何引用，
       # 真正的键是 JWT_EXPIRE（application.yml: `${JWT_EXPIRE:PT2H}`）—— 属死配置，R4 顺带清理。
       JWT_EXPIRE: ${JWT_EXPIRE:-PT2H}
+      # 注册申请的身份证号加密密钥（AES-256-GCM）。同样用 :? 让缺失在 compose 解析阶段失败 ——
+      # 否则容器能起来，但 ProductionConfigValidator 会在 @PostConstruct 抛栈，
+      # 且留空时 SensitiveDataCipher 会生成一次性随机密钥，历史密文永久不可解。
+      DATA_ENCRYPTION_KEY: ${DATA_ENCRYPTION_KEY:?生产环境必须设置 DATA_ENCRYPTION_KEY（生成：openssl rand -base64 32）}
+      # 注册短信/邮箱验证码下发开关。网关尚未接入，保持 false —— 置 true 会被
+      # ProductionConfigValidator 阻断（当前 SmsSender/EmailSender 仍是 Mock）。
+      REGISTER_SMS_ENABLED: ${REGISTER_SMS_ENABLED:-false}
+      REGISTER_EMAIL_ENABLED: ${REGISTER_EMAIL_ENABLED:-false}
       FILE_BASE_URL: ${FILE_BASE_URL:-http://minio:9000}
       # prod profile 已默认覆盖：DEV_USERS_ENABLED=false, DEVICE_AUTH_STRICT=true, WS_REQUIRE_TICKET=true
       DEV_USERS_ENABLED: "false"

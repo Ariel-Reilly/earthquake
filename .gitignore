@@ -175,3 +175,18 @@ frontend/scripts/_shots/
 
 # AI 工作记忆（Cursor 等）
 .workbuddy/
+
+# ===== 项目根目录临时产物（集中清理）=====
+# npm 依赖缓存残留（--cache 误指向根目录时写入）
+/.npmcache/
+# 临时构建输出（脚本误配时外溢到根目录）
+/_build/
+/_out/
+# PDF 生成中间目录（文档工具输出，不入库）
+/_pdf/
+# 临时工作目录（用于脚本调试与人工审计）
+/_work/
+# 根目录 node_modules 残留（前端依赖应在 frontend/ 内）
+/node_modules/
+/package-lock.json
+/package.json

@@ -51,6 +51,17 @@ disasterguard:
   frontend-origin: ${FRONTEND_ORIGIN:http://localhost:5173}
   security:
     dev-users-enabled: ${DEV_USERS_ENABLED:false}
+    # AES-256-GCM 密钥：加密注册申请中的身份证号（sys_user_application.id_card_enc）。
+    # 留空时 dev 环境生成随机密钥（WARN，重启后旧密文无法解密）；prod 由
+    # ProductionConfigValidator 强制要求长度 >= 32，否则阻断启动。
+    # 生成方式：openssl rand -base64 32
+    data-encryption-key: ${DATA_ENCRYPTION_KEY:}
+  # 注册申请的短信/邮箱验证码下发开关。
+  # false = 未接入网关：dev 打 INFO 日志降级联调，prod 直接报 50301「验证码服务未配置」。
+  # 置 true 后走 notification 包下的 SmsSender / EmailSender 投递。
+  register:
+    sms-enabled: ${REGISTER_SMS_ENABLED:false}
+    email-enabled: ${REGISTER_EMAIL_ENABLED:false}
   jwt:
     # ⚠️ 生产环境必须通过 JWT_SECRET 环境变量覆盖为强随机密钥（>=32 字符）。
     # 生成方式：openssl rand -base64 48
