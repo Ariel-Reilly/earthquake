@@ -1665,3 +1665,46 @@ CREATE TABLE IF NOT EXISTS warning_delivery_record (
 );
 
 CREATE INDEX IF NOT EXISTS idx_wdr_record_id ON warning_delivery_record(record_id);
+-- =====================================================================
+-- 注册申请单：用户提交申请 -> 待审核 -> 管理员通过后创建 sys_user
+-- 约定：
+--   - password_hash / id_card_enc 为敏感字段，禁止出现在任何响应 DTO 中
+--   - id_card_enc 为 AES-256-GCM 密文（Base64(iv||ciphertext||tag)）
+--   - status 取值：待审核 / 已通过 / 已拒绝
+-- =====================================================================
+CREATE TABLE IF NOT EXISTS sys_user_application (
+  id BIGSERIAL PRIMARY KEY,
+  username VARCHAR(64) NOT NULL,
+  password_hash VARCHAR(255) NOT NULL,
+  real_name VARCHAR(64) NOT NULL,
+  phone VARCHAR(32) NOT NULL,
+  email VARCHAR(128) NOT NULL,
+  -- AES-256-GCM 密文（Base64(iv || ciphertext || tag)）
+  id_card_enc VARCHAR(512) NOT NULL,
+  -- 脱敏串，如 110***********1234
+  id_card_mask VARCHAR(32) NOT NULL,
+  department VARCHAR(128) NOT NULL,
+  position VARCHAR(64),
+  role_code VARCHAR(64) NOT NULL,
+  region_code VARCHAR(64) NOT NULL,
+  apply_reason TEXT NOT NULL,
+  invite_code VARCHAR(64),
+  status VARCHAR(32) NOT NULL DEFAULT '待审核',
+  reject_reason VARCHAR(255),
+  register_ip VARCHAR(64) NOT NULL,
+  user_agent VARCHAR(512),
+  phone_verified BOOLEAN NOT NULL DEFAULT FALSE,
+  email_verified BOOLEAN NOT NULL DEFAULT FALSE,
+  reviewer VARCHAR(64),
+  reviewed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_application_status ON sys_user_application(status);
+CREATE INDEX IF NOT EXISTS idx_application_username ON sys_user_application(username);
+CREATE INDEX IF NOT EXISTS idx_application_phone ON sys_user_application(phone);
+CREATE INDEX IF NOT EXISTS idx_application_ip ON sys_user_application(register_ip);
+
+-- 同一 username 只允许存在一条「待审核」申请（部分唯一索引）
+CREATE UNIQUE INDEX IF NOT EXISTS idx_application_pending_username
+  ON sys_user_application(username) WHERE status = '待审核';

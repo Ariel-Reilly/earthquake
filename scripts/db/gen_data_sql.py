@@ -171,7 +171,7 @@ def main() -> None:
     # ---------- sys_user ----------
     out.append("-- ===== sys_user =====")
     out.append("""INSERT INTO sys_user (username, password_hash, real_name, phone, role_code, region_code, status) VALUES""")
-    pwd = "$2b$10$e7J.wokpqTMslzHzJq/ateJNEhEnLh/pgz0gXB1HEv1mp6qDaI5pq"
+    pwd = "$2b$10$sl2SHlS/I0NUwrSWgqXs8e5XRUpLxPi6eRVQakX/0AfeWycTAKU1S"
     vals = [f"('{u}','{pwd}','{name}','{phone}','{role}','{region}','{status}')"
             for u, name, phone, role, region, status in USERS]
     out.append(",\n".join(vals) + "\nON CONFLICT (username) DO NOTHING;\n")

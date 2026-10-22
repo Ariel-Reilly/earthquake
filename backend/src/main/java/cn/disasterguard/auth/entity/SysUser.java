@@ -32,6 +32,15 @@ public class SysUser {
   @Column(name = "phone", length = 32)
   private String phone;
 
+  /**
+   * 邮箱。注册申请审核通过建号时从申请单带入（{@code sys_user_application.email}）。
+   *
+   * <p>该列在 schema.sql 中已存在（data.sql 的种子用户也在写），此前实体未映射，
+   * 导致新建账号的邮箱会丢失。
+   */
+  @Column(name = "email", length = 128)
+  private String email;
+
   @Column(name = "role_code", nullable = false, length = 64)
   private String roleCode;
 
@@ -60,6 +69,8 @@ public class SysUser {
   public void setRealName(String realName) { this.realName = realName; }
   public String getPhone() { return phone; }
   public void setPhone(String phone) { this.phone = phone; }
+  public String getEmail() { return email; }
+  public void setEmail(String email) { this.email = email; }
   public String getRoleCode() { return roleCode; }
   public void setRoleCode(String roleCode) { this.roleCode = roleCode; }
   public String getRegionCode() { return regionCode; }

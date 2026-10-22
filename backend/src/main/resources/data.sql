@@ -6,7 +6,7 @@
 --           → 资源/预案/模板 → 会签/审批/消息
 --
 -- BCrypt 哈希：所有测试账号密码均为 "admin123"
--- BCrypt($2b$, cost=10): $2b$10$e7J.wokpqTMslzHzJq/ateJNEhEnLh/pgz0gXB1HEv1mp6qDaI5pq
+-- BCrypt($2b$, cost=10): $2b$10$sl2SHlS/I0NUwrSWgqXs8e5XRUpLxPi6eRVQakX/0AfeWycTAKU1S
 -- =====================================================================
 
 -- =====================================================================
@@ -500,16 +500,16 @@ ON CONFLICT (role_id, perm_code) DO NOTHING;
 
 -- =====================================================================
 -- 5. 用户表 sys_user（7用户，替换旧3用户数据）
--- 密码：admin123 → BCrypt($2b$10$): $2b$10$e7J.wokpqTMslzHzJq/ateJNEhEnLh/pgz0gXB1HEv1mp6qDaI5pq
+-- 密码：admin123 → BCrypt($2b$10$): $2b$10$sl2SHlS/I0NUwrSWgqXs8e5XRUpLxPi6eRVQakX/0AfeWycTAKU1S
 -- =====================================================================
 INSERT INTO sys_user (username, password_hash, real_name, phone, email, role_code, region_code, status) VALUES
-('admin',        '$2b$10$e7J.wokpqTMslzHzJq/ateJNEhEnLh/pgz0gXB1HEv1mp6qDaI5pq', '李晨曦',  '13800000001', 'admin@disasterguard.com',       'admin',               '500000', '启用'),
-('sysadmin',     '$2b$10$e7J.wokpqTMslzHzJq/ateJNEhEnLh/pgz0gXB1HEv1mp6qDaI5pq', '王建国',  '13800000002', 'sysadmin@disasterguard.com',     'system_admin',        '500000', '启用'),
-('commander',    '$2b$10$e7J.wokpqTMslzHzJq/ateJNEhEnLh/pgz0gXB1HEv1mp6qDaI5pq', '赵明远',  '13800000003', 'cmd@disasterguard.com',          'emergency_commander', '500000', '启用'),
-('duty',         '$2b$10$e7J.wokpqTMslzHzJq/ateJNEhEnLh/pgz0gXB1HEv1mp6qDaI5pq', '周小雨',  '13800000004', 'duty@disasterguard.com',         'attendant',           '500103', '启用'),
-('expert',       '$2b$10$e7J.wokpqTMslzHzJq/ateJNEhEnLh/pgz0gXB1HEv1mp6qDaI5pq', '张海燕',  '13800000005', 'expert@disasterguard.com',       'expert',              '500106', '启用'),
-('aiengineer',   '$2b$10$e7J.wokpqTMslzHzJq/ateJNEhEnLh/pgz0gXB1HEv1mp6qDaI5pq', '陈志远',  '13800000006', 'ai@disasterguard.com',           'ai_engineer',         '500109', '启用'),
-('fieldops',     '$2b$10$e7J.wokpqTMslzHzJq/ateJNEhEnLh/pgz0gXB1HEv1mp6qDaI5pq', '刘强',    '13800000007', 'ops@disasterguard.com',          'maintenance',         '500103', '启用')
+('admin',        '$2b$10$sl2SHlS/I0NUwrSWgqXs8e5XRUpLxPi6eRVQakX/0AfeWycTAKU1S', '李晨曦',  '13800000001', 'admin@disasterguard.com',       'admin',               '500000', '启用'),
+('sysadmin',     '$2b$10$sl2SHlS/I0NUwrSWgqXs8e5XRUpLxPi6eRVQakX/0AfeWycTAKU1S', '王建国',  '13800000002', 'sysadmin@disasterguard.com',     'system_admin',        '500000', '启用'),
+('commander',    '$2b$10$sl2SHlS/I0NUwrSWgqXs8e5XRUpLxPi6eRVQakX/0AfeWycTAKU1S', '赵明远',  '13800000003', 'cmd@disasterguard.com',          'emergency_commander', '500000', '启用'),
+('duty',         '$2b$10$sl2SHlS/I0NUwrSWgqXs8e5XRUpLxPi6eRVQakX/0AfeWycTAKU1S', '周小雨',  '13800000004', 'duty@disasterguard.com',         'attendant',           '500103', '启用'),
+('expert',       '$2b$10$sl2SHlS/I0NUwrSWgqXs8e5XRUpLxPi6eRVQakX/0AfeWycTAKU1S', '张海燕',  '13800000005', 'expert@disasterguard.com',       'expert',              '500106', '启用'),
+('aiengineer',   '$2b$10$sl2SHlS/I0NUwrSWgqXs8e5XRUpLxPi6eRVQakX/0AfeWycTAKU1S', '陈志远',  '13800000006', 'ai@disasterguard.com',           'ai_engineer',         '500109', '启用'),
+('fieldops',     '$2b$10$sl2SHlS/I0NUwrSWgqXs8e5XRUpLxPi6eRVQakX/0AfeWycTAKU1S', '刘强',    '13800000007', 'ops@disasterguard.com',          'maintenance',         '500103', '启用')
 ON CONFLICT (username) DO NOTHING;
 
 -- =====================================================================
