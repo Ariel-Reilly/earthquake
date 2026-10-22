@@ -84,7 +84,7 @@ class FusionEngine:
             self.weights = {k: v / total for k, v in self.weights.items()}
 
     def _score_to_level(self, score: float) -> str:
-        """评分转等级"""
+        """评分转等级（阈值按 0-100 设计）"""
         for threshold, level in self.LEVEL_THRESHOLDS:
             if score >= threshold:
                 return level
@@ -128,7 +128,7 @@ class FusionEngine:
 
         # 归一化融合分数
         if weight_sum > 0:
-            fused_score = weighted_sum / weight_sum * 100
+            fused_score = weighted_sum / weight_sum
         else:
             fused_score = 0.0
 

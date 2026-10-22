@@ -93,5 +93,4 @@ async def comprehensive_status():
         "model_path": str(cm.model_path),
         "dimension_weights": DIMENSION_WEIGHTS,
         "feature_engineering_enabled": True,
-        "adaptive_normalization_enabled": True,
     }
