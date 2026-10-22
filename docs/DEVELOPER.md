@@ -443,15 +443,33 @@ VITE_WS_URL=ws://localhost:8080/ws
 
 #### 步骤 4：验证登录
 
-打开 `http://localhost:5173`，使用开发预置账号登录：
+打开 `http://localhost:5173`，使用开发预置账号登录。**系统存在两套互不相同的预置账号，密码不一样，请按所处环境选用**：
 
-| 用户名         | 密码       | 角色         |
-| -------------- | ---------- | ------------ |
-| `admin`        | `123456`   | 系统管理员   |
-| `attendant`    | `123456`   | 值班人员     |
-| `maintenance`  | `123456`   | 维护人员     |
+**① 数据库种子账号**（由 `data.sql` 注入，`sys_user` 表，BCrypt 哈希；**密码统一为 `admin123`**）
 
-> 这三个账号由 `data.sql` 种子数据注入（BCrypt 哈希），`DEV_USERS_ENABLED=true` 时也可通过 `DbUserDetailsService` 内存 fallback 登录（无需数据库）。详见 §15 Q9。
+| 用户名       | 密码       | 角色（`role_code`）      | 说明         |
+| ------------ | ---------- | ------------------------ | ------------ |
+| `admin`      | `admin123` | `admin` 系统管理员       | 常用入口     |
+| `sysadmin`   | `admin123` | `system_admin` 运维管理员 |              |
+| `commander`  | `admin123` | `emergency_commander` 应急指挥员 |      |
+| `duty`       | `admin123` | `attendant` 值守人员     |              |
+| `expert`     | `admin123` | `expert` 专家            |              |
+| `aiengineer` | `admin123` | `ai_engineer` AI 工程师  |              |
+| `fieldops`   | `admin123` | `maintenance` 设备运维   |              |
+
+**② 内存 fallback 账号**（仅 `DEV_USERS_ENABLED=true` 时生效，**密码统一为 `123456`**）
+
+| 用户名        | 密码     | 角色（`role_code`）  | 说明                          |
+| ------------- | -------- | -------------------- | ----------------------------- |
+| `admin`       | `123456` | `admin` 系统管理员   | DB 中查无此用户时兜底         |
+| `attendant`   | `123456` | `attendant` 值守人员 | DB 中查无此用户时兜底         |
+| `maintenance` | `123456` | `maintenance` 设备运维 | DB 中查无此用户时兜底       |
+
+> ⚠️ **两套账号的密码不一样，别混用**：`admin123` 是 `data.sql` 种子用户的密码；`123456` 是 `DbUserDetailsService` 里 `DEV_PASSWORD_PLAIN` 常量的密码，只服务于「DB 查不到该用户」的内存兜底路径。
+>
+> 由于 `admin` 同时存在于两套账号中，**数据库可用时用 `admin` / `admin123` 登录；数据库不可用（或该用户未注入）时才会落到 fallback，改用 `admin` / `123456`**。`attendant`、`maintenance` **不是**种子用户名（种子里对应的是 `duty`、`fieldops`），它们只能走 fallback 路径，密码是 `123456`。
+>
+> 详见 §15 Q9。
 
 ### 4.4 全 Docker 启动
 
@@ -677,7 +695,7 @@ dto/         → 请求/响应记录（record）
   - `/api/devices/{deviceCode}/data`：仅允许 `ROLE_DEVICE`（由 `DeviceAuthFilter` 注入）。
   - 其他请求需认证。
   - ⚠️ **路径模式必须符合 Spring Security 6 `PathPatternParser` 规则**：`**` 只能出现在末尾，不能后面再跟路径段（如 `/**/data` 非法，需写 `/{code}/data`）。详见 §15 Q8。
-  - `UserDetailsService`：`auth/security/DbUserDetailsService`（**DB 优先 + 内存 fallback**）。从 `sys_user` 表加载用户并校验 BCrypt 密码；`DEV_USERS_ENABLED=true` 时 DB 未命中回退到 admin/attendant/maintenance 三个硬编码账号（**fallback 账号也使用 BCrypt hash**，AuthController 统一校验明文 `123456`，不存在"任意密码可登录"的后门）。**默认关闭**（`application.yml` 默认 `false`），仅 `start-dev.ps1` 等本地开发入口显式置 `true`。生产环境务必保持 `false`。
+  - `UserDetailsService`：`auth/security/DbUserDetailsService`（**DB 优先 + 内存 fallback**）。从 `sys_user` 表加载用户并校验 BCrypt 密码；**数据库种子用户（`data.sql`，7 个）密码统一为 `admin123`**。`DEV_USERS_ENABLED=true` 时 DB 未命中回退到 admin/attendant/maintenance 三个硬编码账号，**这三个 fallback 账号的密码是 `123456`**（`DbUserDetailsService.DEV_PASSWORD_PLAIN`，与种子密码刻意不同；fallback 账号也使用 BCrypt hash，AuthController 统一用 `passwordEncoder.matches()` 校验，不存在"任意密码可登录"的后门）。**默认关闭**（`application.yml` 默认 `false`），仅 `start-dev.ps1` 等本地开发入口显式置 `true`。生产环境务必保持 `false`。详见 §15 Q9。
 - 过滤器：`common/security/JwtAuthenticationFilter`
   - 从 `Authorization: Bearer <token>` 读取并解析 JWT，写入 `SecurityContext`。
   - 把 `role` claim 映射为 `ROLE_<ROLE>` + `PermissionRegistry` 注册的所有权限码 authority。
@@ -757,6 +775,54 @@ ai-service 返回 snake_case 字段，DTO 通过 `@JsonAlias` 解反序列化、
 | POST | `/api/auth/logout`          | 退出                                                                                             | ✅（无状态，占位） |
 | POST | `/api/auth/change-password` | 当前登录用户修改自己的密码（需 old_password + new_password，≥8 字符含字母和数字）                | 🔒（需有效 JWT）   |
 | GET  | `/api/auth/ws-ticket`       | 为已认证用户签发 WebSocket 一次性 ticket（60s TTL，一次性消费），用于替代在 query 中传递长期 JWT | 🔒（需有效 JWT）   |
+
+### 7.1.1 注册申请（开放注册申请，非自助注册）
+
+> 系统**不提供自助注册**：以下接口只开放「提交申请 + 自查进度」，账号真正创建发生在管理员审核通过时（`RegisterService.approve` 写入 `sys_user`）。详见 §14 第 43 条。
+
+| 方法 | 路径                          | 说明                                                                                                                                                    | 公开               |
+| ---- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
+| GET  | `/api/auth/captcha`           | 获取图形验证码，返回 `{captchaId, imageBase64}`（Base64 图像不含 data URI 前缀；`captchaId` 提交申请时需原样回传）                              | ✅                 |
+| POST | `/api/auth/register/send-code`| 下发短信 / 邮箱验证码，入参 `{type: 'phone'|'email', target}`；通道未接入时返回 50301/50302                                                                  | ✅                 |
+| POST | `/api/auth/register`          | 提交注册申请（落库 `sys_user_application`，status=待审核）。需带图形验证码 + 短信验证码 + 邮箱验证码；申请 `admin` 角色额外要求一次性邀请码 | ✅                 |
+| GET  | `/api/auth/register/status`   | 查询某用户名的申请状态（`?username=`），返回 `{status, rejectReason, createdAt}`；无记录时返回 `null`                                                       | ✅                 |
+| GET  | `/api/admin/applications`     | 分页查询注册申请，`?status=&keyword=&page=&size=`                                                                                                          | 🔒（需 admin）     |
+| POST | `/api/admin/applications/{id}/approve` | 审核通过：幂等创建 `sys_user`（复用申请中已加密的密码哈希），并把申请置为「已通过」                                                          | 🔒（需 admin）     |
+| POST | `/api/admin/applications/{id}/reject`  | 审核拒绝，请求体 `{reason}`，申请置为「已拒绝」                                                                                              | 🔒（需 admin）     |
+
+**`POST /api/auth/register` 请求体字段**（`RegisterRequest`，全部字段必填，除 `position` / `inviteCode` 外）：
+
+| 字段                | 约束                                                    | 说明                             |
+| ------------------- | ------------------------------------------------------- | -------------------------------- |
+| `username`          | 4-32 位，字母/数字/下划线                                | 登录用户名                       |
+| `password`          | 8-64 位                                                 | 登录密码（BCrypt 存储）          |
+| `confirmPassword`   | 与 `password` 一致                                      | 两次密码不一致报 40001           |
+| `realName`          | 2-32 位                                                 | 真实姓名                         |
+| `phone`             | `^1[3-9]\d{9}$`                                         | 手机号（需短信验证码）           |
+| `email`             | 合法邮箱                                                | 邮箱（需邮箱验证码）             |
+| `idCard`            | `^\d{17}[\dXx]$`                                        | 身份证号，落库前加密 + 掩码存储 |
+| `department`        | ≤128 位                                                 | 所属部门                         |
+| `position`          | ≤64 位                                                  | 岗位（可空）                     |
+| `roleCode`          | `attendant` / `maintenance` / `admin`                   | 申请角色；`admin` 需邀请码      |
+| `regionCode`        | 非空                                                    | 所属行政区划编码                 |
+| `applyReason`       | 10-500 字                                               | 申请理由                         |
+| `inviteCode`        | 申请 `admin` 时必填                                    | 一次性邀请码（Redis `invite:{code}`） |
+| `captchaId`         | 非空                                                    | 图形验证码 ID                    |
+| `captchaCode`       | 非空                                                    | 图形验证码                       |
+| `phoneCode`         | 非空                                                    | 短信验证码                       |
+| `emailCode`         | 非空                                                    | 邮箱验证码                       |
+| `agreed`            | 必须为 `true`                                           | 已同意用户协议                   |
+
+**业务错误码**（`RegisterService`，统一由 `GlobalExceptionHandler` 转为 HTTP 400）：
+
+| 错误码 | 含义                     | 错误码 | 含义                     |
+| ------ | ------------------------ | ------ | ------------------------ |
+| 40001  | 两次密码不一致           | 40005  | 图形验证码错误或已过期   |
+| 40002  | 邀请码无效或已使用       | 40006  | 短信验证码错误或已过期   |
+| 40003  | 用户名已存在             | 40007  | 邮箱验证码错误或已过期   |
+| 40004  | 该用户名已有待审核申请   | 40008  | 申请已被处理（审核通过） |
+| 40401  | 申请不存在               | 40009  | 申请已被处理（审核拒绝） |
+| 50301  | 验证码服务未配置         | 50302  | 验证码服务暂不可用       |
 
 ### 7.2 系统
 
@@ -1135,7 +1201,7 @@ idx_ai_device_health_analyzed_at  ai_device_health(analyzed_at DESC)
 
 ### 8.5 种子数据（`data.sql`）
 
-- 3 个角色（admin/attendant/maintenance）、1 城市 3 乡镇、3 个用户（BCrypt 哈希，见配置说明）。
+- 7 个角色（`admin` / `system_admin` / `emergency_commander` / `attendant` / `expert` / `ai_engineer` / `maintenance`）、行政区划以重庆市为根（1 城市 + 主城都市区 + 多个区县/乡镇）、**7 个用户**（`admin` / `sysadmin` / `commander` / `duty` / `expert` / `aiengineer` / `fieldops`，BCrypt 哈希，**明文密码统一为 `admin123`**，详见 §15 Q9）。
 - 5 个灾害点、3 个任务、4 台设备、3 条预警规则、3 条预警事件、1 条应急事件、若干附件与风险日志。
 - 业务关联以编码为主：`hazard_code`、`task_code`、`device_code`、`warning_code`、`event_code`，便于前端详情页与附件查询联动；数据库层已建立同名字段的外键并配合理删除策略（级联/置空）。
 
@@ -1275,7 +1341,7 @@ stopRealtimeSync({ keepListeners: false })
 | `JWT_SECRET`                            | 必须 ≥ 32 字符强随机                    | JWT 签名密钥。长度不足、为空或匹配弱密码时应用启动失败。生成：`openssl rand -base64 48`；**不存在"application.yml 开发默认值"**——那里的 `${JWT_SECRET:}` 展开是空串，dev compose 现已用 `${JWT_SECRET:?...}` 在解析阶段 fail-fast，跑 `start-dev` 脚本时会自动生成并写回 `.env` |
 | `JWT_EXPIRE`                            | PT2H                                    | 过期时长（ISO-8601 Duration）                                                                                  |
 | `JWT_ISSUER`                            | disasterguard                               | JWT 签发者                                                                                                     |
-| `DEV_USERS_ENABLED`                     | false（默认）/ 本地脚本 true            | 是否启用硬编码账号 fallback。**默认关闭**（application.yml），`start-dev.ps1 -Backend` 本地开发显式 true；prod ProductionConfigValidator 强制 false |
+| `DEV_USERS_ENABLED`                     | false（默认）/ 本地脚本 true            | 是否启用内存 fallback 账号（`admin` / `attendant` / `maintenance`，密码 **`123456`**）。**注意与数据库种子账号密码（`admin123`）不同**，详见 §15 Q9。**默认关闭**（application.yml），`start-dev.ps1 -Backend` 本地开发显式 true；prod ProductionConfigValidator 强制 false |
 | `DEVICE_AUTH_STRICT`                    | false（dev）/ true（prod 强制）         | 设备上报严格模式（未登记 api_key 的请求被拒）。prod 强制 true                                                  |
 | `EMQX_USERNAME` / `EMQX_PASSWORD`       | 空（prod 需显式设置）                   | EMQX broker 侧认证凭据（需与 infra/emqx/init.sh 创建的用户一致）。prod 空值会被 ProductionConfigValidator 拦截 |
 | `DEVICE_OFFLINE_THRESHOLD_MIN`          | 5                                       | 设备离线判定阈值（分钟），`DeviceOnlineChecker` 每 60s 扫描 `last_report_at` 是否超过此阈值                    |
@@ -1517,7 +1583,7 @@ services:
 1. **前端后端模式**：确认 `VITE_USE_BACKEND` 与后端健康状态，避免接口误判。
 2. **JWT 密钥（强制校验）**：`JWT_SECRET` 必须不少于 32 字符且不在弱密钥黑名单（change-me / secret / default-secret 等）。**不满足则应用启动失败**（`IllegalStateException`）。生成方式：`openssl rand -base64 48`。
 3. **CORS**：生产环境不要保留过宽白名单，跨域与鉴权失败时优先检查 `FRONTEND_ORIGIN`、`VITE_API_BASE_URL` 与登录态。
-4. **用户认证模式**：`DEV_USERS_ENABLED` **默认关闭**（`application.yml` 默认 `false`）。`start-dev.ps1 -Backend` 等本地开发入口显式置 `true`：此时 DB 未命中会 fallback 到内存账号（admin / attendant / maintenance，密码 `123456`，**BCrypt hash 统一校验**，不存在"任意密码可登录"后门）。生产环境务必保持 `false`，强制走 `sys_user` 表的 BCrypt 密码哈希。
+4. **用户认证模式**：`DEV_USERS_ENABLED` **默认关闭**（`application.yml` 默认 `false`）。`start-dev.ps1 -Backend` 等本地开发入口显式置 `true`：此时 DB 未命中会 fallback 到内存账号（admin / attendant / maintenance，密码 **`123456`**，**BCrypt hash 统一校验**，不存在"任意密码可登录"后门）。生产环境务必保持 `false`，强制走 `sys_user` 表的 BCrypt 密码哈希。**注意区分**：`data.sql` 种子用户的密码是 **`admin123`**，与 fallback 账号的 `123456` 不同（详见 §15 Q9）。
 5. **设备上报严格模式**：`DEVICE_AUTH_STRICT=false`（默认）允许未登记 `api_key` 的设备上报（WARN 提示）。生产环境设为 `true`，未登记密钥的设备直接 403。
 6. **EMQX 鉴权检查**：`EMQX_ENABLED=true` 但未配置 `EMQX_USERNAME`/`EMQX_PASSWORD` 时，启动阶段会输出大段 WARN，提醒 broker 侧无认证，任何客户端可伪造设备数据。生产必须同时配置两端。
 7. **应用配置文件**：docker-compose 使用 `SPRING_PROFILES_ACTIVE=docker` 时应提供并启用 `application-docker.yml`，避免回退到本地地址。
@@ -1534,7 +1600,7 @@ services:
 18. **WebSocket 鉴权**：`/ws` 端点通过 `JwtHandshakeInterceptor` 校验握手请求。**推荐方式**：前端先调 `GET /api/auth/ws-ticket`（需 JWT）获取 60s 一次性 ticket，再用 `ws://host:port/ws?ticket=${ticket}` 连接——ticket 一次性消费，反向代理日志里只看到随机 token。**兼容方式**：`ws://host:port/ws?token=${authToken}`（直接把 JWT 放 query，浏览器 WebSocket API 不支持自定义 Header）。前端 `realtimeService.js` 已实现：**优先 ticket，失败 fallback raw JWT**（重连时重新取 ticket，处理 token 刷新）。WS URL 未配置时自动从 `VITE_API_BASE_URL` 推导 http→ws、/api→/ws。**Origin 白名单**：`WebSocketConfig` 通过 `setAllowedOriginPatterns` 限制可握手的来源（配置 `FRONTEND_ORIGIN`，逗号分隔多域），任意域名握手返回失败。
 19. **人员位置上报鉴权**：`POST /api/personnel/positions/report` 需携带有效 JWT（已从 permitAll 收口为 authenticated），且**默认只能上报自己的位置**（JWT 主体与 payload.userId 一致，管理员可代报，否则 403）。移动端可复用 Web 端签发的 token（`/api/auth/login` 返回），建议设置较长过期时间（如 24h）。`GET /api/personnel/positions` 需要 `overview:view` 权限。
 20. **schema 文本列**：`device_metric.raw_payload`、`warning_event.rule_snapshot`、`ai_analysis_result.result_json` 均以 `TEXT` 存储（实体映射 String）；若改回 `JSONB` 需同步调整实体类型或加 `::jsonb` 转换，避免 `column is of type jsonb but expression is of type character varying` 报错。
-21. **种子数据明文密码**：`data.sql` 预置三个演示用户（admin/attendant/maintenance），BCrypt 哈希对应明文密码均为 `123456`。生产环境**两种做法**：(a) 执行 data.sql 后、启动 backend 前用 SQL UPDATE 改密码（见 §14 #43 步骤 5）；(b) 跳过 data.sql 注入，启动后用 SQL INSERT 创建管理员（此时 sys_user 为空，ProductionConfigValidator 旁路放行）。
+21. **种子数据明文密码**：`data.sql` 预置 **7 个**演示用户（`admin` / `sysadmin` / `commander` / `duty` / `expert` / `aiengineer` / `fieldops`），BCrypt 哈希对应明文密码**均为 `admin123`**（哈希 `$2b$10$sl2SHlS/I0NUwrSWgqXs8e5XRUpLxPi6eRVQakX/0AfeWycTAKU1S`）。生产环境**两种做法**：(a) 执行 data.sql 后、启动 backend 前用 SQL UPDATE 改密码（见 §14 #43 步骤 5）；(b) 跳过 data.sql 注入，启动后用 SQL INSERT 创建管理员（此时 sys_user 为空，ProductionConfigValidator 旁路放行）。**注意**：`123456` 是 `DEV_USERS_ENABLED=true` 时内存 fallback 账号（admin/attendant/maintenance）的密码，与种子密码无关（详见 §15 Q9）。
 22. **geom 字段维护**：`hazard_point.geom` / `monitoring_device.geom` 等空间列**仅由应用层通过 GeometryFactory 自动生成**——写入时同时更新经度/纬度/geom 三列。**禁止直接用 SQL 修改经纬度而不更新 geom**（空间索引查询会返回错误结果）。如果必须绕过应用层运维，请执行 `UPDATE ... SET geom = ST_SetSRID(ST_MakePoint(longitude, latitude), 4326) WHERE ...`。
 23. **MinIO presigned URL 过期**：附件上传返回的 presigned URL 有效期 7 天（MinIO 默认），过期后前端需重新请求。后端 `GET /api/attachments/{id}` 每次访问都会**自动生成新 URL 并更新 DB**，前端也可显式调 `POST /api/attachments/{id}/refresh-url` 强制刷新（检测到图片 403/410 时调用，`dashboardApi.refreshAttachmentUrl` 已封装）。生产部署建议设置 CDN 反向代理 + 自定义域名，避免直接暴露 MinIO 端口。
 24. **EMQX broker 侧认证配置**：`docker-compose.yml` 编排了 EMQX 5.x 并挂载 `infra/emqx/` 目录作为配置。首次启动时执行 `infra/emqx/init.sh` 会创建 Built-in Database 认证器 + `disasterguard_backend` MQTT 用户（BCrypt 密码来自 `EMQX_PASSWORD`）。**如果跳过此初始化步骤**（如手动 docker-compose up 未挂载目录），broker 侧无认证，任何客户端可连接。验证方式：访问 `http://localhost:28083`（Dashboard）→ 认证 → Users，应能看到 `disasterguard_backend` 用户。
@@ -1547,11 +1613,13 @@ services:
 31. **操作审计日志**：`OperationLogAspect`（AOP）自动拦截所有类名后缀 `*Controller` 的 Controller 写方法（POST/PUT/DELETE）——**不依赖 `@PreAuthorize` 注解**，即使未显式标注权限的写接口也会被审计。记录 operator（从 JWT 解析，失败回落 anonymous）/ module / action / HTTP 方法 / URL / 耗时 / IP 到 `operation_log` 表。密码等敏感字段自动截断，审计失败不影响主流程（`saveAsync` 捕获异常）。
 32. **预警规则引擎性能**：去重判断已从循环内逐条 `existsByRuleCodeAndHazardCodeAndStatusNot` 改为**批量预取**——`WarningEventRepository.findOpenWarnings(ruleCodes, hazardCodes, excludedStatuses)` 一次拉取所有未关闭预警，构建 `ruleCode|hazardCode` 集合做 O(1) 判重（NULL-safe 处理 status）。指标拉取也使用轻量投影（`findDeviceCodeHazardCodePairs`）+ `findLatestByDeviceCodes`（`DISTINCT ON`）。
 33. **ProductionConfigValidator 作用**：`@Profile("prod")` 组件，启动时自动校验 7 项安全配置（DEV_USERS_ENABLED、DEVICE_AUTH_STRICT、WS_REQUIRE_TICKET、EMQX 凭据、FRONTEND_ORIGIN、种子用户密码、MINIO 密钥强度）。**7 项全部 fail-fast：命中即抛 `IllegalStateException` 阻断启动**，与其他安全配置策略一致。**唯一旁路**：`sys_user` 表为空（未执行 data.sql、无任何用户记录）时跳过种子密码检查，允许首次部署启动后通过 API 或 SQL 创建管理员。dev profile 下不加载，避免本地开发被拦截。
-34. **种子用户密码重置**：data.sql 中三个种子用户密码均为 BCrypt("123456")。prod profile 禁用 SQL init，首次部署也不自动执行 data.sql，因此**统一采用 SQL UPDATE 方案**：
-    - **首次部署**：执行 data.sql 注入种子数据后、启动 backend **之前**，用 htpasswd 生成新 BCrypt hash + `UPDATE sys_user`（详见下方 §14 第 43 条步骤 5）。否则 ProductionConfigValidator 检测到默认密码会阻断启动；
+34. **种子用户密码重置**：data.sql 中 **7 个**种子用户（`admin` / `sysadmin` / `commander` / `duty` / `expert` / `aiengineer` / `fieldops`）密码均为 `BCrypt("admin123")`。prod profile 禁用 SQL init，首次部署也不自动执行 data.sql，因此**统一采用 SQL UPDATE 方案**：
+    - **首次部署**：执行 data.sql 注入种子数据后、启动 backend **之前**，用 htpasswd 生成新 BCrypt hash + `UPDATE sys_user`（详见下方 §14 第 43 条步骤 5）。否则 ProductionConfigValidator 检测到默认密码（hash 前缀 `$2b$10$sl2`）会阻断启动；
     - **已运行系统**：让用户登录后调用 `POST /api/auth/change-password` 修改，或 DBA 直接执行 `UPDATE sys_user SET password_hash = '<BCryptHash>' WHERE username = 'admin'`。
 
     > 注意：修改 data.sql 中的 BCrypt hash 对 prod 无意义（prod 不自动执行 data.sql），仅适用于 dev profile。
+    >
+    > 校验逻辑在 `ProductionConfigValidator.checkSeedUserPasswords()`：扫描 `sys_user` 中所有启用账号，只要密码 hash 仍以 `$2b$10$sl2` 开头（即仍是 `admin123`）就判定为默认值并阻断 prod 启动；`sys_user` 表为空时跳过（全新部署旁路）。
 
 35. **EMQX init.sh 失败处理**：broker 认证初始化脚本内置 3 次重试（每次间隔 5s）。全部失败后 entrypoint 返回非零退出码，`docker restart unless-stopped` 自动重启容器重试。避免 broker 在无认证状态下持续运行。
 
@@ -1597,7 +1665,7 @@ docker compose exec -T postgres psql -U disasterguard -d disasterguard \
 docker compose exec -T postgres psql -U disasterguard -d disasterguard \
   < backend/src/main/resources/schema.sql
 
-# ====== 步骤 A4：注入种子数据（admin/attendant/maintenance，密码均为 123456） ======
+# ====== 步骤 A4：注入种子数据（7 个用户，密码均为 admin123） ======
 docker compose exec -T postgres psql -U disasterguard -d disasterguard \
   < backend/src/main/resources/data.sql
 
@@ -1704,7 +1772,7 @@ SQL
 > docker compose exec -T postgres psql -U disasterguard -d disasterguard -c "SELECT COUNT(*) FROM sys_role;"
 > ```
 
-> **为什么没有注册接口？** 出于安全考虑，未实现 `POST /api/auth/register` 公开注册端点。如果确实需要开放注册（如多租户场景），必须设计邀请码/审批机制。
+> **注册是怎么做的？** 系统不提供自助注册。`POST /api/auth/register` 只提交「注册申请」，落库 `sys_user_application`（status=待审核），管理员在后台审核通过后才会真正创建 `sys_user`；申请 admin 角色还必须携带一次性邀请码（Redis key `invite:{code}`）。
 
 > **前端启动时机**：方案 A 的步骤 A6 和方案 B 的步骤 B4 均会启动全栈（backend、frontend、ai-service）。frontend 无依赖顺序要求，nginx 代理 `/api` 和 `/ws` 到 backend。
 
@@ -1907,16 +1975,17 @@ org.springframework.web.util.pattern.PatternParseException:
 
 ### Q9：开发用户密码
 
-开发环境预置三个演示账号，密码统一为 `123456`（不是 `admin123`）：
+开发环境有**两套**预置账号，密码不同，来源也不同：
 
-| 用户名       | 角色          | 用途         |
-| ------------ | ------------- | ------------ |
-| `admin`      | admin         | 系统管理员   |
-| `attendant`  | attendant     | 值班人员     |
-| `maintenance`| maintenance   | 维护人员     |
+| 来源                     | 用户名                                                     | 密码       | 生效条件                                       |
+| ------------------------ | ---------------------------------------------------------- | ---------- | ---------------------------------------------- |
+| **数据库种子**（`data.sql`）| `admin` / `sysadmin` / `commander` / `duty` / `expert` / `aiengineer` / `fieldops` | `admin123` | `spring.sql.init.mode: always` 注入 `sys_user`，无需任何开关 |
+| **内存 fallback**        | `admin` / `attendant` / `maintenance`                       | `123456`   | 仅 `DEV_USERS_ENABLED=true` **且** DB 中查无该用户 |
 
-- **Docker 部署**：`docker-compose.yml` 中 `DEV_USERS_ENABLED` 默认 `false`，但 `data.sql` 种子用户始终注入（`spring.sql.init.mode: always`），密码哈希为 `BCrypt("123456")`。
-- **本地直跑**：`start-dev.ps1 -Backend` 自动设置 `DEV_USERS_ENABLED=true`，即使 DB 无种子数据也能通过内存 fallback 登录。**fallback 账号同样使用 BCrypt hash（构造时用 `PasswordEncoder` 生成 `123456` 的哈希），AuthController 统一校验明文**——不是 `{noop}` 任意密码放行，不存在"任意密码可登录"的后门。**注意 `DEV_USERS_ENABLED` 默认已改为 `false`**，需要时显式开启。
+- **数据库种子账号**：密码统一为 `admin123`，`data.sql` 中以 BCrypt 哈希存储（`$2b$10$sl2SHlS/I0NUwrSWgqXs8e5XRUpLxPi6eRVQakX/0AfeWycTAKU1S`）。这 7 个账号**总是**注入，不受 `DEV_USERS_ENABLED` 影响（prod 下 `application-prod.yml` 禁用 SQL init，需手动建号，见 §14 第 43 条）。
+- **内存 fallback 账号**：密码统一为 `123456`，来自 `DbUserDetailsService.DEV_PASSWORD_PLAIN` 常量，构造时由 `PasswordEncoder` 生成 BCrypt 哈希，**不是 `{noop}` 任意密码放行**，不存在"任意密码可登录"的后门；`AuthController` 用 `passwordEncoder.matches()` 统一校验。
+- **优先级**：`DbUserDetailsService.loadUserByUsername` **先查 DB，查不到才回退内存**。因此 `admin` 在数据库可用时密码是 `admin123`，数据库不可用时才是 `123456`。`attendant` / `maintenance` **不是**种子用户名（种子里对应的是 `duty` / `fieldops`），只能走 fallback，密码固定 `123456`。
+- **开关**：`DEV_USERS_ENABLED` **默认 `false`**（`application.yml`），`start-dev.ps1 -Backend` 本地开发显式置 `true`；`ProductionConfigValidator` 在 prod 强制其为 `false`。
 - **生产环境**：`DEV_USERS_ENABLED=false` + `application-prod.yml` 禁用 SQL init，需手动创建管理员（见 §14 第 43 条）。
 
 ### Q10：混合模式下前端 502 Bad Gateway

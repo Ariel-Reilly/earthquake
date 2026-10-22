@@ -3,13 +3,15 @@
 > 本文档是 **DisasterGuard 前端功能** 与 **后端 REST API** 的完整对照参考。
 > 由 `src/router/index.js` 路由定义、`src/services/dashboardApi.js` 服务层定义及 `backend/src/main/java/cn/disasterguard/**/*Controller.java` 控制器层三重交叉验证。
 >
-> **更新时间**: 2026-09-16
+> **更新时间**: 2026-10-22
 > **接口 Base URL**: `http://localhost:8080/api`（可通过 `VITE_API_BASE_URL` 配置）
-> **认证方式**: JWT Bearer Token（除 `/api/auth/login`、`/api/system/health` 外均需登录）
+> **认证方式**: JWT Bearer Token（除 `/api/auth/login`、`/api/system/health`、注册申请链路 `/api/auth/captcha`、`/api/auth/register`、`/api/auth/register/send-code`、`/api/auth/register/status` 外均需登录）
 
 ---
 
 ## 一、认证模块
+
+### 1.1 登录与账号
 
 | 前端功能 | 页面路由 | 调用接口 | 方法 | 说明 |
 |---------|---------|---------|------|------|
@@ -17,6 +19,61 @@
 | 登出 | 全局 | `/api/auth/logout` | POST | 清除服务端会话 |
 | 修改密码 | `/dashboard/account-security` | `/api/auth/change-password` | POST | `{oldPassword, newPassword}` |
 | WebSocket 票据 | 全局实时 | `/api/auth/ws-ticket` | GET | 为已认证用户签发一次性 WebSocket 票据 |
+
+### 1.2 注册申请（开放申请，非自助注册）
+
+> 系统**不提供自助注册**：以下接口只开放「提交申请 + 自查进度」，账号真正创建发生在管理员审核通过时（`RegisterService.approve` 写入 `sys_user`）。
+> 匿名可访问（后端 `SecurityConfig` 对下列接口 `permitAll`）。
+
+| 前端功能 | 页面路由 | 调用接口 | 方法 | 说明 |
+|---------|---------|---------|------|------|
+| 图形验证码 | `/register` | `/api/auth/captcha` | GET | `{captchaId, imageBase64}`；`captchaId` 提交申请时需原样回传 |
+| 下发验证码 | `/register` | `/api/auth/register/send-code` | POST | `{type: 'phone'\|'email', target}`；通道未接入时返回 50301/50302 |
+| 提交注册申请 | `/register` | `/api/auth/register` | POST | 落库 `sys_user_application`（status=待审核）；需图形+短信+邮箱验证码，申请 `admin` 角色额外需一次性邀请码 |
+| 查询申请状态 | `/register` | `/api/auth/register/status` | GET | `?username=` → `{status, rejectReason, createdAt}`；无记录时返回 `null` |
+
+**`POST /api/auth/register` 请求体字段**（`RegisterRequest`）：
+
+| 字段 | 约束 | 说明 |
+|------|------|------|
+| `username` | 4-32 位，字母/数字/下划线 | 登录用户名 |
+| `password` | 8-64 位 | 登录密码（BCrypt 存储） |
+| `confirmPassword` | 与 `password` 一致 | 不一致报 40001 |
+| `realName` | 2-32 位 | 真实姓名 |
+| `phone` | `^1[3-9]\d{9}$` | 手机号（需短信验证码） |
+| `email` | 合法邮箱 | 邮箱（需邮箱验证码） |
+| `idCard` | `^\d{17}[\dXx]$` | 身份证号，落库前加密 + 掩码存储 |
+| `department` | ≤128 位 | 所属部门 |
+| `position` | ≤64 位 | 岗位（可空） |
+| `roleCode` | `attendant`/`maintenance`/`admin` | 申请角色；`admin` 需邀请码 |
+| `regionCode` | 非空 | 所属行政区划编码 |
+| `applyReason` | 10-500 字 | 申请理由 |
+| `inviteCode` | 申请 `admin` 时必填 | 一次性邀请码（Redis `invite:{code}`） |
+| `captchaId` / `captchaCode` | 非空 | 图形验证码 ID / 值 |
+| `phoneCode` | 非空 | 短信验证码 |
+| `emailCode` | 非空 | 邮箱验证码 |
+| `agreed` | 必须 `true` | 已同意用户协议 |
+
+**业务错误码**（`RegisterService`，统一由 `GlobalExceptionHandler` 转为 HTTP 400）：
+
+| 错误码 | 含义 | 错误码 | 含义 |
+|--------|------|--------|------|
+| 40001 | 两次密码不一致 | 40005 | 图形验证码错误或已过期 |
+| 40002 | 邀请码无效或已使用 | 40006 | 短信验证码错误或已过期 |
+| 40003 | 用户名已存在 | 40007 | 邮箱验证码错误或已过期 |
+| 40004 | 该用户名已有待审核申请 | 40008 | 申请已被处理（审核通过） |
+| 40401 | 申请不存在 | 40009 | 申请已被处理（审核拒绝） |
+| 50301 | 验证码服务未配置 | 50302 | 验证码服务暂不可用 |
+
+### 1.3 注册申请审核（仅 admin）
+
+| 前端功能 | 页面路由 | 调用接口 | 方法 | 说明 |
+|---------|---------|---------|------|------|
+| 申请列表 | `/admin/applications` | `/api/admin/applications` | GET | 分页 `?status=&keyword=&page=&size=` |
+| 审核通过 | `/admin/applications` | `/api/admin/applications/{id}/approve` | POST | 幂等创建 `sys_user`，申请置为「已通过」 |
+| 审核拒绝 | `/admin/applications` | `/api/admin/applications/{id}/reject` | POST | `{reason}`，申请置为「已拒绝」 |
+
+> 权限：后端 `@PreAuthorize("hasRole('ADMIN')")`，前端 `ROLE_MENU_MAP` 中 `/admin/applications` 仅 `admin` 角色可见。
 
 ---
 
@@ -564,6 +621,7 @@
 | 页面 | 路由 | 认证 | 说明 |
 |------|------|------|------|
 | 欢迎页/登录 | `/` | 可选 | 根据 token 状态跳转 |
+| 注册申请 | `/register` | 无需登录 | 提交注册申请 + 自查审核进度（非自助注册，账号由 admin 审核后创建） |
 | 指挥大屏 | `/screen` | 无需登录 | 全屏展示，URL 直接访问 |
 | 移动指挥端 | `/mobile` | 无需登录 | 移动端适配 |
 | 403 禁止 | `/dashboard/error/403` | 无需登录 | 权限不足 |
@@ -578,6 +636,9 @@
 
 ```
 /api/auth/ws-ticket
+/api/auth/captcha
+/api/auth/register/status
+/api/admin/applications
 /api/dashboard/overview
 /api/dashboard/charts
 /api/dashboard/analytics
@@ -708,6 +769,10 @@
 /api/auth/login
 /api/auth/logout
 /api/auth/change-password
+/api/auth/register
+/api/auth/register/send-code
+/api/admin/applications/{id}/approve
+/api/admin/applications/{id}/reject
 /api/dashboard/overview/export
 /api/hazards               → 创建灾害点
 /api/hazards/export
