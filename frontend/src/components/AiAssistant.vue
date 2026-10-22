@@ -157,7 +157,7 @@ const knowledgeBase = [
   { keywords: ['灾害', '隐患', 'hazard', '滑坡'], answer: '灾害点管理页面统一管理所有地质灾害隐患点，支持空间可视化展示和全生命周期追踪。', action: '/dashboard' },
   { keywords: ['任务', '巡检', 'task'], answer: '巡检任务页面支持创建、分配和跟踪巡检任务，确保灾害点定期巡查。', action: '/dashboard/tasks' },
   { keywords: ['统计', '分析', '图表', 'analytics'], answer: '数据分析页面提供多维度统计图表，支持数据导出，为应急决策提供数据支撑。', action: '/dashboard/analytics' },
-  { keywords: ['密码', '账号', '登录', 'admin', 'password'], answer: '演示环境默认账号：\n• 管理员 — admin / 123456\n• 值守员 — attendant / 123456\n• 维护员 — maintenance / 123456', action: null },
+  { keywords: ['密码', '账号', '登录', 'admin', 'password'], answer: '演示环境默认账号：\n• 管理员 — admin / admin123\n• 值守员 — attendant / admin123\n• 维护员 — maintenance / admin123', action: null },
   { keywords: ['应急', 'emergency'], answer: '应急管理页面用于处置突发事件，支持事件派发和关闭操作。', action: '/dashboard/emergency' },
   { keywords: ['气象', '天气', 'weather'], answer: '气象监测页面接入了国家气象数据中心（风云四号卫星云图、雷达回波、24h 降水、积雪、干旱监测），可在地图上叠加显示。', action: '/dashboard/weather' },
   { keywords: ['AI', '综合分析', '综合', '智能'], answer: 'AI 综合分析在「/dashboard/ai-insight」页面，对每个灾害点从图像现况 / 当地降水量 / 当地地理情况 / 设备位移四个维度综合打分，输出 AI 报告、推理与建议。', action: '/dashboard/ai-insight' },
@@ -553,7 +553,7 @@ onBeforeUnmount(() => {
   cursor: pointer;
   transition: background .15s ease, color .15s ease;
 }
-.panel-close:hover { background: color-mix(in srgb, var(--c-text) 16%, transparent); color: var(--c-text); }; /* = rgba 120,120,127/.28 */
+.panel-close:hover { background: color-mix(in srgb, var(--c-text) 16%, transparent); color: var(--c-text); } /* = rgba 120,120,127/.28 */
 
 /* ====== 消息区 ====== */
 .panel-messages {

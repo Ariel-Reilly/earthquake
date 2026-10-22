@@ -35,30 +35,32 @@ function clearError() {
 </script>
 
 <template>
-  <slot v-if="!error" />
-  <div v-else class="error-boundary">
-    <div class="error-boundary-content">
-      <div class="error-icon">
-        <AlertTriangle :size="48" />
-      </div>
-      <h2 class="error-title">页面出错了</h2>
-      <p class="error-message">{{ error?.message || '发生了未知错误' }}</p>
-      <p v-if="errorInfo" class="error-info">错误位置：{{ errorInfo }}</p>
-      <div class="error-actions">
-        <button class="eb-btn eb-btn-primary" @click="handleRefresh">
-          <RefreshCw :size="16" /> 刷新页面
-        </button>
-        <button class="eb-btn" @click="handleGoHome">
-          <Home :size="16" /> 返回首页
-        </button>
-      </div>
-      <div class="error-detail" v-if="error?.stack">
-        <details>
-          <summary>
-            <Bug :size="14" /> 查看错误详情
-          </summary>
-          <pre>{{ error.stack }}</pre>
-        </details>
+  <div class="error-boundary-wrapper">
+    <slot v-if="!error" />
+    <div v-else class="error-boundary">
+      <div class="error-boundary-content">
+        <div class="error-icon">
+          <AlertTriangle :size="48" />
+        </div>
+        <h2 class="error-title">页面出错了</h2>
+        <p class="error-message">{{ error?.message || '发生了未知错误' }}</p>
+        <p v-if="errorInfo" class="error-info">错误位置：{{ errorInfo }}</p>
+        <div class="error-actions">
+          <button class="eb-btn eb-btn-primary" @click="handleRefresh">
+            <RefreshCw :size="16" /> 刷新页面
+          </button>
+          <button class="eb-btn" @click="handleGoHome">
+            <Home :size="16" /> 返回首页
+          </button>
+        </div>
+        <div class="error-detail" v-if="error?.stack">
+          <details>
+            <summary>
+              <Bug :size="14" /> 查看错误详情
+            </summary>
+            <pre>{{ error.stack }}</pre>
+          </details>
+        </div>
       </div>
     </div>
   </div>
@@ -70,6 +72,11 @@ function clearError() {
  * 
  * 采用深色调 + 品牌色系，符合 DisasterGuard 整体设计语言
  */
+.error-boundary-wrapper {
+  width: 100%;
+  height: 100%;
+}
+
 .error-boundary {
   display: flex;
   align-items: center;

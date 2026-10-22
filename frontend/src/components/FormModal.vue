@@ -23,9 +23,10 @@
  *   - 操作按钮 capsule pill (filled primary + tinted cancel)
  *   - ESC 关闭 + 遮罩点击关闭
  */
-import { ref, watch, onBeforeUnmount } from 'vue'
+import { ref, watch } from 'vue'
 import { X } from 'lucide-vue-next'
 import { useBodyScrollLock } from '../composables/useBodyScrollLock'
+import { useEscapeClose } from '../composables/useEscapeClose'
 
 const props = defineProps({
   open: { type: Boolean, default: false },
@@ -48,6 +49,9 @@ const openRef = ref(props.open)
 watch(() => props.open, (v) => { openRef.value = v })
 useBodyScrollLock(openRef)
 
+// ESC 键关闭
+useEscapeClose(close, openRef)
+
 function close() {
   if (props.loading) return
   if (!props.closable) return
@@ -58,17 +62,6 @@ function confirm() {
   if (props.loading) return
   emit('confirm')
 }
-
-function onKey(e) {
-  if (e.key === 'Escape' && props.open) close()
-}
-
-watch(() => props.open, (v) => {
-  if (v) document.addEventListener('keydown', onKey)
-  else document.removeEventListener('keydown', onKey)
-})
-
-onBeforeUnmount(() => document.removeEventListener('keydown', onKey))
 </script>
 
 <template>

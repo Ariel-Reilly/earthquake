@@ -31,6 +31,7 @@ import {
 } from "lucide-vue-next";
 import { useRouter } from "vue-router";
 import { dashboardApi } from "../../services/dashboardApi";
+import { useEscapeClose } from "../../composables/useEscapeClose";
 
 const props = defineProps({
   event: { type: Object, default: null },
@@ -43,6 +44,9 @@ const router = useRouter();
 const activeTab = ref("hazard"); // hazard | warning | emergency
 const submitting = ref(false);
 const reasonDialog = ref({ open: false, trigger: null, reason: "", error: "" });
+
+// ESC 键关闭抽屉
+useEscapeClose(() => emit('close'), () => props.visible)
 
 const STATE_META = {
   DETECTED:         { label: "已发现",      color: "#6f9e7f", icon: GitBranch,  description: "AI 自动识别或人工上报，待人工复核" },
@@ -315,6 +319,8 @@ const onTabClick = (tab) => {
             <h4 class="ed-section-title">
               <GitBranch :size="14" /> 事件血缘
             </h4>
+            <!-- eslint-disable-next-line vue/no-v-for-template-key -->
+            <!-- Vue 3 官方要求在 <template v-for> 上放置 :key，与该旧版规则冲突 -->
             <div class="lineage">
               <template v-for="(node, idx) in lineageNodes" :key="node.id">
                 <div
@@ -329,7 +335,7 @@ const onTabClick = (tab) => {
                   <span class="lineage-label">{{ node.label }}</span>
                   <span class="lineage-code">{{ node.code ?? "—" }}</span>
                 </div>
-                <ArrowRight v-if="idx < lineageNodes.length - 1 && lineageEdge(lineageNodes[idx].code, lineageNodes[idx + 1].code)" :size="16" class="lineage-arrow" />
+                <ArrowRight v-if="idx < lineageNodes.length - 1 && lineageEdge(lineageNodes[idx].code, lineageNodes[idx + 1].code)" :key="`arrow-${node.id}`" :size="16" class="lineage-arrow" />
               </template>
             </div>
             <p class="hint">点击实线节点可跳转到对应业务模块的详情页。</p>
@@ -398,7 +404,7 @@ const onTabClick = (tab) => {
 .event-drawer-backdrop {
   position: fixed;
   inset: 0;
-  background: var(--c-scrim)
+  background: var(--c-overlay)
     /* = rgba 15,23,42/.35 */;
   backdrop-filter: blur(2px);
   z-index: 200;
@@ -731,7 +737,7 @@ const onTabClick = (tab) => {
 .reason-backdrop {
   position: fixed;
   inset: 0;
-  background: var(--c-scrim)
+  background: var(--c-overlay)
     /* = rgba 15,23,42/.45 */;
   z-index: 300;
   display: flex;

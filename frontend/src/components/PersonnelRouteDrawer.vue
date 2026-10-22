@@ -1,10 +1,15 @@
 <script setup>
+import { useEscapeClose } from '../composables/useEscapeClose'
+
 const props = defineProps({
   person: { type: Object, default: null },
   visible: { type: Boolean, default: false },
 })
 
-defineEmits(['close', 'focus'])
+const emit = defineEmits(['close', 'focus'])
+
+// ESC 键关闭抽屉
+useEscapeClose(() => emit('close'), () => props.visible)
 </script>
 
 <template>

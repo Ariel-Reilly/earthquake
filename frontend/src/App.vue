@@ -25,19 +25,26 @@ onMounted(async () => {
 </script>
 
 <template>
-  <ErrorBoundary>
-    <router-view />
-  </ErrorBoundary>
-  <!-- AI 智能助手：右下角悬浮 -->
-  <AiAssistant />
-  <!-- 运行模式指示器：固定左下角，提示当前数据来源 -->
-  <div v-if="runtimeMode !== 'unknown'" class="runtime-mode-badge" :class="modeClass" :title="modeLabel">
-    <span class="mode-dot"></span>
-    <span class="mode-text">{{ modeLabel }}</span>
+  <div class="app-root">
+    <ErrorBoundary>
+      <router-view />
+    </ErrorBoundary>
+    <!-- AI 智能助手：右下角悬浮 -->
+    <AiAssistant />
+    <!-- 运行模式指示器：固定左下角，提示当前数据来源 -->
+    <div v-if="runtimeMode !== 'unknown'" class="runtime-mode-badge" :class="modeClass" :title="modeLabel">
+      <span class="mode-dot"></span>
+      <span class="mode-text">{{ modeLabel }}</span>
+    </div>
   </div>
 </template>
 
 <style>
+.app-root {
+  width: 100%;
+  height: 100%;
+}
+
 .runtime-mode-badge {
   position: fixed;
   bottom: 14px;
