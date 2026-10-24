@@ -1,24 +1,22 @@
 <script setup>
 /**
- * 预警发布回执页（/dashboard/warnings/:id/delivery）。
+ * 预警派发/回执 Tab 组件 (/dashboard/warnings/:id?tab=delivery)。
  *
- * - 顶部条展示预警关键信息
- * - 4 个 KPI：应发人数 / 已送达 / 已阅读 / 已确认回执
- * - 5 个 Tab（短信 / APP 推送 / 邮件 / 声光LED / Webhook）展示每渠道明细
+ * - 展示 KPI：应发人数 / 已送达 / 已阅读 / 已确认
+ * - 5 个分渠道明细 Tab（短信 / APP 推送 / 邮件 / 声光 LED / Webhook）
  * - 重发失败、重发全量、导出报告
  * - 加载状态、错误态、空态
+ *
+ * 接收 warningId 作为 prop，emit('refresh') 通知父组件刷新详情。
  */
 import { computed, onMounted, ref, watch } from "vue";
-import { useRoute, useRouter } from "vue-router";
 import {
-  ArrowLeft,
   Bell,
   CheckCheck,
   DownloadCloud,
   Eye,
   Loader2,
   Mail,
-  MapPin,
   MessageSquare,
   MonitorPlay,
   RefreshCcw,
@@ -27,18 +25,14 @@ import {
   Webhook,
   X,
 } from "lucide-vue-next";
-import PermissionButton from "../../components/PermissionButton.vue";
-import { dashboardApi } from "../../services/dashboardApi";
+import PermissionButton from "./PermissionButton.vue";
+import { dashboardApi } from "../services/dashboardApi";
 
 const props = defineProps({
-  userRole: { type: String, default: "admin" },
+  warningId: { type: String, required: true },
 });
-const emit = defineEmits(["notify"]);
+const emit = defineEmits(["refresh", "notify"]);
 
-const route = useRoute();
-const router = useRouter();
-
-const warningId = computed(() => route.params.id);
 const warningDetail = ref(null);
 const summary = ref({
   shouldDeliver: 0,
@@ -127,8 +121,8 @@ async function loadData() {
   loadError.value = "";
   try {
     const [detail, sum] = await Promise.all([
-      dashboardApi.getWarningDetail(warningId.value).catch(() => null),
-      dashboardApi.getDeliverySummary(warningId.value).catch((e) => {
+      dashboardApi.getWarningDetail(props.warningId).catch(() => null),
+      dashboardApi.getDeliverySummary(props.warningId).catch((e) => {
         loadError.value = e?.message ?? "加载发布汇总失败";
         return {
           shouldDeliver: 0,
@@ -155,7 +149,7 @@ async function loadChannel(channel) {
   channelRecords.value[channel].loading = true;
   channelRecords.value[channel].error = "";
   try {
-    const data = await dashboardApi.getDeliveryRecords(warningId.value, {
+    const data = await dashboardApi.getDeliveryRecords(props.warningId, {
       channel,
     });
     const records = Array.isArray(data?.records)
@@ -192,13 +186,15 @@ async function runRedeliver() {
   try {
     const payload = { channel };
     if (targetIds) payload.targetIds = targetIds;
-    const result = await dashboardApi.redeliver(warningId.value, payload);
+    const result = await dashboardApi.redeliver(props.warningId, payload);
     const success =
       typeof result === "object" && result !== null
         ? result.success !== false
         : Boolean(result);
     if (success) {
       emit("notify", `${channel} 渠道已发起重发`);
+      // 重发后通知父组件刷新基本信息（详情细节 1）
+      emit("refresh");
       await loadChannel(channel);
     } else {
       emit("notify", "重发请求已提交，但服务返回状态未知");
@@ -209,7 +205,6 @@ async function runRedeliver() {
 }
 
 function exportReport(format = "csv") {
-  // 前端本地导出：直接拼装明细 CSV，避免依赖后端二进制流。
   const rows = [];
   rows.push(["渠道", "目标", "发送时间", "状态", "备注"]);
   Object.entries(channelRecords.value).forEach(([key, bag]) => {
@@ -241,21 +236,12 @@ function exportReport(format = "csv") {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `预警发布回执-${warningId.value}.${format === "xlsx" ? "xls" : "csv"}`;
+  a.download = `预警发布回执-${props.warningId}.${format === "xlsx" ? "xls" : "csv"}`;
   document.body.appendChild(a);
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
   emit("notify", `已导出 ${format.toUpperCase()} 报告`);
-}
-
-function goBack() {
-  router.push(`/dashboard/warnings/${warningId.value}`);
-}
-
-function shortText(value, max = 32) {
-  const s = String(value ?? "");
-  return s.length > max ? `${s.slice(0, max)}…` : s;
 }
 
 function statusBadgeClass(status) {
@@ -268,21 +254,11 @@ function statusBadgeClass(status) {
 }
 
 onMounted(loadData);
-watch(warningId, () => loadData());
+watch(() => props.warningId, () => loadData());
 </script>
 
 <template>
-  <div class="delivery-page">
-    <div class="back-row">
-      <button class="secondary-btn" @click="goBack">
-        <ArrowLeft :size="14" />
-        返回预警详情
-      </button>
-      <div class="topbar-meta">
-        <span class="route-hint"><MapPin :size="13" />{{ triggerPointText }}</span>
-      </div>
-    </div>
-
+  <div class="delivery-tab">
     <div v-if="loading" class="panel loading-panel">
       <div class="skeleton-row skeleton-bar" style="width: 60%"></div>
       <div class="skeleton-grid">
@@ -307,39 +283,6 @@ watch(warningId, () => loadData());
     </div>
 
     <template v-else>
-      <!-- 顶部条：预警关键信息 -->
-      <header class="panel warning-head" :style="{ borderColor: levelColor }">
-        <div class="head-left">
-          <div
-            class="level-pill"
-            :style="{ color: levelColor, borderColor: levelColor, background: levelColor + '14' }"
-          >
-            <Bell :size="14" />
-            {{ warningDetail?.item?.level ?? "预警" }}
-          </div>
-          <h1>{{ warningDetail?.item?.title ?? `预警 #${warningId}` }}</h1>
-          <div class="head-meta">
-            <span><MapPin :size="12" />{{ triggerPointText }}</span>
-            <span><Bell :size="12" />触发时间 {{ triggerTimeText }}</span>
-            <span v-if="warningDetail?.item?.bizNo">
-              编号：{{ warningDetail.item.bizNo }}
-            </span>
-          </div>
-        </div>
-        <div class="head-right">
-          <div class="quick-stats">
-            <div>
-              <span>本次触达</span>
-              <strong>{{ summary.delivered }} / {{ summary.shouldDeliver }}</strong>
-            </div>
-            <div>
-              <span>渠道数</span>
-              <strong>{{ summary.channels?.length || 5 }}</strong>
-            </div>
-          </div>
-        </div>
-      </header>
-
       <!-- 4 个 KPI 卡片 -->
       <section class="stats-grid">
         <div class="stat-card">
@@ -655,17 +598,7 @@ watch(warningId, () => loadData());
 </template>
 
 <style scoped>
-.delivery-page { display: flex; flex-direction: column; gap: 14px; }
-
-.back-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-.topbar-meta { display: flex; gap: 12px; color: var(--c-text-3); font-size: 12px; }
-.route-hint { display: inline-flex; align-items: center; gap: 5px; }
+.delivery-tab { display: flex; flex-direction: column; gap: 14px; }
 
 .loading-panel { padding: 22px 24px; display: flex; flex-direction: column; gap: 12px; }
 .skeleton-row { display: flex; gap: 8px; }
@@ -701,48 +634,6 @@ watch(warningId, () => loadData());
 .error-panel strong { font-size: 16px; }
 .error-panel p { color: var(--c-danger-strong); font-size: 13px; }
 .error-panel .primary-btn { margin-top: 6px; }
-
-.warning-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  padding: 18px 22px;
-  border-left: 4px solid var(--c-brand-hover);
-  border-radius: var(--r-lg);
-}
-.warning-head h1 {
-  margin: 8px 0 0;
-  font-size: 20px;
-  color: var(--c-text);
-  letter-spacing: -.02em;
-}
-.level-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 11px;
-  border: 1px solid;
-  border-radius: var(--r-pill);
-  font-size: 12px;
-  font-weight: 600;
-}
-.head-meta {
-  margin-top: 10px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  color: var(--c-text-2);
-  font-size: 11px;
-}
-.head-meta span { display: inline-flex; align-items: center; gap: 5px; }
-.head-right .quick-stats {
-  display: flex;
-  gap: 18px;
-}
-.head-right .quick-stats > div { display: flex; flex-direction: column; align-items: flex-end; }
-.head-right .quick-stats span { color: var(--c-text-3); font-size: 10px; }
-.head-right .quick-stats strong { color: var(--c-brand); font-size: 16px; font-weight: 700; }
 
 .delivery-panel { padding-bottom: 0; }
 .panel-header.compact { padding: 16px 19px 14px; }
@@ -897,12 +788,8 @@ watch(warningId, () => loadData());
 @media (max-width: 1100px) {
   .channel-summary { max-width: 100%; justify-content: flex-start; overflow-x: auto; flex-wrap: nowrap; }
   .skeleton-grid { grid-template-columns: repeat(2, 1fr); }
-  .quick-stats { gap: 10px; }
 }
 @media (max-width: 720px) {
-  .warning-head { flex-direction: column; align-items: flex-start; }
-  .head-right .quick-stats { flex-direction: row; gap: 16px; }
-  .head-right .quick-stats > div { align-items: flex-start; }
   .skeleton-grid { grid-template-columns: 1fr; }
   .delivery-foot { flex-direction: column; align-items: stretch; }
   .left-actions, .right-actions { width: 100%; }

@@ -50,8 +50,7 @@ const ConfirmationWorkbenchPage = () =>
   import(/* webpackChunkName: "hazard" */ "../views/hazard/ConfirmationWorkbenchPage.vue");
 const ResourceDispatchPage = () =>
   import(/* webpackChunkName: "warning" */ "../views/warning/ResourceDispatchPage.vue");
-const WarningResolvePage = () =>
-  import(/* webpackChunkName: "warning" */ "../views/warning/WarningResolvePage.vue");
+// WarningResolvePage 已迁移至 WarningDetailPage 的 Tab 组件，路由已重定向
 const DisasterForecastPage = () =>
   import(/* webpackChunkName: "ai" */ "../views/ai/DisasterForecastPage.vue");
 const DamageAssessmentPage = () =>
@@ -397,9 +396,7 @@ const router = createRouter({
         },
         {
           path: "warnings/:id/delivery",
-          name: "warning-delivery",
-          component: WarningDeliveryPage,
-          props: true,
+          redirect: to => ({ path: `/dashboard/warnings/${to.params.id}`, query: { tab: 'delivery' } }),
         },
         { path: "settings", name: "settings", component: SettingsPage },
         {
@@ -415,9 +412,7 @@ const router = createRouter({
         },
         {
           path: "warnings/:id/resolve",
-          name: "warning-resolve",
-          component: WarningResolvePage,
-          props: true,
+          redirect: to => ({ path: `/dashboard/warnings/${to.params.id}`, query: { tab: 'resolve' } }),
         },
         {
           path: "profile",

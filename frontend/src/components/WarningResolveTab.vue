@@ -1,30 +1,29 @@
 <script setup>
 /**
- * 预警解除 / 归档页面 /dashboard/warnings/:id/resolve。
+ * 预警解除 / 归档 Tab 组件 (/dashboard/warnings/:id?tab=resolve)。
  * 必填理由、二次确认、解锁真实 /resolve 端点联动 + 自动归档 + 审计留痕。
+ * 
+ * 接收 warningId 作为 prop，成功后 emit('success') 通知父组件。
  */
 import { computed, onMounted, reactive, ref } from 'vue'
-import ConfirmDialog from '../../components/common/ConfirmDialog.vue'
-import { useRoute, useRouter } from 'vue-router'
+import ConfirmDialog from './common/ConfirmDialog.vue'
 import {
   AlertTriangle,
-  ArrowLeft,
   CheckCircle2,
   Loader2,
   ShieldCheck,
   X,
 } from 'lucide-vue-next'
-import WarningResolveForm from '../../components/warning/WarningResolveForm.vue'
-import WarningResolvePreview from '../../components/warning/WarningResolvePreview.vue'
-import { dashboardApi } from '../../services/dashboardApi'
-import { getAuthUser, hasPermission } from '../../stores/auth'
+import WarningResolveForm from './warning/WarningResolveForm.vue'
+import WarningResolvePreview from './warning/WarningResolvePreview.vue'
+import { dashboardApi } from '../services/dashboardApi'
+import { getAuthUser, hasPermission } from '../stores/auth'
 
-const emit = defineEmits(['notify'])
-const confirmDialogRef = ref(null)
-defineProps({ searchTerm: { type: String, default: '' }, userRole: { type: String, default: 'admin' } })
+const emit = defineEmits(['success', 'notify'])
+defineProps({
+  warningId: { type: String, required: true },
+})
 
-const route = useRoute()
-const router = useRouter()
 const operator = computed(() => getAuthUser() ?? { name: 'system', role: 'admin' })
 const canResolve = computed(() => hasPermission(operator.value.role, 'warnings:close'))
 
@@ -45,12 +44,14 @@ const previewScope   = computed(() => scope.value)
 const previewScopeArea = computed(() => scopeArea.value)
 const previewChannels = computed(() => channels.value)
 
+const confirmDialogRef = ref(null)
+
 async function load() {
   loading.value = true
   try {
-    const data = await dashboardApi.getWarningDetail(route.params.id)
+    const data = await dashboardApi.getWarningDetail(props.warningId)
     warning.value = data?.item ?? data?.warning ?? data
-    const s = await dashboardApi.getWarningResolveScope(route.params.id).catch(() => ({}))
+    const s = await dashboardApi.getWarningResolveScope(props.warningId).catch(() => ({}))
     scopes.value = s?.scopes ?? [
       { value: '龙安镇', label: '龙安镇' },
       { value: '石桥镇', label: '石桥镇' },
@@ -81,6 +82,7 @@ async function doResolve() {
     submitError.value = '请填写解除理由'
     return
   }
+  
   const ok = await confirmDialogRef.value?.show({
     title: '确认操作',
     message: '解除预警后无法撤销，确认继续？',
@@ -89,10 +91,11 @@ async function doResolve() {
     isDanger: true
   })
   if (!ok) return
+  
   submitting.value = true
   submitError.value = ''
   try {
-    await dashboardApi.resolveWarning(warning.value?.id ?? route.params.id, {
+    await dashboardApi.resolveWarning(warning.value?.id ?? props.warningId, {
       reason: reason.value.trim(),
       scope: scope.value,
       scopeArea: scopeArea.value || null,
@@ -106,7 +109,8 @@ async function doResolve() {
     window.dispatchEvent(new CustomEvent('disasterguard:warning:resolved', {
       detail: { id: warning.value?.id, reason: reason.value },
     }))
-    setTimeout(() => router.push('/dashboard/warnings'), 900)
+    // 详情细节 2：成功后通知父组件刷新并改变按钮状态
+    setTimeout(() => emit('success'), 900)
   } catch (e) {
     submitError.value = e?.message ?? '解除失败，请稍后重试'
   } finally {
@@ -114,10 +118,10 @@ async function doResolve() {
   }
 }
 
+
 onMounted(() => {
   if (!canResolve.value) {
     emit('notify', '当前角色无权访问解除页面')
-    router.replace('/dashboard/warnings')
     return
   }
   load()
@@ -125,13 +129,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="resolve-page">
-    <header class="head">
-      <button class="back" @click="router.push('/dashboard/warnings')">
-        <ArrowLeft :size="14" /> 返回预警列表
-      </button>
-    </header>
-
+  <div class="resolve-tab">
     <div v-if="loading" class="loading">
       <Loader2 class="spin" :size="20" /> 加载预警信息中…
     </div>
@@ -143,7 +141,7 @@ onMounted(() => {
     <div v-else class="grid">
       <section class="panel">
         <h3><ShieldCheck :size="16" /> 解除操作</h3>
-        <WarningResolveForm :warning="warning" :scopes="scopes" @submit="handleFormSubmit" @cancel="router.push('/dashboard/warnings')" />
+        <WarningResolveForm :warning="warning" :scopes="scopes" @submit="handleFormSubmit" @cancel="() => {}" />
       </section>
 
       <section class="panel">
@@ -163,29 +161,16 @@ onMounted(() => {
           <X :size="14" /> {{ submitError }}
         </div>
         <div v-else-if="submitOk" class="status ok">
-          <CheckCircle2 :size="14" /> 解除成功，正在跳转…
+          <CheckCircle2 :size="14" /> 解除成功，即将刷新…
         </div>
       </section>
     </div>
   </div>
-    <ConfirmDialog ref="confirmDialogRef" />
+  <ConfirmDialog ref="confirmDialogRef" />
 </template>
 
 <style scoped>
-.resolve-page { padding: 22px 28px; display: flex; flex-direction: column; gap: 18px; height: 100%; overflow: auto; }
-.head {
-  display: flex; flex-direction: column; gap: 4px;
-  border-bottom: 1px solid var(--dashboard-border, var(--c-brand-mist)); padding-bottom: 14px;
-}
-.head h2 { display: inline-flex; align-items: center; gap: 8px; margin: 0; font-size: 20px; }
-.head p { margin: 4px 0 0; color: var(--dashboard-muted, var(--c-text-2)); font-size: 13px; }
-.back {
-  align-self: flex-start; background: transparent; border: 1px solid var(--dashboard-border, var(--c-brand-tint));
-  padding: 4px 12px; border-radius: var(--r-pill); cursor: pointer;
-  display: inline-flex; align-items: center; gap: 4px; font-size: 12px;
-  color: var(--dashboard-muted, var(--c-ink-1)); margin-bottom: 4px;
-}
-.back:hover { color: var(--c-brand-deep); border-color: var(--c-brand-deep); }
+.resolve-tab { display: flex; flex-direction: column; gap: 18px; }
 .loading { display: flex; align-items: center; gap: 8px; color: var(--dashboard-muted, var(--c-text-3)); }
 .empty { color: var(--c-danger); }
 .grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 18px; }
