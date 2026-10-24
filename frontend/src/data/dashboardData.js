@@ -45,11 +45,9 @@ export const dashboardMenu = [
 
   // ── 预警与处置 ────────────────────────────────────────────────
   { path: '/dashboard/warnings',          label: '预警中心',     icon: 'Siren',       group: 'action', order: 1 },
-  { path: '/dashboard/warning-config',    label: '预警配置',     icon: 'BellRing',    group: 'action', order: 2, badge: 'NEW' },
   { path: '/dashboard/emergency',         label: '应急事件',     icon: 'Flame',       group: 'action', order: 3 },
   { path: '/dashboard/resource-dispatch', label: '资源调度指挥', icon: 'Boxes',       group: 'action', order: 4 },
   { path: '/dashboard/route-planning',    label: '路径规划',     icon: 'Route',       group: 'action', order: 5 },
-  { path: '/dashboard/plans',             label: '预案管理',     icon: 'ScrollText',  group: 'action', order: 6 },
 
   // ── 设备与数据 ────────────────────────────────────────────────
   { path: '/dashboard/devices',           label: '设备管理',     icon: 'Radio',      group: 'data', order: 1 },
@@ -63,8 +61,6 @@ export const dashboardMenu = [
 
   // ── 分析与报表 ────────────────────────────────────────────────
   { path: '/dashboard/analytics',         label: '统计分析',     icon: 'BarChart3',   group: 'analytics', order: 1 },
-  { path: '/dashboard/reports',           label: '报表中心',     icon: 'FileBarChart', group: 'analytics', order: 2 },
-  { path: '/dashboard/history-hazards',   label: '历史灾害库',   icon: 'History',      group: 'analytics', order: 3 },
 
   // ── 系统管理 ──────────────────────────────────────────────────
   { path: '/dashboard/workbench',            label: '我的工作台',   icon: 'LayoutList',  group: 'system', order: 1 },
@@ -82,7 +78,6 @@ export const dashboardMenu = [
   { path: '/dashboard/audit-log',            label: '日志审计',     icon: 'ScrollText',  group: 'system', order: 10 },
   { path: '/dashboard/system-monitor',       label: '系统监控',     icon: 'Radar',       group: 'system', order: 11 },
   { path: '/dashboard/account-security',     label: '账号安全',     icon: 'ShieldCheck', group: 'system', order: 12 },
-  { path: '/dashboard/backup-recovery',      label: '备份恢复',     icon: 'HardDrive',   group: 'system', order: 13 },
   { path: '/dashboard/settings',             label: '系统设置',     icon: 'Settings',    group: 'system', order: 14 },
   { path: '/dashboard/help',                 label: '帮助中心',     icon: 'HelpCircle',  group: 'system', order: 15 },
   { path: '/dashboard/profile',              label: '个人中心',     icon: 'UserCircle',  group: 'system', order: 16 },
@@ -95,14 +90,12 @@ export const dashboardMenu = [
 export const moduleMeta = {
   '/dashboard':                        { title: '综合态势大屏' },
   '/dashboard/real-time-map':          { title: '实时监测地图' },
-  '/dashboard/satellite-compare':      { title: '时相对比卫星影像' },
   '/dashboard/ai-tasks':               { title: 'AI 巡检任务' },
   '/dashboard/ai-results':             { title: 'AI 推理结果' },
   '/dashboard/ai-insight':             { title: 'AI 综合研判' },
   '/dashboard/hazards':                { title: '灾害事件' },
   '/dashboard/confirmation-workbench': { title: '人工确认工作台' },
   '/dashboard/warnings':               { title: '预警中心' },
-  '/dashboard/warning-config':         { title: '预警配置' },
   '/dashboard/warnings/create':        { title: '新建预警' },
   '/dashboard/emergency':              { title: '应急事件' },
   '/dashboard/resource-dispatch':      { title: '资源调度指挥' },
@@ -113,7 +106,6 @@ export const moduleMeta = {
   '/dashboard/weather':                { title: '气象分析' },
   '/dashboard/analytics':              { title: '统计分析' },
   '/dashboard/workbench':              { title: '我的工作台' },
-  '/dashboard/history-hazards':        { title: '历史灾害库' },
   '/dashboard/user-management':        { title: '用户与权限' },
   '/admin/applications':              { title: '注册申请审核' },
   '/dashboard/audit-log':              { title: '日志审计' },
@@ -125,12 +117,9 @@ export const moduleMeta = {
   '/dashboard/events/:code':           { title: '事件详情' },
   '/dashboard/ai-models':              { title: 'AI 模型管理' },
   '/dashboard/notice-templates':       { title: '通知模板' },
-  '/dashboard/plans':                  { title: '预案管理' },
   '/dashboard/devices/ota':            { title: 'OTA 与边缘升级' },
   '/dashboard/device-map':             { title: '设备地图与轨迹回放' },
-  '/dashboard/reports':                { title: '报表中心' },
   '/dashboard/data-catalog':           { title: '数据资产目录' },
-  '/dashboard/backup-recovery':        { title: '备份与恢复' },
   '/dashboard/account-security':       { title: '账号安全' },
   '/dashboard/zone':                   { title: '区域专项大屏' },
   '/dashboard/settings':               { title: '系统设置' },
@@ -139,7 +128,6 @@ export const moduleMeta = {
   '/dashboard/profile':                { title: '个人中心' },
   '/dashboard/confirmation-sign':      { title: '会签与转派' },
   '/dashboard/confirmation-sign/:id':  { title: '事件会签详情' },
-  '/dashboard/social-media':           { title: '社交媒体舆情监测' },
   '/dashboard/help':                   { title: '帮助中心' },
   '/dashboard/notification-channels':  { title: '通知渠道配置' },
   '/dashboard/rule-engine':            { title: '规则引擎' },

@@ -56,8 +56,6 @@ const DataSourcesPage = () =>
   import(/* webpackChunkName: "data" */ "../views/data/DataSourcesPage.vue");
 const DataSyncPage = () =>
   import(/* webpackChunkName: "data" */ "../views/data/DataSyncPage.vue");
-const HistoryHazardsPage = () =>
-  import(/* webpackChunkName: "monitor" */ "../views/monitor/HistoryHazardsPage.vue");
 const UserManagementPage = () =>
   import(/* webpackChunkName: "system" */ "../views/system/UserManagementPage.vue");
 const AuditLogPage = () =>
@@ -82,20 +80,12 @@ const OtaManagePage = () =>
   import(/* webpackChunkName: "device" */ "../views/device/OtaManagePage.vue");
 const NoticeTemplatePage = () =>
   import(/* webpackChunkName: "system" */ "../views/system/NoticeTemplatePage.vue");
-const PlanManagePage = () =>
-  import(/* webpackChunkName: "system" */ "../views/system/PlanManagePage.vue");
-const ReportCenterPage = () =>
-  import(/* webpackChunkName: "system" */ "../views/system/ReportCenterPage.vue");
 const DataCatalogPage = () =>
   import(/* webpackChunkName: "data" */ "../views/data/DataCatalogPage.vue");
-const BackupRecoveryPage = () =>
-  import(/* webpackChunkName: "system" */ "../views/system/BackupRecoveryPage.vue");
 const AccountSecurityPage = () =>
   import(/* webpackChunkName: "settings" */ "../views/settings/AccountSecurityPage.vue");
 const RuleEnginePage = () =>
   import(/* webpackChunkName: "ai" */ "../views/ai/RuleEnginePage.vue");
-const SatelliteComparePage = () =>
-  import(/* webpackChunkName: "monitor" */ "../views/monitor/SatelliteComparePage.vue");
 const DeviceMapPage = () =>
   import(/* webpackChunkName: "monitor" */ "../views/monitor/DeviceMapPage.vue");
 const ForbiddenPage = () =>
@@ -120,8 +110,6 @@ const PersonnelManagePage = () =>
   import(/* webpackChunkName: "system" */ "../views/system/PersonnelManagePage.vue");
 const MobileCommandPage = () =>
   import(/* webpackChunkName: "mobile" */ "../views/mobile/MobileCommandPage.vue");
-const SocialMediaPage = () =>
-  import(/* webpackChunkName: "ai" */ "../views/ai/SocialMediaPage.vue");
 const HelpCenterPage = () =>
   import(/* webpackChunkName: "system" */ "../views/system/HelpCenterPage.vue");
 const NotificationChannelsPage = () =>
@@ -132,8 +120,6 @@ const WorkbenchPage = () =>
   import(/* webpackChunkName: "system" */ "../views/system/WorkbenchPage.vue");
 const DataManagePage = () =>
   import(/* webpackChunkName: "data" */ "../views/data/DataManagePage.vue");
-const WarningConfigPage = () =>
-  import(/* webpackChunkName: "warning" */ "../views/warning/WarningConfigPage.vue");
 // 注册 / 审核：匿名注册页不进首屏 chunk，审核页归入 system 分包
 const RegisterPage = () =>
   import(/* webpackChunkName: "register" */ "../views/RegisterPage.vue");
@@ -173,7 +159,6 @@ const routePermissionMap = {
   "resource-dispatch": "resource:view",
   "data-sources": "datasource:view",
   "data-sync": "sync:view",
-  "history-hazards": "history:view",
   "user-management": "users:view",
   "audit-log": "audit:view",
   "system-monitor": "monitor:view",
@@ -187,14 +172,10 @@ const routePermissionMap = {
   "ai-models": "ai:model:view",
   "ota-manage": "devices:ota",
   "notice-templates": "notice:view",
-  "plans-manage": "plans:view",
-  "reports-center": "reports:view",
   "data-catalog": "data:catalog:view",
-  "backup-recovery": "backup:view",
   "account-security": "settings:view",
   "rule-engine": "settings:view",
   settings: "settings:view",
-  "satellite-compare": "map:view",
   "device-map": "devices:view",
   // P0 阶段新增
   "route-planning": "resource:dispatch",
@@ -208,7 +189,6 @@ const routePermissionMap = {
   "field-inspection": "inspection:view",
   "personnel-manage": "personnel:view",
   "mobile-command": "overview:view",
-  "social-media": "ai:forecast:view",
   "help-center": "settings:view",
   "notification-channels": "notice:view",
   // 注册申请审核。后端判据是 hasRole('ADMIN')，前端用独立的 users:approve 权限码：
@@ -341,11 +321,6 @@ const router = createRouter({
             },
           ],
         },
-        {
-          path: "warning-config",
-          name: "warning-config",
-          component: WarningConfigPage,
-        },
         { path: "emergency", name: "emergency", component: EmergencyPage },
         {
           path: "resource-dispatch",
@@ -382,13 +357,15 @@ const router = createRouter({
           component: DataSyncPage,
         },
         { path: "weather", name: "weather", component: WeatherPage },
-        // 系统管理
         { path: "analytics", name: "analytics", component: AnalyticsPage },
-        {
-          path: "history-hazards",
-          name: "history-hazards",
-          component: HistoryHazardsPage,
-        },
+        // 以下路由已废弃，重定向到新地址
+        { path: "history-hazards", redirect: "/dashboard/analytics" },
+        { path: "satellite-compare", redirect: "/dashboard/real-time-map" },
+        { path: "warning-config", redirect: "/dashboard/warnings" },
+        { path: "social-media", redirect: "/dashboard/hazards" },
+        { path: "reports", redirect: "/dashboard/analytics" },
+        { path: "backup-recovery", redirect: "/dashboard/system-monitor" },
+        { path: "plans", redirect: "/dashboard/emergency" },
         {
           path: "user-management",
           name: "user-management",
@@ -448,24 +425,9 @@ const router = createRouter({
           component: NoticeTemplatePage,
         },
         {
-          path: "plans",
-          name: "plans-manage",
-          component: PlanManagePage,
-        },
-        {
-          path: "reports",
-          name: "reports-center",
-          component: ReportCenterPage,
-        },
-        {
           path: "data-catalog",
           name: "data-catalog",
           component: DataCatalogPage,
-        },
-        {
-          path: "backup-recovery",
-          name: "backup-recovery",
-          component: BackupRecoveryPage,
         },
         {
           path: "account-security",
@@ -489,11 +451,6 @@ const router = createRouter({
           props: true,
         },
         { path: "settings", name: "settings", component: SettingsPage },
-        {
-          path: "satellite-compare",
-          name: "satellite-compare",
-          component: SatelliteComparePage,
-        },
         {
           path: "device-map",
           name: "device-map",
@@ -548,11 +505,6 @@ const router = createRouter({
           path: "personnel",
           name: "personnel-manage",
           component: PersonnelManagePage,
-        },
-        {
-          path: "social-media",
-          name: "social-media",
-          component: SocialMediaPage,
         },
         {
           path: "help",
