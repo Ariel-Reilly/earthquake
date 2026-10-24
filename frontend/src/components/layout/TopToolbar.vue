@@ -43,7 +43,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['navigate', 'select-group'])
+const emit = defineEmits(['navigate', 'select-group', 'open-notification-drawer'])
 
 const MESSAGE_CENTER_PATH = '/dashboard/message-center'
 const HOME_PATH = '/dashboard'
@@ -148,10 +148,10 @@ function goToCreate(path) {
   closeCreate()
 }
 
-// ── 通知铃铛 ──
+// ── 通知铃铛：点击打开全局抽屉而不是跳转 ──
 const showNotificationBell = computed(() => canAccessPath(role.value, MESSAGE_CENTER_PATH))
-function goToMessages() {
-  if (showNotificationBell.value) emit('navigate', MESSAGE_CENTER_PATH)
+function openNotificationDrawer() {
+  if (showNotificationBell.value) emit('open-notification-drawer')
 }
 
 // ── Logo 跳转 ──
@@ -293,13 +293,13 @@ onBeforeUnmount(() => {
           </Transition>
         </div>
 
-        <!-- 通知铃铛 -->
+        <!-- 通知铃铛：打开全局抽屉 -->
         <button
           v-if="showNotificationBell"
           type="button"
           class="toolbar-icon-btn"
-          :aria-label="unreadCount > 0 ? `${unreadCount} 条未读消息` : '消息中心'"
-          @click="goToMessages"
+          :aria-label="unreadCount > 0 ? `${unreadCount} 条未读通知` : '打开通知中心'"
+          @click="openNotificationDrawer"
         >
           <Bell :size="18" />
           <span v-if="unreadCount > 0" class="notification-badge">

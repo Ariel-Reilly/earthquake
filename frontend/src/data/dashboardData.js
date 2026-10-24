@@ -64,9 +64,7 @@ export const dashboardMenu = [
 
   // ── 系统管理 ──────────────────────────────────────────────────
   { path: '/dashboard/workbench',            label: '我的工作台',   icon: 'LayoutList',  group: 'system', order: 1 },
-  { path: '/dashboard/todo',                 label: '待办中心',     icon: 'ListChecks',  group: 'system', order: 2, danger: true },
-  { path: '/dashboard/approvals',            label: '审批中心',     icon: 'ShieldCheck', group: 'system', order: 3 },
-  { path: '/dashboard/message-center',       label: '消息中心',     icon: 'Inbox',       group: 'system', order: 4 },
+  // 待办中心、审批中心、消息中心已迁移至全局通知抽屉，不在左侧菜单显示
   { path: '/dashboard/notification-channels', label: '通知渠道配置', icon: 'BellRing',   group: 'system', order: 5 },
   { path: '/dashboard/notice-templates',     label: '通知模板',     icon: 'FileText',    group: 'system', order: 6 },
   { path: '/dashboard/rule-engine',          label: '规则引擎',     icon: 'Sparkles',    group: 'system', order: 7 },

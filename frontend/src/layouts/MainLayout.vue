@@ -22,6 +22,7 @@ import { ShieldCheck } from 'lucide-vue-next'
 import TopToolbar from '../components/layout/TopToolbar.vue'
 import SidebarNav from '../components/layout/SidebarNav.vue'
 import ContentArea from '../components/layout/ContentArea.vue'
+import NotificationDrawer from '../components/notification/NotificationDrawer.vue'
 import { getAllowedMenuPaths, getAuthRole } from '../stores/auth'
 import { NAV_GROUPS, dashboardMenu } from '../data/dashboardData'
 import { dashboardApi } from '../services/dashboardApi'
@@ -177,6 +178,30 @@ function handleNavigate(path) {
   })
 }
 
+/** 全局通知抽屉 */
+const notificationDrawerVisible = ref(false)
+
+/**
+ * 打开通知抽屉
+ */
+function openNotificationDrawer() {
+  notificationDrawerVisible.value = true
+}
+
+/**
+ * 关闭通知抽屉
+ */
+function closeNotificationDrawer() {
+  notificationDrawerVisible.value = false
+}
+
+/**
+ * 处理通知抽屉内的红点刷新事件
+ */
+function handleBadgeRefresh() {
+  refreshDynamicBadges()
+}
+
 /**
  * 点击一级导航大类时的处理。
  * 当前页面已属于该大类时不跳转，避免把用户从子页面拽回大类首页；
@@ -250,6 +275,7 @@ onBeforeUnmount(() => {
       :unread-count="unreadCount"
       @navigate="handleNavigate"
       @select-group="handleGroupSelect"
+      @open-notification-drawer="openNotificationDrawer"
     />
 
     <!-- 主体区域：左侧 260px 固定导航 + 右侧 flex:1 内容 -->
@@ -285,6 +311,14 @@ onBeforeUnmount(() => {
         <span>{{ toast }}</span>
       </div>
     </Transition>
+
+    <!-- 全局通知抽屉 -->
+    <NotificationDrawer
+      :visible="notificationDrawerVisible"
+      :badges="dynamicBadges"
+      @close="closeNotificationDrawer"
+      @badge-refresh="handleBadgeRefresh"
+    />
   </div>
 </template>
 

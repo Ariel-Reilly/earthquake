@@ -50,7 +50,7 @@ const ConfirmationWorkbenchPage = () =>
   import(/* webpackChunkName: "hazard" */ "../views/hazard/ConfirmationWorkbenchPage.vue");
 const ResourceDispatchPage = () =>
   import(/* webpackChunkName: "warning" */ "../views/warning/ResourceDispatchPage.vue");
-// WarningResolvePage 已迁移至 WarningDetailPage 的 Tab 组件，路由已重定向
+// WarningResolvePage、MessageCenterPage、TodoCenterPage、ApprovalCenterPage 已迁移至全局通知抽屉，路由已重定向
 const DisasterForecastPage = () =>
   import(/* webpackChunkName: "ai" */ "../views/ai/DisasterForecastPage.vue");
 const DamageAssessmentPage = () =>
@@ -334,18 +334,15 @@ const router = createRouter({
         },
         {
           path: "message-center",
-          name: "message-center",
-          component: MessageCenterPage,
+          redirect: { path: "/dashboard", query: { openNotification: "true" } },
         },
         {
           path: "todo",
-          name: "todo-center",
-          component: TodoCenterPage,
+          redirect: { path: "/dashboard", query: { openNotification: "true" } },
         },
         {
           path: "approvals",
-          name: "approval-center",
-          component: ApprovalCenterPage,
+          redirect: { path: "/dashboard", query: { openNotification: "true" } },
         },
         {
           path: "events",

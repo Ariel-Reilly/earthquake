@@ -1,28 +1,20 @@
 <script setup>
 /**
- * 我的工作台：整合待办事项、我的审批、系统消息三个功能
- * 采用顶部 Tab 切换方式，每个 Tab 内嵌对应页面的完整组件
- * 原页面文件保持不变，路由继续保留
+ * 我的工作台：个人首页占位
+ * 待办事项、审批、消息等功能已迁移至全局通知抽屉（顶栏铃铛）
+ * 此页面可在未来扩展为个性化仪表板
  */
 import { ref } from 'vue'
-import { ListChecks, ShieldCheck, Inbox } from 'lucide-vue-next'
-import TodoCenterPage from './TodoCenterPage.vue'
-import ApprovalCenterPage from './ApprovalCenterPage.vue'
-import MessageCenterPage from './MessageCenterPage.vue'
+import { AlertCircle, Bell, CheckCircle2, Clock } from 'lucide-vue-next'
 
 const emit = defineEmits(['notify'])
 
-const activeTab = ref('todo') // todo | approval | message
-
-const tabs = [
-  { key: 'todo', label: '待办事项', icon: ListChecks },
-  { key: 'approval', label: '我的审批', icon: ShieldCheck },
-  { key: 'message', label: '系统消息', icon: Inbox },
-]
-
-function onNotify(msg) {
-  emit('notify', msg)
-}
+// 示例统计数据
+const stats = ref({
+  todayTasks: 0,
+  weekTasks: 0,
+  completedToday: 0,
+})
 </script>
 
 <template>
@@ -31,39 +23,51 @@ function onNotify(msg) {
     <header class="workbench-header">
       <div class="workbench-title">
         <h2>我的工作台</h2>
-        <p>待办事项、审批和消息一站式处理</p>
+        <p>个人工作效率看板</p>
       </div>
     </header>
 
-    <!-- Tab 切换 -->
-    <div class="workbench-tab-bar">
-      <button
-        v-for="tab in tabs"
-        :key="tab.key"
-        class="workbench-tab-btn"
-        :class="{ active: activeTab === tab.key }"
-        @click="activeTab = tab.key"
-      >
-        <component :is="tab.icon" :size="16" />
-        {{ tab.label }}
-      </button>
+    <!-- 统计卡片 -->
+    <div class="workbench-stats">
+      <div class="stat-card">
+        <div class="stat-icon primary">
+          <Clock :size="20" />
+        </div>
+        <div class="stat-info">
+          <div class="stat-value">{{ stats.todayTasks }}</div>
+          <div class="stat-label">今日任务</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon success">
+          <CheckCircle2 :size="20" />
+        </div>
+        <div class="stat-info">
+          <div class="stat-value">{{ stats.completedToday }}</div>
+          <div class="stat-label">已完成</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon warning">
+          <AlertCircle :size="20" />
+        </div>
+        <div class="stat-info">
+          <div class="stat-value">{{ stats.weekTasks }}</div>
+          <div class="stat-label">本周任务</div>
+        </div>
+      </div>
     </div>
 
-    <!-- 内容区 -->
-    <div class="workbench-content">
-      <!-- 待办事项 Tab -->
-      <div v-if="activeTab === 'todo'" class="tab-panel">
-        <TodoCenterPage @notify="onNotify" />
-      </div>
-
-      <!-- 我的审批 Tab -->
-      <div v-else-if="activeTab === 'approval'" class="tab-panel">
-        <ApprovalCenterPage @notify="onNotify" />
-      </div>
-
-      <!-- 系统消息 Tab -->
-      <div v-else-if="activeTab === 'message'" class="tab-panel">
-        <MessageCenterPage @notify="onNotify" />
+    <!-- 功能提示 -->
+    <div class="workbench-tips">
+      <div class="tip-card">
+        <div class="tip-icon">
+          <Bell :size="20" />
+        </div>
+        <div class="tip-content">
+          <h3>📢 通知中心</h3>
+          <p>待办、审批、消息已整合到全局通知抽屉。点击顶栏的铃铛图标即可快速处理所有通知。</p>
+        </div>
       </div>
     </div>
   </div>
@@ -73,7 +77,9 @@ function onNotify(msg) {
 .workbench-page {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 24px;
+  padding: 24px;
+  background: var(--c-bg);
 }
 
 /* 页面头部 */
@@ -82,87 +88,136 @@ function onNotify(msg) {
   align-items: center;
   justify-content: space-between;
 }
+
 .workbench-title h2 {
   margin: 0;
   font-size: 20px;
   font-weight: 700;
-  color: var(--c-scrim);
+  color: var(--c-text);
 }
+
 .workbench-title p {
   margin: 4px 0 0;
   font-size: 13px;
   color: var(--c-text-2);
 }
 
-/* Tab 切换栏 */
-.workbench-tab-bar {
+/* 统计卡片 */
+.workbench-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.stat-card {
   display: flex;
-  gap: 4px;
-  background: var(--c-surface);
-  border: 1px solid var(--c-brand-soft);
-  border-radius: var(--r-md);
-  padding: 4px;
-  width: fit-content;
-}
-.workbench-tab-btn {
-  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 9px 20px;
-  border: 0;
-  border-radius: var(--r-sm);
-  background: transparent;
-  color: var(--c-brand-deep);
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--c-border);
+  border-radius: 8px;
+  background: var(--c-surface);
+  transition: all 0.2s;
 }
-.workbench-tab-btn:hover {
+
+.stat-card:hover {
   background: var(--c-surface-2);
-  color: var(--c-scrim);
-}
-.workbench-tab-btn.active {
-  background: var(--c-scrim);
-  color: var(--c-on-brand);
+  border-color: var(--c-brand);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
-/* 内容区 */
-.workbench-content {
-  min-height: 0;
-}
-.tab-panel {
-  animation: fadeIn 0.2s ease;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.stat-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 6px;
+  flex-shrink: 0;
 }
 
-@media (max-width: 720px) {
-  .workbench-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
+.stat-icon.primary {
+  background: var(--c-brand-light);
+  color: var(--c-brand);
+}
+
+.stat-icon.success {
+  background: var(--c-success-light);
+  color: var(--c-success);
+}
+
+.stat-icon.warning {
+  background: var(--c-warning-light);
+  color: var(--c-warning);
+}
+
+.stat-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stat-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--c-text);
+}
+
+.stat-label {
+  font-size: 12px;
+  color: var(--c-text-3);
+}
+
+/* 功能提示 */
+.workbench-tips {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tip-card {
+  display: flex;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--c-border);
+  border-radius: 8px;
+  background: var(--c-surface);
+}
+
+.tip-icon {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  background: var(--c-brand-light);
+  color: var(--c-brand);
+  flex-shrink: 0;
+  padding-top: 4px;
+}
+
+.tip-content h3 {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--c-text);
+}
+
+.tip-content p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--c-text-2);
+  line-height: 1.5;
+}
+
+@media (max-width: 768px) {
+  .workbench-page {
+    padding: 16px;
   }
-  .workbench-tab-bar {
-    width: 100%;
-    overflow-x: auto;
-    flex-wrap: nowrap;
-  }
-  .workbench-tab-btn {
-    flex: 1;
-    justify-content: center;
-    padding: 9px 12px;
-    font-size: 12px;
-    white-space: nowrap;
+
+  .workbench-stats {
+    grid-template-columns: 1fr;
   }
 }
 </style>

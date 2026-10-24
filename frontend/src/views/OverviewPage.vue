@@ -35,8 +35,23 @@ const props = defineProps({
   userRole: { type: String, default: "admin" },
 });
 
-const emit = defineEmits(["notify", "open-task-modal"]);
+const emit = defineEmits(["notify", "open-task-modal", "open-notification-drawer"]);
 const router = useRouter();
+
+// 处理路由查询参数：?openNotification=true 时自动打开抽屉
+watch(
+  () => router.currentRoute.value.query.openNotification,
+  (openNotification) => {
+    if (openNotification === 'true') {
+      nextTick(() => {
+        emit('open-notification-drawer')
+        // 清除查询参数，避免多次触发
+        router.replace({ query: {} })
+      })
+    }
+  },
+  { immediate: true }
+)
 
 // 我的位置：localStorage 缓存键
 // 关闭浏览器再打开也能复用上次定位结果；只有用户主动"清除定位"或精度严重过期才会触发新的浏览器权限请求。
