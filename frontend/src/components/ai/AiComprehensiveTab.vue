@@ -459,7 +459,7 @@ onBeforeUnmount(() => {
         </div>
 
         <!-- 设备告警 -->
-        <div class="dim-card level-orange">
+        <div v-if="deviceDim && Object.keys(deviceDim).length > 0" class="dim-card level-orange">
           <header>
             <Cpu size="16" />
             <div>

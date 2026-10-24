@@ -82,11 +82,31 @@ public class WarningCreateService {
         aiAnalysisService.saveRecord("fusion", hazardCode, fusion.model(), fusion);
         aiAvailable = true;
         if (!fusion.degraded()) {
+          double confidence = fusion.confidence();
+          boolean highConfidence = confidence > 0.7;
+          
           switch (fusion.riskLevel()) {
-            case "CRITICAL" -> finalLevel = "红色预警";
-            case "HIGH" -> finalLevel = "橙色预警";
+            case "CRITICAL" -> {
+              finalLevel = "红色预警";
+              log.info("AI 融合升级预警为红色 hazard={}, confidence={}", hazardCode, confidence);
+            }
+            case "HIGH" -> {
+              finalLevel = "橙色预警";
+              log.info("AI 融合升级预警为橙色 hazard={}, confidence={}", hazardCode, confidence);
+            }
             case "MEDIUM" -> {
-              if (level.contains("蓝")) finalLevel = "黄色预警";
+              if (level.contains("蓝")) {
+                finalLevel = "黄色预警";
+                log.info("AI 融合升级预警为黄色 hazard={}, confidence={}", hazardCode, confidence);
+              }
+            }
+            case "LOW" -> {
+              // ✅ 【新增降级逻辑】AI 置信度高且评估为低风险，允许降为蓝色
+              if (highConfidence && !level.contains("红") && !level.contains("橙")) {
+                finalLevel = "蓝色预警";
+                log.info("AI 融合降级预警为蓝色 hazard={}, confidence={}, ruleLevel={}, aiScore={}", 
+                    hazardCode, confidence, level, fusion.riskScore());
+              }
             }
             default -> {}
           }

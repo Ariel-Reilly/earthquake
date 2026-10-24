@@ -6,6 +6,8 @@ import cn.disasterguard.common.export.WarningExportRow;
 import cn.disasterguard.emergency.service.EmergencyService;
 import cn.disasterguard.hazard.entity.HazardPoint;
 import cn.disasterguard.hazard.repository.HazardPointRepository;
+import cn.disasterguard.notification.NotificationService;
+import cn.disasterguard.notification.dto.NotificationRequestDto;
 import cn.disasterguard.realtime.RealtimeBroadcastService;
 import cn.disasterguard.warning.dto.WarningCreateRequest;
 import cn.disasterguard.warning.dto.WarningDto;
@@ -39,15 +41,17 @@ public class WarningService {
   private final HazardPointRepository hazardRepository;
   private final EmergencyService emergencyService;
   private final RealtimeBroadcastService broadcastService;
+  private final NotificationService notificationService;
   private final ObjectMapper objectMapper;
 
   public WarningService(WarningEventRepository warningRepository, HazardPointRepository hazardRepository,
                         EmergencyService emergencyService, RealtimeBroadcastService broadcastService,
-                        ObjectMapper objectMapper) {
+                        NotificationService notificationService, ObjectMapper objectMapper) {
     this.warningRepository = warningRepository;
     this.hazardRepository = hazardRepository;
     this.emergencyService = emergencyService;
     this.broadcastService = broadcastService;
+    this.notificationService = notificationService;
     this.objectMapper = objectMapper;
   }
 
@@ -158,10 +162,40 @@ public class WarningService {
     warning.setDispatchedAt(OffsetDateTime.now());
     WarningDto dto = toDto(warningRepository.save(warning));
     broadcastWarning(dto);
-    // TODO P0-2: 当前 dispatch 只改状态、不触发通知，用户实际收不到任何推送。
-    // 待 NotificationService 提供按预警发送的入口后，在此调用（渠道取 manualPayload.channels，
-    // 人工预警缺省 ["SMS","APP","SCREEN"]）。建议异步发送并落库 notification_record。
-    //   notificationService.sendFromWarning(warning, channels);
+    
+    // ✅ 【新增】派发时触发通知（与通知中心打通闭环）
+    try {
+      List<String> channels = extractChannels(warning);
+      String hazardName = resolveHazardName(warning.getHazardCode());
+      String notifyContent = buildDispatchNotificationContent(warning, hazardName);
+      
+      NotificationRequestDto notifyReq = new NotificationRequestDto(
+          "DISPATCH",                          // bizType: 预警派发
+          warning.getWarningCode(),            // bizId: 预警编码
+          warning.getHazardCode(),             // disasterType: 灾害点编码
+          warning.getWarningLevel(),           // level: 预警等级
+          "【预警派发】" + warning.getTitle(),  // title: 通知标题（含预警标题）
+          notifyContent,                       // content: 通知内容（含等级、位置、处置要求）
+          List.of("admin"),                    // targetUsers: 发送给值班员
+          hazardName,                          // targetArea: 目标区域
+          channels,                            // channels: 发送渠道
+          null,                                // templateId
+          "HIGH",                              // priority: 高优先级
+          Map.of(
+              "warningCode", warning.getWarningCode(),
+              "warningLevel", warning.getWarningLevel(),
+              "hazardName", hazardName,
+              "dispatchedAt", OffsetDateTime.now().format(DateTimeFormatter.ISO_DATE_TIME)
+          )
+      );
+      
+      notificationService.send(notifyReq, "system");
+      log.info("派发通知已发送 warning={}, channels={}", warning.getWarningCode(), channels);
+    } catch (Exception e) {
+      // 通知失败不阻塞派发主流程，保证预警派发一定能成功
+      log.warn("派发通知发送失败 warning={}, 但派发流程已成功: {}", warning.getWarningCode(), e.getMessage());
+    }
+    
     // 橙/红预警派发时联动生成应急事件（同预警未闭环则复用，不重复建）
     if (dto != null && isHighLevel(warning.getWarningLevel())) {
       String commander = "自然资源局值班组";
@@ -514,5 +548,67 @@ public class WarningService {
       // 广播失败不阻塞业务主流程
       log.debug("WebSocket 广播预警失败: {}", e.getMessage());
     }
+  }
+
+  /**
+   * 从预警的 manualPayload 中提取通知渠道列表。
+   * 如果是人工预警且明确指定了渠道，则返回指定的渠道；
+   * 否则使用缺省渠道 ["SMS","APP","SCREEN"]。
+   */
+  private List<String> extractChannels(WarningEvent warning) {
+    if (warning.getManualPayload() == null || warning.getManualPayload().isBlank()) {
+      return List.of("SMS", "APP", "SCREEN");
+    }
+    try {
+      Map<String, Object> payload = objectMapper.readValue(
+          warning.getManualPayload(),
+          new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
+      @SuppressWarnings("unchecked")
+      List<String> channels = (List<String>) payload.get("channels");
+      if (channels != null && !channels.isEmpty()) {
+        return channels;
+      }
+    } catch (Exception e) {
+      log.debug("解析 manualPayload.channels 失败，使用缺省渠道: {}", e.getMessage());
+    }
+    return List.of("SMS", "APP", "SCREEN");
+  }
+
+  /**
+   * 解析灾害点名称。
+   * 优先从 hazard_point 表查询名称；无数据则返回灾害点编码。
+   */
+  private String resolveHazardName(String hazardCode) {
+    if (hazardCode == null || hazardCode.isBlank()) {
+      return "未指定";
+    }
+    try {
+      HazardPoint hazard = hazardRepository.findByHazardCode(hazardCode);
+      if (hazard != null && hazard.getName() != null) {
+        return hazard.getName();
+      }
+    } catch (Exception e) {
+      log.debug("查询灾害点名称失败 hazardCode={}: {}", hazardCode, e.getMessage());
+    }
+    return hazardCode;
+  }
+
+  /**
+   * 构建派发通知的内容文本。
+   * 包含预警标题、等级、位置等关键信息，便于用户快速定位预警。
+   */
+  private String buildDispatchNotificationContent(WarningEvent warning, String hazardName) {
+    return String.format(
+        "【预警派发通知】\n" +
+        "标题：%s\n" +
+        "等级：%s\n" +
+        "位置：%s\n" +
+        "派发时间：%s\n" +
+        "请及时处理相关事宜。",
+        warning.getTitle(),
+        warning.getWarningLevel(),
+        hazardName,
+        OffsetDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+    );
   }
 }
