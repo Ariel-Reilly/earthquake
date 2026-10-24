@@ -76,6 +76,44 @@ const RegisterPage = () =>
   import(/* webpackChunkName: "register" */ "../views/RegisterPage.vue");
 const AdminApplicationsPage = () =>
   import(/* webpackChunkName: "system" */ "../views/AdminApplicationsPage.vue");
+const DataSourcesPage = () =>
+  import(/* webpackChunkName: "data" */ "../views/data/DataSourcesPage.vue");
+const DataSyncPage = () =>
+  import(/* webpackChunkName: "data" */ "../views/data/DataSyncPage.vue");
+const UserManagementPage = () =>
+  import(/* webpackChunkName: "system" */ "../views/system/UserManagementPage.vue");
+const AuditLogPage = () =>
+  import(/* webpackChunkName: "system" */ "../views/system/AuditLogPage.vue");
+const SystemMonitorPage = () =>
+  import(/* webpackChunkName: "system" */ "../views/system/SystemMonitorPage.vue");
+const EventCenterPage = () =>
+  import(/* webpackChunkName: "system" */ "../views/system/EventCenterPage.vue");
+const ModelManagePage = () =>
+  import(/* webpackChunkName: "ai" */ "../views/ai/ModelManagePage.vue");
+const OtaManagePage = () =>
+  import(/* webpackChunkName: "device" */ "../views/device/OtaManagePage.vue");
+const NoticeTemplatePage = () =>
+  import(/* webpackChunkName: "system" */ "../views/system/NoticeTemplatePage.vue");
+const DataCatalogPage = () =>
+  import(/* webpackChunkName: "data" */ "../views/data/DataCatalogPage.vue");
+const AccountSecurityPage = () =>
+  import(/* webpackChunkName: "settings" */ "../views/settings/AccountSecurityPage.vue");
+const RuleEnginePage = () =>
+  import(/* webpackChunkName: "ai" */ "../views/ai/RuleEnginePage.vue");
+const ZoneDashboardPage = () =>
+  import(/* webpackChunkName: "monitor" */ "../views/monitor/ZoneDashboardPage.vue");
+const DeviceMapPage = () =>
+  import(/* webpackChunkName: "monitor" */ "../views/monitor/DeviceMapPage.vue");
+const RoutePlanningPage = () =>
+  import(/* webpackChunkName: "warning" */ "../views/warning/RoutePlanningPage.vue");
+const ProfilePage = () =>
+  import(/* webpackChunkName: "settings" */ "../views/settings/ProfilePage.vue");
+const ConfirmationSignPage = () =>
+  import(/* webpackChunkName: "hazard" */ "../views/hazard/ConfirmationSignPage.vue");
+const ForbiddenPage = () =>
+  import(/* webpackChunkName: "error" */ "../views/ForbiddenPage.vue");
+const ServerErrorPage = () =>
+  import(/* webpackChunkName: "error" */ "../views/ServerErrorPage.vue");
 
 // 404 组件（inline，避免单独建文件）
 const NotFoundPage = {
