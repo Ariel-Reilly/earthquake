@@ -278,6 +278,7 @@ const router = createRouter({
               name: "task-detail",
               component: TaskDetailPage,
               props: true,
+              meta: { showAiAssistant: true }, // AI 助手在任务详情页显示
             },
           ],
         },
@@ -300,6 +301,7 @@ const router = createRouter({
               name: "hazard-detail",
               component: HazardDetailPage,
               props: true,
+              meta: { showAiAssistant: true }, // AI 助手在灾害点详情页显示
             },
           ],
         },
@@ -316,6 +318,7 @@ const router = createRouter({
               name: "confirmation-detail",
               component: HazardDetailPage,
               props: true,
+              meta: { showAiAssistant: true }, // AI 助手在确认详情页显示
             },
           ],
         },
@@ -334,6 +337,7 @@ const router = createRouter({
               name: "warning-detail",
               component: WarningDetailPage,
               props: true,
+              meta: { showAiAssistant: true }, // AI 助手在预警详情页显示
             },
           ],
         },
@@ -358,6 +362,7 @@ const router = createRouter({
               name: "device-detail",
               component: DeviceDetailPage,
               props: true,
+              meta: { showAiAssistant: true }, // AI 助手在设备详情页显示
             },
           ],
         },

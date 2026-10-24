@@ -1,9 +1,10 @@
 ﻿<script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onBeforeUnmount, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ArrowLeft, Database, Gauge, GitBranch, History, Layers3, MapPin, MessageSquareText, PencilLine, Save, Radio, Paperclip, Cpu, Stethoscope } from 'lucide-vue-next'
 import PermissionButton from '../../components/PermissionButton.vue'
 import { dashboardApi } from '../../services/dashboardApi'
+import { useAiContext } from '../../composables/useAiContext'
 
 const route = useRoute()
 const router = useRouter()
@@ -13,6 +14,8 @@ const editMode = ref(false)
 const form = ref({})
 const aiHealth = ref(null)
 const aiRefreshing = ref(false)
+
+const { setAiContext, clearAiContext } = useAiContext()
 
 const aiHealthLabel = computed(() => {
   const m = { HEALTHY: '健康', ATTENTION: '注意', WARN: '预警', CRITICAL: '严重' }
@@ -31,6 +34,19 @@ async function loadData() {
     battery: data.item.battery,
     signal: data.item.signal,
   }
+
+  // 注入 AI 上下文
+  setAiContext({
+    contextType: 'device',
+    contextId: data.item.deviceCode || route.params.id,
+    title: data.item.name || `设备 ${data.item.deviceCode}`,
+    metadata: {
+      type: data.item.type,
+      state: data.item.state,
+      battery: data.item.battery,
+    },
+  })
+
   loading.value = false
   loadAiHealth()
 }
@@ -79,6 +95,10 @@ async function refreshDetail() {
 }
 
 onMounted(loadData)
+
+onBeforeUnmount(() => {
+  clearAiContext()
+})
 </script>
 
 <template>

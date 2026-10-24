@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref } from "vue";
+import { onMounted, onBeforeUnmount, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import {
   ArrowLeft,
@@ -18,6 +18,7 @@ import {
 import PermissionButton from "../../components/PermissionButton.vue";
 import { dashboardApi } from "../../services/dashboardApi";
 import { aiApi } from "../../services/aiApi";
+import { useAiContext } from "../../composables/useAiContext";
 
 const route = useRoute();
 const router = useRouter();
@@ -27,6 +28,8 @@ const editMode = ref(false);
 const form = ref({});
 const aiRisk = ref(null);
 const aiRiskLoading = ref(false);
+
+const { setAiContext, clearAiContext } = useAiContext();
 
 async function loadData() {
   loading.value = true;
@@ -39,6 +42,19 @@ async function loadData() {
     level: data.item.level,
     status: data.item.status,
   };
+
+  // 注入 AI 上下文
+  setAiContext({
+    contextType: 'warning',
+    contextId: data.item.warningId || route.params.id,
+    title: data.item.title || `预警 ${data.item.warningId}`,
+    metadata: {
+      level: data.item.level,
+      status: data.item.status,
+      hazardCode: data.item.hazardCode,
+    },
+  });
+
   loading.value = false;
   loadAiRisk();
 }
@@ -92,6 +108,10 @@ async function refreshDetail() {
 }
 
 onMounted(loadData);
+
+onBeforeUnmount(() => {
+  clearAiContext();
+});
 </script>
 
 <template>

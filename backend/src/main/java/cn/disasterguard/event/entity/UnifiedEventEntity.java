@@ -21,6 +21,31 @@ import java.time.OffsetDateTime;
  * - 当前状态由 EventStateMachine 维护，状态机持久化在 unified_event.state 列
  *
  * 表结构见 schema.sql 的 unified_event 段。
+ *
+ * <p><b>v2.1.0 演进（R4 P0-5 修复）：</b>
+ * hazard_point 已改为基于 unified_event 的可写视图（{@code WHERE kind='HAZARD'}），
+ * 灾害点的业务字段实际存放在 unified_event 的 hazard 领域列里。因此本实体需要
+ * 映射这些列才能"读到"灾害详情——但<b>这些列全部声明为只读</b>
+ * （{@code insertable=false, updatable=false}）：
+ * <ul>
+ *   <li>写入路径统一走 {@code HazardPointRepository} → hazard_point 视图 → unified_event 表，
+ *       由视图自动重写；本实体不负责写这些列。</li>
+ *   <li>WARNING / EMERGENCY 类型的行这些列本就为 NULL。若允许本实体插入，
+ *       Hibernate 会生成带这些列的 INSERT 语句；其中 {@code historical_count} /
+ *       {@code historical_max_score} / {@code exposure_population} /
+ *       {@code exposure_buildings} / {@code land_use_type} 在库中是 NOT NULL，
+ *       当前能靠列 DEFAULT 兜底，但一旦某天 DEFAULT 被移除就会 500。
+ *       {@code insertable=false} 让 INSERT 根本不带这些列，彻底规避该风险。</li>
+ *   <li>{@code hazard_key} 是 GENERATED 列，只能读不能写。</li>
+ * </ul>
+ *
+ * <p>{@code geom}（PostGIS geometry）未映射：本实体无空间查询需求，如需使用请
+ * 通过 {@code HazardPoint} 实体或原生 SQL。
+ *
+ * <p>{@code longitude} / {@code latitude} 在库中是 {@code NUMERIC(10,6)}，
+ * 本类用 {@link Double} 映射。WGS84 坐标 6 位小数约 0.1 米精度，double 的
+ * 有效数字范围内无精度损失；如需严格保留 NUMERIC 语义可改 {@code BigDecimal}，
+ * 但会改变 getter 返回类型，需同步排查调用方。
  */
 @Entity
 @Table(
@@ -76,6 +101,101 @@ public class UnifiedEventEntity {
   @Column(length = 32)
   private String source;
 
+  // ---------------------------------------------------------------------------
+  // hazard 领域字段（只读映射，写入走 HazardPoint 视图 → unified_event 表）
+  // 目的：让事件中心/确认工作台通过本实体能读到灾害点业务详情。
+  // 约束：全部 insertable=false, updatable=false，避免污染 WARNING/EMERGENCY 行。
+  // ---------------------------------------------------------------------------
+
+  /** 灾害点名称（VARCHAR(128)） */
+  @Column(name = "name", length = 128, insertable = false, updatable = false)
+  private String name;
+
+  /** 灾害类型（英文码，如 landslide / collapse，VARCHAR(64)） */
+  @Column(name = "hazard_type", length = 64, insertable = false, updatable = false)
+  private String hazardType;
+
+  /** 风险等级（中文存值，如"高风险"，VARCHAR(32)） */
+  @Column(name = "risk_level", length = 32, insertable = false, updatable = false)
+  private String riskLevel;
+
+  /** 行政区划编码（VARCHAR(64)） */
+  @Column(name = "region_code", length = 64, insertable = false, updatable = false)
+  private String regionCode;
+
+  /** 负责人（VARCHAR(128)） */
+  @Column(name = "owner", length = 128, insertable = false, updatable = false)
+  private String owner;
+
+  /**
+   * 灾害点状态（注意：hazard_point 视图把本列别名成 {@code status} 对外暴露，
+   * 但 unified_event 表里的列名仍是 {@code hazard_status}）。
+   */
+  @Column(name = "hazard_status", length = 32, insertable = false, updatable = false)
+  private String hazardStatus;
+
+  /** 经度（WGS84，库中 NUMERIC(10,6)） */
+  @Column(name = "longitude", insertable = false, updatable = false)
+  private Double longitude;
+
+  /** 纬度（WGS84，库中 NUMERIC(10,6)） */
+  @Column(name = "latitude", insertable = false, updatable = false)
+  private Double latitude;
+
+  /** 威胁对象（库中 TEXT） */
+  @Column(name = "threat_object", insertable = false, updatable = false)
+  private String threatObject;
+
+  /** 最近一次巡检时间（TIMESTAMPTZ） */
+  @Column(name = "last_inspection_at", insertable = false, updatable = false)
+  private OffsetDateTime lastInspectionAt;
+
+  /** 灾害来源（注意：视图别名成 {@code source}，表列名仍是 {@code hazard_source}） */
+  @Column(name = "hazard_source", length = 32, insertable = false, updatable = false)
+  private String hazardSource;
+
+  /** 发现时间（TIMESTAMPTZ） */
+  @Column(name = "discovered_at", insertable = false, updatable = false)
+  private OffsetDateTime discoveredAt;
+
+  /** 发现置信度（0~1，AI 检测场景，DOUBLE PRECISION） */
+  @Column(name = "detection_confidence", insertable = false, updatable = false)
+  private Double detectionConfidence;
+
+  /** 最近一次巡检的设备类型（VARCHAR(64)） */
+  @Column(name = "last_inspection_device_type", length = 64, insertable = false, updatable = false)
+  private String lastInspectionDeviceType;
+
+  /** 历史预警次数（INTEGER NOT NULL DEFAULT 0） */
+  @Column(name = "historical_count", insertable = false, updatable = false)
+  private Integer historicalCount;
+
+  /** 历史最高风险评分（DOUBLE PRECISION NOT NULL DEFAULT 0） */
+  @Column(name = "historical_max_score", insertable = false, updatable = false)
+  private Double historicalMaxScore;
+
+  /** 暴露人口估算（BIGINT NOT NULL DEFAULT 0，用 Long） */
+  @Column(name = "exposure_population", insertable = false, updatable = false)
+  private Long exposurePopulation;
+
+  /** 暴露建筑估算（INTEGER NOT NULL DEFAULT 0） */
+  @Column(name = "exposure_buildings", insertable = false, updatable = false)
+  private Integer exposureBuildings;
+
+  /** 土地利用类型（VARCHAR(32) NOT NULL DEFAULT 'unknown'） */
+  @Column(name = "land_use_type", length = 32, insertable = false, updatable = false)
+  private String landUseType;
+
+  /**
+   * hazard 的稳定业务键（GENERATED 列，子表外键 {@code unified_event(hazard_key)} 指向它）。
+   * 生成表达式：{@code CASE WHEN kind='HAZARD' THEN hazard_code ELSE NULL END}。
+   * 只读；本实体不参与其生成。
+   */
+  @Column(name = "hazard_key", length = 64, insertable = false, updatable = false)
+  private String hazardKey;
+
+  // ---------------------------------------------------------------------------
+
   /** 当前状态自何时起（时间戳，不是时长） */
   @Column(name = "current_state_since")
   private OffsetDateTime currentStateSince;
@@ -127,6 +247,30 @@ public class UnifiedEventEntity {
   public void setTitle(String title) { this.title = title; }
   public String getSource() { return source; }
   public void setSource(String source) { this.source = source; }
+
+  // hazard 领域字段：getter 齐全；不提供 setter（字段只读，写入走视图），避免误用。
+
+  public String getName() { return name; }
+  public String getHazardType() { return hazardType; }
+  public String getRiskLevel() { return riskLevel; }
+  public String getRegionCode() { return regionCode; }
+  public String getOwner() { return owner; }
+  public String getHazardStatus() { return hazardStatus; }
+  public Double getLongitude() { return longitude; }
+  public Double getLatitude() { return latitude; }
+  public String getThreatObject() { return threatObject; }
+  public OffsetDateTime getLastInspectionAt() { return lastInspectionAt; }
+  public String getHazardSource() { return hazardSource; }
+  public OffsetDateTime getDiscoveredAt() { return discoveredAt; }
+  public Double getDetectionConfidence() { return detectionConfidence; }
+  public String getLastInspectionDeviceType() { return lastInspectionDeviceType; }
+  public Integer getHistoricalCount() { return historicalCount; }
+  public Double getHistoricalMaxScore() { return historicalMaxScore; }
+  public Long getExposurePopulation() { return exposurePopulation; }
+  public Integer getExposureBuildings() { return exposureBuildings; }
+  public String getLandUseType() { return landUseType; }
+  public String getHazardKey() { return hazardKey; }
+
   public OffsetDateTime getCurrentStateSince() { return currentStateSince; }
   public void setCurrentStateSince(OffsetDateTime t) { this.currentStateSince = t; }
   public OffsetDateTime getLastTransitionAt() { return lastTransitionAt; }

@@ -1,10 +1,16 @@
 ﻿<script setup>
 import { ref, onMounted, computed } from 'vue'
+import { useRoute } from 'vue-router'
 import { getRuntimeMode } from './services/dashboardApi'
 import AiAssistant from './components/AiAssistant.vue'
 import ErrorBoundary from './components/common/ErrorBoundary.vue'
 
+const route = useRoute()
 const runtimeMode = ref('unknown')
+
+// 根据路由 meta 控制 AI 助手显隐
+const showAiAssistant = computed(() => route.meta?.showAiAssistant === true)
+
 const modeLabel = computed(() => {
   switch (runtimeMode.value) {
     case 'backend': return '后端连接中'
@@ -29,8 +35,8 @@ onMounted(async () => {
     <ErrorBoundary>
       <router-view />
     </ErrorBoundary>
-    <!-- AI 智能助手：右下角悬浮 -->
-    <AiAssistant />
+    <!-- AI 智能助手：仅在详情页显示（通过路由 meta 控制） -->
+    <AiAssistant v-if="showAiAssistant" />
     <!-- 运行模式指示器：固定左下角，提示当前数据来源 -->
     <div v-if="runtimeMode !== 'unknown'" class="runtime-mode-badge" :class="modeClass" :title="modeLabel">
       <span class="mode-dot"></span>

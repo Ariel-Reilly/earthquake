@@ -29,6 +29,7 @@ import { dashboardApi } from "../../services/dashboardApi";
 import { aiApi } from "../../services/aiApi";
 import { hasPermission, getAuthUser } from "../../stores/auth";
 import { safeMax } from "../../utils/safeMinMax";
+import { useAiContext } from "../../composables/useAiContext";
 
 const emit = defineEmits(['notify'])
 const confirmDialogRef = ref(null)
@@ -38,6 +39,9 @@ const router = useRouter();
 const point = ref(null);
 const loading = ref(true);
 const editMode = ref(false);
+
+// AI 上下文管理
+const { setAiContext, clearAiContext } = useAiContext();
 
 /**
  * v1.7.0：区分"灾害详情"和"人工确认"两种入口上下文。
@@ -279,6 +283,19 @@ async function loadData() {
     lon: data.item.lon,
     lat: data.item.lat,
   };
+
+  // 注入 AI 上下文
+  setAiContext({
+    contextType: 'hazard',
+    contextId: data.item.hazardCode || route.params.id,
+    title: data.item.name || `灾害点 ${data.item.hazardCode}`,
+    metadata: {
+      type: data.item.type,
+      level: data.item.level,
+      status: data.item.status,
+    },
+  });
+
   loading.value = false;
   if (isConfirmationMode.value) await resolveEventId();
   loadAiForecast();
@@ -386,6 +403,9 @@ onMounted(loadData);
 // 关键：切页时若仍有 Cesium viewer 挂在 document.body / #cesium-host 上，必须释放，
 // 否则浏览器 WebGL context 槽位会逐渐耗尽（每个 viewer ≈ 64MB + 1 context）。
 onBeforeUnmount(() => {
+  // 清理 AI 上下文
+  clearAiContext();
+
   if (cesiumCleanup) {
     try { cesiumCleanup(); } catch (_) { /* noop */ }
     cesiumCleanup = null;

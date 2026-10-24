@@ -1,20 +1,25 @@
 <script setup>
 /**
- * 地脉智巡助手 — 整个项目最显眼的"AI 入口"。
+ * 地脉智巡助手 — 上下文感知的 AI 对话组件
  *
- * 数据流：用户提问 → 后端 /api/ai/chat（关键词分发 demo）→ 返回 {intent, reply, attachment}
- *   - "分析 GS-001" / 灾害点名匹配 → intent=comprehensive → 渲染综合报告 + 建议
- *   - "哪些灾害点最危险" → intent=ranking → 渲染 TOP N 排行榜
- *   - "应急/紧急" → intent=emergency → 渲染派单入口
- *   - FAQ 兜底：原静态关键词库保留，作为 LLM 不可用时的最弱保底
+ * 升级内容：
+ * 1. 按需显示：仅在详情页（路由 meta.showAiAssistant = true）时渲染
+ * 2. 上下文感知：读取 useAiContext() 注入的业务上下文（灾害点/设备/预警）
+ * 3. 动态推荐：根据上下文生成个性化欢迎语和快捷按钮
+ * 4. 本地降级：后端未对接时，前端提供规则引擎兜底
+ *
+ * 数据流：用户提问 → 后端 /api/ai/chat → 返回 {intent, reply, attachment}
  */
-import { ref, computed, nextTick, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, nextTick, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { X, Send, Cpu, Stethoscope, AlertTriangle, MapPin, ChevronRight } from 'lucide-vue-next'
 import BrandMascot from './BrandMascot.vue'
 import { aiApi } from '../services/aiApi'
+import { useAiContext } from '../composables/useAiContext'
 
 const router = useRouter()
+const { aiContext } = useAiContext()
+
 const isOpen = ref(false)
 const inputText = ref('')
 const isTyping = ref(false)
@@ -29,6 +34,105 @@ const dragStart = { x: 0, y: 0, left: 0, top: 0 }
 const dragPos = ref({ left: null, top: null })
 const panelPos = ref({ left: 0, top: 0, panelW: 380, panelH: 520, originX: '100%', originY: '100%' })
 const DRAG_THRESHOLD = 4
+
+// ========== 上下文感知逻辑 ==========
+
+/**
+ * 根据当前上下文生成动态欢迎语
+ */
+const welcomeMessage = computed(() => {
+  const ctx = aiContext.value
+  if (!ctx.contextType || !ctx.contextId) {
+    return '你好！我是地脉智巡 AI 助手 🐱，有什么可以帮你的吗？'
+  }
+
+  const typeLabels = {
+    hazard: '灾害点',
+    device: '设备',
+    warning: '预警事件',
+    task: '巡检任务'
+  }
+  const typeLabel = typeLabels[ctx.contextType] || '数据'
+  const title = ctx.title || ctx.contextId
+
+  return `你好！我是地脉智巡 AI 助手 🐱，正在分析当前${typeLabel} **${title}**。`
+})
+
+/**
+ * 根据当前上下文生成动态快捷按钮
+ */
+const quickPrompts = computed(() => {
+  const ctx = aiContext.value
+
+  // 灾害点详情页
+  if (ctx.contextType === 'hazard' && ctx.contextId) {
+    return [
+      `分析 ${ctx.contextId}`,
+      '当前裂缝趋势如何',
+      '附近有哪些应急物资',
+      '生成巡检建议'
+    ]
+  }
+
+  // 设备详情页
+  if (ctx.contextType === 'device' && ctx.contextId) {
+    return [
+      `分析 ${ctx.contextId} 状态`,
+      '最近电量为何下降',
+      '查看历史数据',
+      '是否需要现场维修'
+    ]
+  }
+
+  // 预警详情页
+  if (ctx.contextType === 'warning' && ctx.contextId) {
+    return [
+      `分析预警 ${ctx.contextId}`,
+      '影响范围有多大',
+      '建议应急方案',
+      '历史类似事件'
+    ]
+  }
+
+  // 巡检任务详情页
+  if (ctx.contextType === 'task' && ctx.contextId) {
+    return [
+      `任务 ${ctx.contextId} 进展`,
+      '有哪些待办项',
+      '路线规划优化',
+      '预计完成时间'
+    ]
+  }
+
+  // 无上下文时的默认快捷按钮
+  return ['哪些灾害点最危险', '设备健康状况', '应急情况怎么办', '系统功能介绍']
+})
+
+/**
+ * 监听上下文变化，重置初始消息
+ */
+watch(aiContext, (newCtx, oldCtx) => {
+  // 仅当上下文实质性变化时重置（避免同一详情页内多次触发）
+  if (newCtx.contextId !== oldCtx.contextId || newCtx.contextType !== oldCtx.contextType) {
+    resetConversation()
+  }
+}, { deep: true })
+
+/**
+ * 重置对话（切换上下文时调用）
+ */
+function resetConversation() {
+  messages.value = [
+    {
+      role: 'assistant',
+      text: welcomeMessage.value,
+      quickReplies: quickPrompts.value,
+    },
+  ]
+  scrollToBottom()
+}
+
+// ========== 面板定位与拖拽 ==========
 
 function computePanelPos() {
   const el = triggerRef.value
@@ -141,11 +245,13 @@ function onPointerUp(e) {
   }
 }
 
+// ========== 对话逻辑 ==========
+
 const messages = ref([
   {
     role: 'assistant',
-    text: '你好！我是地脉智巡 AI 助手 🐱，正接在 AI 综合分析模块上。',
-    quickReplies: ['分析 GS-001', '哪些灾害点最危险', '灾害类型是什么', '应急情况怎么办'],
+    text: welcomeMessage.value,
+    quickReplies: quickPrompts.value,
   },
 ])
 
@@ -206,7 +312,21 @@ async function sendMessage(text) {
 
   isTyping.value = true
   try {
-    const result = await aiApi.chat(content)
+    // 携带上下文信息发送给后端（如果后端已支持 context 参数）
+    const ctx = aiContext.value
+    const payload = {
+      message: content,
+      ...(ctx.contextType && {
+        context: {
+          type: ctx.contextType,
+          id: ctx.contextId,
+          title: ctx.title,
+          metadata: ctx.metadata
+        }
+      })
+    }
+
+    const result = await aiApi.chat(payload.message, payload.context)
     const message = {
       role: 'assistant',
       text: result.reply || '暂无回复',
@@ -242,6 +362,11 @@ async function sendMessage(text) {
 }
 
 function useQuickReply(text) {
+  // 点击快捷按钮时，清除当前快捷按钮区域（避免重复显示）
+  const lastMsg = messages.value[messages.value.length - 1]
+  if (lastMsg && lastMsg.quickReplies) {
+    lastMsg.quickReplies = null
+  }
   sendMessage(text)
 }
 
@@ -290,6 +415,9 @@ function onResize() {
 }
 
 onMounted(() => {
+  // 初始化消息（基于当前上下文）
+  resetConversation()
+
   document.addEventListener('click', handleClickOutside)
   window.addEventListener('resize', onResize)
 })

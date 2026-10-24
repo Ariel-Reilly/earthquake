@@ -2305,4 +2305,24 @@ export const dashboardApi = {
     }
     return response(mock.ai.runIndependentAssessmentMock(payload));
   },
+
+  /**
+   * POST /api/ai/welcome-prompts
+   * 根据当前上下文生成 AI 推荐问题（预留接口，前端暂用本地规则）
+   * @param {{contextType: string, contextId: string, title?: string, metadata?: object}} context
+   * @returns {Promise<{welcomeText: string, quickPrompts: string[]}>}
+   */
+  getAiWelcomePrompts: async (context) => {
+    if (USE_BACKEND) {
+      return request("/ai/welcome-prompts", {
+        method: "POST",
+        body: JSON.stringify(context),
+      });
+    }
+    // 本地兜底逻辑（前端规则引擎）
+    return response({
+      welcomeText: `你好！正在分析 ${context.contextId}`,
+      quickPrompts: [`分析 ${context.contextId}`, '查看详情', '生成报告', '联系应急'],
+    });
+  },
 };

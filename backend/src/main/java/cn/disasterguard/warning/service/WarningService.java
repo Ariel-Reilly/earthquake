@@ -12,6 +12,8 @@ import cn.disasterguard.warning.dto.WarningDto;
 import cn.disasterguard.warning.dto.WarningUpdateRequest;
 import cn.disasterguard.warning.entity.WarningEvent;
 import cn.disasterguard.warning.repository.WarningEventRepository;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
@@ -37,11 +39,11 @@ public class WarningService {
   private final HazardPointRepository hazardRepository;
   private final EmergencyService emergencyService;
   private final RealtimeBroadcastService broadcastService;
-  private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
+  private final ObjectMapper objectMapper;
 
   public WarningService(WarningEventRepository warningRepository, HazardPointRepository hazardRepository,
                         EmergencyService emergencyService, RealtimeBroadcastService broadcastService,
-                        com.fasterxml.jackson.databind.ObjectMapper objectMapper) {
+                        ObjectMapper objectMapper) {
     this.warningRepository = warningRepository;
     this.hazardRepository = hazardRepository;
     this.emergencyService = emergencyService;
@@ -56,10 +58,10 @@ public class WarningService {
       if (keyword != null && !keyword.isBlank()) {
         String like = "%" + keyword.trim().toLowerCase() + "%";
         predicate = cb.and(predicate, cb.or(
-            cb.like(cb.lower(root.get("title")), like),
-            cb.like(cb.lower(root.get("warningLevel")), like),
-            cb.like(cb.lower(root.get("status")), like),
-            cb.like(cb.lower(root.get("hazardCode")), like)
+                cb.like(cb.lower(root.get("title")), like),
+                cb.like(cb.lower(root.get("warningLevel")), like),
+                cb.like(cb.lower(root.get("status")), like),
+                cb.like(cb.lower(root.get("hazardCode")), like)
         ));
       }
       if (status != null && !status.isBlank()) {
@@ -80,10 +82,10 @@ public class WarningService {
   /** 活跃预警预览：排除已关闭/已忽略/已解除等终态。 */
   public List<WarningDto> preview() {
     return warningRepository.findOpenWarningsOrderByTriggeredAtDesc(
-        List.of("已关闭", "已忽略", "已解除"))
-        .stream()
-        .map(this::toDto)
-        .toList();
+                    List.of("已关闭", "已忽略", "已解除"))
+            .stream()
+            .map(this::toDto)
+            .toList();
   }
 
   @Transactional
@@ -104,22 +106,22 @@ public class WarningService {
   /** 导出用：返回预警事件导出行。 */
   public List<WarningExportRow> exportRows() {
     return warningRepository.findAll().stream()
-        .sorted(Comparator.comparing(WarningEvent::getId))
-        .map(w -> new WarningExportRow(w.getWarningCode(), w.getTitle(), w.getHazardCode(), w.getRuleCode(),
-            w.getWarningLevel(), w.getTriggerValue(), w.getStatus(), w.getTriggeredAt()))
-        .toList();
+            .sorted(Comparator.comparing(WarningEvent::getId))
+            .map(w -> new WarningExportRow(w.getWarningCode(), w.getTitle(), w.getHazardCode(), w.getRuleCode(),
+                    w.getWarningLevel(), w.getTriggerValue(), w.getStatus(), w.getTriggeredAt()))
+            .toList();
   }
 
   public List<WarningDto> listByViewport(String bbox, String keyword, String status) {
     Map<String, HazardPoint> hazardIndex = hazardRepository.findAll().stream()
-        .filter(item -> item.getHazardCode() != null && !item.getHazardCode().isBlank())
-        .collect(HashMap::new, (map, hazard) -> map.put(hazard.getHazardCode(), hazard), Map::putAll);
+            .filter(item -> item.getHazardCode() != null && !item.getHazardCode().isBlank())
+            .collect(HashMap::new, (map, hazard) -> map.put(hazard.getHazardCode(), hazard), Map::putAll);
 
     return warningRepository.findAll().stream()
-        .filter(item -> matches(item, hazardIndex, bbox, keyword, status))
-        .sorted(Comparator.comparing(WarningEvent::getId, Comparator.nullsLast(Long::compareTo)))
-        .map(this::toDto)
-        .toList();
+            .filter(item -> matches(item, hazardIndex, bbox, keyword, status))
+            .sorted(Comparator.comparing(WarningEvent::getId, Comparator.nullsLast(Long::compareTo)))
+            .map(this::toDto)
+            .toList();
   }
 
   /**
@@ -131,8 +133,8 @@ public class WarningService {
       return List.of();
     }
     return warningRepository.findByHazardCodeOrderByTriggeredAtDesc(hazardCode).stream()
-        .map(this::toDto)
-        .toList();
+            .map(this::toDto)
+            .toList();
   }
 
   public WarningDto getById(Long id) {
@@ -156,13 +158,17 @@ public class WarningService {
     warning.setDispatchedAt(OffsetDateTime.now());
     WarningDto dto = toDto(warningRepository.save(warning));
     broadcastWarning(dto);
+    // TODO P0-2: 当前 dispatch 只改状态、不触发通知，用户实际收不到任何推送。
+    // 待 NotificationService 提供按预警发送的入口后，在此调用（渠道取 manualPayload.channels，
+    // 人工预警缺省 ["SMS","APP","SCREEN"]）。建议异步发送并落库 notification_record。
+    //   notificationService.sendFromWarning(warning, channels);
     // 橙/红预警派发时联动生成应急事件（同预警未闭环则复用，不重复建）
     if (dto != null && isHighLevel(warning.getWarningLevel())) {
       String commander = "自然资源局值班组";
       // 不因应急生成失败而阻塞派发主流程
       try {
         emergencyService.createFromWarning(warning.getWarningCode(), warning.getHazardCode(),
-            warning.getTitle(), commander);
+                warning.getTitle(), commander);
       } catch (Exception e) {
         log.warn("派发联动生成应急事件失败: {}", e.getMessage());
       }
@@ -212,13 +218,10 @@ public class WarningService {
     warning.setResolveArea(scopeArea);
     WarningDto dto = toDto(warningRepository.save(warning));
     broadcastWarning(dto);
-    try {
-      // P0-2 解除即归档：调用既有 emergencyService 触发历史归档链路
-      // 用 warning 的 hazardCode 作为关联键
-      log.info("Warning {} resolved by {} with reason {}, scope {}, area {}", id, operator, reason, scope, scopeArea);
-    } catch (Exception ignore) {
-      // 不阻塞主流程
-    }
+    // P0-2 解除即归档：待接入 emergencyService 的历史归档链路（以 hazardCode 为关联键）。
+    // 当前仅记录操作日志，不阻塞主流程。
+    log.info("Warning {} resolved by {} with reason {}, scope {}, area {}",
+            id, operator, reason, scope, scopeArea);
     return dto;
   }
 
@@ -234,27 +237,32 @@ public class WarningService {
     WarningEvent warning = warningRepository.findById(id).orElseThrow(() -> new AppException(404, "未找到预警"));
     String ts = OffsetDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
     String text = "【解除预警】" + warning.getTitle() + " 已解除\n"
-        + "解除时间：" + ts + "\n"
-        + "解除原因：现场核查，风险已消除。\n"
-        + "解除范围：全部\n"
-        + "请相关人员知悉。";
+            + "解除时间：" + ts + "\n"
+            + "解除原因：现场核查，风险已消除。\n"
+            + "解除范围：全部\n"
+            + "请相关人员知悉。";
     return Map.of(
-        "title", "【解除预警】" + warning.getTitle() + " 已解除",
-        "content", text,
-        "templates", List.of(
-            "经现场核查，监测数据已恢复正常，特解除本预警。",
-            "应急响应已结束，本次预警风险已消除，现予以解除。",
-            "现场复核确认威胁消除，预警予以解除，请继续关注后续监测。"),
-        "channels", List.of("SMS", "APP", "SCREEN"));
+            "title", "【解除预警】" + warning.getTitle() + " 已解除",
+            "content", text,
+            "templates", List.of(
+                    "经现场核查，监测数据已恢复正常，特解除本预警。",
+                    "应急响应已结束，本次预警风险已消除，现予以解除。",
+                    "现场复核确认威胁消除，预警予以解除，请继续关注后续监测。"),
+            "channels", List.of("SMS", "APP", "SCREEN"));
   }
 
-  /** P0-2：解除范围下钻（默认按地区字典，可由 region 表覆盖）。 */
+  /**
+   * P0-2：解除范围下钻。
+   *
+   * <p>TODO: 当前为硬编码三镇兜底。待注入 RegionRepository 后改为
+   * {@code regionRepository.findByLevel("TOWN")} 之类的真实字典查询。
+   */
   public Map<String, Object> resolveScope(Long id) {
     return Map.of("scopes", List.of(
-        Map.of("value", "ALL", "label", "全部"),
-        Map.of("value", "龙安镇", "label", "龙安镇"),
-        Map.of("value", "石桥镇", "label", "石桥镇"),
-        Map.of("value", "清河镇", "label", "清河镇")));
+            Map.of("value", "ALL", "label", "全部"),
+            Map.of("value", "龙安镇", "label", "龙安镇"),
+            Map.of("value", "石桥镇", "label", "石桥镇"),
+            Map.of("value", "清河镇", "label", "清河镇")));
   }
 
   /** 根据 reason 推断终态：包含"误报"→已忽略；包含"解除"→已解除；否则已关闭。 */
@@ -290,28 +298,28 @@ public class WarningService {
    * 缺 地裂缝/洪水/火灾/台风/干旱/内涝，导致这些灾种提交后无法归一化。
    */
   private static final Map<String, String> HAZARD_TYPE_CODES = Map.ofEntries(
-      Map.entry("滑坡", "landslide"),
-      Map.entry("崩塌", "collapse"),
-      Map.entry("泥石流", "debris_flow"),
-      Map.entry("地面沉降", "subsidence"),
-      Map.entry("地裂缝", "ground_fissure"),
-      Map.entry("地震", "earthquake"),
-      Map.entry("洪水", "flood"),
-      Map.entry("火灾", "fire"),
-      Map.entry("台风", "typhoon"),
-      Map.entry("干旱", "drought"),
-      Map.entry("内涝", "waterlogging"),
-      // 历史混用写法
-      Map.entry("地面塌陷", "subsidence"),
-      Map.entry("城市内涝", "waterlogging")
+          Map.entry("滑坡", "landslide"),
+          Map.entry("崩塌", "collapse"),
+          Map.entry("泥石流", "debris_flow"),
+          Map.entry("地面沉降", "subsidence"),
+          Map.entry("地裂缝", "ground_fissure"),
+          Map.entry("地震", "earthquake"),
+          Map.entry("洪水", "flood"),
+          Map.entry("火灾", "fire"),
+          Map.entry("台风", "typhoon"),
+          Map.entry("干旱", "drought"),
+          Map.entry("内涝", "waterlogging"),
+          // 历史混用写法
+          Map.entry("地面塌陷", "subsidence"),
+          Map.entry("城市内涝", "waterlogging")
   );
 
   /** 预警等级英文码 → 库内存值（warning_level 存中文，见 AiWarningScheduler#translateLevel）。 */
   private static final Map<String, String> LEVEL_LABELS = Map.of(
-      "red", "红色预警",
-      "orange", "橙色预警",
-      "yellow", "黄色预警",
-      "blue", "蓝色预警"
+          "red", "红色预警",
+          "orange", "橙色预警",
+          "yellow", "黄色预警",
+          "blue", "蓝色预警"
   );
 
   /**
@@ -415,25 +423,59 @@ public class WarningService {
 
   private WarningDto toDto(WarningEvent warning) {
     return new WarningDto(
-        warning.getId(),
-        warning.getWarningCode(),
-        warning.getWarningLevel(),
-        cssClass(warning.getWarningLevel()),
-        warning.getTitle(),
-        warning.getTriggerValue() == null ? "" : warning.getTriggerValue(),
-        warning.getTriggeredAt() == null ? "" : warning.getTriggeredAt().format(TIME_FORMAT),
-        warning.getHazardCode(),
-        warning.getStatus(),
-        warning.getHazardCode(),
-        warning.getRuleCode(),
-        warning.getTriggerValue(),
-        warning.getTriggeredAt(),
-        warning.getCloseReason(),
-        warning.getClosedBy(),
-        warning.getConfirmedAt(),
-        warning.getDispatchedAt(),
-        warning.getClosedAt()
+            warning.getId(),
+            warning.getWarningCode(),
+            warning.getWarningLevel(),
+            cssClass(warning.getWarningLevel()),
+            warning.getTitle(),
+            warning.getTriggerValue() == null ? "" : warning.getTriggerValue(),
+            warning.getTriggeredAt() == null ? "" : warning.getTriggeredAt().format(TIME_FORMAT),
+            resolvePoint(warning),   // P0-3 修复：原为 warning.getHazardCode()，把编码错塞进 point
+            warning.getStatus(),
+            warning.getHazardCode(),
+            warning.getRuleCode(),
+            warning.getTriggerValue(),
+            warning.getTriggeredAt(),
+            warning.getCloseReason(),
+            warning.getClosedBy(),
+            warning.getConfirmedAt(),
+            warning.getDispatchedAt(),
+            warning.getClosedAt()
     );
+  }
+
+  /**
+   * P0-3：解析预警位置展示文本，替代原先把 hazardCode 错塞给 point 的做法。
+   *
+   * <p>优先从人工上报的 {@code manualPayload} 里取 {@code hazardName} 与 {@code region}
+   * 拼成"名称 · 区域"；两者缺一时取其一；均缺时返回空串（前端自行决定是否展示）。
+   * AI/规则引擎产生的预警没有 manualPayload，返回空串。
+   */
+  private String resolvePoint(WarningEvent warning) {
+    String payload = warning.getManualPayload();
+    if (payload == null || payload.isBlank()) {
+      return "";
+    }
+    try {
+      JsonNode node = objectMapper.readTree(payload);
+      if (node == null || node.isNull()) {
+        return "";
+      }
+      String name = node.hasNonNull("hazardName") ? node.get("hazardName").asText("") : "";
+      String region = node.hasNonNull("region") ? node.get("region").asText("") : "";
+      if (!name.isBlank() && !region.isBlank()) {
+        return name + " · " + region;
+      }
+      if (!name.isBlank()) {
+        return name;
+      }
+      if (!region.isBlank()) {
+        return region;
+      }
+    } catch (Exception e) {
+      log.debug("解析 manualPayload 位置信息失败: {}", e.getMessage());
+    }
+    return "";
   }
 
   private boolean matches(WarningEvent warning, Map<String, HazardPoint> hazardIndex, String bbox, String keyword, String status) {
