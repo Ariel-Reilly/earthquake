@@ -48,56 +48,8 @@ const AiResultsPage = () =>
   import(/* webpackChunkName: "ai" */ "../views/ai/AiResultsPage.vue");
 const ConfirmationWorkbenchPage = () =>
   import(/* webpackChunkName: "hazard" */ "../views/hazard/ConfirmationWorkbenchPage.vue");
-const WarningCreatePage = () =>
-  import(/* webpackChunkName: "warning" */ "../views/warning/WarningCreatePage.vue");
 const ResourceDispatchPage = () =>
   import(/* webpackChunkName: "warning" */ "../views/warning/ResourceDispatchPage.vue");
-const DataSourcesPage = () =>
-  import(/* webpackChunkName: "data" */ "../views/data/DataSourcesPage.vue");
-const DataSyncPage = () =>
-  import(/* webpackChunkName: "data" */ "../views/data/DataSyncPage.vue");
-const UserManagementPage = () =>
-  import(/* webpackChunkName: "system" */ "../views/system/UserManagementPage.vue");
-const AuditLogPage = () =>
-  import(/* webpackChunkName: "system" */ "../views/system/AuditLogPage.vue");
-const SystemMonitorPage = () =>
-  import(/* webpackChunkName: "system" */ "../views/system/SystemMonitorPage.vue");
-const MessageCenterPage = () =>
-  import(/* webpackChunkName: "system" */ "../views/system/MessageCenterPage.vue");
-const TodoCenterPage = () =>
-  import(/* webpackChunkName: "system" */ "../views/system/TodoCenterPage.vue");
-const ApprovalCenterPage = () =>
-  import(/* webpackChunkName: "system" */ "../views/system/ApprovalCenterPage.vue");
-const EventCenterPage = () =>
-  import(/* webpackChunkName: "system" */ "../views/system/EventCenterPage.vue");
-const WarningDeliveryPage = () =>
-  import(/* webpackChunkName: "warning" */ "../views/warning/WarningDeliveryPage.vue");
-const ZoneDashboardPage = () =>
-  import(/* webpackChunkName: "monitor" */ "../views/monitor/ZoneDashboardPage.vue");
-const ModelManagePage = () =>
-  import(/* webpackChunkName: "ai" */ "../views/ai/ModelManagePage.vue");
-const OtaManagePage = () =>
-  import(/* webpackChunkName: "device" */ "../views/device/OtaManagePage.vue");
-const NoticeTemplatePage = () =>
-  import(/* webpackChunkName: "system" */ "../views/system/NoticeTemplatePage.vue");
-const DataCatalogPage = () =>
-  import(/* webpackChunkName: "data" */ "../views/data/DataCatalogPage.vue");
-const AccountSecurityPage = () =>
-  import(/* webpackChunkName: "settings" */ "../views/settings/AccountSecurityPage.vue");
-const RuleEnginePage = () =>
-  import(/* webpackChunkName: "ai" */ "../views/ai/RuleEnginePage.vue");
-const DeviceMapPage = () =>
-  import(/* webpackChunkName: "monitor" */ "../views/monitor/DeviceMapPage.vue");
-const ForbiddenPage = () =>
-  import(/* webpackChunkName: "error" */ "../views/ForbiddenPage.vue");
-const ServerErrorPage = () =>
-  import(/* webpackChunkName: "error" */ "../views/ServerErrorPage.vue");
-const ProfilePage = () =>
-  import(/* webpackChunkName: "settings" */ "../views/settings/ProfilePage.vue");
-const RoutePlanningPage = () =>
-  import(/* webpackChunkName: "warning" */ "../views/warning/RoutePlanningPage.vue");
-const ConfirmationSignPage = () =>
-  import(/* webpackChunkName: "hazard" */ "../views/hazard/ConfirmationSignPage.vue");
 const WarningResolvePage = () =>
   import(/* webpackChunkName: "warning" */ "../views/warning/WarningResolvePage.vue");
 const DisasterForecastPage = () =>
@@ -309,8 +261,7 @@ const router = createRouter({
             { path: "", name: "warnings-list", component: WarningsPage },
             {
               path: "create",
-              name: "warning-create",
-              component: WarningCreatePage,
+              redirect: { name: "warnings-list" },
             },
             {
               path: ":id",

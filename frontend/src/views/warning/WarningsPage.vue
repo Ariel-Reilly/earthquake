@@ -10,6 +10,7 @@ import { useRouter } from 'vue-router'
 import { AlertTriangle, Archive, ArchiveRestore, Bell, FileText, Layers3, MapPin, MessageSquareText, ShieldCheck, UsersRound, Send, CheckCircle2, XCircle, RotateCcw, ShieldAlert, Inbox } from 'lucide-vue-next'
 import PermissionButton from '../../components/PermissionButton.vue'
 import SkeletonList from '../../components/common/SkeletonList.vue'
+import WarningCreateModal from '../../components/WarningCreateModal.vue'
 import { dashboardApi } from '../../services/dashboardApi'
 import { useEscapeClose } from '../../composables/useEscapeClose'
 
@@ -24,6 +25,10 @@ const paging = ref({ page: 1, size: 10, total: 0, pages: 0 })
 
 /** Tab 状态：'active' 当前活跃 / 'archived' 已解除归档 */
 const statusTab = ref('active')
+
+/** 预警创建弹窗显示状态 */
+const showCreateModal = ref(false)
+const modalRef = ref(null)
 
 /** 关闭/解除原因弹窗 */
 const closeDialog = ref({
@@ -343,6 +348,37 @@ function cancelCloseDialog() {
 // ESC 键关闭弹窗
 useEscapeClose(cancelCloseDialog, () => closeDialog.value.open)
 
+// ===================== 预警创建弹窗控制 =====================
+/**
+ * 打开预警创建弹窗
+ */
+function openCreateModal() {
+  showCreateModal.value = true
+}
+
+/**
+ * 关闭预警创建弹窗
+ */
+function closeCreateModal() {
+  showCreateModal.value = false
+  if (modalRef.value?.reset) {
+    modalRef.value.reset()
+  }
+}
+
+/**
+ * 弹窗创建成功后的回调
+ * 1. 关闭弹窗
+ * 2. 刷新预警列表
+ * 3. 显示成功提示
+ */
+async function handleCreateSuccess(warning) {
+  closeCreateModal()
+  emit('notify', `预警创建成功（编号 ${warning.id}），即将进入审批流程`)
+  // 重新加载预警列表
+  await loadData(1)
+}
+
 /* ===================== 兼容旧调用入口（内部走弹窗） ===================== */
 
 async function closeWarning() {
@@ -415,6 +451,7 @@ onMounted(loadData)
               </button>
             </div>
             <div class="heading-actions">
+              <PermissionButton permission="warnings:create" :icon="Send" @click="({ allowed, reason }) => allowed ? openCreateModal() : emit('notify', reason)">发布预警</PermissionButton>
               <PermissionButton v-if="statusTab === 'active'" permission="warnings:dispatch" :icon="Send" @click="async ({ allowed, reason }) => {
                 if (!allowed) return emit('notify', reason)
                 await dispatchWarning()
@@ -576,6 +613,14 @@ onMounted(loadData)
           </div>
         </div>
       </div>
+
+      <!-- ============== 预警创建弹窗 ============== -->
+      <WarningCreateModal
+        v-if="showCreateModal"
+        ref="modalRef"
+        @success="handleCreateSuccess"
+        @close="closeCreateModal"
+      />
     </template>
   </div>
 </template>
