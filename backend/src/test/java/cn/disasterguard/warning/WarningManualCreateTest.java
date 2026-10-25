@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 import cn.disasterguard.common.exception.AppException;
 import cn.disasterguard.emergency.service.EmergencyService;
 import cn.disasterguard.hazard.repository.HazardPointRepository;
+import cn.disasterguard.notification.NotificationService;
 import cn.disasterguard.realtime.RealtimeBroadcastService;
 import cn.disasterguard.warning.dto.WarningCreateRequest;
 import cn.disasterguard.warning.dto.WarningDto;
@@ -46,13 +47,15 @@ class WarningManualCreateTest {
   private EmergencyService emergencyService;
   @Mock
   private RealtimeBroadcastService broadcastService;
+  @Mock
+  private NotificationService notificationService;
 
   private WarningService service;
 
   @BeforeEach
   void setUp() {
     service = new WarningService(warningRepository, hazardRepository, emergencyService,
-        broadcastService, new ObjectMapper());
+        broadcastService, notificationService, new ObjectMapper());
   }
 
   private static WarningCreateRequest request(String level, String hazardType, String hazardCode) {
