@@ -75,7 +75,12 @@ public class AiDeviceHealthService {
 
   @Scheduled(cron = "${disasterguard.ai.device-health-scheduler-cron:0 */5 * * * *}")
   public void refreshAll() {
+    // 【修复】检查本服务是否启用，同时检查 AI 功能是否启用
     if (!enabled) return;
+    if (!aiClient.isEnabled()) {
+      log.debug("AI 服务不可用，跳过设备健康评估");
+      return;
+    }
     long t0 = System.currentTimeMillis();
     List<MonitoringDevice> devices = deviceRepository.findAll();
     int updated = 0;
