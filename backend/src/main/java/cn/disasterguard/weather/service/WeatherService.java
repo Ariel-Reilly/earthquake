@@ -316,6 +316,8 @@ public class WeatherService {
     // 起点对齐到 stepMinutes 倍数（向下取整）
     int minute = (base.getMinute() / stepMinutes) * stepMinutes;
     java.time.ZonedDateTime cursor = base.withMinute(minute).withSecond(0).withNano(0);
+    String lastFailure = null;
+    boolean headWarned = false;  // 同轮首次HEAD异常为WARN，后续降DEBUG
     for (int i = 0; i < MAX_NMC_SLOTS; i++) {
       java.time.ZonedDateTime slot = cursor.minusMinutes(i * stepMinutes);
       String yy = String.valueOf(slot.getYear());
@@ -327,7 +329,8 @@ public class WeatherService {
       if (candidate == null) {
         throw new AppException(500, "Unknown product kind: " + kind);
       }
-      if (headOk(candidate)) {
+      HeadResult result = headOk(kind, candidate);
+      if (result.success) {
         String timestamp = NMC_TIMESTAMP_FORMAT.format(slot.toInstant());
         return WeatherProductDto.success(
             kind.kind(), kind.label(), kind.description(),
@@ -335,12 +338,55 @@ public class WeatherService {
             candidate, timestamp, fetchedAt,
             kind.extent(), kind.refreshIntervalMinutes());
       }
+      // HEAD异常聚合：首次打WARN，后续降DEBUG
+      if (result.headHadException) {
+        if (!headWarned) {
+          // 首次HEAD异常，打WARN
+          log.warn("weather probe HEAD failed kind={} url={} error={} elapsed={}ms",
+              kind.kind(), extractFilename(candidate), result.failureReason, 0);
+          headWarned = true;
+        } else {
+          // 同轮后续HEAD异常，降DEBUG
+          log.debug("weather probe HEAD failed kind={} url={} error={} elapsed={}ms",
+              kind.kind(), extractFilename(candidate), result.failureReason, 0);
+        }
+      }
+      // 回退GET Range
+      log.debug("weather probe fallback to GET Range kind={} reason={}", kind.kind(), result.failureReason);
+      
+      if (result.failureReason != null) {
+        lastFailure = result.failureReason;
+      }
     }
-    throw new AppException(504, "NMC product " + kind.kind() + ": no available slot in " + (MAX_NMC_SLOTS * stepMinutes) + "m");
+    String errMsg = "NMC product " + kind.kind() + ": no available slot in " + (MAX_NMC_SLOTS * stepMinutes) + "m";
+    if (lastFailure != null) {
+      errMsg += " lastFailure=" + lastFailure;
+    }
+    throw new AppException(504, errMsg);
   }
 
-  /** HTTP HEAD 探测；HEAD 不支持时（部分 CDN）回退到带 Range 的 GET。 */
-  private boolean headOk(String url) {
+  /**
+   * HTTP HEAD 探测；HEAD 不支持时（部分 CDN）回退到带 Range 的 GET。
+   *
+   * <p>日志决定权在调用层（probeNmcProductLatest）：
+   * <ul>
+   *   <li>HEAD 200 / 404：DEBUG 级别（正常探测）</li>
+   *   <li>HEAD 异常：只返回 headHadException 标志，不打 log；日志级别由调用层根据 headWarned 决定</li>
+   *   <li>回退 GET Range：DEBUG 级别</li>
+   *   <li>GET Range 失败/成功：DEBUG 级别</li>
+   *   <li>最终 no available slot：WARN 级别附带 lastFailure（在 probeNmcProductLatest 中）</li>
+   * </ul>
+   *
+   * @param kind 产品类型（用于日志上下文）
+   * @param url 探测 URL
+   * @return HeadResult 包含成功标志、失败原因、是否HEAD异常（日志级别由调用层决定）
+   */
+  private HeadResult headOk(WeatherProductKind kind, String url) {
+    long start = System.nanoTime();
+    String filename = extractFilename(url);
+    String fallbackReason = null;
+    boolean hadException = false;
+
     try {
       HttpRequest head = HttpRequest.newBuilder()
           .uri(URI.create(url))
@@ -348,11 +394,31 @@ public class WeatherService {
           .method("HEAD", HttpRequest.BodyPublishers.noBody())
           .build();
       HttpResponse<Void> headResp = httpClient.send(head, BodyHandlers.discarding());
-      if (headResp.statusCode() == 200) return true;
-      if (headResp.statusCode() == 404) return false;
+      int status = headResp.statusCode();
+      long elapsedMs = (System.nanoTime() - start) / 1_000_000;
+
+      if (status == 200) {
+        log.debug("weather probe HEAD 200 kind={} url={} elapsed={}ms", kind.kind(), filename, elapsedMs);
+        return new HeadResult(true, null, false);
+      }
+      if (status == 404) {
+        log.debug("weather probe HEAD 404 kind={} url={} elapsed={}ms", kind.kind(), filename, elapsedMs);
+        return new HeadResult(false, "HTTP 404", false);
+      }
+      // 非 200/404 状态码（3xx/5xx 等），记录为 DEBUG 并回退 GET Range
+      fallbackReason = "HTTP " + status;
+      log.debug("weather probe HEAD {} kind={} url={} elapsed={}ms", status, kind.kind(), filename, elapsedMs);
     } catch (Exception e) {
-      // HEAD 抛错时回退 GET Range
+      long elapsedMs = (System.nanoTime() - start) / 1_000_000;
+      String errorType = e.getClass().getSimpleName();
+      String errorMsg = e.getMessage() == null ? "" : e.getMessage();
+      fallbackReason = errorType + (errorMsg.isEmpty() ? "" : ": " + errorMsg);
+      hadException = true;
+      // 不在这里打 WARN，只返回 hadException 标志；日志级别由调用层决定
     }
+
+    // HEAD 失败或非 200/404，回退 GET Range
+    start = System.nanoTime();
     try {
       HttpRequest range = HttpRequest.newBuilder()
           .uri(URI.create(url))
@@ -362,10 +428,28 @@ public class WeatherService {
           .build();
       HttpResponse<byte[]> resp = httpClient.send(range, BodyHandlers.ofByteArray());
       int sc = resp.statusCode();
+      long elapsedMs = (System.nanoTime() - start) / 1_000_000;
+
       // 200 / 206 Partial Content 都视为 OK
-      return sc == 200 || sc == 206;
+      boolean success = sc == 200 || sc == 206;
+      if (success) {
+        log.debug("weather probe GET Range {} kind={} url={} elapsed={}ms success=true",
+            sc, kind.kind(), filename, elapsedMs);
+        return new HeadResult(true, null, hadException);
+      } else {
+        String reason = "HTTP " + sc;
+        log.debug("weather probe GET Range {} kind={} url={} elapsed={}ms success=false",
+            sc, kind.kind(), filename, elapsedMs);
+        return new HeadResult(false, reason, hadException);
+      }
     } catch (Exception e) {
-      return false;
+      long elapsedMs = (System.nanoTime() - start) / 1_000_000;
+      String errorType = e.getClass().getSimpleName();
+      String errorMsg = e.getMessage() == null ? "" : e.getMessage();
+      String error = errorType + (errorMsg.isEmpty() ? "" : ": " + errorMsg);
+      log.debug("weather probe GET Range failed kind={} url={} error={} elapsed={}ms",
+          kind.kind(), filename, error, elapsedMs);
+      return new HeadResult(false, error, hadException);
     }
   }
 
@@ -391,7 +475,6 @@ public class WeatherService {
   }
 
   /** 把官方 URL 路径里的文件名解析出来（供日志/调试）。 */
-  @SuppressWarnings("unused")
   private static String extractFilename(String url) {
     if (url == null) return "";
     Matcher m = Pattern.compile(".*/([^/?]+)$").matcher(url);
@@ -412,6 +495,19 @@ public class WeatherService {
 
     boolean isExpired(long ttlSeconds) {
       return (System.currentTimeMillis() - storedAtMs) > TimeUnit.SECONDS.toMillis(ttlSeconds);
+    }
+  }
+
+  /** HEAD 探测结果：包含成功标志、失败原因、是否HEAD异常。 */
+  private static final class HeadResult {
+    final boolean success;
+    final String failureReason;
+    final boolean headHadException;  // 标记：HEAD请求是否抛异常（用于日志聚合）
+
+    HeadResult(boolean success, String failureReason, boolean headHadException) {
+      this.success = success;
+      this.failureReason = failureReason;
+      this.headHadException = headHadException;
     }
   }
 }
