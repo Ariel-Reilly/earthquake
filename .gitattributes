@@ -1,1 +1,50 @@
-* text=auto eol=lf
+# 换行符策略
+#
+# R4 P0-2 教训：`infra/emqx/init.sh` 曾以 CRLF 提交，容器内 bash 因此报
+#   `syntax error near unexpected token `$'do\r'``
+# 脚本在第 18 行就中止，永远执行不到最后的 `exec ... emqx foreground`，
+# 导致 EMQX broker 从未启动、容器无限重启。
+# Windows 上编辑过的 .sh 必须保证进容器时是 LF，故在此强制。
+
+# 其余文本文件按内容自动识别，不做强制转换（避免大面积换行 diff）
+* text=auto
+
+# 需要在 Linux 容器内执行的脚本 → 工作区与仓库内一律 LF
+*.sh    text eol=lf
+*.bash  text eol=lf
+
+# Windows 本地脚本保持 CRLF，避免 PowerShell / cmd 解析异常
+*.ps1   text eol=crlf
+*.bat   text eol=crlf
+*.cmd   text eol=crlf
+
+# 二进制资源不参与换行转换
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.pdf   binary
+*.zip   binary
+*.gz    binary
+*.tar   binary
+*.ifc   binary
+*.stl   binary
+*.rvt   binary
+*.class binary
+
+# ===== 核心代码文件强制 LF（新文件自动生效，存量不重写）=====
+# 目的：避免未来新增的 Java/JS/Vue/Python 代码以 CRLF 入库
+# 注意：不追溯已有文件（避免大规模 diff，见 P2-14 决策）
+*.java   text eol=lf
+*.js     text eol=lf
+*.mjs    text eol=lf
+*.cjs    text eol=lf
+*.vue    text eol=lf
+*.py     text eol=lf
+*.ts     text eol=lf
+*.json   text eol=lf
+*.yml    text eol=lf
+*.yaml   text eol=lf
+*.md     text eol=lf
+*.sql    text eol=lf
