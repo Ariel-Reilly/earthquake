@@ -49,6 +49,8 @@ public class SecurityConfig {
                 "/api/auth/register/send-code").permitAll()
             // WebSocket 握手由 JwtHandshakeInterceptor 在握手层鉴权，Spring Security 放行
             .requestMatchers("/ws").permitAll()
+            // 【测试接口】手动触发预警，用于测试 A2（统一事件关联）和 B2（WebSocket推送）
+            .requestMatchers("/api/warnings/debug-trigger").permitAll()
             // 国家气象数据接入：公开资源（NSMC / NMC 不需要鉴权），CORS 由 CorsConfig 接管，限流由 RateLimitFilter 保护
             // R3 P1-6：仅 GET 放行。此前整个 /api/weather/** 对匿名开放，
             // 导致 POST /api/weather/products/refresh 可被匿名触发回源拉取外部资源

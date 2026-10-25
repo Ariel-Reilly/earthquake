@@ -70,6 +70,10 @@ public class WarningEvent {
   @Column(length = 32)
   private String source;
 
+  /** v1.7.0+：关联的统一事件编码（UFE-...），用于事件状态机联动。 */
+  @Column(name = "unified_event_code", length = 32)
+  private String unifiedEventCode;
+
   /**
    * 灾害类型，与 {@code hazard_point.hazard_type} / {@code unified_event.hazard_type}
    * 保持同一套英文码（landslide / collapse / debris_flow / subsidence / earthquake）。
@@ -122,4 +126,6 @@ public class WarningEvent {
   public void setHazardType(String hazardType) { this.hazardType = hazardType; }
   public String getManualPayload() { return manualPayload; }
   public void setManualPayload(String manualPayload) { this.manualPayload = manualPayload; }
+  public String getUnifiedEventCode() { return unifiedEventCode; }
+  public void setUnifiedEventCode(String unifiedEventCode) { this.unifiedEventCode = unifiedEventCode; }
 }

@@ -34,13 +34,16 @@ public class WarningController {
   private final WarningService warningService;
   private final WarningEventRepository warningRepository;
   private final ExcelExportService excelExportService;
+  private final cn.disasterguard.warning.engine.WarningCreateService warningCreateService;
 
   public WarningController(WarningService warningService,
                            WarningEventRepository warningRepository,
-                           ExcelExportService excelExportService) {
+                           ExcelExportService excelExportService,
+                           cn.disasterguard.warning.engine.WarningCreateService warningCreateService) {
     this.warningService = warningService;
     this.warningRepository = warningRepository;
     this.excelExportService = excelExportService;
+    this.warningCreateService = warningCreateService;
   }
 
   /**
@@ -204,6 +207,57 @@ public class WarningController {
   public ApiResponse<Void> delete(@PathVariable Long id) {
     warningService.delete(id);
     return ApiResponse.success("删除成功", null);
+  }
+
+  /**
+   * 【测试接口】手动触发预警，用于测试 A2（统一事件关联）和 B2（WebSocket推送）。
+   * 
+   * 该接口不需要任何参数和权限拦截，直接调用 WarningCreateService.doPersist 方法，
+   * 手动构造一条 WarningEvent 数据并保存。
+   * 
+   * warningCode 随机生成，title 为"【测试】手动触发预警"，level 为"红色预警"，
+   * hazardCode 填一个现有的隐患点编号（如 HZ-004）。
+   */
+  @PostMapping("/debug-trigger")
+  public ApiResponse<Map<String, Object>> debugTrigger() {
+    try {
+      // 手动构造测试数据
+      String ruleCode = "R004";  // 数据库中真实存在的规则编号
+      String hazardCode = "HZ-004";  // 现有隐患点
+      String title = "【测试】手动触发预警";
+      String level = "红色预警";
+      String metricCode = "TEST";
+      double triggerValue = 99.9;
+      
+      // 调用 doPersist 方法，注意参数：
+      // ruleCode, hazardCode, title, level, metricCode, triggerValue, source,
+      // aiAvailable, fusion, factors
+      warningCreateService.doPersist(
+          ruleCode,
+          hazardCode,
+          title,
+          level,
+          metricCode,
+          triggerValue,
+          "DEBUG_MANUAL",        // source: 手动调试
+          false,                 // aiAvailable: false（跳过AI融合）
+          null,                  // fusion: null
+          new java.util.HashMap<>()  // factors: 空Map
+      );
+      
+      log.info("【测试接口】手动触发预警成功 ruleCode={}, hazardCode={}", ruleCode, hazardCode);
+      
+      return ApiResponse.success(Map.of(
+          "message", "预警已创建，请查看 WebSocket 推送和统一事件关联状态",
+          "ruleCode", ruleCode,
+          "hazardCode", hazardCode,
+          "title", title,
+          "level", level
+      ));
+    } catch (Exception e) {
+      log.error("【测试接口】手动触发预警失败", e);
+      return ApiResponse.fail(500, "debug-trigger failed: " + e.getMessage());
+    }
   }
 
   @PostMapping("/export")

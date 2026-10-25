@@ -3,6 +3,8 @@ package cn.disasterguard.warning.engine;
 import cn.disasterguard.ai.AiServiceClient;
 import cn.disasterguard.ai.dto.FusionRiskResult;
 import cn.disasterguard.ai.service.AiAnalysisService;
+import cn.disasterguard.event.service.EventStateService;
+import cn.disasterguard.realtime.RealtimeBroadcastService;
 import cn.disasterguard.warning.entity.RiskScoreLog;
 import cn.disasterguard.warning.entity.WarningEvent;
 import cn.disasterguard.warning.repository.RiskScoreLogRepository;
@@ -42,17 +44,23 @@ public class WarningCreateService {
   private final AiServiceClient aiClient;
   private final AiAnalysisService aiAnalysisService;
   private final ObjectMapper objectMapper;
+  private final EventStateService eventStateService;
+  private final RealtimeBroadcastService realtimeBroadcastService;
 
   public WarningCreateService(WarningEventRepository warningRepository,
                               RiskScoreLogRepository riskScoreLogRepository,
                               AiServiceClient aiClient,
                               AiAnalysisService aiAnalysisService,
-                              ObjectMapper objectMapper) {
+                              ObjectMapper objectMapper,
+                              EventStateService eventStateService,
+                              RealtimeBroadcastService realtimeBroadcastService) {
     this.warningRepository = warningRepository;
     this.riskScoreLogRepository = riskScoreLogRepository;
     this.aiClient = aiClient;
     this.aiAnalysisService = aiAnalysisService;
     this.objectMapper = objectMapper;
+    this.eventStateService = eventStateService;
+    this.realtimeBroadcastService = realtimeBroadcastService;
   }
 
   /**
@@ -161,6 +169,24 @@ public class WarningCreateService {
       riskLog.setCalculatedAt(OffsetDateTime.now());
     }
     riskScoreLogRepository.save(riskLog);
+
+    // 【修复 A2】关联统一事件：创建统一事件并保存 eventCode 到预警实体
+    try {
+      String eventCode = eventStateService.createFromAiDetection(hazardCode, title);
+      event.setUnifiedEventCode(eventCode);
+      warningRepository.save(event);
+      log.info("预警已关联统一事件 warningCode={}, eventCode={}", event.getWarningCode(), eventCode);
+    } catch (Exception e) {
+      log.warn("创建统一事件失败，但预警仍已创建 warningCode={}: {}", event.getWarningCode(), e.getMessage());
+    }
+
+    // 【修复 B2】实时推送预警到前端
+    try {
+      realtimeBroadcastService.broadcastWarning(event);
+      log.info("预警已推送到 WebSocket warningCode={}", event.getWarningCode());
+    } catch (Exception e) {
+      log.warn("WebSocket 推送预警失败，但预警仍已创建 warningCode={}: {}", event.getWarningCode(), e.getMessage());
+    }
 
     log.info("规则 [{}] 触发 -> 生成预警(待人工复核) hazard={}, value={}, finalLevel={}, source={}",
         ruleCode, hazardCode, triggerValue, level, source);

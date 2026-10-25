@@ -7,6 +7,8 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.OffsetDateTime;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 /** AI 融合风险评分原始快照（用于模型迭代回溯训练集）。 */
 @Entity
@@ -26,7 +28,8 @@ public class RiskScoreLog {
   private String riskLevel;
 
   /** 融合因子快照（JSONB → String 存储）。 */
-  @Column
+  @JdbcTypeCode(SqlTypes.JSON)
+  @Column(name = "factors", columnDefinition = "jsonb")
   private String factors;
 
   /** 来源：AI_FUSED（AI 融合评分）/ RULE_ONLY（规则等级，AI 降级）/ MANUAL（人工录入）。 */

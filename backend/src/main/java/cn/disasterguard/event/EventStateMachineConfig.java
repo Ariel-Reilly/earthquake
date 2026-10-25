@@ -17,6 +17,7 @@ import org.springframework.statemachine.config.builders.StateMachineTransitionCo
  *
  *   DETECTED ─AI_DETECT/MANUAL_REPORT─> CONFIRMING
  *   DETECTED ─START_CONFIRM───────────> CONFIRMING（人工认领）
+ *   DETECTED ─CONFIRM─────────────────> CONFIRMED（A3 修复：管理员直接确认）
  *   DETECTED ─DISMISS──────────────────> CLOSED
  *   CONFIRMING ─CONFIRM──────────────> CONFIRMED
  *   CONFIRMING ─REJECT───────────────> REJECTED
@@ -70,6 +71,11 @@ public class EventStateMachineConfig
       .withExternal()
         .source(EventState.DETECTED).target(EventState.CONFIRMING)
         .event(EventTrigger.START_CONFIRM)
+        .and()
+      // 【A3 修复】管理员直接确认（跳过确认队列，DETECTED → CONFIRMED）
+      .withExternal()
+        .source(EventState.DETECTED).target(EventState.CONFIRMED)
+        .event(EventTrigger.CONFIRM)
         .and()
       .withExternal()
         .source(EventState.DETECTED).target(EventState.CLOSED)

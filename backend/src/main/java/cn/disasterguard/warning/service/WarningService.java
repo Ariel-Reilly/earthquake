@@ -4,6 +4,8 @@ import cn.disasterguard.common.api.PageResponse;
 import cn.disasterguard.common.exception.AppException;
 import cn.disasterguard.common.export.WarningExportRow;
 import cn.disasterguard.emergency.service.EmergencyService;
+import cn.disasterguard.event.EventTrigger;
+import cn.disasterguard.event.service.EventStateService;
 import cn.disasterguard.hazard.entity.HazardPoint;
 import cn.disasterguard.hazard.repository.HazardPointRepository;
 import cn.disasterguard.notification.NotificationService;
@@ -43,16 +45,19 @@ public class WarningService {
   private final RealtimeBroadcastService broadcastService;
   private final NotificationService notificationService;
   private final ObjectMapper objectMapper;
+  private final EventStateService eventStateService;
 
   public WarningService(WarningEventRepository warningRepository, HazardPointRepository hazardRepository,
                         EmergencyService emergencyService, RealtimeBroadcastService broadcastService,
-                        NotificationService notificationService, ObjectMapper objectMapper) {
+                        NotificationService notificationService, ObjectMapper objectMapper,
+                        EventStateService eventStateService) {
     this.warningRepository = warningRepository;
     this.hazardRepository = hazardRepository;
     this.emergencyService = emergencyService;
     this.broadcastService = broadcastService;
     this.notificationService = notificationService;
     this.objectMapper = objectMapper;
+    this.eventStateService = eventStateService;
   }
 
   public PageResponse<WarningDto> page(int page, int size, String keyword, String status) {
@@ -152,6 +157,10 @@ public class WarningService {
     warning.setConfirmedAt(OffsetDateTime.now());
     WarningDto dto = toDto(warningRepository.save(warning));
     broadcastWarning(dto);
+    
+    // 【A3】预警确认后推进统一事件状态
+    transitionUnifiedEvent(warning, "CONFIRM");
+    
     return dto;
   }
 
@@ -162,6 +171,9 @@ public class WarningService {
     warning.setDispatchedAt(OffsetDateTime.now());
     WarningDto dto = toDto(warningRepository.save(warning));
     broadcastWarning(dto);
+    
+    // 【A3】预警派发后推进统一事件状态
+    transitionUnifiedEvent(warning, "DISPATCH");
     
     // ✅ 【新增】派发时触发通知（与通知中心打通闭环）
     try {
@@ -223,6 +235,10 @@ public class WarningService {
     warning.setClosedBy(operator);
     WarningDto dto = toDto(warningRepository.save(warning));
     broadcastWarning(dto);
+    
+    // 【A3】预警关闭后推进统一事件状态
+    transitionUnifiedEvent(warning, "CLOSE");
+    
     return dto;
   }
 
@@ -252,6 +268,10 @@ public class WarningService {
     warning.setResolveArea(scopeArea);
     WarningDto dto = toDto(warningRepository.save(warning));
     broadcastWarning(dto);
+    
+    // 【A3】预警解除后推进统一事件状态
+    transitionUnifiedEvent(warning, "CLOSE");
+    
     // P0-2 解除即归档：待接入 emergencyService 的历史归档链路（以 hazardCode 为关联键）。
     // 当前仅记录操作日志，不阻塞主流程。
     log.info("Warning {} resolved by {} with reason {}, scope {}, area {}",
@@ -610,5 +630,39 @@ public class WarningService {
         hazardName,
         OffsetDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
     );
+  }
+
+  /**
+   * 【A3 修复】推进统一事件状态机。
+   * 如果预警关联了统一事件，则按触发器类型推进事件状态。
+   * 如果状态转换不合法或事件不存在，只记录 WARN 日志，不中断业务流程。
+   *
+   * @param warning 预警实体
+   * @param trigger 触发器类型：CONFIRM（确认）/ DISPATCH（派发）/ CLOSE（关闭/解除）
+   */
+  private void transitionUnifiedEvent(WarningEvent warning, String trigger) {
+    if (warning.getUnifiedEventCode() == null || warning.getUnifiedEventCode().isBlank()) {
+      return;  // 预警未关联统一事件，跳过状态转换
+    }
+    
+    try {
+      EventTrigger eventTrigger;
+      switch (trigger) {
+        case "CONFIRM" -> eventTrigger = EventTrigger.CONFIRM;
+        case "DISPATCH" -> eventTrigger = EventTrigger.ISSUE_WARNING;  // 派发对应发布预警
+        case "CLOSE" -> eventTrigger = EventTrigger.CLOSE;
+        default -> {
+          log.warn("未知的触发器类型: {}", trigger);
+          return;
+        }
+      }
+      
+      eventStateService.transition(warning.getUnifiedEventCode(), eventTrigger, "system", trigger);
+      log.info("预警操作成功，已同步推进统一事件状态 eventCode={}, trigger={}, warningCode={}",
+          warning.getUnifiedEventCode(), trigger, warning.getWarningCode());
+    } catch (Exception e) {
+      log.warn("状态机转换失败（但预警操作已成功）eventCode={}, trigger={}, warningCode={}: {}",
+          warning.getUnifiedEventCode(), trigger, warning.getWarningCode(), e.getMessage());
+    }
   }
 }
