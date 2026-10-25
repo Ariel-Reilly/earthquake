@@ -100,12 +100,12 @@ public class RuleEvaluator {
   /**
    * 条件比较。
    *
+   * <p>支持两类操作符：
+   * 1. 字符串操作符：== != contains in / eq ne（不需要数值解析）
+   * 2. 数值操作符：> < >= <= / gt lt ge le（需要都能解析为数字）
+   *
    * <p>R3 P1-8：数值类比较要求 actual 与 threshold <b>都能</b>解析为数字，
    * 任一解析失败则记 warn 并判定为<b>不成立</b>（不触发）。
-   *
-   * <p>修复前 {@code toDouble} 解析失败静默返回 0.0，危害是双向的：
-   * 实测值损坏时 {@code rainfall_24h > 50} 变成 {@code 0 > 50} → <b>漏报</b>；
-   * 阈值配错时 {@code 100 > 0} → <b>误报</b>。两者在灾情场景都不可接受。
    *
    * @param field 字段名，用于日志输出
    * @param actual 实际值
@@ -115,10 +115,18 @@ public class RuleEvaluator {
    */
   private boolean compare(String field, Object actual, String op, Object threshold) {
     if (actual == null) {
-      return "==".equals(op) && threshold == null;
+      return ("==".equals(op) || "eq".equals(op)) && threshold == null;
     }
 
-    // 非数值运算符不要求解析为数字，保持原有语义
+    // 【修复】支持字符串相等性比较（== / eq / != / ne）
+    if ("==".equals(op) || "eq".equals(op)) {
+      return actual.toString().equals(threshold != null ? threshold.toString() : "");
+    }
+    if ("!=".equals(op) || "ne".equals(op)) {
+      return !actual.toString().equals(threshold != null ? threshold.toString() : "");
+    }
+
+    // 字符串模式匹配（不需要数值解析）
     if ("contains".equals(op)) {
       return threshold != null && actual.toString().contains(threshold.toString());
     }
@@ -126,6 +134,7 @@ public class RuleEvaluator {
       return threshold instanceof List && ((List<?>) threshold).contains(actual);
     }
 
+    // 数值比较需要两边都能解析为数字
     Double actualNum = toDoubleOrNull(actual);
     Double thresholdNum = toDoubleOrNull(threshold);
     if (actualNum == null || thresholdNum == null) {
@@ -135,12 +144,10 @@ public class RuleEvaluator {
     }
 
     return switch (op) {
-      case ">" -> actualNum > thresholdNum;
-      case "<" -> actualNum < thresholdNum;
-      case ">=" -> actualNum >= thresholdNum;
-      case "<=" -> actualNum <= thresholdNum;
-      case "==" -> Math.abs(actualNum - thresholdNum) < 0.0001;
-      case "!=" -> Math.abs(actualNum - thresholdNum) >= 0.0001;
+      case ">" , "gt" -> actualNum > thresholdNum;
+      case "<" , "lt" -> actualNum < thresholdNum;
+      case ">=" , "ge" -> actualNum >= thresholdNum;
+      case "<=" , "le" -> actualNum <= thresholdNum;
       default -> {
         // 【修复 P2-4】未知操作符 WARN 日志：记录规则配置错误，但不触发告警（返回 false）
         log.warn("规则评估遇到未知操作符，判定为不成立（不触发）：field={}, op={}, actual={}, threshold={}",
