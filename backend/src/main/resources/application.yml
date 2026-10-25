@@ -1,14 +1,13 @@
 server:
-  port: ${SERVER_PORT:8080}
+  port: 8080
 
 spring:
   application:
     name: disasterguard-backend
   datasource:
-    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:disasterguard}
-    username: ${POSTGRES_USER:disasterguard}
-    # ⚠️ 生产环境必须通过环境变量 POSTGRES_PASSWORD 覆盖，默认无密码
-    password: ${POSTGRES_PASSWORD:}
+    url: jdbc:postgresql://127.0.0.1:15432/disasterguard
+    username: disasterguard
+    password: CHANGE_ME__dev_postgres_password_2026
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
@@ -26,10 +25,11 @@ spring:
       encoding: UTF-8
   data:
     redis:
-      host: ${REDIS_HOST:localhost}
-      port: ${REDIS_PORT:6379}
-      # ⚠️ 生产环境必须通过环境变量 REDIS_PASSWORD 覆盖，默认无密码
-      password: ${REDIS_PASSWORD:}
+      host: 127.0.0.1
+      port: 16379
+      password: CHANGE_ME__dev_redis_password_2026
+      repositories:
+        enabled: false
   jackson:
     time-zone: UTC
     serialization:
@@ -43,121 +43,109 @@ springdoc:
     path: /swagger-ui.html
   api-docs:
     path: /v3/api-docs
-  # 项目无 Kotlin 运行时，避免 springdoc 反射 Kotlin 类触发 NoClassDefFoundError
   kotlin:
     enabled: false
 
-disasterguard:
-  frontend-origin: ${FRONTEND_ORIGIN:http://localhost:5173}
-  security:
-    dev-users-enabled: ${DEV_USERS_ENABLED:false}
-    # AES-256-GCM 密钥：加密注册申请中的身份证号（sys_user_application.id_card_enc）。
-    # 留空时 dev 环境生成随机密钥（WARN，重启后旧密文无法解密）；prod 由
-    # ProductionConfigValidator 强制要求长度 >= 32，否则阻断启动。
-    # 生成方式：openssl rand -base64 32
-    data-encryption-key: ${DATA_ENCRYPTION_KEY:}
-  # 注册申请的短信/邮箱验证码下发开关。
-  # false = 未接入网关：dev 打 INFO 日志降级联调，prod 直接报 50301「验证码服务未配置」。
-  # 置 true 后走 notification 包下的 SmsSender / EmailSender 投递。
-  register:
-    sms-enabled: ${REGISTER_SMS_ENABLED:false}
-    email-enabled: ${REGISTER_EMAIL_ENABLED:false}
-  # 阿里云号码认证服务配置（用于短信验证码真实发送）
-  sms:
-    enabled: ${ALIYUN_SMS_ENABLED:false}
-    access-key-id: ${ALIYUN_SMS_ACCESS_KEY_ID:}
-    access-key-secret: ${ALIYUN_SMS_ACCESS_KEY_SECRET:}
-    sign-name: ${ALIYUN_SMS_SIGN_NAME:恒创联众}
-    template-code: ${ALIYUN_SMS_TEMPLATE_CODE:100001}
-    endpoint: ${ALIYUN_SMS_ENDPOINT:dypnsapi.aliyuncs.com}
-  jwt:
-    # ⚠️ 生产环境必须通过 JWT_SECRET 环境变量覆盖为强随机密钥（>=32 字符）。
-    # 生成方式：openssl rand -base64 48
-    # 应用启动时会校验密钥强度，若检测到弱密钥将拒绝启动。
-    secret: ${JWT_SECRET:}
-    expire: ${JWT_EXPIRE:PT2H}
-    issuer: ${JWT_ISSUER:disasterguard}
-  file-base-url: ${FILE_BASE_URL:http://localhost:9000}
-  # 气象数据接入（NSMC / NMC 公开资源）。详见 cn.disasterguard.weather.WeatherService。
-  weather:
-    cache-enabled: ${WEATHER_CACHE_ENABLED:true}
-    cache-ttl-seconds: ${WEATHER_CACHE_TTL_SECONDS:300}
-    proxy-enabled: ${WEATHER_PROXY_ENABLED:true}
-  # 外部数据源接入（公开免费 API，无需账号）
-  external-data:
-    enabled: ${EXTERNAL_DATA_ENABLED:true}
-    timeout-seconds: ${EXTERNAL_DATA_TIMEOUT:10}
-    cache-ttl-seconds: ${EXTERNAL_DATA_CACHE_TTL:300}
-    open-meteo-url: ${OPEN_METEO_URL:https://api.open-meteo.com/v1/forecast}
-    usgs-url: ${USGS_FDSN_URL:https://earthquake.usgs.gov/fdsnws/event/1/query}
-    open-elevation-url: ${OPEN_ELEVATION_URL:https://api.open-elevation.com/api/v1/lookup}
-    # 启用的数据源：openmeteo, usgs, openelevation, gdacs, osm, gpm, smap, copernicus
-    enabled-sources: ${EXTERNAL_DATA_SOURCES:openmeteo,usgs,openelevation,gdacs,osm,gpm,smap,copernicus}
-  warning:
-    rule-engine-enabled: ${RULE_ENGINE_ENABLED:true}
-    rule-engine-cron: ${RULE_ENGINE_CRON:*/30 * * * * *}
-  # AI 综合分析（全项目后台引擎）：落库调度 + AI 分联动预警。详见 cn.disasterguard.ai.service.AiInsightService
-  ai:
-    comprehensive-scheduler-cron: ${AI_COMPREHENSIVE_CRON:0 */5 * * * *}
-    comprehensive-to-warning-cron: ${AI_TO_WARNING_CRON:0 */10 * * * *}
-    comprehensive-to-warning-enabled: ${AI_TO_WARNING_ENABLED:true}
-    # AI 设备健康评分：每台 monitoring_device 跑 anomaly + forecast，落库 ai_device_health
-    device-health-scheduler-enabled: ${AI_DEVICE_HEALTH_ENABLED:true}
-    device-health-scheduler-cron: ${AI_DEVICE_HEALTH_CRON:0 */5 * * * *}
-    # v1.7.0 AI 实时灾害监测（全国版）：从 region 表动态加载监控区域，不依赖接入设备
-    hazard-monitor-enabled: ${AI_HAZARD_MONITOR_ENABLED:true}
-    hazard-monitor-interval-ms: ${AI_HAZARD_MONITOR_INTERVAL_MS:90000}
-    hazard-monitor-initial-delay-ms: ${AI_HAZARD_MONITOR_INITIAL_DELAY_MS:8000}
-    hazard-monitor-max-regions-per-tick: ${AI_HAZARD_MONITOR_MAX_REGIONS:200}
-    hazard-monitor-include-plain: ${AI_HAZARD_MONITOR_INCLUDE_PLAIN:false}
-    hazard-monitor-min-level: ${AI_HAZARD_MONITOR_MIN_LEVEL:town}
-    hazard-monitor-min-risk-level: ${AI_HAZARD_MONITOR_MIN_RISK_LEVEL:HIGH}
-  device:
-    auth-strict-mode: ${DEVICE_AUTH_STRICT:false}
-    offline-threshold-minutes: ${DEVICE_OFFLINE_THRESHOLD_MIN:5}
-    offline-check-interval-seconds: ${DEVICE_OFFLINE_CHECK_INTERVAL_SEC:60}
-    metric-cleanup-enabled: ${METRIC_CLEANUP_ENABLED:true}
-    metric-retention-days: ${METRIC_RETENTION_DAYS:30}
-    metric-cleanup-cron: ${METRIC_CLEANUP_CRON:0 30 3 * * *}
-  realtime:
-    websocket-enabled: ${WEBSOCKET_ENABLED:true}
-  ws:
-    # 生产环境设为 true 强制 WebSocket 连接只能使用一次性 ticket（禁止 raw JWT query）
-    require-ticket: ${WS_REQUIRE_TICKET:false}
-    ticket-ttl-seconds: ${WS_TICKET_TTL_SEC:60}
-
+# ================= AI 客户端配置 =================
+# 强制开启，并指定 Python AI 服务地址
 ai:
-  service-base-url: ${AI_SERVICE_BASE_URL:http://localhost:8001/api/ai}
-  enabled: ${AI_ENABLED:true}
-  timeout-ms: ${AI_TIMEOUT_MS:30000}
-  scheduler-enabled: ${AI_SCHEDULER_ENABLED:false}
-  forecast-horizon: ${AI_FORECAST_HORIZON:7}
-  forecast-cron: ${AI_FORECAST_CRON:0 0 2 * * *}
+  enabled: true
+  service-base-url: http://localhost:8001/api/ai
+  timeout-ms: 30000
+  scheduler-enabled: false
+  forecast-horizon: 7
+  forecast-cron: 0 0 2 * * *
+
+disasterguard:
+  frontend-origin: http://localhost:5173
+  security:
+    dev-users-enabled: true
+    # 写死一个 32 位以上的加密密钥
+    data-encryption-key: "a_very_secure_data_encryption_key_2026_!@#"
+
+  # 阿里云号码认证服务配置（你的真实密钥，请确保不要将此文件提交到公开 Git）
+  sms:
+    enabled: true
+    access-key-id: "LTAI5t8dAWGREiVCySxNjD7s"
+    access-key-secret: "gSkBAurtlFafQbkuGW45nm5YP42meM"
+    sign-name: "恒创联众"
+    template-code: "100001"
+    endpoint: dypnsapi.aliyuncs.com
+
+  # JWT 配置，写死一个 60 多位的强随机密钥，解决 WeakKeyException
+  jwt:
+    secret: "this_is_a_very_secure_secret_key_for_disaster_guard_2026_!@#"
+    expire: PT2H
+    issuer: disasterguard
+
+  file-base-url: http://localhost:19000
+
+  weather:
+    cache-enabled: true
+    cache-ttl-seconds: 300
+    proxy-enabled: true
+
+  external-data:
+    enabled: true
+    timeout-seconds: 10
+    cache-ttl-seconds: 300
+    open-meteo-url: https://api.open-meteo.com/v1/forecast
+    usgs-url: https://earthquake.usgs.gov/fdsnws/event/1/query
+    open-elevation-url: https://api.open-elevation.com/api/v1/lookup
+    enabled-sources: openmeteo,usgs,openelevation,gdacs,osm,gpm,smap,copernicus
+
+  warning:
+    rule-engine-enabled: true
+    rule-engine-cron: "*/30 * * * * *"
+
+  ai:
+    comprehensive-scheduler-cron: "0 */5 * * * *"
+    comprehensive-to-warning-cron: "0 */10 * * * *"
+    comprehensive-to-warning-enabled: true
+    device-health-scheduler-enabled: true
+    device-health-scheduler-cron: "0 */5 * * * *"
+    hazard-monitor-enabled: true
+    hazard-monitor-interval-ms: 90000
+    hazard-monitor-initial-delay-ms: 8000
+    hazard-monitor-max-regions-per-tick: 200
+    hazard-monitor-include-plain: false
+    hazard-monitor-min-level: town
+    hazard-monitor-min-risk-level: HIGH
+
+  device:
+    auth-strict-mode: false
+    offline-threshold-minutes: 5
+    offline-check-interval-seconds: 60
+    metric-cleanup-enabled: true
+    metric-retention-days: 30
+    metric-cleanup-cron: "0 30 3 * * *"
+
+  realtime:
+    websocket-enabled: true
+  ws:
+    require-ticket: false
+    ticket-ttl-seconds: 60
 
 minio:
-  endpoint: ${MINIO_ENDPOINT:http://localhost:19000}
-  # MinIO 凭证：使用 MINIO_ROOT_USER / MINIO_ROOT_PASSWORD（Spring Boot relaxed binding，
-  # 支持 MINIO_ROOT_* 和 MINIO_ACCESS_KEY / MINIO_SECRET_KEY 两种命名）
-  # ⚠️ 生产环境必须修改为强随机密钥（建议 24+ 字符）。
-  # 生成方式：openssl rand -base64 32
-  access-key: ${MINIO_ACCESS_KEY:${MINIO_ROOT_USER:disasterguard}}
-  secret-key: ${MINIO_SECRET_KEY:${MINIO_ROOT_PASSWORD:CHANGE_ME__dev_minio_password_24chars_minimum_2026}}
-  bucket: ${MINIO_BUCKET:disasterguard}
+  endpoint: http://localhost:19000
+  access-key: disasterguard
+  secret-key: CHANGE_ME__dev_minio_password_24chars_minimum_2026
+  bucket: disasterguard
 
 emqx:
-  mqtt-url: ${EMQX_MQTT_URL:tcp://localhost:11883}
-  client-id: ${EMQX_CLIENT_ID:disasterguard-backend}
-  topic: ${EMQX_DATA_TOPIC:disasterguard/+/data}
-  qos: ${EMQX_DATA_QOS:1}
-  enabled: ${EMQX_ENABLED:true}
-  username: ${EMQX_USERNAME:}
-  password: ${EMQX_PASSWORD:}
+  mqtt-url: tcp://localhost:11883
+  client-id: disasterguard-backend
+  topic: disasterguard/+/data
+  qos: 1
+  enabled: false
+  username: ""
+  password: ""
 
 tdengine:
-  url: ${TDENGINE_URL:jdbc:TAOS-RS://localhost:6041/disasterguard}
-  username: ${TDENGINE_USERNAME:root}
-  password: ${TDENGINE_PASSWORD:taosdata}
-  enabled: ${TDENGINE_ENABLED:false}
+  url: jdbc:TAOS-RS://localhost:16041/disasterguard
+  username: root
+  password: taosdata
+  enabled: false
 
 logging:
   file:
