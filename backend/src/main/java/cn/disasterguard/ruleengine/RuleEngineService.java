@@ -13,6 +13,7 @@ import cn.disasterguard.ruleengine.repository.RuleExecutionLogRepository;
 import cn.disasterguard.ruleengine.repository.RuleRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
@@ -27,6 +28,9 @@ import java.util.*;
 
 /**
  * 规则引擎服务
+ * 
+ * 【时序修复】规则缓存加载延迟到 @PostConstruct，确保 RuleInitializer (@Order(1) CommandLineRunner)
+ * 已经先行插入演示规则到数据库，避免加载空规则集。
  */
 @Service
 public class RuleEngineService {
@@ -62,9 +66,15 @@ public class RuleEngineService {
     this.notificationRouter = notificationRouter;
     this.objectMapper = objectMapper;
     this.eventPublisher = eventPublisher;
+  }
 
-    // 启动时加载所有规则
-    reloadRules();
+  /**
+   * 获取当前缓存的规则数（用于诊断和监控）
+   * 
+   * Returns: 缓存中已编译的规则数，若缓存为 null 则返回 0
+   */
+  public int getCacheSize() {
+    return compiledRules == null ? 0 : compiledRules.size();
   }
 
   /**
@@ -73,14 +83,38 @@ public class RuleEngineService {
   @org.springframework.context.event.EventListener
   public void onRuleChanged(RuleChangedEvent event) {
     log.info("规则变更，刷新规则缓存");
-    reloadRules();
+    reloadRules("RuleChangedEvent");
   }
 
   /**
-   * 重新加载所有规则
+   * 【时序修复】Spring 完全初始化后（在 @DependsOn 依赖的 bean 之后）加载规则缓存。
+   * 确保 RuleInitializer 已经插入了演示规则到数据库。
+   */
+  @PostConstruct
+  public void initializeRuleCache() {
+    log.info("【规则引擎】正在初始化规则缓存...");
+    reloadRules("RuleEngineService.@PostConstruct");
+  }
+
+  /**
+   * 重新加载所有规则（默认来源标记为 "unknown"）
    */
   public void reloadRules() {
+    reloadRules("unknown");
+  }
+
+  /**
+   * 重新加载所有规则（带调用来源标记）
+   * 
+   * Args:
+   *   source: 调用来源标记（用于日志诊断），例如 "RuleInitializer.if"、"RuleChangedEvent" 等
+   */
+  public void reloadRules(String source) {
+    long startTime = System.currentTimeMillis();
+    
+    // 查询数据库中所有启用的规则
     List<Rule> enabledRules = ruleRepository.findAllEnabledOrderByPriority();
+    long enabledRuleCount = enabledRules.size();
     Map<Long, RuleCompiler.ConditionNode> newCache = new HashMap<>();
 
     for (Rule rule : enabledRules) {
@@ -108,7 +142,16 @@ public class RuleEngineService {
     }
 
     this.compiledRules = Collections.unmodifiableMap(newCache);
-    log.info("规则缓存已更新，共加载 {} 条启用规则", newCache.size());
+    long duration = System.currentTimeMillis() - startTime;
+    
+    // 【诊断】同时打印数据库启用规则数和实际编译成功的规则数
+    if (enabledRuleCount != newCache.size()) {
+      log.warn("规则缓存已更新，数据库启用规则: {} 条，编译成功: {} 条（不一致！），耗时 {}ms，调用来源: {}",
+               enabledRuleCount, newCache.size(), duration, source);
+    } else {
+      log.info("规则缓存已更新，共加载 {} 条启用规则，耗时 {}ms，调用来源: {}",
+               newCache.size(), duration, source);
+    }
   }
 
   /**
@@ -148,7 +191,7 @@ public class RuleEngineService {
     rule = ruleRepository.save(rule);
 
     // 刷新缓存
-    reloadRules();
+    reloadRules("RuleEngineService.create");
 
     // 发布变更事件
     publishRuleChanged(rule.getId(), "CREATED");
@@ -170,7 +213,7 @@ public class RuleEngineService {
     rule = ruleRepository.save(rule);
 
     // 刷新缓存
-    reloadRules();
+    reloadRules("RuleEngineService.update");
 
     // 发布变更事件
     publishRuleChanged(rule.getId(), "UPDATED");
@@ -189,7 +232,7 @@ public class RuleEngineService {
     ruleRepository.deleteById(id);
 
     // 刷新缓存
-    reloadRules();
+    reloadRules("RuleEngineService.delete");
 
     // 发布变更事件
     publishRuleChanged(id, "DELETED");
@@ -208,7 +251,7 @@ public class RuleEngineService {
     rule = ruleRepository.save(rule);
 
     // 刷新缓存
-    reloadRules();
+    reloadRules("RuleEngineService.toggle");
 
     // 发布变更事件
     publishRuleChanged(rule.getId(), rule.getEnabled() ? "ENABLED" : "DISABLED");

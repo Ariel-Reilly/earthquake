@@ -595,37 +595,37 @@ ON CONFLICT (task_code) DO NOTHING;
 INSERT INTO rule (rule_code, name, disaster_type, level, priority, conditions, actions, dsl_text, enabled, created_by) VALUES
 ('R001', '滑坡黄色预警（雨量+坡度）',
  'landslide','yellow',90,
- '{"logic":"AND","conditions":[{"field":"rainfall_24h","operator":"gt","value":50},{"field":"slope","operator":"gt","value":30}]}',
+ '{"logic":"AND","conditions":[{"field":"rainfall_24h","operator":">","value":50},{"field":"slope","operator":">","value":30}]}',
  '{"type":"CREATE_EVENT","hazard_type":"landslide","level":"yellow","confidence":0.80}',
  'rainfall_24h > 50 AND slope > 30', TRUE, 'aiengineer'),
 
 ('R002', '滑坡橙色预警（雨量+位移）',
  'landslide','orange',80,
- '{"logic":"AND","conditions":[{"field":"rainfall_24h","operator":"gt","value":80},{"field":"displacement_rate","operator":"gt","value":5}]}',
+ '{"logic":"AND","conditions":[{"field":"rainfall_24h","operator":">","value":80},{"field":"displacement_rate","operator":">","value":5}]}',
  '{"type":"CREATE_EVENT","hazard_type":"landslide","level":"orange","confidence":0.88}',
  'rainfall_24h > 80 AND displacement_rate > 5', TRUE, 'aiengineer'),
 
 ('R003', '洪水红色预警（水位+雨量）',
  'flood','red',95,
- '{"logic":"AND","conditions":[{"field":"water_level","operator":"gt","value":"warning_level"},{"field":"rainfall_6h","operator":"gt","value":100}]}',
+ '{"logic":"AND","conditions":[{"field":"water_level","operator":">","value":"warning_level"},{"field":"rainfall_6h","operator":">","value":100}]}',
  '{"type":"CREATE_EVENT","hazard_type":"flood","level":"red","confidence":0.93}',
  'water_level > warning_level AND rainfall_6h > 100', TRUE, 'aiengineer'),
 
 ('R004', '设备离线告警',
  'device','blue',70,
- '{"logic":"AND","conditions":[{"field":"device_status","operator":"eq","value":"OFFLINE"},{"field":"duration_minutes","operator":"gt","value":10}]}',
+ '{"logic":"AND","conditions":[{"field":"device_status","operator":"==","value":"OFFLINE"},{"field":"duration_minutes","operator":">","value":10}]}',
  '{"type":"CREATE_TODO","assign_role":"maintenance","priority":"HIGH"}',
  'device_status == OFFLINE AND duration_minutes > 10', TRUE, 'sysadmin'),
 
 ('R005', '地震触发巡检',
  'earthquake','yellow',85,
- '{"logic":"AND","conditions":[{"field":"magnitude","operator":"gte","value":4.5},{"field":"distance_km","operator":"lt","value":100}]}',
+ '{"logic":"AND","conditions":[{"field":"magnitude","operator":">=","value":4.5},{"field":"distance_km","operator":"<","value":100}]}',
  '{"type":"TRIGGER_AI_TASK","task_name":"earthquake_inspection"}',
  'magnitude >= 4.5 AND distance_km < 100', TRUE, 'aiengineer'),
 
 ('R006', '崩塌黄色预警（裂缝扩展）',
  'collapse','yellow',75,
- '{"logic":"AND","conditions":[{"field":"crack_width_rate","operator":"gt","value":2.0},{"field":"rainfall_24h","operator":"gt","value":30}]}',
+ '{"logic":"AND","conditions":[{"field":"crack_width_rate","operator":">","value":2.0},{"field":"rainfall_24h","operator":">","value":30}]}',
  '{"type":"CREATE_EVENT","hazard_type":"collapse","level":"yellow","confidence":0.78}',
  'crack_width_rate > 2.0 AND rainfall_24h > 30', TRUE, 'aiengineer')
 ON CONFLICT (rule_code) DO NOTHING;

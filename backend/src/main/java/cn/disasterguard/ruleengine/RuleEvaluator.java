@@ -84,7 +84,7 @@ public class RuleEvaluator {
     String operator = node.getOperator();
     String unit = node.getUnit();
 
-    boolean result = compare(actualValue, operator, thresholdValue);
+    boolean result = compare(field, actualValue, operator, thresholdValue);
 
     String conditionDesc = formatConditionDesc(field, operator, thresholdValue, unit, actualValue);
 
@@ -106,8 +106,14 @@ public class RuleEvaluator {
    * <p>修复前 {@code toDouble} 解析失败静默返回 0.0，危害是双向的：
    * 实测值损坏时 {@code rainfall_24h > 50} 变成 {@code 0 > 50} → <b>漏报</b>；
    * 阈值配错时 {@code 100 > 0} → <b>误报</b>。两者在灾情场景都不可接受。
+   *
+   * @param field 字段名，用于日志输出
+   * @param actual 实际值
+   * @param op 操作符
+   * @param threshold 阈值
+   * @return 比较结果
    */
-  private boolean compare(Object actual, String op, Object threshold) {
+  private boolean compare(String field, Object actual, String op, Object threshold) {
     if (actual == null) {
       return "==".equals(op) && threshold == null;
     }
@@ -123,8 +129,8 @@ public class RuleEvaluator {
     Double actualNum = toDoubleOrNull(actual);
     Double thresholdNum = toDoubleOrNull(threshold);
     if (actualNum == null || thresholdNum == null) {
-      log.warn("规则条件数值无法解析，判定为不成立（不触发）：actual={}, op={}, threshold={}",
-          actual, op, threshold);
+      log.warn("规则条件数值无法解析，判定为不成立（不触发）：field={}, actual={}, op={}, threshold={}",
+          field, actual, op, threshold);
       return false;
     }
 
@@ -135,7 +141,12 @@ public class RuleEvaluator {
       case "<=" -> actualNum <= thresholdNum;
       case "==" -> Math.abs(actualNum - thresholdNum) < 0.0001;
       case "!=" -> Math.abs(actualNum - thresholdNum) >= 0.0001;
-      default -> false;
+      default -> {
+        // 【修复 P2-4】未知操作符 WARN 日志：记录规则配置错误，但不触发告警（返回 false）
+        log.warn("规则评估遇到未知操作符，判定为不成立（不触发）：field={}, op={}, actual={}, threshold={}",
+            field, op, actual, threshold);
+        yield false;
+      }
     };
   }
 

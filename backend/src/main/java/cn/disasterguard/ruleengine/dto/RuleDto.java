@@ -1,5 +1,6 @@
 package cn.disasterguard.ruleengine.dto;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import jakarta.validation.constraints.NotBlank;
 import java.util.List;
 import java.util.Map;
@@ -26,7 +27,9 @@ public record RuleDto(
    * 支持 AND/OR 组合条件
    */
   public record RuleConditions(
+      @JsonAlias("logic")
       String operator,  // AND / OR
+      @JsonAlias("conditions")
       List<ConditionItem> items
   ) {}
 
@@ -35,9 +38,10 @@ public record RuleDto(
    */
   public record ConditionItem(
       String field,     // 字段名
-      String op,         // 操作符: >, <, >=, <=, ==, !=, contains, in
+      @JsonAlias("operator")
+      String op,        // 操作符: >, <, >=, <=, ==, !=, contains, in
       Object value,     // 比较值
-      String unit       // 单位（可选）
+      String unit       // 单位（可选，仅用于日志展示）
   ) {}
 
   /**
