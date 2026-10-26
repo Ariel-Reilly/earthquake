@@ -136,11 +136,18 @@ public class WarningCreateService {
     }
   }
 
-  /** 纯 DB 写入事务：创建 warning_event + risk_score_log（两表原子写入）。 */
+  /**
+   * 纯 DB 写入事务：创建 warning_event + risk_score_log（两表原子写入）。
+   *
+   * <p>返回生成的预警编号，供调用方回传 / 打日志时使用。
+   * 由 void 改为 String 对既有调用方（忽略返回值）是源码兼容的。
+   *
+   * @return 本次生成的预警编号（如 WG-1A2B3C4D）
+   */
   @Transactional
-  public void doPersist(String ruleCode, String hazardCode, String title, String level,
-                        String metricCode, double triggerValue, String source,
-                        boolean aiAvailable, FusionRiskResult fusion, Map<String, Double> factors) {
+  public String doPersist(String ruleCode, String hazardCode, String title, String level,
+                          String metricCode, double triggerValue, String source,
+                          boolean aiAvailable, FusionRiskResult fusion, Map<String, Double> factors) {
 
     WarningEvent event = new WarningEvent();
     event.setWarningCode("WG-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
@@ -190,6 +197,7 @@ public class WarningCreateService {
 
     log.info("规则 [{}] 触发 -> 生成预警(待人工复核) hazard={}, value={}, finalLevel={}, source={}",
         ruleCode, hazardCode, triggerValue, level, source);
+    return event.getWarningCode();
   }
 
   private RiskScoreLog buildRiskLog(String hazardCode, FusionRiskResult fusion, Map<String, Double> factors) {
