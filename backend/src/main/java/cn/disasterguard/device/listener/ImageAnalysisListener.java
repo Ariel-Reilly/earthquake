@@ -1,10 +1,14 @@
 package cn.disasterguard.device.listener;
 
+import cn.disasterguard.ai.AiImageClient;
+import cn.disasterguard.ai.dto.AiImageResponse;
 import cn.disasterguard.ai.dto.FusionRiskResult;
+import cn.disasterguard.ai.service.ExternalDataService;
 import cn.disasterguard.device.entity.MonitoringDevice;
 import cn.disasterguard.device.event.DeviceImageUploadedEvent;
 import cn.disasterguard.device.repository.MonitoringDeviceRepository;
 import cn.disasterguard.warning.engine.WarningCreateService;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,9 +23,8 @@ import org.springframework.stereotype.Component;
  * 外部调用，同步执行会把设备上传接口拖到超时，也会让识别失败反噬"图片已收妥"这个事实。
  * 拆成异步事件后，上传接口只负责存证，研判失败可以单独重试而不影响设备侧。
  *
- * <p>当前实现是<b>模拟</b> AI 返回，用于打通"图像 → 事件 → 预警"的整条链路；
- * 真实接入时只需把 {@link #mockDetect} 换成 ai-service 的图像检测调用，
- * 其余分支（阈值判定、隐患点解析、预警落库）无需改动。
+ * <p>链路：图片上传 → MinIO 预签名 URL → 本监听器 → Python {@code /api/ai/detect-image}
+ * → 气象融合（该坐标 24h 降雨）→ 预警落库。
  */
 @Component
 public class ImageAnalysisListener {
@@ -43,17 +46,26 @@ public class ImageAnalysisListener {
    */
   private static final String IMAGE_RULE_CODE = "R005";
 
+  /** 气象数据查不到时的兜底降雨量：0mm 不参与等级升级，也不应阻断预警生成。 */
+  private static final double DEFAULT_RAINFALL_MM = 0.0;
+
   private final WarningCreateService warningCreateService;
   private final MonitoringDeviceRepository deviceRepository;
+  private final AiImageClient aiImageClient;
+  private final ExternalDataService externalDataService;
 
   public ImageAnalysisListener(WarningCreateService warningCreateService,
-                               MonitoringDeviceRepository deviceRepository) {
+                               MonitoringDeviceRepository deviceRepository,
+                               AiImageClient aiImageClient,
+                               ExternalDataService externalDataService) {
     this.warningCreateService = warningCreateService;
     this.deviceRepository = deviceRepository;
+    this.aiImageClient = aiImageClient;
+    this.externalDataService = externalDataService;
   }
 
   /**
-   * 消费图像上传事件并执行 AI 研判 → 预警落库。
+   * 消费图像上传事件并执行 AI 研判 → 气象融合 → 预警落库。
    *
    * <p>整体包在 try/catch 内：异步线程抛出的异常不会回流到上传接口，
    * 若不打日志就会静默丢失，排查时无从下手。
@@ -63,24 +75,52 @@ public class ImageAnalysisListener {
   @Async
   @EventListener
   public void onImageUploaded(DeviceImageUploadedEvent event) {
-    log.info("【AI 异步巡检】接收到设备 {} 的图片，准备进行视觉识别...", event.deviceCode());
+    log.info("【AI 异步巡检】接收到设备 {} 的图片，开始调用图像识别服务...", event.deviceCode());
 
-    DetectionResult detection = mockDetect(event);
-    if (detection.confidence() <= CONFIDENCE_THRESHOLD) {
-      log.info("AI 识别置信度未达阈值，忽略本次图像 device={}, confidence={}",
-          event.deviceCode(), detection.confidence());
+    // 隐患点放到 AI 确认之后再查：判定失败就直接返回，没必要为一次无效研判先读一次库
+    AiImageResponse detection = aiImageClient.detect(event.imageUrl(), event.deviceCode(), null);
+    if (detection == null) {
+      log.info("AI 图像识别不可用，本次不生成预警 device={}, imageUrl={}",
+          event.deviceCode(), event.imageUrl());
+      return;
+    }
+
+    // mock 结果说明 Python 端模型没加载成功，置信度不可信，必须留痕但不必中断链路
+    if (detection.degraded()) {
+      log.warn("AI 返回降级(mock)结果，置信度仅供参考 device={}, model={}",
+          event.deviceCode(), detection.model());
+    }
+
+    if (detection.disasterType() == null
+        || "none".equalsIgnoreCase(detection.disasterType())
+        || detection.confidence() <= CONFIDENCE_THRESHOLD) {
+      log.info("AI 未确认险情，跳过预警 device={}, disasterType={}, confidence={}, detectionCount={}",
+          event.deviceCode(), detection.disasterType(), detection.confidence(),
+          detection.detectionCount());
       return;
     }
 
     String hazardCode = resolveHazardCode(event.deviceCode());
-    String level = levelOf(detection.riskLevel());
-    String title = "【AI图像识别】" + event.deviceCode() + " 识别到"
-        + disasterLabel(detection.disasterType()) + "险情";
+    String label = disasterLabel(detection.disasterType());
+    double rainfall24h = queryRainfall24h(event.longitude(), event.latitude(), event.deviceCode());
 
-    // 把模拟结果包装成融合评分的载体，让 risk_score_log 与规则预警共用同一套落库结构，
-    // 避免图像链路另起一张表。degraded=true 表示这是模拟/降级结果而非真实模型输出。
-    FusionRiskResult fusion = new FusionRiskResult(hazardCode, detection.riskLevel(),
-        detection.confidence() * 100, detection.confidence(), detection.model(), true);
+    String riskLevel = riskLevelOf(detection.confidence());
+    String level = levelOf(riskLevel);
+    String title = "【AI图像识别】" + event.deviceCode() + " 识别到" + label
+        + "险情（过去24h降雨 " + formatRainfall(rainfall24h) + "mm）";
+
+    // warning_event 没有 description 列，risk_score_log.factors 是唯一能长期留存
+    // 多源因子的结构化字段，所以气象数据必须并进 factors 而不是只写日志。
+    Map<String, Double> factors = new LinkedHashMap<>();
+    factors.put("image_confidence", detection.confidence());
+    factors.put("rainfall_24h", rainfall24h);
+
+    FusionRiskResult fusion = new FusionRiskResult(hazardCode, riskLevel,
+        detection.confidence() * 100, detection.confidence(), detection.model(),
+        detection.degraded());
+
+    log.info("【多源融合】AI 确认发现 {} 险情，置信度 {}，该坐标过去 24 小时降雨量 {}mm，正在生成预警...",
+        label, detection.confidence(), formatRainfall(rainfall24h));
 
     try {
       String warningCode = warningCreateService.doPersist(
@@ -93,8 +133,9 @@ public class ImageAnalysisListener {
           "AI_IMAGE",              // source：与 RULE_ONLY / AI_AUTO 区分，便于前端标注来源
           true,                    // aiAvailable：本次确实有 AI 置信度可写进 risk_score_log
           fusion,
-          Map.of("image_confidence", detection.confidence()));
-      log.info("【多源融合】AI 识别到险情，已生成预警，预警编号={}", warningCode);
+          factors);
+      log.info("【多源融合】预警已生成，编号={}，灾种={}，等级={}，降雨量={}mm",
+          warningCode, label, level, formatRainfall(rainfall24h));
     } catch (Exception e) {
       // 预警落库失败（外键、约束、DB 抖动）不应让异步线程异常逃逸
       log.error("图像识别后生成预警失败 device={}, hazardCode={}: {}",
@@ -103,21 +144,58 @@ public class ImageAnalysisListener {
   }
 
   /**
-   * 模拟 AI 视觉识别：固定耗时 1s 并返回泥石流险情（置信度 0.92）。
+   * 查询该坐标过去 24 小时的累计降雨量。
    *
-   * @param event 图像事件（真实实现中 imageUrl 会作为请求体发给 ai-service）
-   * @return 识别结果
+   * <p>用 {@link ExternalDataService#getMeteorology} 而不是 {@code WeatherService}：
+   * 后者只提供中国气象局卫星产品列表/图例/图片代理（{@code RAIN24} 是整幅区域图），
+   * 没有"按经纬度取点雨量"的能力；ExternalDataService 走 Open-Meteo，
+   * 本身带缓存且失败返回 null，正好满足"查不到给 0、不阻塞"的要求。
+   *
+   * @param lng        经度，可能为 null（事件里坐标是设备档案兜底后的值）
+   * @param lat        纬度，同上
+   * @param deviceCode 设备编号，仅用于日志
+   * @return 24h 累计降雨量（mm），任何异常或缺失都返回 {@link #DEFAULT_RAINFALL_MM}
    */
-  private DetectionResult mockDetect(DeviceImageUploadedEvent event) {
-    try {
-      // 模拟推理耗时：让异步特性在日志时间线上可观察，也贴近真实视觉模型的响应时间
-      Thread.sleep(1000);
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt(); // 恢复中断标志，避免线程池无法感知关停
-      log.warn("图像识别被中断 device={}, imageUrl={}", event.deviceCode(), event.imageUrl());
-      return new DetectionResult("unknown", "LOW", 0.0, "mock-image-v1");
+  private double queryRainfall24h(Double lng, Double lat, String deviceCode) {
+    if (lng == null || lat == null) {
+      log.warn("图像事件缺少坐标，降雨量按默认 {}mm 处理 device={}", DEFAULT_RAINFALL_MM, deviceCode);
+      return DEFAULT_RAINFALL_MM;
     }
-    return new DetectionResult("debris_flow", "HIGH", 0.92, "mock-image-v1");
+    try {
+      // 注意参数顺序是 (lat, lon)：Open-Meteo 的 URL 里 latitude 在前
+      ExternalDataService.MeteorologyResult meteo = externalDataService.getMeteorology(lat, lng);
+      if (meteo == null) {
+        log.info("气象数据不可用（外网不通或数据源关闭），降雨量按默认 {}mm 处理 device={}, lat={}, lng={}",
+            DEFAULT_RAINFALL_MM, deviceCode, lat, lng);
+        return DEFAULT_RAINFALL_MM;
+      }
+      return roundToOneDecimal(meteo.rainfall24hSum());
+    } catch (Exception e) {
+      // 气象是增强信息，失败不能阻断预警生成
+      log.warn("查询降雨量异常，按默认 {}mm 处理 device={}: {}",
+          DEFAULT_RAINFALL_MM, deviceCode, e.getMessage());
+      return DEFAULT_RAINFALL_MM;
+    }
+  }
+
+  /**
+   * 置信度 → 风险等级码。
+   *
+   * <p>Python 端只回传 confidence 不回传 riskLevel（灾种已由它折算），
+   * 所以等级在这里按置信度分档，阈值与 {@link #CONFIDENCE_THRESHOLD} 同源，
+   * 保证"刚好过线"的识别落在最低一档而不是直接判为高危。
+   */
+  private String riskLevelOf(double confidence) {
+    if (confidence >= 0.95) {
+      return "CRITICAL";
+    }
+    if (confidence >= 0.90) {
+      return "HIGH";
+    }
+    if (confidence >= 0.85) {
+      return "MEDIUM";
+    }
+    return "LOW";
   }
 
   /**
@@ -163,15 +241,12 @@ public class ImageAnalysisListener {
     };
   }
 
-  /**
-   * 视觉识别结果。
-   *
-   * @param disasterType 灾种英文码（与 hazard_point.hazard_type 同一套编码）
-   * @param riskLevel    风险等级（LOW / MEDIUM / HIGH / CRITICAL）
-   * @param confidence   置信度 0.0-1.0
-   * @param model        模型标识，写入 risk_score_log 便于回溯
-   */
-  private record DetectionResult(String disasterType, String riskLevel,
-                                 double confidence, String model) {
+  /** 降雨量保留一位小数：日志里 12.300000000000001 这种浮点噪声没有意义。 */
+  private double roundToOneDecimal(double value) {
+    return Math.round(value * 10.0) / 10.0;
+  }
+
+  private String formatRainfall(double value) {
+    return String.format("%.1f", value);
   }
 }

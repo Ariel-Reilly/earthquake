@@ -65,6 +65,7 @@ ai:
 
 disasterguard:
   frontend-origin: http://localhost:5173
+
   security:
     dev-users-enabled: true
     # 写死一个 32 位以上的加密密钥
@@ -106,6 +107,13 @@ disasterguard:
     rule-engine-cron: "*/30 * * * * *"
 
   ai:
+    # 图像识别客户端（ImageAnalysisListener 使用）
+    # 单独配置而不复用 ai.service-base-url：Python 端 /detect-image 是独立路由，
+    # 且允许把图像推理单独指向另一台实例（图像链路需要 GPU 时不必连带换掉全部分析服务）。
+    image-service-url: http://127.0.0.1:8001/api/ai/detect-image
+    connect-timeout-ms: 5000
+    read-timeout-ms: 5000
+
     comprehensive-scheduler-cron: "0 */5 * * * *"
     comprehensive-to-warning-cron: "0 */10 * * * *"
     comprehensive-to-warning-enabled: true
