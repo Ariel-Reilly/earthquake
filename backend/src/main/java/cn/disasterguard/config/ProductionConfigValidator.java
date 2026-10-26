@@ -32,6 +32,9 @@ import org.springframework.stereotype.Component;
  *       （注册申请新增：加密身份证号，缺失会导致历史密文永久不可解）</li>
  *   <li>{@code REGISTER_SMS_ENABLED} / {@code REGISTER_EMAIL_ENABLED} 为 true
  *       （短信/邮件网关未接入，置 true 会让注册接口「假装发送成功」）</li>
+ *   <li>{@code POSTGRES_PASSWORD} 为空或仍为 application.yml 的开发默认值
+ *       （占位符静默回落，应用能启动但连的是已公开的口令）</li>
+ *   <li>{@code REDIS_PASSWORD} 命中开发默认值（仅告警）</li>
  * </ul>
  *
  * <p>dev 环境默认不加载此组件（@Profile("prod")），避免本地开发被阻断。
@@ -49,6 +52,24 @@ public class ProductionConfigValidator {
       "password", "password123", "123456", "12345678", "123456789",
       "qwerty", "admin", "admin123", "changeme", "letmein",
       "welcome", "monkey", "dragon", "baseball", "iloveyou"
+  );
+
+  /**
+   * application.yml 里为「宿主机直跑」保留的本地开发默认值。
+   *
+   * <p>这些值现在以 {@code ${ENV_VAR:default}} 的形式写在 yml 中，好处是本地无需任何
+   * 配置即可启动；副作用是 prod 忘记注入环境变量时，占位符会**静默回落**到它们。
+   * 而这些值已随代码进入 git 历史，等同于公开密钥。
+   *
+   * <p>长度与弱口令黑名单都拦不住它们（例如 JWT 默认值有 60 余位、不含任何弱词），
+   * 所以必须按「已知泄露值」精确匹配并阻断启动。
+   */
+  private static final Set<String> DEV_DEFAULT_SECRETS = Set.of(
+      "this_is_a_very_secure_secret_key_for_disaster_guard_2026_!@#",
+      "a_very_secure_data_encryption_key_2026_!@#",
+      "CHANGE_ME__dev_postgres_password_2026",
+      "CHANGE_ME__dev_redis_password_2026",
+      "CHANGE_ME__dev_minio_password_24chars_minimum_2026"
   );
 
   @Value("${disasterguard.security.dev-users-enabled:true}")
@@ -107,6 +128,23 @@ public class ProductionConfigValidator {
   @Value("${minio.endpoint:}")
   String minioEndpoint;
 
+  /**
+   * 数据源口令：application.yml 中为本地开发保留了默认值，prod 忘记注入 POSTGRES_PASSWORD
+   * 时占位符会静默回落到它。此前本类完全没有校验数据库口令。
+   */
+  @Value("${spring.datasource.password:}")
+  String datasourcePassword;
+
+  /** Redis 口令，同上：回落默认值意味着生产缓存/会话可被匿名读写。 */
+  @Value("${spring.data.redis.password:}")
+  String redisPassword;
+
+  @Value("${disasterguard.sms.enabled:false}")
+  boolean smsEnabled;
+
+  @Value("${disasterguard.sms.access-key-id:}")
+  String smsAccessKeyId;
+
   private final SysUserRepository userRepository;
 
   public ProductionConfigValidator(SysUserRepository userRepository) {
@@ -163,6 +201,10 @@ public class ProductionConfigValidator {
       if (WEAK_TOKENS.contains(secret.toLowerCase()) || secret.toLowerCase().contains("minioadmin")) {
         errors.add("MINIO_SECRET_KEY 命中弱密码模式（当前='" + minioSecret + "'）。请设置强随机值。");
       }
+      if (isDevDefaultSecret(secret)) {
+        errors.add("MINIO_SECRET_KEY 仍是 application.yml 里的本地开发默认值（已随代码进入 git 历史）。"
+            + "请通过 MINIO_ROOT_PASSWORD / MINIO_SECRET_KEY 注入强随机值。");
+      }
     }
 
     // 7) JWT secret 强度
@@ -172,6 +214,9 @@ public class ProductionConfigValidator {
       errors.add("JWT_SECRET 长度 < 32（当前 " + jwtSecret.trim().length() + "）。请设置 ≥ 32 字符的强随机值。");
     } else if (WEAK_TOKENS.contains(jwtSecret.trim().toLowerCase())) {
       errors.add("JWT_SECRET 命中弱密码模式（当前='" + jwtSecret.trim() + "'）。请设置强随机值。");
+    } else if (isDevDefaultSecret(jwtSecret)) {
+      errors.add("JWT_SECRET 仍是 application.yml 里的本地开发默认值（已随代码进入 git 历史，"
+          + "等同于公开密钥）。请通过环境变量注入新的强随机值：openssl rand -base64 48");
     }
 
     // 8) FILE_BASE_URL（附件下载基础地址）
@@ -217,6 +262,9 @@ public class ProductionConfigValidator {
           + "）。请设置长度 >= 32 的强随机值。");
     } else if (WEAK_TOKENS.contains(dataEncryptionKey.trim().toLowerCase())) {
       errors.add("DATA_ENCRYPTION_KEY 命中弱密码模式（当前='" + dataEncryptionKey + "'）。请设置强随机值。");
+    } else if (isDevDefaultSecret(dataEncryptionKey)) {
+      errors.add("DATA_ENCRYPTION_KEY 仍是 application.yml 里的本地开发默认值（已随代码进入 git 历史）。"
+          + "该密钥用于加密身份证号，请通过环境变量注入新的强随机值：openssl rand -base64 32");
     }
 
     // 12) 注册验证码渠道开关
@@ -229,6 +277,32 @@ public class ProductionConfigValidator {
           + "短信/邮件网关尚未接入（SmsSender / EmailSender 仍为 Mock 实现）。"
           + "置 true 会让注册接口返回「验证码已发送」但用户收不到，属于伪装成可用的静默失败。"
           + "请先落地真实网关后再开启，否则请保持两者为 false（关闭时 prod 明确返回 50301）。");
+    }
+
+    // 13) 数据库 / Redis 口令
+    //     application.yml 现在为本地开发保留了默认口令，prod 忘记注入时占位符会静默回落：
+    //     应用照常启动，连的却是一个「已经写进 git 历史」的密码。此前完全没有这项校验。
+    if (isBlank(datasourcePassword)) {
+      errors.add("POSTGRES_PASSWORD 为空！prod 下必须显式注入数据库口令。");
+    } else if (isDevDefaultSecret(datasourcePassword)) {
+      errors.add("POSTGRES_PASSWORD 仍是 application.yml 里的本地开发默认值"
+          + "（已随代码进入 git 历史，等同于公开口令）。请通过环境变量注入强随机值。");
+    }
+
+    if (isBlank(redisPassword)) {
+      log.warn("REDIS_PASSWORD 为空：prod 下 Redis 将允许匿名访问。"
+          + "请确认已通过网络隔离保护，或补上强随机口令。");
+    } else if (isDevDefaultSecret(redisPassword)) {
+      log.warn("REDIS_PASSWORD 仍是 application.yml 里的本地开发默认值（已进入 git 历史），请改为强随机值。");
+    }
+
+    // 14) 阿里云短信凭证
+    //     只告警不阻断：占位值不会泄露任何密钥，属于「功能不可用」而非「安全问题」；
+    //     但置 CHANGE_ME 会让验证码登录静默失败（接口返回「已发送」而用户收不到），
+    //     因此在启动日志里显式提示。
+    if (smsEnabled && isDevDefaultSecret(smsAccessKeyId)) {
+      log.warn("ALIYUN_SMS_ACCESS_KEY_ID 未注入真实凭证（当前='{}'）：短信验证码发送将失败。"
+          + "若不使用短信登录，请将 ALIYUN_SMS_ENABLED 设为 false。", smsAccessKeyId);
     }
 
     if (!errors.isEmpty()) {
@@ -279,6 +353,26 @@ public class ProductionConfigValidator {
 
   private static boolean isBlank(String s) {
     return s == null || s.isBlank();
+  }
+
+  /**
+   * 判断某个密钥是否命中了 application.yml 里的本地开发默认值。
+   *
+   * <p>同时覆盖 {@code CHANGE_ME} 前缀：yml 中所有占位符的兜底值都以它开头，
+   * 便于一眼分辨「配置了」与「没配置」。
+   *
+   * @param value 待校验的配置值，可为 null
+   * @return true 表示该值是 yml 内置的开发默认值（prod 下不可接受）
+   */
+  private static boolean isDevDefaultSecret(String value) {
+    if (value == null) {
+      return false;
+    }
+    String v = value.trim();
+    if (v.isEmpty()) {
+      return false;
+    }
+    return DEV_DEFAULT_SECRETS.contains(v) || v.startsWith("CHANGE_ME");
   }
 
   /**
