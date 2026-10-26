@@ -22,10 +22,15 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
- * 设备数据上报鉴权过滤器。
+ * 设备侧请求鉴权过滤器。
  *
- * <p>处理 {@code POST /api/devices/{deviceCode}/data} 路径，从请求头 {@code X-Device-Key}
- * 读取设备密钥，校验通过后将 Authentication 注入 SecurityContext（角色 DEVICE）。
+ * <p>覆盖两条设备上报路径，从请求头 {@code X-Device-Key} 读取设备密钥，
+ * 校验通过后将 Authentication 注入 SecurityContext（角色 DEVICE）：
+ * <ul>
+ *   <li>{@code POST /api/devices/{deviceCode}/data} —— 数据上报，<b>必须</b>带密钥</li>
+ *   <li>{@code POST /api/devices/{deviceId}/upload-image} —— 图像上报，设备带密钥、
+ *       Web 后台不带密钥（回落 JWT）</li>
+ * </ul>
  *
  * <p>两种鉴权模式：
  * <ul>
@@ -45,7 +50,10 @@ public class DeviceAuthFilter extends OncePerRequestFilter {
 
   private static final Logger log = LoggerFactory.getLogger(DeviceAuthFilter.class);
   private static final String DEVICE_PATH_PREFIX = "/api/devices/";
+  /** 设备纯数据上报：必须携带设备密钥，匿名/无密钥请求不接受。 */
   private static final String DEVICE_DATA_SUFFIX = "/data";
+  /** 设备图像上报：设备走密钥，前端 Web 页面走 JWT，故无密钥时不拦截。 */
+  private static final String DEVICE_IMAGE_SUFFIX = "/upload-image";
 
   private final MonitoringDeviceRepository deviceRepository;
   private final boolean strictMode;
@@ -59,21 +67,47 @@ public class DeviceAuthFilter extends OncePerRequestFilter {
 
   @Override
   protected boolean shouldNotFilter(HttpServletRequest request) {
-    String path = request.getRequestURI();
     return !"POST".equalsIgnoreCase(request.getMethod())
-        || !path.startsWith(DEVICE_PATH_PREFIX)
-        || !path.endsWith(DEVICE_DATA_SUFFIX);
+        || !request.getRequestURI().startsWith(DEVICE_PATH_PREFIX)
+        || matchedSuffix(request.getRequestURI()) == null;
+  }
+
+  /**
+   * 命中设备上报路径时返回对应的后缀（/data 或 /upload-image），否则返回 null。
+   *
+   * <p>抽成独立方法，是因为 shouldNotFilter 与 doFilterInternal 都要判断，
+   * 两边判断口径一旦不一致就会出现"该拦的没拦 / 不该拦的被拦"。
+   */
+  private String matchedSuffix(String path) {
+    if (path.endsWith(DEVICE_DATA_SUFFIX)) {
+      return DEVICE_DATA_SUFFIX;
+    }
+    if (path.endsWith(DEVICE_IMAGE_SUFFIX)) {
+      return DEVICE_IMAGE_SUFFIX;
+    }
+    return null;
   }
 
   @Override
   protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
       FilterChain filterChain) throws ServletException, IOException {
     String path = request.getRequestURI();
-    String deviceCode = path.substring(DEVICE_PATH_PREFIX.length(),
-        path.length() - DEVICE_DATA_SUFFIX.length());
+    String suffix = matchedSuffix(path);
+    if (suffix == null) {
+      filterChain.doFilter(request, response);
+      return;
+    }
+    String deviceCode = path.substring(DEVICE_PATH_PREFIX.length(), path.length() - suffix.length());
 
     String providedKey = request.getHeader("X-Device-Key");
     if (providedKey == null || providedKey.isBlank()) {
+      // 图像上传同时服务硬件与 Web 后台：没有设备密钥就交回 JWT 过滤器判定身份，
+      // 二者都不通过时由 Spring Security 的 authenticated() 兜底拒绝。
+      // /data 维持原约束——设备数据上报必须证明自己是设备。
+      if (DEVICE_IMAGE_SUFFIX.equals(suffix)) {
+        filterChain.doFilter(request, response);
+        return;
+      }
       writeError(response, 401, "缺少 X-Device-Key 请求头");
       return;
     }

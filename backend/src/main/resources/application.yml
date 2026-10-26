@@ -4,6 +4,13 @@ server:
 spring:
   application:
     name: disasterguard-backend
+  servlet:
+    multipart:
+      # 设备图像上传：默认 1MB 上限会把大部分相机照片直接挡在解析阶段
+      # （抛 MaxUploadSizeExceededException，且尚未进入业务校验），
+      # 因此放宽到 20MB，与 DeviceImageService 的体积校验保持一致。
+      max-file-size: 20MB
+      max-request-size: 25MB
   datasource:
     url: jdbc:postgresql://127.0.0.1:15432/disasterguard
     username: disasterguard

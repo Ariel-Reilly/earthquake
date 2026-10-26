@@ -15,6 +15,7 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -85,6 +86,17 @@ public class GlobalExceptionHandler {
     String name = ex.getName();
     String value = ex.getValue() == null ? "null" : ex.getValue().toString();
     return ResponseEntity.badRequest().body(ApiResponse.fail(400, "参数 '" + name + "' 类型错误，值: " + value));
+  }
+
+  /**
+   * 上传体积超过 spring.servlet.multipart 上限时，Spring 在进入 Controller 之前就抛该异常。
+   * 不加这条会被兜底处理器转成 500，调用方无法区分"服务出错"与"文件太大"。
+   */
+  @ExceptionHandler(MaxUploadSizeExceededException.class)
+  public ResponseEntity<ApiResponse<Void>> handleMaxUploadSize(MaxUploadSizeExceededException ex) {
+    log.warn("上传文件超过体积上限: {}", ex.getMessage());
+    return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
+        .body(ApiResponse.fail(413, "文件过大，超出服务端上传上限"));
   }
 
   @ExceptionHandler(Exception.class)

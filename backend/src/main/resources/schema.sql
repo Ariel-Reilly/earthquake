@@ -235,7 +235,8 @@ CREATE TABLE IF NOT EXISTS file_attachment (
   file_size BIGINT,
   file_type VARCHAR(128),
   storage_path VARCHAR(255) NOT NULL,
-  file_url VARCHAR(255) NOT NULL,
+  -- MinIO 预签名 URL 含 AK/签名/时间戳，实测约 500 字符，255 会让附件上传在落库时失败。
+  file_url VARCHAR(1024) NOT NULL,
   uploader VARCHAR(64),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -1146,7 +1147,19 @@ ALTER TABLE multimodal_fusion_record ALTER COLUMN contributions TYPE JSONB USING
 ALTER TABLE multimodal_fusion_record ALTER COLUMN modal_details TYPE JSONB USING modal_details::JSONB;
 ALTER TABLE modal_weight_config ALTER COLUMN weights TYPE JSONB USING weights::JSONB;
 ALTER TABLE risk_score_log ALTER COLUMN factors TYPE JSONB USING factors::JSONB;
-ALTER TABLE file_attachment ALTER COLUMN business_type TYPE JSONB USING to_jsonb(business_type);
+-- file_attachment.business_type 是枚举字符串（hazard / task / warning / DEVICE_IMAGE ...），
+-- 不是 JSON 结构，此前被误并入本段 JSON→JSONB 迁移，导致 FileAttachment 实体
+-- （String 绑定）插入时报 "column is of type jsonb but expression is of type character varying"，
+-- 附件上传整体不可用。这里幂等地修回 VARCHAR：
+--   * ::text 在 jsonb 与 varchar 两种现状下都是合法 cast，因此本语句可反复执行；
+--   * jsonb 标量转文本会残留双引号（"hazard"），紧随的 UPDATE 统一剥除。
+ALTER TABLE file_attachment ALTER COLUMN business_type TYPE VARCHAR(64) USING business_type::text;
+UPDATE file_attachment SET business_type = trim(both '"' from business_type)
+ WHERE business_type LIKE '"%"';
+-- 同上：file_url 存的是 MinIO 预签名地址（约 500 字符），255 会在插入时直接报
+-- "value too long for type character varying(255)"，附件上传因此同样不可用。
+-- 放宽到 1024 是幂等的（已是 1024 时重复执行无副作用）。
+ALTER TABLE file_attachment ALTER COLUMN file_url TYPE VARCHAR(1024);
 ALTER TABLE drift_monitor_record ALTER COLUMN feature TYPE JSONB USING to_jsonb(feature);
 
 -- GIN 索引：让 JSONB 列的高频查询 (@>, ?, ?&, ?|) 走索引

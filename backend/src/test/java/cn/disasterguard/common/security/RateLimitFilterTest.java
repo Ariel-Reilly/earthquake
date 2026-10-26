@@ -1,6 +1,7 @@
 package cn.disasterguard.common.security;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -26,19 +27,19 @@ class RateLimitFilterTest {
   @Test
   @DisplayName("公开端点应启用限流")
   void shouldNotFilter_publicEndpoints() {
-    assertTrue(filter.shouldNotFilter(createRequest("/api/weather/now")));
-    assertTrue(filter.shouldNotFilter(createRequest("/api/sentinel/coverage")));
-    assertTrue(filter.shouldNotFilter(createRequest("/swagger-ui/index.html")));
-    assertTrue(filter.shouldNotFilter(createRequest("/v3/api-docs")));
+    // shouldNotFilter 返回 true 表示"跳过本过滤器"。公开端点恰恰是要限流的，
+    // 因此这里必须断言 false；此前断言为 true，与 DisplayName 的意图正好相反。
+    assertEquals(false, filter.shouldNotFilter(createRequest("/api/weather/now")));
+    assertEquals(false, filter.shouldNotFilter(createRequest("/api/sentinel/coverage")));
+    assertEquals(false, filter.shouldNotFilter(createRequest("/swagger-ui/index.html")));
+    assertEquals(false, filter.shouldNotFilter(createRequest("/v3/api-docs")));
   }
 
   @Test
   @DisplayName("非公开端点应跳过限流")
   void shouldNotFilter_nonPublicEndpoints() {
-    // 通过反射或包级访问测试，但 shouldNotFilter 是 protected，只能测试其行为
-    // 实际上 shouldNotFilter 返回 true 表示 "should NOT filter"，即跳过
-    // 限流器对 /api/hazards 等路径不生效
-    assertEquals(false, filter.shouldNotFilter(createRequest("/api/hazards")));
+    // 非公开路径已由 JWT 鉴权保护，无需额外限流，shouldNotFilter 应为 true（跳过）。
+    assertEquals(true, filter.shouldNotFilter(createRequest("/api/hazards")));
   }
 
   @Test
@@ -89,8 +90,8 @@ class RateLimitFilterTest {
     when(req.getRemoteAddr()).thenReturn("10.0.0.2");
     MockFilterChain chain = new MockFilterChain();
     filter.doFilter(req, res, chain);
-    // IP2 不应被限流
-    assertEquals(null, chain.getRequest());
+    // MockFilterChain 只有在被放行后才会记录 request；能取到 request 就说明未被限流。
+    assertNotNull(chain.getRequest(), "IP2 不应被 IP1 的计数影响");
   }
 
   /**

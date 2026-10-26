@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 
 import cn.disasterguard.common.exception.AppException;
 import cn.disasterguard.emergency.service.EmergencyService;
+import cn.disasterguard.event.service.EventStateService;
 import cn.disasterguard.hazard.repository.HazardPointRepository;
 import cn.disasterguard.notification.NotificationService;
 import cn.disasterguard.realtime.RealtimeBroadcastService;
@@ -49,13 +50,16 @@ class WarningManualCreateTest {
   private RealtimeBroadcastService broadcastService;
   @Mock
   private NotificationService notificationService;
+  /** 预警落库后会尝试推进统一事件状态机；本测试只验证落库契约，状态机行为由 EventStateService 自身覆盖。 */
+  @Mock
+  private EventStateService eventStateService;
 
   private WarningService service;
 
   @BeforeEach
   void setUp() {
     service = new WarningService(warningRepository, hazardRepository, emergencyService,
-        broadcastService, notificationService, new ObjectMapper());
+        broadcastService, notificationService, new ObjectMapper(), eventStateService);
   }
 
   private static WarningCreateRequest request(String level, String hazardType, String hazardCode) {
@@ -120,9 +124,11 @@ class WarningManualCreateTest {
   void 未在映射表内的灾害类型原样入库不丢值() {
     stubPersist();
 
-    service.createManual(request("red", "洪水", "HZ-001"));
+    // 用"海啸"而非"洪水"：后者已加入 HAZARD_TYPE_CODES（洪水 → flood），
+    // 继续用它会让本用例失去"未映射标签透传"的验证意义。
+    service.createManual(request("red", "海啸", "HZ-001"));
 
-    assertEquals("洪水", captureSaved().getHazardType());
+    assertEquals("海啸", captureSaved().getHazardType());
   }
 
   @Test
