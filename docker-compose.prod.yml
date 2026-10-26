@@ -2,10 +2,13 @@
 # DisasterGuard 生产模式 docker-compose 覆盖文件
 # 使用方式：docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 # 主要变化：
-#   1. backend 使用 Dockerfile.backend 多阶段构建（jar 镜像），不再 mount 源码
+#   1. backend 使用 backend/Dockerfile 多阶段构建（jar 镜像），不再 mount 源码
 #   2. 所有安全敏感配置强制为 prod 严格默认值
 #   3. 使用 SPRING_PROFILES_ACTIVE=prod（触发 ProductionConfigValidator）
 #   4. 健康检查 + resource limit
+#   5. 补全 emqx / ai-service 服务定义 —— 此前 backend 引用了 tcp://emqx:1883 与
+#      http://ai-service:8001/api/ai 两个不存在的主机名，MQTT 与 AI 链路在生产环境
+#      全部不可用；现两者与其余服务共用 disasterguard-net，可按服务名互相解析。
 # =============================================================================
 
 services:
@@ -38,6 +41,78 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-disasterguard}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?生产环境必须设置 MINIO_ROOT_PASSWORD}
       TZ: ${TZ:-Asia/Shanghai}
+
+  # ---------------------------------------------------------------------------
+  # EMQX：MQTT Broker（硬件/网关数据上行入口）
+  # 与 dev 文件保持**同一镜像 + 同一 init.sh 挂载**：该脚本在 EMQX 5.9.0 上会探测
+  # `emqx ctl` 是否支持 authn，不支持则直通启动 broker（详见 infra/emqx/init.sh 头部
+  # 注释）。换镜像或改写启动命令都会让这段降级逻辑失效，进而容器起不来。
+  #
+  # ⚠️⚠️ 已知安全缺口（EMQX 5.9.0，上生产前必须处理）⚠️⚠️
+  #   5.9.0 的 `emqx ctl` 没有 authn / authorization 子命令，init.sh 探测到后会跳过
+  #   认证用户与 ACL 的创建，broker 以**未启用任何认证器**的状态运行 —— 即默认
+  #   allow-all：任何能连到 1883 的客户端无需账号密码即可订阅/发布任意主题。
+  #   因此下面这两个变量（EMQX_USERNAME / EMQX_PASSWORD）以及
+  #   EMQX_AUTH__MNESIA__PASSWORD_HASH 在当前版本下**只是占位、并未真正生效**，
+  #   backend 即便带着它们连接，也不会被校验。
+  #   生产环境必须手动补齐其一：
+  #     ① 在 Dashboard（18083）→ Access Control → Authentication 中创建
+  #        Built-in Database 认证器 + 用户，并配置 Authorization 规则；
+  #     ② 或挂载 emqx.conf / cluster.hocon，写入 authentication + authorization 段落；
+  #     ③ 或升级到 `emqx ctl` 支持 authn 的版本后由 init.sh 自动创建。
+  #   在补齐之前，务必保证 1883/8883 不对公网开放（本文件已默认只绑 127.0.0.1）。
+  # ---------------------------------------------------------------------------
+  emqx:
+    image: emqx/emqx:5.9.0
+    container_name: disasterguard-emqx
+    restart: unless-stopped
+    environment:
+      # 节点名与 cookie 决定集群身份，多副本部署时不能用默认值。
+      EMQX_NODE_NAME: ${EMQX_NODE_NAME:-emqx@127.0.0.1}
+      EMQX_NODE_COOKIE: ${EMQX_NODE_COOKIE:-CHANGE_ME_emqx_node_cookie_2024}
+      EMQX_DASHBOARD__DEFAULT_USERNAME: ${EMQX_DASHBOARD_USER:-admin}
+      EMQX_DASHBOARD__DEFAULT_PASSWORD: ${EMQX_DASHBOARD_PASSWORD:-CHANGE_ME_emqx_dashboard_password}
+      # 下面三行在当前 EMQX 5.9.0 下**未被真正校验**（原因见本节开头「已知安全缺口」）。
+      # 保留它们是为了升级到支持 authn 的版本后，init.sh 能直接按同一组值建用户，无需再改。
+      # init.sh 创建 built_in_database 认证用户时的哈希算法，须与创建命令一致。
+      EMQX_AUTH__MNESIA__PASSWORD_HASH: bcrypt
+      # 必须与 backend 的 EMQX_USERNAME / EMQX_PASSWORD 完全同源。
+      EMQX_USERNAME: ${EMQX_USERNAME:-disasterguard_backend}
+      EMQX_PASSWORD: ${EMQX_PASSWORD:-CHANGE_ME_emqx_secure_password_2024}
+      TZ: ${TZ:-Asia/Shanghai}
+    # 必须用 init.sh 启动：它负责建认证用户/ACL 后 exec broker（PID 1，可正常收 SIGTERM）
+    command: ["bash", "/opt/emqx/data/config/init.sh"]
+    volumes:
+      # 具名卷承接 broker 数据/日志，避免重启丢会话与持久化订阅。
+      # ⚠ 注意：init.sh 挂在 /opt/emqx/data/config 上，具名卷挂在 /opt/emqx/data，
+      #   两者是父子目录，compose 会按路径长度先挂 data 再挂 config，config 覆盖生效。
+      - emqx_data:/opt/emqx/data
+      - emqx_log:/opt/emqx/log
+      - ./infra/emqx:/opt/emqx/data/config:ro
+    # 容器间互通走 emqx:1883，宿主端口默认只绑回环，避免 MQTT 直接暴露公网。
+    # 若设备需从外网直连，请改成 1883:1883 并配合防火墙/证书（8883）。
+    ports:
+      - "${EMQX_MQTT_HOST_PORT:-127.0.0.1:11883}:1883"
+      - "${EMQX_MQTTS_HOST_PORT:-127.0.0.1:18883}:8883"
+      - "${EMQX_WS_HOST_PORT:-127.0.0.1:18083}:8083"
+      - "${EMQX_HTTP_HOST_PORT:-127.0.0.1:28083}:18083"
+    healthcheck:
+      test: ["CMD", "emqx", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      # init.sh 要先起 broker 再建用户，冷启动比普通镜像慢，start_period 给足。
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512m
+        reservations:
+          cpus: "0.25"
+          memory: 128m
+    networks:
+      - default
 
   backend:
     build:
@@ -88,37 +163,45 @@ services:
       # 若后端用一套凭证、MinIO 服务端用另一套，连接必然被 403 拒绝。
       MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-disasterguard}
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:?生产环境必须设置 MINIO_ROOT_PASSWORD}
-      # ⚠️ R4 P0-4：此处原先**没有** MINIO_ENDPOINT，于是 minio.endpoint 回落到
-      #   application.yml 的 `http://localhost:19000` —— 容器内指向自己，上传直接连接被拒。
-      #   （application-prod.yml 是独立加载的，不含 application-docker.yml 的 minio:9000。）
-      # 该值同时被 AttachmentService 用于生成 **presigned URL**，即浏览器要直接访问的地址，
-      # 所以生产必须填「客户端也能解析」的公开地址（如 https://minio.example.com），
-      # 而不是内网服务名 minio:9000 —— 否则上传能通、点开附件却打不开。
-      # ProductionConfigValidator 会在 prod 启动时校验这一点。
-      MINIO_ENDPOINT: ${MINIO_ENDPOINT:?生产环境必须设置 MINIO_ENDPOINT（须为客户端可达地址，如 https://minio.example.com）}
-      # EMQX MQTT（prod 必须显式设置）
-      # ⚠ R3 发现：本文件仅定义 postgres/redis/minio/backend/frontend 五个服务，
-      #   **没有 emqx 也没有 ai-service**，但下面却引用了 tcp://emqx:1883 与
-      #   http://ai-service:8001/api/ai —— 两个悬空主机名，Docker 网络内无法解析，
-      #   生产环境 MQTT 与全部 AI 能力不可用。
-      #   部署前必须：① 在本文件补 emqx / ai-service 服务定义，
-      #   ② 或把 EMQX_ENABLED / AI_ENABLED 置为 false 显式关闭。
-      EMQX_USERNAME: ${EMQX_USERNAME}
-      EMQX_PASSWORD: ${EMQX_PASSWORD}
+      # ⚠️ 这里刻意**不读** ${MINIO_ENDPOINT}：根目录 .env 里它是 http://127.0.0.1:19000，
+      #   那是给宿主机直跑 `mvn spring-boot:run` 用的。放进容器后 127.0.0.1 指向 backend
+      #   自身，ProductionConfigValidator 会直接判定「MINIO_ENDPOINT 指向本机」并阻断启动。
+      #   所以改用独立键 MINIO_ENDPOINT_PROD，默认走容器网络内的服务名，与 FILE_BASE_URL 一致。
+      # ⚠️ 该值同时被 AttachmentService 用于生成 presigned URL，其 host 会原样出现在返回给
+      #   浏览器的链接里。留 minio:9000 时：容器间上传/下载（含 AI 图像下载）全部正常，
+      #   但宿主机浏览器打不开附件链接（minio 不可解析）。
+      #   需要浏览器也能直接打开附件时，把 MINIO_ENDPOINT_PROD 改成公网域名（如
+      #   https://minio.example.com），并同步把该域名加入 ai-service 的 DETECT_IMAGE_ALLOWED_HOSTS。
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT_PROD:-http://minio:9000}
+      # EMQX MQTT：emqx 服务已在本文件定义，容器间经 disasterguard-net 用服务名解析。
+      # 用户名/密码必须与 emqx 服务的 EMQX_USERNAME / EMQX_PASSWORD 同源 ——
+      # infra/emqx/init.sh 用同一组值创建认证用户，不一致会导致 MQTT 鉴权失败。
+      EMQX_USERNAME: ${EMQX_USERNAME:-disasterguard_backend}
+      EMQX_PASSWORD: ${EMQX_PASSWORD:-CHANGE_ME_emqx_secure_password_2024}
       EMQX_ENABLED: ${EMQX_ENABLED:-true}
-      EMQX_MQTT_URL: tcp://emqx:1883
+      # 必须用容器网络内的服务名，不能写 localhost —— 那会指向 backend 容器自己。
+      EMQX_MQTT_URL: ${EMQX_MQTT_URL:-tcp://emqx:1883}
       # TDengine（可选）
       TDENGINE_ENABLED: ${TDENGINE_ENABLED:-false}
       TDENGINE_URL: jdbc:TAOS-RS://tdengine:6041/disasterguard
       TDENGINE_USERNAME: ${TDENGINE_USERNAME:-root}
       TDENGINE_PASSWORD: ${TDENGINE_PASSWORD:-taosdata}
-      # AI 服务
+      # AI 服务（ai-service 已在下方定义，同一网络内用服务名访问）
       AI_SERVICE_BASE_URL: ${AI_SERVICE_BASE_URL:-http://ai-service:8001/api/ai}
+      # 图像识别是**独立**配置项（AiImageProperties.imageServiceUrl），不跟随 service-base-url。
+      # 不显式设置时会回落到 application.yml 的 http://127.0.0.1:8001/api/ai/detect-image，
+      # 而在容器内 127.0.0.1 指向 backend 自身 → 图像识别必然连接被拒、AI 链路静默中断。
+      AI_IMAGE_SERVICE_URL: ${AI_IMAGE_SERVICE_URL:-http://ai-service:8001/api/ai/detect-image}
       AI_ENABLED: ${AI_ENABLED:-true}
       AI_SCHEDULER_ENABLED: ${AI_SCHEDULER_ENABLED:-false}
       TZ: ${TZ:-Asia/Shanghai}
     # 移除 dev 模式的源码 volume 挂载（生产镜像已打包）
-    volumes:
+    # ⚠ 必须用 !override 整段替换：基础文件给 backend 挂了 `./:/app`，而 compose 对
+    #   volumes 是**按容器路径追加合并**，仅写 `- backend_logs:/app/logs` 不会删掉它。
+    #   残留后果：宿主仓库覆盖镜像的 /app，镜像里的 /app/app.jar 被遮蔽，
+    #   ENTRYPOINT 的 `java -cp /app/app.jar:...` 直接 ClassNotFoundException。
+    #   顺带去掉 m2_cache（生产镜像不跑 mvn，缓存卷无意义）。
+    volumes: !override
       - backend_logs:/app/logs
     ports:
       - "${BACKEND_HOST_PORT:-8081}:8080"
@@ -146,6 +229,58 @@ services:
       emqx:
         condition: service_healthy
 
+  # ---------------------------------------------------------------------------
+  # AI 服务（FastAPI + YOLO/ONNX 推理 + 多模型融合）
+  # 刻意不让 backend 依赖本服务：AI 不可用时 backend 的图像识别会记录告警并跳过，
+  # 属于可降级能力。若加 service_healthy 依赖，AI 冷启动慢会连带把 backend 拖死。
+  # ---------------------------------------------------------------------------
+  ai-service:
+    build:
+      context: ./ai-service
+      dockerfile: Dockerfile
+    image: disasterguard-ai:latest
+    container_name: disasterguard-ai
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+      # AI 只被 backend 以服务端 HTTP 调用，浏览器不直连，因此 CORS 实际不参与链路；
+      # 保持与代码内回落值一致的安全默认（禁止 "*"）。若前端要直连 8001，再填前端域名。
+      AI_CORS_ORIGINS: ${AI_CORS_ORIGINS:-http://localhost:5173}
+      DETECT_TIMEOUT_SECONDS: ${DETECT_TIMEOUT_SECONDS:-30}
+      DETECT_IMAGE_TIMEOUT_SECONDS: ${DETECT_IMAGE_TIMEOUT_SECONDS:-10}
+      # SSRF 白名单：detect-image 是**按 backend 给的 presigned URL 下载图片**，而该 URL 的
+      # 主机名就等于 backend 的 MINIO_ENDPOINT（上方 MINIO_ENDPOINT_PROD）。
+      # 注意：本服务不消费 MINIO_ENDPOINT 变量，只认这个白名单 —— 两边必须成对修改。
+      # 当前默认值 minio / minio:9000 已覆盖 MINIO_ENDPOINT_PROD 的默认值；
+      # 若把端点改成公网域名（如 https://minio.example.com），必须在此追加该域名，
+      # 否则图像识别会被 403 拒绝，表现是「检测静默跳过、日志只有一条 warn」。
+      DETECT_IMAGE_ALLOWED_HOSTS: ${DETECT_IMAGE_ALLOWED_HOSTS:-minio,minio:9000,host.docker.internal}
+    # 用 !override 整个替换而不是追加：基础文件里 ai-service 挂着 `./ai-service:/app`
+    # （dev 的源码热更新用法），追加语义下它会保留并把**镜像内代码整个遮蔽**，
+    # 生产构建就形同虚设。这里只保留模型目录，代码一律用镜像内的。
+    volumes: !override
+      # 权重不打进镜像（ai-service/Dockerfile 只 COPY app），必须由宿主机提供：
+      # 缺失时检测器进入 mock 模式（mock:true），链路能跑通但无真实推理结果。
+      - ./ai-service/models:/app/models:ro
+    # 仅回环暴露，供宿主机 curl 自检；容器间访问走 ai-service:8001。
+    ports:
+      - "${AI_HOST_PORT:-127.0.0.1:8001}:8001"
+    # 复用镜像内置 HEALTHCHECK（python 直连 /api/ai/health），此处不再重复声明，
+    # 避免与 Dockerfile 的端口/路径约定出现两份不同步的定义。
+    extra_hosts:
+      # 便于 MINIO_ENDPOINT 指向宿主机（如 http://host.docker.internal:19000）时也能下载
+      - "host.docker.internal:host-gateway"
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2g
+        reservations:
+          cpus: "0.5"
+          memory: 512m
+    networks:
+      - default
+
   frontend:
     build:
       context: .
@@ -171,3 +306,13 @@ services:
 
 volumes:
   backend_logs:
+  # EMQX 持久化：broker 数据（会话/保留消息）与日志分开存放，便于单独扩容与清理。
+  emqx_data:
+  emqx_log:
+
+# 显式钉住网络名，与 dev 文件保持一致：
+# 用两个 -f 合并时同名覆盖、不会各自新建网络；只跑本文件时也仍然是 disasterguard-net。
+# 正因如此，backend 里的 emqx:1883 / ai-service:8001 才能解析到对应容器。
+networks:
+  default:
+    name: disasterguard-net
