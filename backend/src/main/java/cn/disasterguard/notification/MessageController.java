@@ -86,25 +86,20 @@ public class MessageController {
 
     String kw = (keyword == null || keyword.isBlank()) ? null : keyword.trim();
 
-    // findByFilters 不支持 keyword + read=false 的组合（含 keyword 时退化为内存二次过滤）
+    // keyword 已下推到 DB 层（findByFilters 的 LIKE 匹配 title/content/createdBy），
+    // 分页与总数均由数据库计算，不再做内存二次过滤，total 始终为全局匹配数。
     var pageResult = recordRepository.findByFilters(
         emptyToNull(effectiveBizType),
         emptyToNull(disasterType),
         emptyToNull(effectiveLevel),
         readFilter,
+        kw,
         null,
         pageable);
-    List<NotificationRecord> all = pageResult.getContent();
-    if (kw != null) {
-      all = all.stream()
-          .filter(r -> contains(r.getTitle(), kw) || contains(r.getContent(), kw) || contains(r.getCreatedBy(), kw))
-          .toList();
-    }
-
-    List<Map<String, Object>> items = all.stream().map(this::toDto).toList();
+    List<Map<String, Object>> items = pageResult.getContent().stream().map(this::toDto).toList();
 
     Map<String, Object> result = new LinkedHashMap<>();
-    int total = (kw == null) ? (int) pageResult.getTotalElements() : all.size();
+    int total = (int) pageResult.getTotalElements();
     result.put("items", items);
     result.put("total", total);
     result.put("page", safePage);
@@ -121,11 +116,6 @@ public class MessageController {
 
   private String emptyToNull(String s) {
     return (s == null || s.isBlank()) ? null : s.trim();
-  }
-
-  private boolean contains(String field, String keyword) {
-    if (field == null) return false;
-    return field.toLowerCase().contains(keyword.toLowerCase());
   }
 
   /** 标记单条消息为已读。 */

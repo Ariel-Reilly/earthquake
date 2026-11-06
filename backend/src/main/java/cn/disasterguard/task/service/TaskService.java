@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
@@ -39,7 +40,8 @@ public class TaskService {
   }
 
   public PageResponse<TaskDto> page(int page, int size, String keyword, String status) {
-    Pageable pageable = PageRequest.of(Math.max(page - 1, 0), Math.min(Math.max(size, 1), 200));
+    Pageable pageable = PageRequest.of(Math.max(page - 1, 0), Math.min(Math.max(size, 1), 200),
+        Sort.by(Sort.Direction.DESC, "id"));
     Specification<InspectionTask> spec = (root, query, cb) -> {
       Predicate predicate = cb.conjunction();
       if (keyword != null && !keyword.isBlank()) {

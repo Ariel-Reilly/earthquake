@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
@@ -37,7 +38,8 @@ public class DeviceService {
   }
 
   public PageResponse<DeviceDto> page(int page, int size, String keyword, String state) {
-    Pageable pageable = PageRequest.of(Math.max(page - 1, 0), Math.min(Math.max(size, 1), 200));
+    Pageable pageable = PageRequest.of(Math.max(page - 1, 0), Math.min(Math.max(size, 1), 200),
+        Sort.by(Sort.Direction.DESC, "id"));
     Specification<MonitoringDevice> spec = (root, query, cb) -> {
       Predicate predicate = cb.conjunction();
       if (keyword != null && !keyword.isBlank()) {

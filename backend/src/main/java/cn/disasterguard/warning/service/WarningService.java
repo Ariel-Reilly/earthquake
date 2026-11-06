@@ -28,6 +28,7 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
@@ -61,7 +62,8 @@ public class WarningService {
   }
 
   public PageResponse<WarningDto> page(int page, int size, String keyword, String status) {
-    Pageable pageable = PageRequest.of(Math.max(page - 1, 0), Math.min(Math.max(size, 1), 200));
+    Pageable pageable = PageRequest.of(Math.max(page - 1, 0), Math.min(Math.max(size, 1), 200),
+        Sort.by(Sort.Direction.DESC, "id"));
     Specification<WarningEvent> spec = (root, query, cb) -> {
       Predicate predicate = cb.conjunction();
       if (keyword != null && !keyword.isBlank()) {

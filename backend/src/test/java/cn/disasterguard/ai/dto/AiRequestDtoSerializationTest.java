@@ -62,7 +62,7 @@ class AiRequestDtoSerializationTest {
   void feedbackRequest_serializesToSnakeCase() throws Exception {
     var req = new FeedbackRequestDto(
         "GS-001", "HIGH", 75.3, "2026-09-07T08:00:00Z",
-        "true_positive", true, 0.9, "operator-zhang", "现场确认"
+        "true_positive", true, 0.9, "operator-zhang", "现场确认", null
     );
     String json = mapper.writeValueAsString(req);
     assertThat(json).contains("\"hazard_code\":\"GS-001\"");

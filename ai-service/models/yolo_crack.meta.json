@@ -3,57 +3,10 @@
   "task": "detect",
   "format": "onnx",
   "imgsz": 640,
-  "classes": ["crack", "landslide"],
-  "num_classes": 2,
-  "is_business_model": true,
-  "output_shape": [1, 6, 8400],
-  "architecture": "YOLOv8n (3.13M params, 8.6 GFLOPs)",
-  "source_weights": "runs/detect/runs/detect/v2-n30/weights/best.pt",
-
-  "training": {
-    "dataset": "datasets/disaster-v2",
-    "images": 754,
-    "instances": 2623,
-    "epochs": 30,
-    "batch": 16,
-    "device": "cpu",
-    "duration_minutes": 50,
-    "pretrained": "yolov8n.pt (COCO)",
-    "note": "分两段完成：0-15 epoch 首轮，进程中断后从 last.pt 续训 16-30。超参与同一 run 完全一致。"
-  },
-
-  "metrics": {
-    "val": {
-      "split_images": 102,
-      "split_instances": 261,
-      "all": {"P": 0.498, "R": 0.566, "mAP50": 0.537, "mAP50_95": 0.239},
-      "crack": {"P": 0.517, "R": 0.629, "mAP50": 0.601, "mAP50_95": 0.264},
-      "landslide": {"P": 0.478, "R": 0.503, "mAP50": 0.472, "mAP50_95": 0.214}
-    },
-    "test": {
-      "split_images": 68,
-      "split_instances": 207,
-      "all": {"P": 0.449, "R": 0.355, "mAP50": 0.338, "mAP50_95": 0.148},
-      "crack": {"P": 0.482, "R": 0.411, "mAP50": 0.407, "mAP50_95": 0.175},
-      "landslide": {"P": 0.416, "R": 0.299, "mAP50": 0.270, "mAP50_95": 0.121}
-    },
-    "authoritative_split": "test",
-    "test_vs_val_gap_reason": "test 只有 31 张滑坡图，单图波动即可拉动整类指标；对外报数一律用 test。"
-  },
-
-  "baseline_comparison": {
-    "method": "同一 disaster-v2 test 集（68 图 / 207 实例）固定不变，只换权重",
-    "old_model": "v1 数据 3 epoch 冒烟权重",
-    "old": {"crack_mAP50": 0.054, "landslide_mAP50": 0.018, "all_mAP50": 0.036},
-    "new": {"crack_mAP50": 0.407, "landslide_mAP50": 0.270, "all_mAP50": 0.338},
-    "artifact": "runs/eval/compare_v1_v2_test.json",
-    "caveat": "两个权重的训练轮数不同（3 vs 30），该对比是端到端能力对比；轮数对齐的对照实验见 runs/detect/runs/detect/v1-n30。"
-  },
-
-  "verified_at": "2026-11-06",
-  "verification_method": "onnxruntime InferenceSession 读 output0 形状 [1,6,8400] → 4+2 类；YoloDetector 实测 4 张真实图，输出 crack 0.88/0.61、landslide 0.59，mock=False",
-
-  "license_constraint": "训练数据含 CAS Landslide Dataset（CC-BY-NC-4.0，禁止商用）。商用前必须替换数据并重训。",
-
-  "previous_file": "models/history/yolo_crack.coco80.onnx（COCO 80 类占位，对真实裂缝图 0 框，已弃用）"
+  "classes": [
+    "crack",
+    "landslide"
+  ],
+  "source_weights": "runs\\detect\\runs\\detect\\v2-clean-n30\\weights\\best.pt",
+  "exported_at": "2026-11-06T03:10:50Z"
 }

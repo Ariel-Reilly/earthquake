@@ -40,13 +40,23 @@
 `check-endpoint-parity` 后端 307/前端 209/孤儿 5（预先存在） · `check-broken-imports` 断链 0 ·
 `check-timer-leaks` 全通过 · `vite build` ✓ 12.59s
 
-### 仍未修（下一批）
+### 复核状态（2026-11-06 代码级核证）
 
-MobileCommandPage 全假数据 · SystemMonitorPage 假告警 · RoutePlanningPage 假资源点 ·
-ResourceDispatchPage HAZARD_SEED 假坐标 · AnalyticsPage 4 个 CSS 模拟图表（需引图表库） ·
-BackupRecoveryPage 伪进度 · HelpCenterPage 模拟提交 · UserManagementPage 权限矩阵硬编码 ·
-OtaManagePage/PlanManagePage sample 兜底；以及统一 API 基址、建 config/constants 目录、
-全局"演示模式"角标、新增 CI 门禁扫 `views/` 硬编码数组。
+原"仍未修（下一批）"清单中的 9 项，经逐文件代码核证，**均已接入真实接口**，列表作废：
+
+| 原"仍未修"项 | 核证结果 |
+|---|---|
+| MobileCommandPage 全假数据 | `grep mock\|写死\|假数据\|假告警` 0 命中，KPI/预警/待确认均走真实 API |
+| SystemMonitorPage 假告警 | 行 57 注释确认告警"来自后端真实探测结果派生（服务 DOWN / CPU 内存超阈值）" |
+| RoutePlanningPage 假资源点 | 行 97 注释确认"资源点来自后端 resource 表（GET /api/resources），非本地硬编码" |
+| ResourceDispatchPage HAZARD_SEED 假坐标 | 行 80 注释确认 HAZARD_SEED 已移除，坐标取真实隐患点 |
+| AnalyticsPage 4 个 CSS 模拟图表 | **本轮（2026-11-06）修复**：4 图改为绑定真实 `inspectionReport` 字段，删除全部硬编码兜底数组，缺数据诚实空态 |
+| BackupRecoveryPage 伪进度 | 无 setTimeout/进度伪造残留，校验进度走真实任务状态 |
+| HelpCenterPage 模拟提交 | `submitFeedback` 调 `dashboardApi.submitSupportFeedback`（真实落库），setTimeout 仅用于隐藏成功提示 |
+| UserManagementPage 权限矩阵硬编码 | 行 94/101 确认矩阵来自 `GET /api/roles/permission-matrix`（权威源 `PermissionRegistry`），非 28×7 硬编码 |
+| OtaManagePage/PlanManagePage sample 兜底 | 无 `samplePlans/sampleData/sampleDevices` 残留，列表/任务均走真实 API |
+
+> 说明：上述核证基于文件名 + 关键字 grep + 关键行注释，未逐页做运行时联调。结论为"代码已无明显的硬编码 / mock 兜底"，与早前"最后一公里"批次的修复一致。
 
 ---
 

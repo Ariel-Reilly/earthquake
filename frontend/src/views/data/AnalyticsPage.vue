@@ -81,6 +81,18 @@ const deviceTrend = computed(() => charts.value?.deviceTrend ?? [])
 const heatmap = computed(() => charts.value?.heatmap ?? [])
 const riskZones = computed(() => charts.value?.riskZones ?? [])
 
+// ── AI 巡检报告图表：直接绑定真实接口字段（/api/analytics/inspection-report）。
+//    后端 AnalyticsController 已返回 coverageTrend / stackedBars / modelF1 / matrix，
+//    不再使用硬编码兜底数组；字段缺失时落为空态，绝不伪造曲线。
+const inspCoverageTrend = computed(() => inspectionReport.value?.coverageTrend ?? null)
+const inspStackedBars = computed(() => inspectionReport.value?.stackedBars ?? null)
+const inspModelF1 = computed(() => {
+  const m = inspectionReport.value?.modelF1
+  if (!m) return null
+  return [m.xgboost, m.lstm, m.yolo].filter(Array.isArray)
+})
+const inspMatrix = computed(() => inspectionReport.value?.matrix ?? null)
+
 /** AI 综合分最高分（用于概览卡片显示）。 */
 const aiOverallScore = computed(() => {
   if (aiList.value.length === 0) return null
@@ -388,19 +400,20 @@ onMounted(loadData)
                   <strong>巡检覆盖率趋势</strong>
                   <span class="insp-chart-meta">折线图</span>
                 </div>
-                <div class="insp-chart-placeholder line-chart-placeholder">
-                  <div class="insp-line-rail">
-                    <div
-                      v-for="(v, i) in (inspectionReport?.coverageTrend ?? [60,65,72,78,80,85,88,90,91,92,92,93])"
-                      :key="i"
-                      class="insp-line-node"
-                      :style="{ left: `${(i / 11) * 100}%`, bottom: `${v}%` }"
-                    >
-                      <b></b>
-                    </div>
-                    <div class="insp-line-path"></div>
+              <div class="insp-chart-placeholder line-chart-placeholder">
+                <div v-if="inspCoverageTrend" class="insp-line-rail">
+                  <div
+                    v-for="(v, i) in inspCoverageTrend"
+                    :key="i"
+                    class="insp-line-node"
+                    :style="{ left: `${(i / Math.max(inspCoverageTrend.length - 1, 1)) * 100}%`, bottom: `${v}%` }"
+                  >
+                    <b></b>
                   </div>
+                  <div class="insp-line-path"></div>
                 </div>
+                <div v-else class="insp-chart-empty">暂无覆盖率趋势数据</div>
+              </div>
               </div>
               <div class="insp-chart-card">
                 <div class="insp-chart-header">
@@ -408,23 +421,17 @@ onMounted(loadData)
                   <span class="insp-chart-meta">堆叠柱图</span>
                 </div>
                 <div class="insp-chart-placeholder bar-chart-placeholder">
-                  <div class="insp-stacked-bars">
+                  <div v-if="inspStackedBars" class="insp-stacked-bars">
                     <div
-                      v-for="(row, i) in (inspectionReport?.stackedBars ?? [
-                        { fp: 8, miss: 3 },
-                        { fp: 6, miss: 2 },
-                        { fp: 5, miss: 4 },
-                        { fp: 4, miss: 2 },
-                        { fp: 3, miss: 1 },
-                        { fp: 2, miss: 1 },
-                      ])"
+                      v-for="(row, i) in inspStackedBars"
                       :key="i"
                       class="insp-stacked-bar"
                     >
-                      <div class="insp-bar-seg" style="height: 0" :style="{ height: `${row.fp * 4}%`, background: '#d9c040' }"></div>
+                      <div class="insp-bar-seg" :style="{ height: `${row.fp * 4}%`, background: '#d9c040' }"></div>
                       <div class="insp-bar-seg" :style="{ height: `${row.miss * 4}%`, background: '#e06060' }"></div>
                     </div>
                   </div>
+                  <div v-else class="insp-chart-empty">暂无误报 / 漏报数据</div>
                   <div class="insp-bar-legend">
                     <span class="leg-dot leg-dot--warn"></span>误报
                     <span class="leg-dot leg-dot--danger"></span>漏报
@@ -437,13 +444,9 @@ onMounted(loadData)
                   <span class="insp-chart-meta">多线折线图</span>
                 </div>
                 <div class="insp-chart-placeholder multi-line-placeholder">
-                  <div class="insp-multi-lines">
+                  <div v-if="inspModelF1" class="insp-multi-lines">
                     <div
-                      v-for="(series, si) in [
-                        [0.78,0.81,0.82,0.84,0.85,0.86,0.87,0.88],
-                        [0.71,0.74,0.76,0.77,0.78,0.79,0.80,0.81],
-                        [0.82,0.83,0.84,0.85,0.85,0.86,0.86,0.87],
-                      ]"
+                      v-for="(series, si) in inspModelF1"
                       :key="si"
                       class="insp-series-line"
                       :style="{ '--series-color': si === 0 ? '#6f9e7f' : si === 1 ? '#d9c040' : '#e06060' }"
@@ -452,10 +455,11 @@ onMounted(loadData)
                         v-for="(v, i) in series"
                         :key="i"
                         class="insp-dot"
-                        :style="{ left: `${(i / (series.length - 1)) * 100}%`, bottom: `${v * 100}%` }"
+                        :style="{ left: `${(i / Math.max(series.length - 1, 1)) * 100}%`, bottom: `${v * 100}%` }"
                       ></div>
                     </div>
                   </div>
+                  <div v-else class="insp-chart-empty">暂无模型性能数据</div>
                   <div class="insp-bar-legend">
                     <span class="leg-dot leg-dot--brand"></span>XGBoost Fusion
                     <span class="leg-dot leg-dot--warn"></span>LSTM
@@ -469,13 +473,9 @@ onMounted(loadData)
                   <span class="insp-chart-meta">网格矩阵</span>
                 </div>
                 <div class="insp-chart-placeholder matrix-placeholder">
-                  <div class="insp-matrix">
+                  <div v-if="inspMatrix" class="insp-matrix">
                     <div
-                      v-for="(cell, i) in (inspectionReport?.matrix ?? [
-                        [92, 5, 3],
-                        [4, 88, 8],
-                        [2, 6, 90],
-                      ])"
+                      v-for="(cell, i) in inspMatrix"
                       :key="i"
                       class="insp-matrix-row"
                     >
@@ -487,6 +487,7 @@ onMounted(loadData)
                       >{{ val }}</span>
                     </div>
                   </div>
+                  <div v-else class="insp-chart-empty">暂无一致性矩阵数据</div>
                   <div class="insp-matrix-labels">
                     <span></span><span>预测低</span><span>预测中</span><span>预测高</span>
                   </div>
@@ -731,6 +732,19 @@ onMounted(loadData)
   color: var(--c-text-2);
 }
 .insp-matrix-labels span:not(:first-child) { width: 54px; text-align: center; }
+
+/* 巡检报告图表：真实数据缺失时的诚实空态（替代原先的硬编码兜底曲线） */
+.insp-chart-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 110px;
+  color: var(--c-text-3);
+  font-size: 12px;
+  border: 1px dashed var(--c-brand-soft);
+  border-radius: var(--r-sm);
+}
 
 .inspection-export-bar {
   display: flex;

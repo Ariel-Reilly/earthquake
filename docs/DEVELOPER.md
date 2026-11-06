@@ -1281,7 +1281,7 @@ stopRealtimeSync({ keepListeners: false })
   - `dismiss(id, operator)`：`处理中/已确认 → 已忽略`，固定 reason="误报"
   - `resolve(id, operator)`：`处理中/已确认 → 已解除`，固定 reason="自动解除"
 - `warning_event` 表新增 `close_reason VARCHAR(255)`、`closed_by VARCHAR(64)` 与 `source VARCHAR(32)` 三列（`schema.sql` 已加 `ADD COLUMN IF NOT EXISTS`），关闭/忽略/解除均记录原因与操作人；`source` 标记预警来源（规则引擎生成：`RULE_ONLY` / `AI_AUTO` / `AI_DEGRADED`；手工创建：`MANUAL`），支撑审计与统计。
-- 前端 `dashboardApi` 已同步实现 `dismissWarning` / `resolveWarning` / `closeWarning(payload.reason)`，调用后端专用端点；Analytics 页 mock fallback 与后端真实响应结构对齐。
+- 前端 `dashboardApi` 已同步实现 `dismissWarning` / `resolveWarning` / `closeWarning(payload.reason)`，调用后端专用端点；Analytics 页已绑定真实 `inspectionReport` 字段（覆盖趋势 / 堆叠柱 / 多线 / 混淆矩阵 4 图），无 mock fallback。
 - 「派发时按等级联动生成应急事件」已实现：`WarningService.dispatch` 检测到橙色/红色预警时自动调用 `EmergencyService.createFromWarning` 创建应急事件。**幂等机制三层防御**：(1) 应用层快速路径 `existsByWarningCodeAndStatusNot` 检查；(2) 数据库部分唯一索引 `CREATE UNIQUE INDEX ... ON emergency_event(warning_code) WHERE status != '已闭环'`（PostgreSQL）强制同一预警最多一个未闭环事件；(3) 异常兜底 `catch DataIntegrityViolationException` 处理并发竞态，返回 null 表示"已存在无需新建"。
 
 ### 10.5 预警规则引擎

@@ -1,25 +1,25 @@
 {
   "dataset_name": "disaster-v2",
-  "built_at": "2026-11-05T13:04:18.755827+00:00",
+  "built_at": "2026-11-06T02:10:10.965238+00:00",
   "class_names": [
     "crack",
     "landslide"
   ],
-  "total_images": 754,
+  "total_images": 770,
   "images_per_split": {
-    "train": 584,
-    "val": 102,
-    "test": 68
+    "train": 593,
+    "val": 106,
+    "test": 71
   },
   "class_instances": {
     "crack": 634,
-    "landslide": 1989
+    "landslide": 1998
   },
   "class_mapping": {
     "object -> crack": 365,
     "cracks-and-spalling -> crack": 269,
     "mask:cas-wenchuan-512 -> landslide": 1252,
-    "mask:cas-moxi-uav1m-512 -> landslide": 737
+    "mask:cas-moxi-uav1m-512 -> landslide": 746
   },
   "empty_label_images": {
     "train": 1,
@@ -29,8 +29,8 @@
   "cross_split_dedup_removed": 0,
   "missing_images": 0,
   "dropped_total": {
-    "mask_component_below_min_area": 438,
-    "fill_ratio_too_high": 17
+    "mask_component_below_min_area": 445,
+    "fill_crop_too_small": 1
   },
   "per_source": [
     {
@@ -116,8 +116,10 @@
       "mask_close_kernel": 15,
       "fragments_merged_by_close": 1040,
       "trim_fill_border": true,
-      "images_fill_repaired": 0,
-      "dropped_fill_ratio_too_high": 0,
+      "images_fill_cropped": 0,
+      "fill_ratio_median_when_cropped": 0.0,
+      "min_keep_ratio": 0.25,
+      "dropped_fill_crop_too_small": 0,
       "min_component_area": 150,
       "dropped": {}
     },
@@ -125,9 +127,9 @@
       "source": "cas-moxi-uav1m-512",
       "kind": "mask",
       "split": {
-        "train": 119,
-        "val": 11,
-        "test": 13
+        "train": 128,
+        "val": 15,
+        "test": 16
       },
       "auto_split": {
         "train": 0.8,
@@ -138,20 +140,22 @@
       "license": "CC-BY-NC-4.0",
       "homepage": "https://zenodo.org/records/10294997",
       "images_in": 160,
-      "images_kept": 143,
-      "annotations_kept": 737,
+      "images_kept": 159,
+      "annotations_kept": 746,
       "empty_label_images": 0,
       "annotation_origin": {
-        "mask_component_extent": 737
+        "mask_component_extent": 746
       },
       "mask_close_kernel": 15,
-      "fragments_merged_by_close": 507,
+      "fragments_merged_by_close": 518,
       "trim_fill_border": true,
-      "images_fill_repaired": 44,
-      "dropped_fill_ratio_too_high": 17,
+      "images_fill_cropped": 60,
+      "fill_ratio_median_when_cropped": 0.2006,
+      "min_keep_ratio": 0.25,
+      "dropped_fill_crop_too_small": 1,
       "min_component_area": 150,
       "dropped": {
-        "fill_ratio_too_high": 17
+        "fill_crop_too_small": 1
       }
     }
   ]

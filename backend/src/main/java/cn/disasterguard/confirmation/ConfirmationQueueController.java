@@ -222,7 +222,7 @@ public class ConfirmationQueueController {
    * @param payload {operator: "username"}
    */
   @PostMapping("/queue/{id}/claim")
-  @PreAuthorize("hasAuthority('confirmation:view')")
+  @PreAuthorize("hasAuthority('confirmation:claim')")
   public ApiResponse<Map<String, Object>> claim(
       @PathVariable Long id,
       @RequestBody Map<String, String> payload
@@ -268,7 +268,7 @@ public class ConfirmationQueueController {
    * @param payload {toUser: "target_user", reason: "原因"}
    */
   @PostMapping("/queue/{id}/transfer")
-  @PreAuthorize("hasAuthority('confirmation:view')")
+  @PreAuthorize("hasAuthority('confirmation:transfer')")
   public ApiResponse<Map<String, Object>> transfer(
       @PathVariable Long id,
       @RequestBody Map<String, String> payload
@@ -326,7 +326,7 @@ public class ConfirmationQueueController {
    * @param payload {operator: "username", reason: "optional"}
    */
   @PostMapping("/queue/{id}/confirm")
-  @PreAuthorize("hasAuthority('confirmation:view')")
+  @PreAuthorize("hasAuthority('confirmation:confirm')")
   public ApiResponse<Map<String, Object>> confirm(
       @PathVariable Long id,
       @RequestBody Map<String, String> payload
@@ -374,7 +374,7 @@ public class ConfirmationQueueController {
    * @param payload {operator: "username", reason: "驳回原因"}
    */
   @PostMapping("/queue/{id}/reject")
-  @PreAuthorize("hasAuthority('confirmation:view')")
+  @PreAuthorize("hasAuthority('confirmation:reject')")
   public ApiResponse<Map<String, Object>> reject(
       @PathVariable Long id,
       @RequestBody Map<String, String> payload

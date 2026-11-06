@@ -175,7 +175,9 @@ sequenceDiagram
 | 上传即返回 | 不等待识别 | 识别是秒级外部调用，同步会拖垮设备接口 |
 | 置信度阈值 0.8 | 低于阈值只记日志 | 避免误报淹没指挥台 |
 | 气象失败给 0mm | 不阻断预警 | 气象是增强信息，不是必要条件 |
-| 灾种固定映射 | 当前检出任意目标即判 `debris_flow` | 待业务 5 类模型落地后改为按 `class_name` 查表 |
+| 视觉灾种映射 | 检测模型是真实 2 类业务模型：`crack→崩塌`、`landslide→滑坡`；COCO 占位模型或启发式 mock 一律返回 `none` | 灾种判定与"是否为真实业务模型"强绑定，杜绝占位模型把任意框误判成灾种 |
+
+> **AI 视觉检测模型现状**：`ai-service/models/yolo_crack.onnx` 是用 `datasets/disaster-v2`（770 张影像 / 2632 个实例，crack + landslide 两类）训练的 **YOLOv8n 真实业务模型**，已导出 ONNX 并由 `onnxruntime` 加载（`is_business_model=True`）。同测试集（71 图 / 206 实例）实测 test mAP50≈0.327（crack 0.36 / landslide 0.30），对真实裂缝与滑坡图有稳定检出；模型缺失或加载失败时自动降级为 `mock:true` 的空结果，接口仍可用。训练数据、指标与归因详见 `ai-service/models/README.md` 与 `ai-service/datasets/disaster-v2/DATASET_CARD.md`。
 
 ---
 

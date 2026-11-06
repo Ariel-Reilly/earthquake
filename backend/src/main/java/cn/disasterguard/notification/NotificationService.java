@@ -16,6 +16,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -72,8 +73,8 @@ public class NotificationService {
     Boolean effectiveRead = statusFilter == null ? readFilter : null;
 
     Page<NotificationRecord> result = recordRepository.findByFilters(
-        bizType, disasterType, level, effectiveRead, statusFilter,
-        PageRequest.of(page - 1, size));
+        bizType, disasterType, level, effectiveRead, null, statusFilter,
+        PageRequest.of(page - 1, size, Sort.by(Sort.Direction.DESC, "createdAt")));
 
     List<NotificationRecordDto> records = result.getContent().stream()
         .map(this::toDto)

@@ -38,7 +38,10 @@ public interface NotificationRecordRepository extends JpaRepository<Notification
          "(:status IS NOT NULL OR :readFilter IS NULL OR " +
          "  (:readFilter = TRUE  AND r.status = 'READ') OR " +
          "  (:readFilter = FALSE AND r.status <> 'READ')) AND " +
-         "(:status IS NULL OR r.status = :status)",
+         "(:status IS NULL OR r.status = :status) AND " +
+         "(:keyword IS NULL OR LOWER(r.title) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+         "  LOWER(r.content) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+         "  LOWER(r.createdBy) LIKE LOWER(CONCAT('%', :keyword, '%')))",
          countQuery = "SELECT COUNT(r) FROM NotificationRecord r WHERE " +
          "(:bizType IS NULL OR r.bizType = :bizType) AND " +
          "(:disasterType IS NULL OR r.disasterType = :disasterType) AND " +
@@ -46,12 +49,16 @@ public interface NotificationRecordRepository extends JpaRepository<Notification
          "(:status IS NOT NULL OR :readFilter IS NULL OR " +
          "  (:readFilter = TRUE  AND r.status = 'READ') OR " +
          "  (:readFilter = FALSE AND r.status <> 'READ')) AND " +
-         "(:status IS NULL OR r.status = :status)")
+         "(:status IS NULL OR r.status = :status) AND " +
+         "(:keyword IS NULL OR LOWER(r.title) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+         "  LOWER(r.content) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+         "  LOWER(r.createdBy) LIKE LOWER(CONCAT('%', :keyword, '%')))")
   Page<NotificationRecord> findByFilters(
       @Param("bizType") String bizType,
       @Param("disasterType") String disasterType,
       @Param("level") String level,
       @Param("readFilter") Boolean readFilter,
+      @Param("keyword") String keyword,
       @Param("status") String status,
       Pageable pageable);
 

@@ -13,34 +13,39 @@
 
 ---
 
-## ✓ 关于当前仓库里的 `yolo_crack.onnx`（2026-11-06 已替换为真实业务模型）
+## ✓ 关于当前仓库里的 `yolo_crack.onnx`（2026-11-06 重建为 clean 版）
 
-现在的 `yolo_crack.onnx` 是**用 `datasets/disaster-v2` 真实训练出来的 2 类检测模型**，
+现在的 `yolo_crack.onnx` 是**用 `datasets/disaster-v2`（clean 重建版）真实训练出来的 2 类检测模型**，
 输出维度 `[1, 6, 8400]`（4 个 bbox + 2 类），类别 `["crack", "landslide"]`。
-onnxruntime 加载后 `is_business_model=True`，对真实裂缝图输出 crack 0.88 / 0.61，
-对无人机滑坡图输出 landslide 0.59——不再是空结果。
+onnxruntime 加载后 `is_business_model=True`，对真实裂缝图输出 crack P/R 在 0.6–0.9 量级，
+对无人机滑坡图输出 landslide 在 0.6 量级——不再是空结果。
+
+> 相对上一版（inpaint 重建）：只改了旋转裁切的填充策略——由 TELEA inpaint 改为"裁到最大内接矩形、
+> 不生成任何像素"，消除了人造涂抹纹理伪影；统计数字因此略有上升（见 `DATASET_CARD.md` §5）。
 
 | 项目 | 值 |
 |---|---|
 | 骨干/规模 | YOLOv8n（3.13 M 参数，8.6 GFLOPs） |
-| 训练数据 | `datasets/disaster-v2`（754 图 / 2623 实例 / 2 类） |
+| 训练数据 | `datasets/disaster-v2`（770 图 / 2632 实例 / 2 类，clean 重建） |
 | 训练配置 | imgsz 640、batch 16、30 epoch、CPU（本机 torch 为 CPU 版） |
 | 训练耗时 | 约 50 分钟（CPU，i9-13980HX） |
-| 权重来源 | `runs/detect/runs/detect/v2-n30/weights/best.pt` |
+| 权重来源 | `runs/detect/runs/detect/v2-clean-n30/weights/best.pt`（epoch 29 最佳） |
 
 **实测指标（不要外推）**：
 
 | 评估集 | 类别 | P | R | mAP50 | mAP50-95 |
 |---|---|---|---|---|---|
-| val（102 图 / 261 实例） | all | 0.498 | 0.566 | **0.537** | 0.239 |
-| val | crack | 0.517 | 0.629 | 0.601 | 0.264 |
-| val | landslide | 0.478 | 0.503 | 0.472 | 0.214 |
-| test（68 图 / 207 实例） | all | 0.449 | 0.355 | **0.338** | 0.148 |
-| test | crack | 0.482 | 0.411 | 0.407 | 0.175 |
-| test | landslide | 0.416 | 0.299 | 0.270 | 0.121 |
+| val（106 图 / 272 实例） | all | 0.642 | 0.519 | **0.564** | 0.240 |
+| test（71 图 / 206 实例） | all | 0.432 | 0.359 | **0.327** | 0.144 |
 
-test 比 val 低约 0.2，原因是 test 只有 31 张滑坡图，单张图的波动就能拉动整类指标；
-**对外报数应以 test 为准**，val 只能说明训练收敛情况。
+**各类别 mAP50-95**（val / test）：crack **0.261 / 0.153**、landslide **0.218 / 0.134**。
+滑坡类因为 CAS 标注是"语义区域外接框"，且 test 仅 31 张滑坡图，单图波动就会拉动整类指标，
+故 test 比 val 低约 0.2；**对外报数应以 test 为准**，val 只能说明训练收敛情况。
+
+> 同架构、同 30 epoch、同测试集（71 图 / 206 实例）下，用旧 disaster-v1 数据训练的对照组
+> `v1-n30` 仅拿到 test mAP50=0.150 / mAP50-95=0.076。v2-clean 的提升（+117% / +88%）
+> 可归因于数据升级（512×512 原始分辨率 + 内接矩形去伪影），而非架构或超参变化。
+> 详见 `datasets/disaster-v2/DATASET_CARD.md` §8。
 
 现在的加载判定逻辑（`app/models/yolo_model.py`）仍然按输出维度把关：
 
@@ -54,7 +59,7 @@ test 比 val 低约 0.2，原因是 test 只有 31 张滑坡图，单张图的�
 
 ## 训练
 
-数据：`datasets/disaster-v2`（754 图 / 2623 实例 / 2 类，来源与限制见该目录的 `DATASET_CARD.md`）。
+数据：`datasets/disaster-v2`（770 图 / 2632 实例 / 2 类，clean 重建，来源与限制见该目录的 `DATASET_CARD.md`）。
 
 ```bash
 cd ai-service
@@ -71,7 +76,7 @@ python scripts/training/train_crack_yolo.py \
 训练中断后可以续训，不必从头再来（权重里存了优化器状态与轮次）：
 
 ```bash
-python -c "from ultralytics import YOLO; YOLO('runs/detect/runs/detect/v2-n30/weights/last.pt').train(resume=True)"
+python -c "from ultralytics import YOLO; YOLO('runs/detect/runs/detect/v2-clean-n30/weights/last.pt').train(resume=True)"
 ```
 
 > 本机 `torch` 是 CPU 版（`.venv` 与 `E:\anaconda3` 均为 `+cpu`），有 RTX 4070 也用不上。

@@ -109,7 +109,7 @@ class AiServiceClientTest {
     @Test
     @DisplayName("submitFeedback 反馈提交")
     void submitFeedback() {
-      assertDisabled(() -> client.submitFeedback(new FeedbackRequestDto(null, null, null, null, null, null, null, null, null)));
+      assertDisabled(() -> client.submitFeedback(new FeedbackRequestDto(null, null, null, null, null, null, null, null, null, null)));
     }
 
     @Test
