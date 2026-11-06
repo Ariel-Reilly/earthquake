@@ -177,7 +177,8 @@ sequenceDiagram
 | 气象失败给 0mm | 不阻断预警 | 气象是增强信息，不是必要条件 |
 | 视觉灾种映射 | 检测模型是真实 2 类业务模型：`crack→崩塌`、`landslide→滑坡`；COCO 占位模型或启发式 mock 一律返回 `none` | 灾种判定与"是否为真实业务模型"强绑定，杜绝占位模型把任意框误判成灾种 |
 
-> **AI 视觉检测模型现状**：`ai-service/models/yolo_crack.onnx` 是用 `datasets/disaster-v2`（770 张影像 / 2632 个实例，crack + landslide 两类）训练的 **YOLOv8n 真实业务模型**，已导出 ONNX 并由 `onnxruntime` 加载（`is_business_model=True`）。同测试集（71 图 / 206 实例）实测 test mAP50≈0.327（crack 0.36 / landslide 0.30），对真实裂缝与滑坡图有稳定检出；模型缺失或加载失败时自动降级为 `mock:true` 的空结果，接口仍可用。训练数据、指标与归因详见 `ai-service/models/README.md` 与 `ai-service/datasets/disaster-v2/DATASET_CARD.md`。
+> **AI 视觉检测模型现状**：`ai-service/models/yolo_crack.onnx` 是用 `datasets/disaster-v2`（770 张影像 / 2632 个实例，crack + landslide 两类）训练的 **YOLOv8n 真实业务模型**，已导出 ONNX 并由 `onnxruntime` 加载（`is_business_model=True`）。同测试集（71 图 / 206 实例）实测 test mAP50≈0.327（crack 0.36 / landslide 0.30），对真实裂缝与滑坡图有稳定检出；模型缺失或加载失败时自动降级为 `mock:true` 的空结果，接口仍可用。ONNX 权重不入 Git（`.gitignore`），克隆后可在 `ai-service/` 下执行
+> `python scripts/training/train_crack_yolo.py --data datasets/disaster-v2 --export-onnx` 重训导出（本机 CPU 约 50 分钟）。训练数据、指标与归因详见 `ai-service/models/README.md` 与 `ai-service/datasets/disaster-v2/DATASET_CARD.md`。
 
 ---
 
@@ -187,7 +188,7 @@ sequenceDiagram
 |---|---|
 | 前端 | Vue 3.5 · Vite 6 · Vue Router 4 · Pinia · OpenLayers 10 · Cesium 1.144 |
 | 后端 | Spring Boot 3.4.1 · Java 17 · Spring Data JPA · Hibernate Spatial · Spring Security (JWT) · Spring StateMachine |
-| AI 服务 | Python 3.11 · FastAPI 0.115 · Pydantic 2.10 · YOLO (ONNX/OpenCV DNN) · NumPy/SciPy |
+| AI 服务 | Python 3.11 · FastAPI 0.115 · Pydantic 2.10 · Ultralytics YOLOv8n（导出 ONNX · onnxruntime 推理）· scikit-learn / XGBoost · NumPy/SciPy |
 | 基础设施 | PostgreSQL 15 + PostGIS 3.4 · Redis 7 · MinIO · EMQX 5.9 · TDengine 3.2 |
 | 实时通信 | 原生 WebSocket（`/ws`，一次性 ticket 鉴权）· MQTT（设备接入） |
 
@@ -350,11 +351,15 @@ DisasterGuard/
 │       ├── stores/                 # Pinia（auth / realtime / userPreference）
 │       └── router/                 # 路由表
 ├── ai-service/                     # FastAPI 推理服务
-│   └── app/
-│       ├── main.py                 # 应用入口（注册全部 router）
-│       ├── routers/                # detection / forecast / anomaly / fusion / comprehensive ...
-│       ├── models/                 # YOLO 检测器等推理封装
-│       └── schemas/                # Pydantic 模型
+│   ├── app/                        # 应用主体
+│   │   ├── main.py                 # 应用入口（注册全部 router）
+│   │   ├── routers/                # detection / forecast / anomaly / fusion / comprehensive ...
+│   │   ├── models/                 # YOLO 检测器等推理封装
+│   │   └── schemas/                # Pydantic 模型
+│   ├── datasets/                   # 检测数据集（disaster-v1 / disaster-v2 + DATASET_CARD）
+│   ├── models/                     # 模型资产（*.onnx 不入库；meta.json + README 记录来源与指标）
+│   └── scripts/                    # dataset（构建）/ training（训练与评估）脚本
+├── hardware-sandbox/               # 实景硬件沙盘（网关模拟、设备注册、演示流程）
 ├── infra/                          # 基础设施初始化（postgres / emqx / tdengine / nginx）
 ├── docs/                           # 开发文档
 ├── scripts/                        # 运维与审计脚本
@@ -399,6 +404,8 @@ DisasterGuard/
 | [docs/UNIFIED_EVENT_STATEMACHINE.md](docs/UNIFIED_EVENT_STATEMACHINE.md) | 统一事件状态机（7 状态 × 12 转移） |
 | [docs/CDSE_SETUP.md](docs/CDSE_SETUP.md) | Copernicus Data Space 接入 |
 | [docs/HARDWARE_SANDBOX.md](docs/HARDWARE_SANDBOX.md) | 硬件沙箱与设备模拟 |
+| [ai-service/models/README.md](ai-service/models/README.md) | AI 模型资产、实测指标与训练复现 |
+| [ai-service/datasets/README.md](ai-service/datasets/README.md) | 检测数据集构成、来源与许可说明 |
 
 ---
 
