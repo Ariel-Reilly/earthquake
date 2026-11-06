@@ -218,3 +218,8 @@ ai-service/runs/
 # --- Python ---
 __pycache__/
 .venv/
+
+# --- 补全 AI 与缓存残留 ---
+.trae*
+.cursor*
+.npmcache/
