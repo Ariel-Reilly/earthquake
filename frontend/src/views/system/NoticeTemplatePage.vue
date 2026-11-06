@@ -40,7 +40,7 @@ const operator = getAuthUser() ?? { name: "李晨曦", role: "admin" }
 const has = (perm) => hasPermission(operator.role, perm)
 
 const loading = ref(false)
-const usingSampleData = ref(false)
+const loadError = ref("")
 const list = ref([])
 const filter = reactive({ hazardType: "", level: "", channel: "", status: "" })
 const editDrawer = ref(false)
@@ -105,87 +105,23 @@ const levelColor = {
   blue: "#6f9e7f",
 }
 
-const sampleTemplates = [
-  {
-    id: "tpl-001",
-    name: "滑坡橙色预警 · 通用模板",
-    hazardType: "landslide",
-    level: "orange",
-    channels: {
-      sms: "【地脉智巡·橙色预警】{{hazardName}} 出现加速变形，请周边 {{bufferKm}} 公里内人员立即撤离至应急避难场所。",
-      email: "尊敬的 {{recipient}}，监测系统于 {{startTime}} 在 {{location}} 发出橙色滑坡预警，请按预案组织处置。",
-      app: "{{level}}：{{hazardName}}，请立即处置",
-      sound: "{{level}} 滑坡 撤离",
-    },
-    enabled: true,
-    createdBy: "李晨曦",
-    updatedAt: "2026-08-30 16:12",
-  },
-  {
-    id: "tpl-002",
-    name: "崩塌红色预警 · 声光联动",
-    hazardType: "collapse",
-    level: "red",
-    channels: {
-      sms: "【红色·紧急】{{region}} 发生崩塌险情，立即撤离！",
-      email: "应急指挥：{{hazardName}} 已触发红色预警，请 5 分钟内反馈响应。",
-      app: "红色崩塌！{{region}} {{startTime}}",
-      sound: "红色崩塌 立即撤离",
-    },
-    enabled: true,
-    createdBy: "王皓",
-    updatedAt: "2026-08-22 09:35",
-  },
-  {
-    id: "tpl-003",
-    name: "泥石流黄色预警 · 山区提示",
-    hazardType: "debris_flow",
-    level: "yellow",
-    channels: {
-      sms: "【黄色提示】{{hazardName}} 周边注意强降雨，避免进入沟谷。",
-      email: "{{recipient}}，{{region}} 24h 累计降水接近阈值，请加密巡查。",
-      app: "黄色预警 · {{hazardName}}",
-      sound: "黄色泥石流 注意",
-    },
-    enabled: false,
-    createdBy: "张敏",
-    updatedAt: "2026-08-10 11:08",
-  },
-  {
-    id: "tpl-004",
-    name: "地面沉降蓝色预警 · 城市运维",
-    hazardType: "subsidence",
-    level: "blue",
-    channels: {
-      sms: "【蓝色关注】{{region}} 沉降速率偏快，请安排复测。",
-      email: "运维组：{{hazardName}} 监测到异常沉降，请复核。",
-      app: "蓝色预警 · {{hazardName}}",
-      sound: "蓝色关注",
-    },
-    enabled: true,
-    createdBy: "陈昊",
-    updatedAt: "2026-07-28 14:20",
-  },
-]
-
+// 模板列表全部来自真实 API（dashboardApi.listNoticeTemplates），不再内置样例数据。
 async function load() {
   loading.value = true
-  usingSampleData.value = false
+  loadError.value = ""
   try {
-    const data = await dashboardApi
-      .listNoticeTemplates({
-        hazardType: filter.hazardType || undefined,
-        level: filter.level || undefined,
-        channel: filter.channel || undefined,
-        status: filter.status || undefined,
-      })
-      .catch(() => {
-        usingSampleData.value = true
-        return { records: sampleTemplates, total: sampleTemplates.length }
-      })
-    list.value = data?.records ?? []
+    const data = await dashboardApi.listNoticeTemplates({
+      hazardType: filter.hazardType || undefined,
+      level: filter.level || undefined,
+      channel: filter.channel || undefined,
+      status: filter.status || undefined,
+    })
+    const raw = data?.records ?? data?.items ?? []
+    list.value = Array.isArray(raw) ? raw : []
   } catch (e) {
-    emit("notify", e.message ?? "加载模板失败")
+    list.value = []
+    loadError.value = e?.message ?? "加载模板失败"
+    emit("notify", loadError.value)
   } finally {
     loading.value = false
   }
@@ -248,8 +184,7 @@ async function testTemplate(item) {
     await dashboardApi.testNoticeTemplate(item.id, { channel: "sms" })
     emit("notify", "测试发送成功，请查看接收端")
   } catch (e) {
-    // API 失败时本地模拟
-    emit("notify", `测试发送失败，已本地模拟（${e.message ?? "网络异常"}）`)
+    emit("notify", `测试发送失败：${e?.message ?? e}`)
   }
 }
 
@@ -267,8 +202,7 @@ async function remove(item) {
     emit('notify', '模板已删除')
     await load()
   } catch (e) {
-    templates.value = templates.value.filter(t => t.id !== item.id)
-    emit('notify', '已删除（本地缓存）')
+    emit('notify', `删除失败：${e?.message ?? e}`)
   }
 }
 
@@ -279,9 +213,8 @@ async function toggleEnabled(item) {
     await dashboardApi.toggleNoticeTemplate(item.id)
     emit("notify", item.enabled ? "模板已启用" : "模板已停用")
   } catch (e) {
-    // API 失败时回滚
     item.enabled = prev
-    emit("notify", `操作失败，已回滚（${e.message ?? "网络异常"}）`)
+    emit("notify", `操作失败：${e?.message ?? e}（已恢复原状态）`)
   }
 }
 
@@ -316,30 +249,7 @@ async function save() {
     editDrawer.value = false
     await load()
   } catch (e) {
-    // API 失败时本地 fallback
-    const now = new Date().toISOString().slice(0, 16).replace("T", " ")
-    if (isEdit) {
-      // 编辑：本地更新
-      const idx = list.value.findIndex((t) => t.id === editing.value.id)
-      if (idx !== -1) {
-        list.value.splice(idx, 1, {
-          ...JSON.parse(JSON.stringify(editing.value)),
-          updatedAt: now,
-        })
-      }
-      emit("notify", `保存失败，已本地更新（${e.message ?? "网络异常"}）`)
-    } else {
-      // 新增：本地添加
-      const newTpl = {
-        ...JSON.parse(JSON.stringify(editing.value)),
-        id: `tpl-local-${Date.now()}`,
-        createdBy: operator.name,
-        updatedAt: now,
-      }
-      list.value.unshift(newTpl)
-      emit("notify", `保存失败，已本地添加（${e.message ?? "网络异常"}）`)
-    }
-    editDrawer.value = false
+    emit("notify", `保存失败：${e?.message ?? e}`)
   } finally {
     saving.value = false
   }
@@ -374,8 +284,8 @@ onMounted(load)
       </div>
     </header>
 
-    <div v-if="usingSampleData" class="sample-data-hint">
-      <Info :size="14" /> 当前展示示例模板数据，接入后端后自动切换为真实数据
+    <div v-if="loadError" class="load-error-hint">
+      <Info :size="14" /> 模板加载失败：{{ loadError }}（可点击右上角「刷新」重试）
     </div>
 
     <section class="filter-bar">
@@ -547,8 +457,8 @@ onMounted(load)
 .page-header p { margin: 4px 0 0; color: var(--c-text-2); font-size: 12px; }
 .actions { display: flex; gap: 8px; }
 
-.sample-data-hint { display: flex; gap: 6px; align-items: center; padding: 8px 14px; background: var(--c-surface-2); border: 1px solid var(--c-separator); border-radius: var(--r-sm); color: var(--c-brand-deep); font-size: 12px; margin-bottom: 14px; }
-.sample-data-hint svg { color: var(--c-brand); flex-shrink: 0; }
+.load-error-hint { display: flex; gap: 6px; align-items: center; padding: 8px 14px; background: var(--c-danger-bg); border: 1px solid var(--c-danger-soft); border-radius: var(--r-sm); color: var(--c-danger-strong); font-size: 12px; margin-bottom: 14px; }
+.load-error-hint svg { color: var(--c-danger-strong); flex-shrink: 0; }
 
 .primary-btn { display: inline-flex; gap: 6px; align-items: center; padding: 8px 14px; border: 0; background: var(--c-brand); color: var(--c-on-brand); border-radius: var(--r-sm); font-size: 13px; cursor: pointer; }
 .primary-btn:disabled { opacity: .5; }

@@ -53,8 +53,9 @@ async function runTest() {
       inputData: { ...testData },
     }
     result.value = await testRule(request)
-  } catch (_e) {
-    // Mock 模式：本地计算
+  } catch (e) {
+    // 后端 /rules/test 不可用时的本地预演：只做条件表达式的字面比对，
+    // 结果必须显式标注为"本地预演"，不能冒充规则引擎的真实执行结论。
     const matched = []
     const failed = []
 
@@ -84,14 +85,14 @@ async function runTest() {
 
     result.value = {
       triggered,
+      source: "local",
+      warning: `后端规则引擎调用失败（${e?.message ?? "接口不可用"}），以下为前端本地预演，未经过后端规则引擎。`,
       message: triggered
         ? `条件满足（${matched.length}/${conditions.length}）`
         : `条件不满足（满足 ${matched.length} 项，失败 ${failed.length} 项）`,
       matchedConditions: matched,
       failedConditions: failed,
-      actionResults: triggered
-        ? [{ type: "MOCK", executed: true, result: "测试模式下动作不执行" }]
-        : [],
+      actionResults: [],
     }
   } finally {
     testing.value = false
@@ -153,6 +154,8 @@ function close() {
             <span>{{ result.message }}</span>
           </div>
         </div>
+
+        <p v-if="result.warning" class="result-warning">{{ result.warning }}</p>
 
         <div v-if="result.matchedConditions?.length" class="condition-list">
           <h6>满足的条件</h6>
@@ -325,6 +328,16 @@ function close() {
 .result-summary.failed {
   background: var(--c-danger-bg);
   color: var(--c-danger-strong);
+}
+
+.result-warning {
+  margin: 10px 0 0;
+  padding: 8px 12px;
+  background: var(--c-warning-bg, #fdf6e3);
+  color: var(--c-warning-ink, #8a6d1f);
+  border-radius: var(--r-sm, 6px);
+  font-size: 12px;
+  line-height: 1.6;
 }
 
 .result-icon {

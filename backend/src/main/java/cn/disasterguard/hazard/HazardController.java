@@ -25,6 +25,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 
 @RestController
 @RequestMapping("/api/hazards")
@@ -157,5 +158,41 @@ public class HazardController {
   @PreAuthorize("hasAuthority('hazards:view')")
   public ApiResponse<List<HazardDto>> aiMonitorList() {
     return ApiResponse.success(hazardService.listAiMonitoredRecent(50));
+  }
+
+  /**
+   * 把 AI 识别 / 监测到的灾害点提交到人工确认队列。
+   *
+   * <p>POST /api/hazards/{hazardCode}/submit-confirmation
+   *
+   * <p>AI 推理结果页的「转人工确认 / 复核通过」按钮走这里：真正把事件落进
+   * ConfirmationQueueController 的队列口径（state ∈ {DETECTED, CONFIRMING}），
+   * 而不是在前端本地删一条列表就算完成。
+   */
+  @PostMapping("/{hazardCode}/submit-confirmation")
+  @PreAuthorize("hasAuthority('confirmation:view')")
+  public ApiResponse<Map<String, Object>> submitConfirmation(
+      @PathVariable String hazardCode,
+      Authentication authentication
+  ) {
+    String operator = authentication == null ? "system" : authentication.getName();
+    return ApiResponse.success(hazardService.submitForConfirmation(hazardCode, operator));
+  }
+
+  /**
+   * 把灾害点归档为误报（DISMISS → CLOSED），必须填写原因。
+   *
+   * <p>POST /api/hazards/{hazardCode}/dismiss
+   */
+  @PostMapping("/{hazardCode}/dismiss")
+  @PreAuthorize("hasAuthority('hazards:edit')")
+  public ApiResponse<Map<String, Object>> dismissHazard(
+      @PathVariable String hazardCode,
+      @RequestBody(required = false) Map<String, String> payload,
+      Authentication authentication
+  ) {
+    String operator = authentication == null ? "system" : authentication.getName();
+    String reason = payload == null ? null : payload.get("reason");
+    return ApiResponse.success(hazardService.dismiss(hazardCode, operator, reason));
   }
 }

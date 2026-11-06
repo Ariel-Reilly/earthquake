@@ -90,7 +90,7 @@ public class DeviceMetricSimulator {
   public DeviceMetricSimulator(MonitoringDeviceRepository deviceRepository,
                                DeviceMetricRepository metricRepository,
                                HazardPointRepository hazardRepository,
-                               @Value("${disasterguard.device.metric-simulator-enabled:true}") boolean enabled) {
+                               @Value("${disasterguard.device.metric-simulator-enabled:false}") boolean enabled) {
     this.deviceRepository = deviceRepository;
     this.metricRepository = metricRepository;
     this.hazardRepository = hazardRepository;

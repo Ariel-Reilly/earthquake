@@ -282,8 +282,9 @@ function goFullSite() {
 }
 
 function goVideo() {
-  // 真实场景：打开视频会商 URL 或启动 WebRTC
-  window.open("about:blank", "_blank");
+  // 视频会商需要接入 WebRTC / 第三方会商服务；当前系统没有该能力，
+  // 明确告知而不是打开空白页冒充成功。
+  emit("notify", "视频会商尚未接入（需部署 WebRTC 信令或第三方会商服务）");
 }
 </script>
 
@@ -352,7 +353,11 @@ function goVideo() {
 
       <!-- 快捷操作栏 -->
       <section class="quick-actions">
-        <button class="action-btn action-video" @click="goVideo">
+        <button
+          class="action-btn action-video is-unavailable"
+          title="视频会商需接入 WebRTC 信令或第三方会商服务后启用"
+          @click="goVideo"
+        >
           <Video :size="20" />
           <span>视频会商</span>
         </button>
@@ -660,6 +665,7 @@ function goVideo() {
 .action-btn:active { background: var(--c-ink-1); color: var(--c-brand-mist); }
 
 .action-video { color: #818cf8; border-color: #3730a3; }
+.action-btn.is-unavailable { opacity: .55; }
 .action-map { color: #34d399; border-color: #065f46; }
 
 .badge {

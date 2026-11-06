@@ -536,6 +536,11 @@ CREATE INDEX IF NOT EXISTS idx_unified_updated ON unified_event(updated_at DESC)
 --  hazard_point 现在是 unified_event WHERE kind='HAZARD' 的视图，
 --  1:1 关系天然成立，无需单独的反向 FK 列)
 ALTER TABLE warning_event ADD COLUMN IF NOT EXISTS unified_event_id BIGINT REFERENCES unified_event(id) ON DELETE SET NULL;
+-- R5 P1-1：WarningEvent 实体声明了 @Column(name="unified_event_code")，但旧脚本从未建该列，
+-- 且 spring.jpa.hibernate.ddl-auto=none 不会自动补列，全新部署时所有 warning_event
+-- INSERT/UPDATE 都会报 column does not exist。这里补齐（IF NOT EXISTS 可重复执行）。
+ALTER TABLE warning_event ADD COLUMN IF NOT EXISTS unified_event_code VARCHAR(32);
+CREATE INDEX IF NOT EXISTS idx_warning_unified_code ON warning_event(unified_event_code) WHERE unified_event_code IS NOT NULL;
 ALTER TABLE emergency_event ADD COLUMN IF NOT EXISTS unified_event_id BIGINT REFERENCES unified_event(id) ON DELETE SET NULL;
 -- (v2.1.0: idx_hazard_unified 已废弃——视图本身已经天然暴露 unified_event.id)
 CREATE INDEX IF NOT EXISTS idx_warning_unified ON warning_event(unified_event_id) WHERE unified_event_id IS NOT NULL;

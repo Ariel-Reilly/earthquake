@@ -39,24 +39,67 @@ public class WarningRuleEvaluator {
     return evaluateSimple(expr, metrics);
   }
 
+  /**
+   * 求值字符串表达式。
+   *
+   * <p>v2.0 修复：旧实现只接受 3 个 token（{@code "metric op 50"}），而 data.sql 里的
+   * 6 条种子规则全是 {@code "rainfall_24h > 50 AND slope > 30"} 这类复合表达式，
+   * split 后 7 个 token → 一律 empty → 规则引擎永远不产生预警。
+   * 现在支持：
+   * <ul>
+   *   <li>单条件：{@code rainfall_24h > 50}</li>
+   *   <li>AND / OR 复合：{@code rainfall_24h > 50 AND slope > 30}</li>
+   *   <li>右侧引用另一个指标：{@code water_level > warning_level}</li>
+   * </ul>
+   * 右侧为非数字且不是已知指标（如字符串常量 OFFLINE）时该条件视为不可判定，
+   * 复合 AND 下整条规则不命中，不会误报。
+   */
   private static Optional<Double> evaluateSimple(String expr, Map<String, Double> metrics) {
-    String[] tokens = expr.split("\\s+");
-    if (tokens.length != 3) {
-      return Optional.empty();
+    boolean and = true;
+    String[] clauses;
+    if (expr.contains(" AND ")) {
+      clauses = expr.split("\\s+AND\\s+");
+    } else if (expr.contains(" OR ")) {
+      clauses = expr.split("\\s+OR\\s+");
+      and = false;
+    } else {
+      clauses = new String[]{expr};
     }
-    String metric = tokens[0];
-    String operator = tokens[1];
-    double threshold;
-    try {
-      threshold = Double.parseDouble(tokens[2]);
-    } catch (NumberFormatException e) {
-      return Optional.empty();
+    Double matched = null;
+    boolean anyOk = false;
+    for (String clause : clauses) {
+      String[] tokens = clause.trim().split("\\s+");
+      if (tokens.length != 3) {
+        return Optional.empty();
+      }
+      Double value = metrics.get(tokens[0]);
+      double threshold;
+      try {
+        threshold = Double.parseDouble(tokens[2]);
+      } catch (NumberFormatException e) {
+        Double referenced = metrics.get(tokens[2]);
+        if (referenced == null) {
+          // 字符串常量（OFFLINE 等）无法用数值指标判定，不猜测、不误报
+          return Optional.empty();
+        }
+        threshold = referenced;
+      }
+      if (value == null) {
+        if (and) {
+          return Optional.empty();
+        }
+        continue;
+      }
+      boolean ok = matches(value, tokens[1], threshold);
+      if (and && !ok) {
+        return Optional.empty();
+      }
+      if (ok) {
+        anyOk = true;
+        matched = value;
+      }
     }
-    Double value = metrics.get(metric);
-    if (value == null) {
-      return Optional.empty();
-    }
-    return matches(value, operator, threshold) ? Optional.of(value) : Optional.empty();
+    return anyOk ? Optional.ofNullable(matched) : Optional.empty();
   }
 
   private static Optional<Double> evaluateJson(String expr, Map<String, Double> metrics) {
@@ -101,6 +144,7 @@ public class WarningRuleEvaluator {
       case "<", "lt" -> value < threshold;
       case "<=", "lte" -> value <= threshold;
       case "==", "=", "eq" -> value == threshold;
+      case "!=", "<>", "ne" -> value != threshold;
       default -> false;
     };
   }

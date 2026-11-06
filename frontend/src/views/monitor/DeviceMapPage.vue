@@ -15,6 +15,7 @@
  */
 
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { wgs84ToGcj02 } from '../../utils/coordTransform.js'
 import {
   Radar,
   AlertCircle,
@@ -137,7 +138,7 @@ async function loadOpenLayers() {
     { default: olMap },
     { default: olView },
     { default: Tile },
-    { default: OSM },
+    { default: XYZ },
     { default: VectorLayer },
     { default: VectorSource },
     { default: Feature },
@@ -150,7 +151,7 @@ async function loadOpenLayers() {
     import('ol/Map'),
     import('ol/View'),
     import('ol/layer/Tile'),
-    import('ol/source/OSM'),
+    import('ol/source/XYZ'),
     import('ol/layer/Vector'),
     import('ol/source/Vector'),
     import('ol/Feature'),
@@ -163,13 +164,18 @@ async function loadOpenLayers() {
   ol.Map = olMap
   ol.View = olView
   ol.TileLayer = Tile
-  ol.OSM = OSM
+  ol.XYZ = XYZ
   ol.VectorLayer = VectorLayer
   ol.VectorSource = VectorSource
   ol.Feature = Feature
   ol.Point = Point
   ol.LineString = LineString
-  ol.fromLonLat = proj.fromLonLat
+  // 卫星影像瓦片为 GCJ-02，业务点位存 WGS-84；在统一入口做偏移，避免 50–500m 系统性错位。
+  // 所有 fromLonLat 调用点因此无需逐个改动。
+  ol.fromLonLat = (coord, projection) => {
+    const [lng, lat] = wgs84ToGcj02(Number(coord[0]), Number(coord[1]))
+    return proj.fromLonLat([lng, lat], projection)
+  }
   ol.Style = styleMod.Style
   ol.CircleStyle = styleMod.Circle
   ol.Fill = styleMod.Fill
@@ -195,7 +201,14 @@ async function initMap() {
   map = new ol.Map({
     target: mapRef.value,
     layers: [
-      new ol.TileLayer({ source: new ol.OSM() }),
+      // 合规卫星影像瓦片（国内源，非境外 OSM，非矢量底图）
+      new ol.TileLayer({
+        source: new ol.XYZ({
+          url: 'https://webst01.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}',
+          crossOrigin: 'anonymous',
+          maxZoom: 19,
+        }),
+      }),
       new ol.VectorLayer({
         source: trajectorySource,
         zIndex: 5,

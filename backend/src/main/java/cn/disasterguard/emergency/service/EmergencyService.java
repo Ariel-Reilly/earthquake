@@ -107,6 +107,37 @@ public class EmergencyService {
     }
   }
 
+  /**
+   * 派发应急事件：把待处置事件推进到「处置中」。
+   *
+   * <p>复用 {@link #createFromWarning(String, String, String, String)} /
+   * {@link #resolve(Long, String)} 的既有状态流转与落库、广播链路：
+   * 同一处 {@code repository.save + toDto + broadcastEmergency}。
+   * 指挥员取 SecurityContext 传入的当前操作人，不信任请求体。
+   */
+  @Transactional
+  public EmergencyDto dispatch(Long id, String operator) {
+    EmergencyEvent event = repository.findById(id)
+        .orElseThrow(() -> new AppException(404, "未找到应急事件"));
+    if (STATUS_RESOLVED.equals(event.getStatus())) {
+      throw new AppException(400, "应急事件已闭环，无法派发");
+    }
+    event.setStatus("处置中");
+    if (event.getStartedAt() == null) {
+      event.setStartedAt(OffsetDateTime.now());
+    }
+    if (operator != null && !operator.isBlank()) {
+      event.setCommander(operator);
+    }
+    if (event.getStepName() == null || event.getStepName().isBlank()) {
+      event.setStepName("处置");
+    }
+    event.setUpdatedAt(OffsetDateTime.now());
+    EmergencyDto dto = toDto(repository.save(event));
+    broadcastEmergency(dto);
+    return dto;
+  }
+
   /** 事件闭环。 */
   @Transactional
   public EmergencyDto resolve(Long id, String summary) {

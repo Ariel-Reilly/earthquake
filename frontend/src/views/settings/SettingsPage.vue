@@ -1,5 +1,5 @@
 <script setup>
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import {
   Bell,
   Building2,
@@ -18,6 +18,7 @@ import {
 } from 'lucide-vue-next'
 import { getAuthUser, getRoleLabel } from '../../stores/auth'
 import { useTheme } from '../../composables/useTheme'
+import { dashboardApi } from '../../services/dashboardApi'
 
 const emit = defineEmits(['notify'])
 const { setTheme, theme } = useTheme()
@@ -228,16 +229,12 @@ const passwordHint = ref('')
 const passwordOk = ref(false)
 const passwordError = ref('')
 
-function changePassword() {
+async function changePassword() {
   passwordError.value = ''
   passwordHint.value = ''
   passwordOk.value = false
   if (!passwordForm.current || !passwordForm.next || !passwordForm.confirm) {
     passwordError.value = '请完整填写旧密码与新密码'
-    return
-  }
-  if (passwordForm.current !== '123456') {
-    passwordError.value = '旧密码不正确'
     return
   }
   if (passwordForm.next.length < 6) {
@@ -252,43 +249,80 @@ function changePassword() {
     passwordError.value = '新密码不能与旧密码相同'
     return
   }
-  passwordOk.value = true
-  passwordHint.value = '密码已更新，下次登录请使用新密码'
-  passwordForm.current = ''
-  passwordForm.next = ''
-  passwordForm.confirm = ''
+  try {
+    await dashboardApi.changeMyPassword({ current: passwordForm.current, next: passwordForm.next })
+    passwordOk.value = true
+    passwordHint.value = '密码已更新，下次登录请使用新密码'
+    passwordForm.current = ''
+    passwordForm.next = ''
+    passwordForm.confirm = ''
+  } catch (e) {
+    passwordError.value = `修改密码失败：${e?.message ?? e}`
+  }
 }
 
-const sessions = ref([
-  { id: 1, device: 'Windows · Chrome 126', location: '本地工作台', current: true, last: '当前会话', icon: Laptop },
-  { id: 2, device: 'iPhone 15 · Safari', location: '重庆 · 移动网络', current: false, last: '2 小时前', icon: Smartphone },
-  { id: 3, device: 'MacBook Pro · Edge', location: '重庆 · 企业网络', current: false, last: '昨天 18:42', icon: Laptop },
-])
-
-function revokeSession(id) {
-  sessions.value = sessions.value.filter((item) => item.id !== id)
-  emit('notify', '已下线该设备会话')
+function normalizeSession(raw) {
+  const device = raw?.device ?? '未知设备'
+  return {
+    id: raw?.id ?? raw?.sessionId,
+    device,
+    location: raw?.location ?? raw?.ip ?? '—',
+    current: Boolean(raw?.current),
+    last: raw?.last ?? raw?.lastActiveAt ?? raw?.lastActive ?? raw?.loggedInAt ?? '—',
+    icon: /iphone|android|mobile|ipad/i.test(device) ? Smartphone : Laptop,
+  }
 }
 
-const serviceStatus = ref([
-  { name: 'RESTful API 网关', detail: 'http://localhost:8080/api', state: '正常', color: 'teal' },
-  { name: 'MQTT 数据接入', detail: 'mqtt://mqtt.geo-sentry.local:1883', state: '正常', color: 'teal' },
-  { name: '时序数据库', detail: 'TDengine · 128 设备在线', state: '正常', color: 'teal' },
-  { name: '消息服务', detail: '站内通知推送通道', state: '正常', color: 'teal' },
-])
+const sessions = ref([])
+const sessionsError = ref('')
 
-function runServiceCheck() {
-  serviceStatus.value.forEach((item) => { item.state = '检测中' })
-  emit('notify', '正在检测服务状态...')
-  window.setTimeout(() => {
-    serviceStatus.value = [
-      { name: 'RESTful API 网关', detail: 'http://localhost:8080/api', state: '正常', color: 'teal' },
-      { name: 'MQTT 数据接入', detail: 'mqtt://mqtt.geo-sentry.local:1883', state: '正常', color: 'teal' },
-      { name: '时序数据库', detail: 'TDengine · 128 设备在线', state: '正常', color: 'teal' },
-      { name: '消息服务', detail: '站内通知推送通道', state: '正常', color: 'teal' },
-    ]
-    emit('notify', '服务状态检测完成：全部正常')
-  }, 900)
+async function loadSessions() {
+  sessionsError.value = ''
+  try {
+    const data = await dashboardApi.listActiveSessions()
+    const raw = Array.isArray(data) ? data : (data?.items ?? data?.records ?? data?.sessions ?? [])
+    sessions.value = (Array.isArray(raw) ? raw : []).map(normalizeSession)
+  } catch (e) {
+    sessions.value = []
+    sessionsError.value = e?.message ?? '活跃会话加载失败'
+    emit('notify', sessionsError.value)
+  }
+}
+
+async function revokeSession(id) {
+  try {
+    await dashboardApi.revokeSession(id)
+    emit('notify', '已下线该设备会话')
+    await loadSessions()
+  } catch (e) {
+    emit('notify', `下线失败：${e?.message ?? e}`)
+  }
+}
+
+const serviceStatus = ref([])
+const serviceError = ref('')
+const serviceLoading = ref(false)
+
+async function runServiceCheck() {
+  serviceLoading.value = true
+  serviceError.value = ''
+  try {
+    const data = await dashboardApi.getSystemMonitor()
+    const services = Array.isArray(data?.services) ? data.services : []
+    serviceStatus.value = services.map((s) => ({
+      name: s?.name ?? '未知服务',
+      detail: [s?.version ? `版本 ${s.version}` : '', s?.latency != null ? `${s.latency} ms` : '']
+        .filter(Boolean).join(' · ') || '—',
+      state: s?.state === 'UP' ? '正常' : (s?.state ?? '未知'),
+      color: s?.state === 'UP' ? 'teal' : 'amber',
+    }))
+  } catch (e) {
+    serviceStatus.value = []
+    serviceError.value = e?.message ?? '服务状态暂不可用'
+    emit('notify', `服务状态暂不可用：${serviceError.value}`)
+  } finally {
+    serviceLoading.value = false
+  }
 }
 
 const passwordStrength = computed(() => {
@@ -303,6 +337,11 @@ const passwordStrength = computed(() => {
 
 loadSettings()
 bootstrapPreferences()
+
+onMounted(() => {
+  loadSessions()
+  runServiceCheck()
+})
 </script>
 
 <template>
@@ -502,7 +541,7 @@ bootstrapPreferences()
       </div>
 
       <div class="settings-body">
-        <div class="settings-subhead"><strong>修改密码</strong><small>演示环境旧密码为 123456</small></div>
+        <div class="settings-subhead"><strong>修改密码</strong><small>由后端校验当前密码与密码强度</small></div>
 
         <label class="settings-row">
           <span class="settings-label"><strong>当前密码</strong><small>用于验证身份</small></span>
@@ -531,6 +570,8 @@ bootstrapPreferences()
 
         <div class="settings-subhead"><strong>登录设备</strong><small>管理已登录本账号的设备会话</small></div>
 
+        <div v-if="sessionsError" class="settings-error">{{ sessionsError }}</div>
+        <div v-else-if="!sessions.length" style="padding:8px 0;font-size:12px;color:var(--c-text-3);">暂无活跃会话</div>
         <div v-for="item in sessions" :key="item.id" class="settings-row device-row">
           <span class="settings-label device-label">
             <component :is="item.icon" :size="18" />
@@ -548,13 +589,15 @@ bootstrapPreferences()
     <section v-else-if="activeTab === 'integration'" class="panel settings-panel">
       <div class="panel-header">
         <div class="heading-actions">
-          <button class="secondary-btn" @click="runServiceCheck"><RefreshCcw :size="14" />检测服务</button>
+          <button class="secondary-btn" :disabled="serviceLoading" @click="runServiceCheck"><RefreshCcw :size="14" />{{ serviceLoading ? '检测中…' : '检测服务' }}</button>
         </div>
       </div>
 
       <div class="settings-body">
-        <div class="settings-subhead"><strong>服务状态</strong><small>实时查看平台各服务连接情况</small></div>
+        <div class="settings-subhead"><strong>服务状态</strong><small>数据来自 /api/system/monitor</small></div>
 
+        <div v-if="serviceError" class="settings-error">服务状态暂不可用：{{ serviceError }}</div>
+        <div v-else-if="!serviceStatus.length" style="padding:8px 0;font-size:12px;color:var(--c-text-3);">暂无服务状态数据</div>
         <div v-for="item in serviceStatus" :key="item.name" class="settings-row device-row">
           <span class="settings-label device-label">
             <Database :size="18" />

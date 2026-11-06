@@ -55,10 +55,6 @@ const filteredItems = computed(() => {
   return list
 })
 
-const unreadCount = computed(() =>
-  (todos.value.items ?? []).filter((t) => t.status === 'pending').length
-)
-
 const priorityColor = (priority) => ({
   high: 'var(--c-danger)',
   medium: 'var(--c-warning)',
@@ -69,64 +65,38 @@ const priorityLabel = (priority) => ({
   high: '高',
   medium: '中',
   low: '低',
-})[priority] ?? priority
+})[priority] ?? (priority || '未标注')
+
+function normalizeTodo(raw) {
+  return {
+    id: raw?.taskCode ?? raw?.id,
+    title: raw?.title ?? raw?.name ?? '未命名待办',
+    description: raw?.description ?? raw?.assignee ?? raw?.point ?? '',
+    priority: raw?.priority ?? '',
+    status: raw?.status ?? '',
+    dueDate: raw?.dueDate ?? raw?.dueAt ?? null,
+    overdue: Boolean(raw?.overdue),
+  }
+}
 
 async function loadTodos() {
   loading.value = true
   try {
-    const data = await dashboardApi.listMyTodos?.({
-      priority: filter.value.priority || undefined,
-      keyword: search.value || undefined,
-    })
-    todos.value = data ?? { items: [], total: 0 }
+    const data = await dashboardApi.listMyOpenTasks()
+    const raw = Array.isArray(data) ? data : (data?.list ?? data?.items ?? data?.records ?? [])
+    const items = (Array.isArray(raw) ? raw : []).map(normalizeTodo)
+    todos.value = { items, total: items.length }
   } catch (e) {
-    emit('notify', e.message ?? '加载待办失败')
+    todos.value = { items: [], total: 0 }
+    emit('notify', e?.message ?? '加载待办失败')
   } finally {
     loading.value = false
   }
 }
 
-async function completeTodo(id, e) {
-  e?.stopPropagation()
-  try {
-    await dashboardApi.completeTodo?.(id)
-    const t = todos.value.items.find((x) => x.id === id)
-    if (t) t.status = 'completed'
-    emit('badge-refresh')
-    emit('notify', '已完成')
-    await loadTodos()
-  } catch (e) {
-    emit('notify', e.message ?? '操作失败')
-  }
-}
-
-async function acceptTodo(id, e) {
-  e?.stopPropagation()
-  try {
-    await dashboardApi.acceptTodo?.(id)
-    const t = todos.value.items.find((x) => x.id === id)
-    if (t) t.status = 'in_progress'
-    emit('badge-refresh')
-    emit('notify', '已接受')
-    await loadTodos()
-  } catch (e) {
-    emit('notify', e.message ?? '操作失败')
-  }
-}
-
-async function rejectTodo(id, e) {
-  e?.stopPropagation()
-  try {
-    await dashboardApi.rejectTodo?.(id)
-    const t = todos.value.items.find((x) => x.id === id)
-    if (t) todos.value.items = todos.value.items.filter((x) => x.id !== id)
-    emit('badge-refresh')
-    emit('notify', '已拒绝')
-    await loadTodos()
-  } catch (e) {
-    emit('notify', e.message ?? '操作失败')
-  }
-}
+// 后端 /api/todo/* 目前只提供 GET 查询端点（summary / confirmations /
+// approvals / warnings / tasks），没有"接受 / 完成 / 拒绝待办"的写接口。
+// 因此这里不保留"点了弹成功、刷新即复原"的假按钮，统一引导到待办详情页处理。
 
 function openTodoDetail(todo) {
   router.push(`/dashboard/todo?id=${todo.id}`)
@@ -179,6 +149,10 @@ onBeforeUnmount(() => {
       </button>
     </div>
 
+    <div class="unsupported-hint">
+      后端暂不支持在待办中心直接接受 / 完成 / 拒绝，请点击条目进入待办详情处理。
+    </div>
+
     <!-- 加载中 -->
     <div v-if="loading" class="loading-state">
       <Loader2 class="spin-icon" size="20" />
@@ -210,22 +184,7 @@ onBeforeUnmount(() => {
               day: 'numeric',
             }) }}
           </span>
-          <span v-if="todo.status === 'pending'" class="status-badge">未接受</span>
-          <span v-if="todo.status === 'in_progress'" class="status-badge in">进行中</span>
-        </div>
-        <div v-if="todo.status === 'pending'" class="todo-actions">
-          <button class="action-btn accept" @click="acceptTodo(todo.id, $event)">
-            接受
-          </button>
-          <button class="action-btn reject" @click="rejectTodo(todo.id, $event)">
-            拒绝
-          </button>
-        </div>
-        <div v-else-if="todo.status === 'in_progress'" class="todo-actions">
-          <button class="action-btn complete" @click="completeTodo(todo.id, $event)">
-            <CheckCircle2 size="13" />
-            完成
-          </button>
+          <span v-if="todo.status" class="status-badge">{{ todo.status }}</span>
         </div>
       </button>
     </div>
@@ -315,6 +274,15 @@ onBeforeUnmount(() => {
   border-color: var(--c-brand);
   background: var(--c-brand-light);
   color: var(--c-brand);
+}
+
+.unsupported-hint {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--c-separator);
+  color: var(--c-text-3);
+  font-size: 11px;
+  line-height: 1.5;
+  flex-shrink: 0;
 }
 
 .loading-state,

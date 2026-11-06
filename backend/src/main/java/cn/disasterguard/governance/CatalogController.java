@@ -16,6 +16,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -77,16 +78,21 @@ public class CatalogController {
   }
 
   private final JdbcTemplate jdbcTemplate;
+  private final CatalogService catalogService;
 
   @Autowired
-  public CatalogController(@Autowired(required = false) DataSource dataSource) {
+  public CatalogController(@Autowired(required = false) DataSource dataSource,
+                           CatalogService catalogService) {
     this.jdbcTemplate = dataSource == null ? null : new JdbcTemplate(dataSource);
+    this.catalogService = catalogService;
   }
 
   /** 盘点真实库表，产出资产列表。库不可达时返回空列表（不伪造）。 */
   private List<Map<String, Object>> loadRealAssets() {
     List<Map<String, Object>> out = new ArrayList<>();
     if (jdbcTemplate == null) {
+      // 实盘库不可用时仍返回用户已登记的资产（CatalogService 用同一 DataSource）
+      out.addAll(catalogService.listRegistered());
       return out;
     }
     long fakeId = 0;
@@ -120,6 +126,8 @@ public class CatalogController {
         log.debug("资产盘点跳过表 {}: {}", table, ex.getMessage());
       }
     }
+    // 合并用户登记的数据资产（真实持久化，来自 sys_dict）
+    out.addAll(catalogService.listRegistered());
     return out;
   }
 
@@ -218,6 +226,33 @@ public class CatalogController {
     return ApiResponse.success(new PageResponse<>(items, total, page, safeSize, pages));
   }
 
+  /**
+   * 登记数据资产（POST /api/catalog/assets）。
+   *
+   * <p>复用 {@link CatalogService} 的真实持久化（现有 {@code sys_dict} 通用字典表，
+   * 不新建表 / 不改 schema），登记后资产会并入 {@link #loadRealAssets()} 出现在目录
+   * 列表与详情中，不是假成功、不是 501 桩。操作人取 SecurityContext，不信任请求体。
+   * 目录无专用写权限码，故用 hasAnyRole('ADMIN','SYSTEM_ADMIN') 兜底。
+   */
+  @PostMapping("/assets")
+  @PreAuthorize("hasAnyRole('ADMIN','SYSTEM_ADMIN')")
+  public ApiResponse<Map<String, Object>> createAsset(
+      @RequestBody(required = false) Map<String, Object> body,
+      Authentication authentication) {
+    String operator = authentication == null ? "system" : authentication.getName();
+    try {
+      Map<String, Object> created = catalogService.register(body, operator);
+      return ApiResponse.success("资产已登记", created);
+    } catch (IllegalArgumentException e) {
+      return ApiResponse.fail(400, e.getMessage());
+    } catch (IllegalStateException e) {
+      return ApiResponse.fail(503, e.getMessage());
+    } catch (Exception e) {
+      log.warn("登记数据资产失败: {}", e.getMessage());
+      return ApiResponse.fail(500, "登记数据资产失败: " + e.getMessage());
+    }
+  }
+
   @GetMapping("/assets/{id}")
   @PreAuthorize("hasAuthority('data:catalog:view')")
   public ApiResponse<Map<String, Object>> getAsset(@PathVariable Long id) {
@@ -229,13 +264,22 @@ public class CatalogController {
       return ApiResponse.fail(404, "资产不存在: " + id);
     }
 
-    String table = String.valueOf(asset.get("table"));
+    Object tableObj = asset.get("table");
+    String table = tableObj == null ? null : String.valueOf(tableObj);
     Map<String, Object> detail = new HashMap<>(asset);
-    detail.put("schema", realColumns(table));
-    detail.put("lineage", List.of(Map.of(
-        "source", "PostgreSQL 业务库",
-        "type", "TABLE",
-        "table", table)));
+    if (table == null) {
+      // 用户登记的资产没有对应实盘库表，如实给出空 schema 与 CUSTOM 血缘
+      detail.put("schema", List.of());
+      detail.put("lineage", List.of(Map.of(
+          "source", "用户登记", "type", "CUSTOM",
+          "code", asset.get("code") == null ? "" : String.valueOf(asset.get("code")))));
+    } else {
+      detail.put("schema", realColumns(table));
+      detail.put("lineage", List.of(Map.of(
+          "source", "PostgreSQL 业务库",
+          "type", "TABLE",
+          "table", table)));
+    }
     detail.put("accessInfo", Map.of(
         "apiEndpoint", "/api/catalog/assets/" + id,
         "documentation", "—",

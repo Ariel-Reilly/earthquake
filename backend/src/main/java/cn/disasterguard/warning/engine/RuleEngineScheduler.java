@@ -128,9 +128,10 @@ public class RuleEngineScheduler {
       for (Map.Entry<String, Map<String, Double>> entry : hazardMetrics.entrySet()) {
         String hazardCode = entry.getKey();
         Map<String, Double> metrics = entry.getValue();
-        if (!metrics.containsKey(rule.getMetricCode())) {
-          continue;
-        }
+        // v2.0：删除「rule.metric_code 必须命中 metrics 键」的前置门禁。
+        // 历史种子规则把 metric_code 写成复合标签（rainfall_24h_slope 等），真实指标表里
+        // 根本没有这个码，导致 6 条规则每轮都被 continue 跳过、预警链路形同虚设。
+        // 现在是否命中统一交给求值器按表达式里的真实指标名判定（缺指标返回 empty，不会误报）。
         Optional<Double> hit = WarningRuleEvaluator.evaluate(rule.getExpression(), metrics);
         if (hit.isEmpty()) {
           continue;
@@ -145,6 +146,8 @@ public class RuleEngineScheduler {
               rule.getWarningLevel(), rule.getMetricCode(), hit.get(), metrics);
           // 成功后标记为已触发，避免同一次调度内重复命中
           openWarningKeys.add(rule.getRuleCode() + "|" + hazardCode);
+          log.info("规则命中并生成预警 rule={} hazard={} metric={} value={}",
+              rule.getRuleCode(), hazardCode, rule.getMetricCode(), hit.get());
         } catch (Exception ex) {
           // 单条预警创建失败不应中断整个调度周期
           log.warn("规则 [{}] 创建预警失败 hazard={}: {}", rule.getRuleCode(), hazardCode, ex.getMessage());

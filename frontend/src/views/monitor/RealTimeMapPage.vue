@@ -24,7 +24,6 @@ import {
   Ruler,
   Satellite,
   Cpu,
-  Sun,
   Target,
   X,
   AlertCircle,
@@ -75,6 +74,8 @@ async function bootstrapMap() {
     mapController = await createOpenLayersController(mapContainer.value, {
       baseMap: mapStyle.value,
     })
+    // 瓦片加载失败如实提示，并由 mapService 自动切换到备用影像源
+    mapController.onTileError?.((message) => emit("notify", message))
     mapReady.value = true
     await loadAllOverlays()
     buildTimeline()
@@ -134,7 +135,7 @@ function changeMapStyle(style) {
   mapStyle.value = style
   // 真实 API：setMode；getMode 也存在；旧名 setBaseStyle/setBaseMap 都不存在
   mapController?.setMode?.(style)
-  emit("notify", `已切换到${style === "satellite" ? "卫星" : style === "terrain" ? "地形" : "矢量"}底图`)
+  emit("notify", style === "satellite" ? "卫星影像：纯影像模式" : "卫星影像：已开启地名注记")
 }
 
 function toggleLayer(key) {
@@ -209,10 +210,11 @@ onBeforeUnmount(() => {
   if (trackMapCtrl?.destroy) trackMapCtrl.destroy()
 })
 
+// 底图只有合规卫星影像一种数据源；两个模式分别控制是否叠加地名注记。
+// 旧的「地形」选项是假选项（setBaseMap 会把它当成矢量处理，UI 却提示已切地形），已移除。
 const mapStyleOptions = [
-  { id: "vector", label: "矢量", icon: MapPin },
-  { id: "satellite", label: "卫星", icon: Satellite },
-  { id: "terrain", label: "地形", icon: Sun },
+  { id: "vector", label: "影像+注记", icon: MapPin },
+  { id: "satellite", label: "纯影像", icon: Satellite },
 ]
 
 const layerMeta = [

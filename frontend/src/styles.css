@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap');
+/* 境外 Google Fonts 已移除：境内不可达且被 CSP style-src 拦截，改为下方 --font 系统字体栈。 */
 
 /* ═══════════════════════════════════════════════════════════
    DESIGN TOKENS  设计系统变量 (莫兰迪绿·统一版)
@@ -137,9 +137,16 @@
   --z-sidebar: 45;                    /* 高于顶栏(--z-top:40)，低于弹窗(--z-modal:50)；移动端遮罩为 44 */
   --sidebar-w-icon: 72px;             /* 平板图标态侧栏宽度；缺失时 width 声明整条失效 */
 
-  /* ── 8px 间距系统 ── */
+  /* ── 8px 间距系统 ──
+     2026-11-05 补齐中间档：--sp-2/3/5/6/10 在 33 处被引用却从未定义，
+     浏览器会丢弃整条声明（padding/gap 退化为 0），check:tokens 判定阻断。 */
+  --sp-2: 2px;
+  --sp-3: 3px;
   --sp-4: 4px;
+  --sp-5: 5px;
+  --sp-6: 6px;
   --sp-8: 8px;
+  --sp-10: 10px;
   --sp-12: 12px;
   --sp-16: 16px;
   --sp-24: 24px;

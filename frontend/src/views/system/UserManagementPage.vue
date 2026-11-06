@@ -218,24 +218,7 @@ async function save() {
     editDialog.value = false
     await loadUsers()
   } catch (e) {
-    // fallback：本地修改
-    if (isNew.value) {
-      const newUser = {
-        ...editingUser.value,
-        id: Date.now(),
-        lastLogin: '—',
-      }
-      users.value.items.unshift(newUser)
-      users.value.total += 1
-      emit('notify', '用户创建成功（本地缓存，后端连接后自动同步）')
-    } else {
-      const idx = users.value.items.findIndex((u) => u.id === editingUser.value.id)
-      if (idx !== -1) {
-        users.value.items[idx] = { ...editingUser.value }
-      }
-      emit('notify', '用户已更新（本地缓存，后端连接后自动同步）')
-    }
-    editDialog.value = false
+    emit('notify', `保存失败：${e?.message ?? e}`)
   } finally {
     saving.value = false
   }
@@ -263,13 +246,7 @@ async function remove(user) {
     emit('notify', '用户已删除')
     await loadUsers()
   } catch (e) {
-    // fallback：本地删除
-    const idx = users.value.items.findIndex((u) => u.id === user.id)
-    if (idx !== -1) {
-      users.value.items.splice(idx, 1)
-      users.value.total -= 1
-    }
-    emit('notify', '用户已删除（本地缓存，后端连接后自动同步）')
+    emit('notify', `删除失败：${e?.message ?? e}`)
   }
 }
 
@@ -280,9 +257,7 @@ async function toggleEnabled(user) {
     user.enabled = targetState
     emit('notify', `已${targetState ? '启用' : '禁用'} ${user.name}`)
   } catch (e) {
-    // fallback：本地修改
-    user.enabled = targetState
-    emit('notify', `已${targetState ? '启用' : '禁用'} ${user.name}（本地缓存，后端连接后自动同步）`)
+    emit('notify', `操作失败：${e?.message ?? e}`)
   }
 }
 
@@ -303,9 +278,7 @@ async function doResetPassword() {
     emit('notify', `${resettingUser.value.name} 的密码已重置`)
     resetDialog.value = false
   } catch (e) {
-    // fallback：本地模拟成功
-    emit('notify', `${resettingUser.value.name} 的密码已重置（本地缓存，后端连接后自动同步）`)
-    resetDialog.value = false
+    emit('notify', `重置密码失败：${e?.message ?? e}`)
   } finally {
     resetSaving.value = false
   }

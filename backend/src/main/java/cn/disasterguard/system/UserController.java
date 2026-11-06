@@ -2,6 +2,8 @@ package cn.disasterguard.system;
 
 import cn.disasterguard.auth.entity.SysUser;
 import cn.disasterguard.auth.repository.SysUserRepository;
+import cn.disasterguard.audit.entity.OperationLog;
+import cn.disasterguard.audit.repository.OperationLogRepository;
 import cn.disasterguard.common.api.ApiResponse;
 import java.time.OffsetDateTime;
 import java.util.LinkedHashMap;
@@ -10,6 +12,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -53,10 +57,14 @@ public class UserController {
 
   private final SysUserRepository userRepository;
   private final PasswordEncoder passwordEncoder;
+  private final OperationLogRepository operationLogRepository;
 
-  public UserController(SysUserRepository userRepository, PasswordEncoder passwordEncoder) {
+  public UserController(SysUserRepository userRepository,
+                        PasswordEncoder passwordEncoder,
+                        OperationLogRepository operationLogRepository) {
     this.userRepository = userRepository;
     this.passwordEncoder = passwordEncoder;
+    this.operationLogRepository = operationLogRepository;
   }
 
   @GetMapping
@@ -182,6 +190,78 @@ public class UserController {
     }
     userRepository.deleteById(id);
     return ApiResponse.success("删除成功", null);
+  }
+
+  /**
+   * 重置用户密码（POST /api/users/{id}/reset-password）。
+   *
+   * <p>密码用 BCrypt {@link PasswordEncoder} 编码后落库；操作人从 SecurityContext 取，
+   * <b>不信任请求体里的 operator</b>；并显式写一条 {@code operation_log} 审计
+   * （AOP 切面还会另写一条通用写操作审计，两者互不冲突）。
+   */
+  @PostMapping("/{id}/reset-password")
+  @PreAuthorize("hasAuthority('users:edit')")
+  public ApiResponse<Map<String, Object>> resetPassword(
+      @PathVariable Long id,
+      @RequestBody(required = false) Map<String, Object> body) {
+    SysUser user = userRepository.findById(id).orElse(null);
+    if (user == null) {
+      return ApiResponse.fail(404, "用户不存在");
+    }
+    String newPassword = body == null ? null : str(body.get("newPassword"));
+    if (isBlank(newPassword) || newPassword.length() < 6) {
+      return ApiResponse.fail(400, "新密码至少 6 个字符");
+    }
+
+    user.setPasswordHash(passwordEncoder.encode(newPassword));
+    user.setUpdatedAt(OffsetDateTime.now());
+    userRepository.save(user);
+
+    String operator = currentOperator();
+    writeResetAudit(operator, id, user.getUsername());
+
+    Map<String, Object> data = new LinkedHashMap<>();
+    data.put("id", id);
+    data.put("username", user.getUsername());
+    data.put("operator", operator);
+    data.put("resetAt", OffsetDateTime.now().toString());
+    return ApiResponse.success("密码已重置", data);
+  }
+
+  /** 显式审计：只记录非敏感摘要，绝不写入明文密码。 */
+  private void writeResetAudit(String operator, Long targetUserId, String targetUsername) {
+    OperationLog op = new OperationLog();
+    op.setOperator(operator);
+    op.setModuleName("system");
+    op.setActionName("reset-password");
+    op.setRequestMethod("POST");
+    op.setRequestPath("/api/users/" + targetUserId + "/reset-password");
+    op.setRequestBody("{\"targetUserId\":" + targetUserId
+        + ",\"targetUsername\":\"" + targetUsername + "\"}");
+    op.setResultStatus("SUCCESS");
+    op.setCostMs(0L);
+    op.setCreatedAt(OffsetDateTime.now());
+    try {
+      operationLogRepository.save(op);
+    } catch (Exception ignored) {
+      // 审计写入失败不影响主流程（密码已成功重置）
+    }
+  }
+
+  private String currentOperator() {
+    Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+    if (auth != null && auth.getName() != null && !auth.getName().isBlank()) {
+      return auth.getName();
+    }
+    return "system";
+  }
+
+  private String str(Object v) {
+    return v == null ? null : String.valueOf(v);
+  }
+
+  private boolean isBlank(String s) {
+    return s == null || s.isBlank();
   }
 
   private Map<String, Object> toDto(SysUser u) {

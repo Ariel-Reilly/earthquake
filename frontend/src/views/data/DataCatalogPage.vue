@@ -322,30 +322,13 @@ async function submitNew() {
       description: newForm.value.description,
       tags: newTags.value,
     }
-    try {
-      // 优先调用后端 API
-      const created = await dashboardApi.createCatalogAsset(payload)
-      assets.value = [created, ...assets.value]
-      kpi.value.total += 1
-      emit("notify", `已新增资源《${created.name ?? payload.name}》`)
-    } catch (apiErr) {
-      // 后端不可用时本地登记
-      const local = {
-        id: `local-${Date.now()}`,
-        ...payload,
-        fieldCount: 0, storage: "—", frequency: "—",
-        lineageUp: [], lineageDown: [], fields: [],
-        creator: "当前用户",
-        createdAt: new Date().toISOString().slice(0, 10),
-        recent7dQueries: 0,
-      }
-      assets.value = [local, ...assets.value]
-      kpi.value.total += 1
-      emit("notify", `已新增资源《${local.name}》（本地登记，后端连接后自动同步）`)
-    }
+    const created = await dashboardApi.createCatalogAsset(payload)
+    assets.value = [created, ...assets.value]
+    kpi.value.total += 1
+    emit("notify", `已新增资源《${created?.name ?? payload.name}》`)
     newDialogOpen.value = false
   } catch (e) {
-    emit("notify", e?.message ?? "新增失败")
+    emit("notify", `新增失败：${e?.message ?? e}`)
   } finally { newSubmitting.value = false }
 }
 

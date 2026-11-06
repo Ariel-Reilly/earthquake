@@ -122,10 +122,23 @@ const createRef = ref(null)
 
 const role = computed(() => getAuthRole())
 
-/** 可新建的条目。现在只有"新建预警"，其他待补充。 */
+/**
+ * 可新建的条目。现在只有"新建预警"，其他待补充。
+ *
+ * path 只用于权限判定（必须是真实菜单路径，canAccessPath 走前缀匹配）；
+ * target 才是实际跳转地址：列表页用 ?create=1 自行唤起创建弹窗。
+ * 历史写法直接跳 /dashboard/warnings/create，那是被重定向回列表的壳路由，
+ * 点完只会回到列表、丢掉"我要新建"的意图。
+ */
 const createItems = computed(() => {
   const candidates = [
-    { label: '新建预警', path: '/dashboard/warnings/create', icon: Siren, permission: 'warnings:create' },
+    {
+      label: '新建预警',
+      path: '/dashboard/warnings',
+      target: '/dashboard/warnings?create=1',
+      icon: Siren,
+      permission: 'warnings:create',
+    },
   ]
   return candidates.filter((item) =>
     canAccessPath(role.value, item.path) &&
@@ -143,8 +156,15 @@ function closeCreate() {
   createOpen.value = false
 }
 
-function goToCreate(path) {
-  emit('navigate', path)
+/**
+ * 跳转到目标地址并收起下拉。
+ * 传入的是 item.target（可能带 query），MainLayout 用 route.path 做去重比较，
+ * 因此带 query 的地址不会被误判为"当前页"而静默丢弃。
+ *
+ * @param {string} target - 目标地址（含 query）
+ */
+function goToCreate(target) {
+  emit('navigate', target)
   closeCreate()
 }
 
@@ -284,7 +304,7 @@ onBeforeUnmount(() => {
                 :key="item.path"
                 type="button"
                 class="create-dropdown-item"
-                @click="goToCreate(item.path)"
+                @click="goToCreate(item.target)"
               >
                 <component :is="item.icon" :size="16" />
                 <span>{{ item.label }}</span>

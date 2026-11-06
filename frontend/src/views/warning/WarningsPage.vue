@@ -5,9 +5,9 @@
  *   - AI 综合分析模块跑出 source=AI_AUTO 的预警事件会被自动关联 AI 评分
  *   - v1.7.0+：「活跃 / 已解除归档」双 Tab；关闭操作走原因弹窗；归档项展示关闭原因与时间
  */
-import { computed, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { AlertTriangle, Archive, ArchiveRestore, Bell, FileText, Layers3, MapPin, MessageSquareText, ShieldCheck, UsersRound, Send, CheckCircle2, XCircle, RotateCcw, ShieldAlert, Inbox } from 'lucide-vue-next'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { AlertTriangle, Archive, ArchiveRestore, ArrowRight, Bell, Check, Download, FileText, Layers3, MapPin, MessageSquareText, ShieldCheck, UsersRound, Send, CheckCircle2, RotateCcw, ShieldAlert, Inbox, Zap } from 'lucide-vue-next'
 import PermissionButton from '../../components/PermissionButton.vue'
 import SkeletonList from '../../components/common/SkeletonList.vue'
 import WarningCreateModal from '../../components/WarningCreateModal.vue'
@@ -17,6 +17,7 @@ import { useEscapeClose } from '../../composables/useEscapeClose'
 const emit = defineEmits(['notify'])
 const props = defineProps({ userRole: { type: String, default: 'admin' } })
 const router = useRouter()
+const route = useRoute()
 const warnings = ref([])
 const selectedWarningId = ref(null)
 const showAll = ref(false)
@@ -68,6 +69,41 @@ const escalationHint = computed(() => {
   if (/蓝/.test(level)) return '蓝色：常规处置，持续关注变化趋势'
   return '按预警等级采取对应处置策略'
 })
+
+/* ===================== 视觉语义工具 ===================== */
+
+/**
+ * 预警等级 → 语义色调。
+ * 与详情页「处置时间轴」的圆点配色同源，保证两页看到同一条预警时颜色一致。
+ * 注意：文字一律用 --color-foreground，色调只落在图形（图标/底色）上——
+ * 莫兰迪色板在浅底上的文字对比度普遍低于 4.5:1，只适合做非文本图形。
+ *
+ * @param {string} level 预警等级文案，如「橙色预警」
+ * @returns {'destructive'|'warning'|'caution'|'info'|'neutral'}
+ */
+function levelTone(level) {
+  const s = String(level ?? '')
+  if (s.includes('红')) return 'destructive'
+  if (s.includes('橙')) return 'warning'
+  if (s.includes('黄')) return 'caution'
+  if (s.includes('蓝')) return 'info'
+  return 'neutral'
+}
+
+/** 列表项色调：优先按等级文字判定，其次回落到后端下发的 cssClass */
+function toneOf(warning) {
+  const tone = levelTone(warning?.level)
+  if (tone !== 'neutral') return tone
+  const cls = String(warning?.cssClass ?? warning?.class ?? '')
+  if (cls.includes('red')) return 'destructive'
+  if (cls.includes('orange')) return 'warning'
+  if (cls.includes('yellow')) return 'caution'
+  if (cls.includes('blue')) return 'info'
+  return 'neutral'
+}
+
+/** 当前选中预警关联的 AI 综合评分（右侧面板用） */
+const aiInfo = computed(() => getAiForHazard(selectedWarning.value?.hazardCode) ?? null)
 
 /* ===================== KPI 计算（无真实数据时显示 —） ===================== */
 
@@ -125,6 +161,60 @@ const disposalProgress = computed(() => {
   if (status === '已解除' || status === '已关闭' || status === '已忽略') return 100
   return null
 })
+
+/**
+ * 顶部四张统计卡片（数据驱动）。
+ * 模板里只保留一段 v-for，条件判断集中在这里，避免四段硬编码各写一遍。
+ */
+const statCards = computed(() => {
+  const confirmedCount = warnings.value.filter((w) => w.status === '已确认').length
+  const notifyRate = notificationRateDisplay.value
+  const deptCount = deptCountDisplay.value
+  return [
+    {
+      key: 'active',
+      label: '未闭环预警',
+      icon: Bell,
+      value: activeWarnings.value.length,
+      unit: '起',
+      note: '需快速处置',
+    },
+    {
+      key: 'confirmed',
+      label: '已确认预警',
+      icon: ShieldCheck,
+      value: confirmedCount,
+      unit: '起',
+      note: '闭环处理中',
+    },
+    {
+      key: 'notify',
+      label: '消息通知',
+      icon: MessageSquareText,
+      value: notifyRate,
+      unit: notifyRate != null ? '%' : '',
+      note: '全渠道触达',
+    },
+    {
+      key: 'dept',
+      label: '联动部门',
+      icon: UsersRound,
+      value: deptCount,
+      unit: deptCount != null ? '个' : '',
+      note: '协同响应',
+    },
+  ]
+})
+
+/** 导出预警报告（列表头部与处置面板共用同一入口） */
+async function exportReport() {
+  try {
+    const result = await dashboardApi.exportWarningReport()
+    emit('notify', `已导出 ${result.fileName}`)
+  } catch (error) {
+    emit('notify', error instanceof Error ? error.message : '导出失败')
+  }
+}
 
 /** Tab 切换时若选中已不在新列表内，自动落到当前首条 */
 function switchTab(tab) {
@@ -379,6 +469,25 @@ async function handleCreateSuccess(warning) {
   await loadData(1)
 }
 
+/**
+ * 顶栏「新建预警」通过 ?create=1 唤起本页弹窗。
+ *
+ * 打开后立即用 replace 摘掉该参数：否则用户手动关掉弹窗后，
+ * 再次点顶栏会 push 到完全相同的 URL，vue-router 判定为重复导航而不再触发 watch，
+ * 弹窗就再也弹不出来。
+ *
+ * @returns {void}
+ */
+function openCreateFromQuery() {
+  if (String(route.query.create) !== '1') return
+  openCreateModal()
+  const query = { ...route.query }
+  delete query.create
+  router.replace({ path: route.path, query }).catch(() => {})
+}
+
+watch(() => route.query.create, openCreateFromQuery, { immediate: true })
+
 /* ===================== 兼容旧调用入口（内部走弹窗） ===================== */
 
 async function closeWarning() {
@@ -415,10 +524,18 @@ onMounted(loadData)
     </div>
     <template v-else>
       <div class="stats-grid">
-        <div class="stat-card"><div class="stat-icon orange"><Bell :size="19" /></div><div class="stat-copy"><span>未闭环预警</span><strong>{{ activeWarnings.length }} <small>起</small></strong><em class="negative">需快速处置 <i>重点升级</i></em></div></div>
-        <div class="stat-card"><div class="stat-icon blue"><ShieldCheck :size="19" /></div><div class="stat-copy"><span>已确认预警</span><strong>{{ warnings.filter((warning) => warning.status === '已确认').length }} <small>起</small></strong><em class="positive">闭环处理 <i>流程规范</i></em></div></div>
-        <div class="stat-card"><div class="stat-icon teal"><MessageSquareText :size="19" /></div><div class="stat-copy"><span>消息通知</span><strong>{{ notificationRateDisplay != null ? notificationRateDisplay : '—' }} <small>{{ notificationRateDisplay != null ? '%' : '' }}</small></strong><em class="positive">全渠道触达 <i>短信/APP</i></em></div></div>
-        <div class="stat-card"><div class="stat-icon purple"><UsersRound :size="19" /></div><div class="stat-copy"><span>联动部门</span><strong>{{ deptCountDisplay != null ? deptCountDisplay : '—' }} <small>{{ deptCountDisplay != null ? '个' : '' }}</small></strong><em class="positive">协同响应 <i>专家/乡镇/运维</i></em></div></div>
+        <article v-for="card in statCards" :key="card.key" class="stat-card">
+          <span class="stat-icon">
+            <component :is="card.icon" :size="15" />
+          </span>
+          <div class="stat-copy">
+            <span class="stat-label">{{ card.label }}</span>
+            <strong :class="{ 'is-empty': card.value === 0 || card.value == null }">
+              {{ card.value == null ? '—' : card.value }}<small v-if="card.value != null">{{ card.unit }}</small>
+            </strong>
+          </div>
+          <em class="stat-note">{{ card.note }}</em>
+        </article>
       </div>
 
       <div class="content-grid">
@@ -451,16 +568,12 @@ onMounted(loadData)
               </button>
             </div>
             <div class="heading-actions">
-              <PermissionButton permission="warnings:create" :icon="Send" @click="({ allowed, reason }) => allowed ? openCreateModal() : emit('notify', reason)">发布预警</PermissionButton>
-              <PermissionButton v-if="statusTab === 'active'" permission="warnings:dispatch" :icon="Send" @click="async ({ allowed, reason }) => {
-                if (!allowed) return emit('notify', reason)
-                await dispatchWarning()
-              }">派发</PermissionButton>
-              <PermissionButton permission="warnings:export" :icon="FileText" @click="async ({ allowed, reason }) => {
-                if (!allowed) return emit('notify', reason)
-                const result = await dashboardApi.exportWarningReport()
-                emit('notify', `已导出 ${result.fileName}`)
-              }">导出</PermissionButton>
+              <PermissionButton
+                class="action-secondary"
+                permission="warnings:create"
+                :icon="Send"
+                @click="({ allowed, reason }) => allowed ? openCreateModal() : emit('notify', reason)"
+              >发布预警</PermissionButton>
             </div>
           </div>
           <div v-if="currentList.length === 0" class="empty-state">
@@ -468,28 +581,45 @@ onMounted(loadData)
             <p>{{ statusTab === 'archived' ? '暂无已归档的预警事件' : '当前没有活跃预警，态势平稳' }}</p>
           </div>
           <div v-else class="warning-list">
-            <article v-for="warning in visibleWarnings" :key="warning.id" class="warning-item" :class="{ archived: isArchived(warning) }" @click="openDetail(warning)">
-              <div class="warning-symbol" :class="warning.cssClass ?? warning.class ?? 'orange'">{{ isArchived(warning) ? '✓' : '!' }}</div>
+            <article
+              v-for="warning in visibleWarnings"
+              :key="warning.id"
+              class="warning-item"
+              :class="{ 'is-archived': isArchived(warning), 'is-selected': warning.id === selectedWarningId }"
+              @click="openDetail(warning)"
+            >
+              <span class="warning-symbol" :class="`tone-${toneOf(warning)}`">
+                <Check v-if="isArchived(warning)" :size="14" />
+                <AlertTriangle v-else :size="14" />
+              </span>
               <div class="warning-body">
                 <div class="warning-title">
                   <strong>{{ warning.title }}</strong>
-                  <span :class="warning.cssClass ?? warning.class ?? 'orange'">{{ warning.level }}</span>
-                  <span v-if="warning.aiScore != null" class="ai-priority-tag" :title="`AI 综合分 ${warning.aiScore.toFixed(1)}（${warning.aiLevel}）`">
+                  <span class="level-badge" :class="`tone-${toneOf(warning)}`">
+                    <i class="level-dot"></i>{{ warning.level }}
+                  </span>
+                  <span
+                    v-if="warning.aiScore != null"
+                    class="ai-priority-tag"
+                    :title="`AI 综合分 ${warning.aiScore.toFixed(1)}（${warning.aiLevel}）`"
+                  >
                     <ShieldAlert :size="11" /> {{ Math.round(warning.aiScore) }}
                   </span>
                   <span v-if="isArchived(warning)" class="archived-tag">{{ warning.status }}</span>
                 </div>
-                <p>{{ warning.desc }}</p>
-                <small>
-                  <MapPin :size="12" />{{ warning.point }}<time>{{ warning.time }}</time>
-                  <template v-if="isArchived(warning) && (warning.closeReason || warning.closedAt)">
-                    <span class="archive-meta">
-                      <ArchiveRestore :size="12" />
-                      {{ warning.closeReason ?? '无原因记录' }}
-                      <em v-if="warning.closedAt">· {{ warning.closedAt }}</em>
-                    </span>
-                  </template>
-                </small>
+                <div class="warning-meta">
+                  <span class="warning-desc">{{ warning.desc }}</span>
+                  <span class="warning-point"><MapPin :size="12" />{{ warning.point }}</span>
+                  <time class="warning-time">{{ warning.time }}</time>
+                </div>
+                <p
+                  v-if="isArchived(warning) && (warning.closeReason || warning.closedAt)"
+                  class="archive-meta"
+                >
+                  <ArchiveRestore :size="12" />
+                  {{ warning.closeReason ?? '无原因记录' }}
+                  <em v-if="warning.closedAt">· {{ warning.closedAt }}</em>
+                </p>
               </div>
             </article>
           </div>
@@ -506,64 +636,139 @@ onMounted(loadData)
         </section>
 
         <section class="panel system-panel">
-          <div class="panel-header compact">
-            <div>
+          <header class="panel-header compact system-head">
+            <div class="system-head-title">
               <h2>预警处置</h2>
               <p>当前预警的闭环状态</p>
             </div>
-            <span class="health-label"><i></i>{{ selectedWarning?.status }}</span>
-          </div>
-          <div v-if="selectedWarning" class="system-list">
-            <div><span><Bell :size="16" />预警等级</span><strong>{{ selectedWarning.level }}</strong></div>
-            <div><span><Layers3 :size="16" />触发点位</span><strong>{{ selectedWarning.point }}</strong></div>
-            <div><span><AlertTriangle :size="16" />触发时间</span><strong>{{ selectedWarning.time }}</strong></div>
-            <div><span><FileText :size="16" />当前状态</span><strong>{{ selectedWarning.status }}</strong></div>
-            <div v-if="selectedWarning.closeReason"><span><RotateCcw :size="16" />关闭原因</span><strong>{{ selectedWarning.closeReason }}</strong></div>
-            <div v-if="getAiForHazard(selectedWarning.hazardCode)">
-              <span><ShieldAlert :size="16" />AI 综合评分</span>
-              <strong :class="`ai-tag-${getAiForHazard(selectedWarning.hazardCode)?.riskLevel?.toLowerCase()}`">
-                {{ (getAiForHazard(selectedWarning.hazardCode)?.riskScore ?? 0).toFixed(1) }} 分 ·
-                {{ translateLevel(getAiForHazard(selectedWarning.hazardCode)?.riskLevel) }}
-              </strong>
+            <div class="system-head-tools">
+              <span class="health-label"><i></i>{{ selectedWarning?.status ?? '—' }}</span>
+              <span class="icon-btn-slot">
+                <PermissionButton
+                  permission="warnings:export"
+                  :icon="Download"
+                  aria-label="导出预警报告"
+                  @click="async ({ allowed, reason }) => {
+                    if (!allowed) return emit('notify', reason)
+                    await exportReport()
+                  }"
+                />
+              </span>
+            </div>
+          </header>
+
+          <div v-if="selectedWarning" class="system-body">
+            <!-- 当前预警概要：标题 + 处置进度条 + 分级策略 -->
+            <div class="dispatch-overview">
+              <strong class="dispatch-title">{{ selectedWarning.title }}</strong>
+              <p class="dispatch-desc">{{ selectedWarning.desc }}</p>
+              <div class="dispatch-progress">
+                <div class="dispatch-progress-track">
+                  <i :style="{ width: (disposalProgress ?? 0) + '%' }"></i>
+                </div>
+                <span class="dispatch-progress-text">
+                  {{ disposalProgress != null ? `处置进度 ${disposalProgress}%` : '处置进度待计算' }}
+                </span>
+              </div>
+              <p class="dispatch-hint"><Zap :size="13" />{{ escalationHint }}</p>
+            </div>
+
+            <!-- 基础信息：两栏紧凑网格 -->
+            <div class="system-grid">
+              <div class="system-item">
+                <span class="system-item-label"><Bell :size="13" />预警等级</span>
+                <strong class="system-item-value" :class="`tone-${toneOf(selectedWarning)}`">
+                  <i class="level-dot"></i>{{ selectedWarning.level }}
+                </strong>
+              </div>
+              <div class="system-item">
+                <span class="system-item-label"><Layers3 :size="13" />触发点位</span>
+                <strong class="system-item-value">{{ selectedWarning.point }}</strong>
+              </div>
+              <div class="system-item">
+                <span class="system-item-label"><AlertTriangle :size="13" />触发时间</span>
+                <strong class="system-item-value is-time">{{ selectedWarning.time }}</strong>
+              </div>
+              <div class="system-item">
+                <span class="system-item-label"><FileText :size="13" />当前状态</span>
+                <strong class="system-item-value">{{ selectedWarning.status }}</strong>
+              </div>
+              <div v-if="aiInfo" class="system-item">
+                <span class="system-item-label"><ShieldAlert :size="13" />AI 综合评分</span>
+                <strong class="system-item-value">
+                  {{ (aiInfo.riskScore ?? 0).toFixed(1) }} 分 · {{ translateLevel(aiInfo.riskLevel) }}
+                </strong>
+              </div>
+              <div v-if="selectedWarning.closeReason" class="system-item is-wide">
+                <span class="system-item-label"><RotateCcw :size="13" />关闭原因</span>
+                <strong class="system-item-value">{{ selectedWarning.closeReason }}</strong>
+              </div>
             </div>
           </div>
-          <div v-if="selectedWarning" class="task-summary">
-            <div class="progress-ring"><span>{{ disposalProgress != null ? disposalProgress : '—' }}<small>{{ disposalProgress != null ? '%' : '' }}</small></span></div>
-            <div class="task-overview">
-              <strong>{{ selectedWarning.title }}</strong>
-              <span>{{ selectedWarning.desc }}</span>
-              <div class="task-bars"><i style="width: 78%"></i></div>
-              <p>{{ escalationHint }}</p>
-            </div>
+
+          <div v-else class="system-empty">
+            <Inbox :size="22" />
+            <p>当前没有可处置的预警</p>
           </div>
-          <div class="heading-actions" style="padding: 0 20px 18px; justify-content: flex-end;">
-            <PermissionButton v-if="selectedWarning?.status === '待确认' || selectedWarning?.status === '已确认'" permission="warnings:confirm" :icon="CheckCircle2" @click="async ({ allowed, reason }) => {
-              if (!allowed) return emit('notify', reason)
-              await confirmWarning()
-            }">确认</PermissionButton>
-            <PermissionButton v-if="selectedWarning && !isArchived(selectedWarning)" permission="warnings:dispatch" :icon="Send" @click="async ({ allowed, reason }) => {
-              if (!allowed) return emit('notify', reason)
-              await dispatchWarning()
-            }">派发</PermissionButton>
-            <PermissionButton v-if="selectedWarning && !ARCHIVED_STATUSES.includes(selectedWarning.status)" permission="warnings:close" :icon="XCircle" @click="async ({ allowed, reason }) => {
-              if (!allowed) return emit('notify', reason)
-              await closeWarning()
-            }">关闭</PermissionButton>
-            <PermissionButton v-if="selectedWarning?.status === '待确认'" permission="warnings:close" :icon="RotateCcw" @click="async ({ allowed, reason }) => {
-              if (!allowed) return emit('notify', reason)
-              await dismissWarning()
-            }">误报</PermissionButton>
-            <PermissionButton v-if="selectedWarning?.status === '处理中' || selectedWarning?.status === '已派发'" permission="warnings:close" :icon="RotateCcw" @click="async ({ allowed, reason }) => {
-              if (!allowed) return emit('notify', reason)
-              await resolveWarning()
-            }">自动解除</PermissionButton>
-            <PermissionButton permission="warnings:export" :icon="FileText" @click="async ({ allowed, reason }) => {
-              if (!allowed) return emit('notify', reason)
-              const result = await dashboardApi.exportWarningReport()
-              emit('notify', `已导出 ${result.fileName}`)
-            }">导出</PermissionButton>
-            <button class="primary-btn" @click="openDetail">查看详情页</button>
-          </div>
+
+          <!-- 操作区：主按钮（查看详情）+ 次要按钮（派发/确认）+ 危险 Ghost（关闭/解除） -->
+          <footer class="system-actions">
+            <PermissionButton
+              v-if="selectedWarning && (selectedWarning.status === '待确认' || selectedWarning.status === '已确认')"
+              class="action-secondary"
+              permission="warnings:confirm"
+              :icon="CheckCircle2"
+              @click="async ({ allowed, reason }) => {
+                if (!allowed) return emit('notify', reason)
+                await confirmWarning()
+              }"
+            >确认</PermissionButton>
+
+            <PermissionButton
+              v-if="selectedWarning && !isArchived(selectedWarning)"
+              class="action-secondary"
+              permission="warnings:dispatch"
+              :icon="Send"
+              @click="async ({ allowed, reason }) => {
+                if (!allowed) return emit('notify', reason)
+                await dispatchWarning()
+              }"
+            >派发</PermissionButton>
+
+            <PermissionButton
+              v-if="selectedWarning && selectedWarning.status === '待确认'"
+              class="action-danger"
+              permission="warnings:close"
+              @click="async ({ allowed, reason }) => {
+                if (!allowed) return emit('notify', reason)
+                await dismissWarning()
+              }"
+            >标记误报</PermissionButton>
+
+            <PermissionButton
+              v-if="selectedWarning && (selectedWarning.status === '处理中' || selectedWarning.status === '已派发')"
+              class="action-danger"
+              permission="warnings:close"
+              @click="async ({ allowed, reason }) => {
+                if (!allowed) return emit('notify', reason)
+                await resolveWarning()
+              }"
+            >自动解除</PermissionButton>
+
+            <PermissionButton
+              v-if="selectedWarning && !ARCHIVED_STATUSES.includes(selectedWarning.status)"
+              class="action-danger"
+              permission="warnings:close"
+              @click="async ({ allowed, reason }) => {
+                if (!allowed) return emit('notify', reason)
+                await closeWarning()
+              }"
+            >关闭</PermissionButton>
+
+            <button class="action-primary" type="button" @click="openDetail">
+              查看详情<ArrowRight :size="14" />
+            </button>
+          </footer>
         </section>
       </div>
 
@@ -626,7 +831,755 @@ onMounted(loadData)
 </template>
 
 <style scoped>
+/* ═══════════════════════════════════════════════════════════
+   预警中心列表页 —— 与详情页同一套 UI 语言
+   tokens 来源：frontend/design-system/disasterguard/tokens.css
+   规则：小字一律 --color-foreground / --color-muted-foreground；
+        莫兰迪色调只落在图形（图标 / 底色 / 描边）上，避免浅底文字对比度不足。
+   ═══════════════════════════════════════════════════════════ */
+
 .loading-container {
-  padding: 24px;
+  padding: var(--space-lg);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   1. 顶部统计卡片（压扁版）
+   ═══════════════════════════════════════════════════════════ */
+.stats-grid {
+  gap: var(--space-md);
+}
+
+.stat-card {
+  min-height: 0;
+  padding: var(--space-md) var(--space-lg);
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-card);
+  box-shadow: var(--shadow-xs);
+  transition: box-shadow var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out);
+}
+
+.stat-card:hover {
+  transform: none;
+  top: 0;
+  border-color: var(--color-border-hover);
+  box-shadow: var(--shadow-sm);
+}
+
+/* 小图标：浅色底圈，颜色统一走 primary-soft */
+.stat-icon {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-full);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+.stat-copy {
+  min-width: 0;
+}
+
+.stat-copy .stat-label {
+  display: block;
+  color: var(--color-muted-foreground);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stat-copy strong {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+  margin-top: 2px;
+  color: var(--color-foreground);
+  font-size: var(--text-3xl);
+  font-weight: var(--font-bold);
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 数值单位：跟着字号缩小，不抢主数字 */
+.stat-copy strong small {
+  margin-left: 0;
+  color: var(--color-tertiary);
+  font-size: var(--text-xs);
+  font-weight: var(--font-medium);
+}
+
+/* 0 或「—」时降级为弱化色，避免大号数字抢戏 */
+.stat-copy strong.is-empty {
+  color: var(--color-muted-foreground);
+}
+
+.stat-note {
+  margin-left: auto;
+  padding-left: var(--space-sm);
+  color: var(--color-tertiary);
+  font-size: var(--text-xs);
+  font-style: normal;
+  white-space: nowrap;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   2. 按钮体系：主 / 次 / 危险 Ghost / 图标
+   ═══════════════════════════════════════════════════════════ */
+
+/* 主按钮：查看详情 */
+.action-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 16px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
+}
+
+.action-primary:hover {
+  background: var(--color-primary-hover);
+  box-shadow: var(--shadow-md);
+}
+
+.action-primary:active {
+  background: var(--color-primary-active);
+  transform: scale(0.98);
+}
+
+.action-primary:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+/* 次要按钮：派发 / 确认 / 发布预警 */
+.action-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-1);
+  color: var(--color-foreground);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.action-secondary:hover {
+  background: var(--color-primary-soft);
+  border-color: var(--color-border-hover);
+  color: var(--color-primary);
+}
+
+.action-secondary:active {
+  transform: scale(0.98);
+}
+
+.action-secondary:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+/* 危险 Ghost：纯文本，悬停才变红 */
+.action-danger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-muted-foreground);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color var(--duration-fast) var(--ease-out),
+    background-color var(--duration-fast) var(--ease-out);
+}
+
+.action-danger:hover {
+  color: var(--color-destructive-strong);
+  background: var(--color-destructive-bg);
+}
+
+.action-danger:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+/* 权限被拒时的降级态（PermissionButton 会加 .is-denied） */
+.action-secondary.is-denied,
+.action-danger.is-denied {
+  background: var(--color-surface-1);
+  border-color: var(--color-border);
+  color: var(--color-muted-foreground);
+}
+
+/* 列表头部的「发布预警」沿用次要按钮外观 */
+.heading-actions .action-secondary {
+  min-height: 32px;
+  padding: 0 12px;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   3. 左侧预警列表
+   ═══════════════════════════════════════════════════════════ */
+.warning-list {
+  padding: 0 var(--space-lg) var(--space-sm);
+}
+
+.warning-item {
+  display: flex;
+  gap: var(--space-md);
+
+  /* 左侧留 3px 给选中态边框，padding 相应减去 3px 保证文字对齐不跳动 */
+  padding: var(--space-md) var(--space-sm) var(--space-md) calc(var(--space-md) - 3px);
+  border-bottom: 1px solid var(--color-border);
+  border-left: 3px solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
+}
+
+.warning-item:last-child {
+  border-bottom: 0;
+}
+
+.warning-item:hover {
+  background: var(--color-surface-1);
+  border-bottom-color: var(--color-border-hover);
+  box-shadow: var(--shadow-sm);
+}
+
+/* 选中态：右侧面板正在展示的那一条 */
+.warning-item.is-selected {
+  border-left-color: var(--color-primary);
+  background: var(--color-primary-mist);
+}
+
+.warning-item.is-selected:hover {
+  background: var(--color-primary-soft);
+}
+
+/* 归档项整体弱化，但文字仍保持可读 */
+.warning-item.is-archived {
+  opacity: 0.82;
+}
+
+.warning-item.is-archived .warning-symbol {
+  color: var(--color-success-strong);
+  background: var(--color-success-bg);
+}
+
+/* 等级图标：色调只落在这里（图形，可接受 3:1） */
+.warning-symbol {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-full);
+}
+
+.warning-symbol.tone-destructive {
+  color: var(--color-destructive-strong);
+  background: var(--color-destructive-bg);
+}
+
+.warning-symbol.tone-warning {
+  color: var(--color-warning-ink);
+  background: var(--color-warning-bg);
+}
+
+.warning-symbol.tone-caution {
+  color: var(--color-warning-ink);
+  background: var(--color-warning-bg);
+}
+
+.warning-symbol.tone-info {
+  color: var(--color-accent);
+  background: var(--color-accent-soft);
+}
+
+.warning-symbol.tone-neutral {
+  color: var(--color-muted-foreground);
+  background: var(--color-surface-2);
+}
+
+.warning-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.warning-title {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+
+.warning-title strong {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--color-foreground);
+  font-size: var(--text-base);
+  font-weight: var(--font-semibold);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* 等级徽章：文字用前景色，色调由色点承担 */
+.level-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: 0 0 auto;
+  padding: 1px 8px;
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  font-weight: var(--font-medium);
+  line-height: 1.7;
+  white-space: nowrap;
+}
+
+.level-dot {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 auto;
+  border-radius: var(--radius-full);
+  background: var(--color-muted-foreground);
+}
+
+.level-badge.tone-destructive {
+  color: var(--color-foreground);
+  background: var(--color-destructive-bg);
+}
+
+.level-badge.tone-destructive .level-dot {
+  background: var(--color-destructive-strong);
+}
+
+.level-badge.tone-warning {
+  color: var(--color-foreground);
+  background: var(--color-warning-bg);
+}
+
+.level-badge.tone-warning .level-dot {
+  background: var(--color-warning-ink);
+}
+
+.level-badge.tone-caution {
+  color: var(--color-foreground);
+  background: var(--color-warning-bg);
+}
+
+.level-badge.tone-caution .level-dot {
+  background: var(--color-warning-ink);
+}
+
+.level-badge.tone-info {
+  color: var(--color-foreground);
+  background: var(--color-accent-soft);
+}
+
+.level-badge.tone-info .level-dot {
+  background: var(--color-accent);
+}
+
+.level-badge.tone-neutral {
+  color: var(--color-foreground);
+  background: var(--color-surface-2);
+}
+
+/* AI 综合分：小标签，图标承担强调色 */
+.ai-priority-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex: 0 0 auto;
+  padding: 1px 8px;
+  border-radius: var(--radius-full);
+  background: var(--color-surface-2);
+  color: var(--color-foreground);
+  font-size: var(--text-xs);
+  font-weight: var(--font-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.ai-priority-tag svg {
+  color: var(--color-primary);
+}
+
+.archived-tag {
+  flex: 0 0 auto;
+  padding: 1px 8px;
+  border-radius: var(--radius-full);
+  background: var(--color-surface-2);
+  color: var(--color-foreground);
+  font-size: var(--text-xs);
+  font-weight: var(--font-medium);
+}
+
+/* 次级信息行：描述 + 地点 + 时间戳 */
+.warning-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-width: 0;
+  margin-top: var(--space-xs);
+  color: var(--color-muted-foreground);
+  font-size: var(--text-sm);
+}
+
+.warning-desc {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.warning-point {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex: 0 0 auto;
+  color: var(--color-muted-foreground);
+  white-space: nowrap;
+}
+
+.warning-time {
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding-left: var(--space-sm);
+  color: var(--color-muted-foreground);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* 归档原因：第三行弱化说明 */
+.warning-body .archive-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: var(--space-xs);
+  padding-left: 0;
+  border-left: 0;
+  color: var(--color-muted-foreground);
+  font-size: var(--text-xs);
+}
+
+.warning-body .archive-meta em {
+  font-style: normal;
+  color: var(--color-tertiary);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   4. 右侧「预警处置」面板
+   ═══════════════════════════════════════════════════════════ */
+.system-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.system-head-tools {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex: 0 0 auto;
+}
+
+.health-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-muted-foreground);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
+/* 导出：纯图标按钮 */
+.icon-btn-slot {
+  display: inline-flex;
+}
+
+.icon-btn-slot :deep(.ios-btn) {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-muted-foreground);
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.icon-btn-slot :deep(.ios-btn:hover) {
+  background: var(--color-surface-1);
+  border-color: var(--color-border);
+  color: var(--color-primary);
+}
+
+.icon-btn-slot :deep(.ios-btn:focus-visible) {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.system-body {
+  padding: 0 var(--space-lg) var(--space-md);
+}
+
+/* 当前预警概要 */
+.dispatch-overview {
+  padding: var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-1);
+}
+
+.dispatch-title {
+  display: block;
+  color: var(--color-foreground);
+  font-size: var(--text-lg);
+  font-weight: var(--font-semibold);
+  letter-spacing: -0.01em;
+  line-height: 1.35;
+}
+
+.dispatch-desc {
+  margin: var(--space-xs) 0 0;
+  color: var(--color-muted-foreground);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+/* 处置进度条：替换原来的巨大圆环 */
+.dispatch-progress {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
+}
+
+.dispatch-progress-track {
+  flex: 1;
+  height: 4px;
+  overflow: hidden;
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--color-primary) 16%, transparent);
+}
+
+.dispatch-progress-track i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-primary);
+  transition: width var(--duration-slow) var(--ease-out);
+}
+
+.dispatch-progress-text {
+  flex: 0 0 auto;
+  color: var(--color-primary);
+  font-size: var(--text-xs);
+  font-weight: var(--font-semibold);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* 分级策略提示：与详情页的应急标签同一套配色 */
+.dispatch-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+  margin: var(--space-sm) 0 0;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--color-warning-bg);
+  color: var(--color-foreground);
+  font-size: var(--text-xs);
+  line-height: 1.5;
+}
+
+.dispatch-hint svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+  color: var(--color-warning-strong);
+}
+
+/* 基础信息：两栏紧凑网格
+   右栏在双栏布局下最窄只有 280px，固定两栏会把「触发点位 / 触发时间 /
+   AI 综合评分」压成省略号；用容器查询按面板自身宽度降为一栏，
+   而单栏布局时面板很宽，仍保持两栏不拉伸 */
+.system-panel {
+  container-type: inline-size;
+  container-name: system-panel;
+}
+
+.system-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
+}
+
+@container system-panel (width <= 360px) {
+  .system-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.system-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: var(--space-sm) 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-card);
+}
+
+.system-item.is-wide {
+  grid-column: 1 / -1;
+}
+
+.system-item-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--color-muted-foreground);
+  font-size: var(--text-xs);
+}
+
+.system-item-label svg {
+  flex: 0 0 auto;
+  color: var(--color-tertiary);
+}
+
+.system-item-value {
+  overflow: hidden;
+  color: var(--color-foreground);
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.system-item-value.is-time {
+  font-variant-numeric: tabular-nums;
+}
+
+/* 等级文字用前景色保证可读，色调交给前面的色点（同列表项的等级徽章） */
+.system-item-value .level-dot {
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 5px;
+}
+
+.system-item-value.tone-destructive .level-dot { background: var(--color-destructive-strong); }
+.system-item-value.tone-warning .level-dot { background: var(--color-warning-ink); }
+.system-item-value.tone-caution .level-dot { background: var(--color-warning-ink); }
+.system-item-value.tone-info .level-dot { background: var(--color-accent); }
+.system-item-value.tone-neutral .level-dot { background: var(--color-muted-foreground); }
+
+.system-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-2xl) var(--space-lg);
+  color: var(--color-tertiary);
+}
+
+.system-empty p {
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+/* 操作区 */
+.system-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  padding: var(--space-md) var(--space-lg);
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface-1);
+}
+
+.system-actions .action-primary {
+  margin-left: auto;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   5. 响应式
+   ═══════════════════════════════════════════════════════════ */
+@media (width <= 1180px) {
+  .stat-note {
+    display: none;
+  }
+}
+
+@media (width <= 760px) {
+  .stats-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .system-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .warning-meta {
+    flex-wrap: wrap;
+  }
+
+  .warning-time {
+    margin-left: 0;
+    padding-left: 0;
+  }
 }
 </style>

@@ -14,10 +14,13 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -58,6 +61,90 @@ public class DataSourceController {
       out.add(toDto(ds));
     }
     return ApiResponse.success(out);
+  }
+
+  /**
+   * 新建数据源（POST /api/datasources）。
+   *
+   * <p>复用 {@link #list()} / {@link #toggle(String, Map)} 的同库持久化：写入
+   * {@code data_source} 表。操作人取 SecurityContext，不信任请求体。
+   * 复用既有 {@code toDto} 映射，保证返回结构与列表一致。
+   */
+  @PostMapping
+  @PreAuthorize("hasAuthority('datasource:create')")
+  @Transactional
+  public ApiResponse<Map<String, Object>> create(
+      @RequestBody(required = false) Map<String, Object> body) {
+    Map<String, Object> b = body == null ? Map.of() : body;
+    String code = str(b.get("code"));
+    if (isBlank(code)) {
+      return ApiResponse.fail(400, "数据源编码(code)不能为空");
+    }
+    if (repository.findByDsCode(code.trim()).isPresent()) {
+      return ApiResponse.fail(409, "数据源编码已存在: " + code);
+    }
+    String name = firstNonBlank(b.get("name"), b.get("label"), b.get("dsName"));
+    if (isBlank(name)) {
+      return ApiResponse.fail(400, "数据源名称(name)不能为空");
+    }
+
+    DataSource ds = new DataSource();
+    ds.setDsCode(code.trim());
+    ds.setDsName(name.trim());
+    ds.setDsType(firstNonBlank(b.get("type"), b.get("category"), b.get("dsType"), "CUSTOM").trim());
+    ds.setEndpoint(firstNonBlank(b.get("endpoint"), buildEndpoint(b)));
+    ds.setAuthType(str(b.get("authType")));
+    ds.setStatus(Boolean.TRUE.equals(b.get("enabled")) ? "CONNECTED" : "DISCONNECTED");
+    ds.setSyncInterval(intValue(b.get("syncInterval"), 3600));
+    ds.setCreatedBy(currentOperator());
+    OffsetDateTime now = OffsetDateTime.now();
+    ds.setCreatedAt(now);
+    ds.setUpdatedAt(now);
+    return ApiResponse.success("数据源已创建", toDto(repository.save(ds)));
+  }
+
+  /**
+   * 更新数据源（PUT /api/datasources/{id}）。
+   *
+   * <p>路径变量兼容数字 id 与 dsCode 两种形式（前端编辑页传的是 code）。
+   * 仅覆盖请求中实际给出的字段，避免把未传字段清空。
+   */
+  @PutMapping("/{id}")
+  @PreAuthorize("hasAuthority('datasource:edit')")
+  @Transactional
+  public ApiResponse<Map<String, Object>> update(
+      @PathVariable String id,
+      @RequestBody(required = false) Map<String, Object> body) {
+    DataSource ds = findForUpdate(id);
+    if (ds == null) {
+      return ApiResponse.fail(404, "数据源不存在: " + id);
+    }
+    Map<String, Object> b = body == null ? Map.of() : body;
+    String name = firstNonBlank(b.get("name"), b.get("label"), b.get("dsName"));
+    if (!isBlank(name)) {
+      ds.setDsName(name.trim());
+    }
+    String type = firstNonBlank(b.get("type"), b.get("category"), b.get("dsType"));
+    if (!isBlank(type)) {
+      ds.setDsType(type.trim());
+    }
+    String endpoint = firstNonBlank(b.get("endpoint"), buildEndpoint(b));
+    if (!isBlank(endpoint)) {
+      ds.setEndpoint(endpoint.trim());
+    }
+    String authType = str(b.get("authType"));
+    if (!isBlank(authType)) {
+      ds.setAuthType(authType.trim());
+    }
+    if (b.containsKey("syncInterval")) {
+      int fallback = ds.getSyncInterval() == null ? 3600 : ds.getSyncInterval();
+      ds.setSyncInterval(intValue(b.get("syncInterval"), fallback));
+    }
+    if (b.containsKey("enabled")) {
+      ds.setStatus(Boolean.TRUE.equals(b.get("enabled")) ? "CONNECTED" : "DISCONNECTED");
+    }
+    ds.setUpdatedAt(OffsetDateTime.now());
+    return ApiResponse.success("数据源已更新", toDto(repository.save(ds)));
   }
 
   @PostMapping("/{code}/toggle")
@@ -122,6 +209,81 @@ public class DataSourceController {
     result.put("latencyMs", ok ? latency : -1);
     result.put("message", ok ? "TCP 连通（延迟 " + latency + " ms）" : "TCP 连接失败或超时");
     return ApiResponse.success(result);
+  }
+
+  /** 按数字 id 或 dsCode 定位数据源。 */
+  private DataSource findForUpdate(String id) {
+    if (id == null || id.isBlank()) {
+      return null;
+    }
+    try {
+      var byId = repository.findById(Long.parseLong(id));
+      if (byId.isPresent()) {
+        return byId.get();
+      }
+    } catch (NumberFormatException ignored) {
+      // 非数字主键，回退到 dsCode
+    }
+    return repository.findByDsCode(id).orElse(null);
+  }
+
+  /** 从 host / port / database 拼出可探测的 endpoint。 */
+  private String buildEndpoint(Map<String, Object> b) {
+    String host = str(b.get("host"));
+    if (isBlank(host)) {
+      return null;
+    }
+    StringBuilder sb = new StringBuilder(host.trim());
+    String port = str(b.get("port"));
+    if (!isBlank(port)) {
+      sb.append(':').append(port.trim());
+    }
+    String database = str(b.get("database"));
+    if (!isBlank(database)) {
+      sb.append('/').append(database.trim());
+    }
+    return sb.toString();
+  }
+
+  private String firstNonBlank(Object... values) {
+    for (Object v : values) {
+      String s = str(v);
+      if (!isBlank(s)) {
+        return s;
+      }
+    }
+    return null;
+  }
+
+  private int intValue(Object v, int fallback) {
+    if (v instanceof Number n) {
+      return n.intValue();
+    }
+    if (v != null) {
+      try {
+        return Integer.parseInt(String.valueOf(v).trim());
+      } catch (NumberFormatException ignored) {
+        // 落到 fallback
+      }
+    }
+    return fallback;
+  }
+
+  private String str(Object v) {
+    return v == null ? null : String.valueOf(v);
+  }
+
+  private boolean isBlank(String s) {
+    return s == null || s.isBlank();
+  }
+
+  /** 操作人一律取 SecurityContext，不信任请求体。 */
+  private String currentOperator() {
+    Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+    if (auth != null && auth.getName() != null && !auth.getName().isBlank()) {
+      return auth.getName();
+    }
+    return "system";
   }
 
   /** 映射为前端契约。不含 auth_config（避免泄露凭据）。 */

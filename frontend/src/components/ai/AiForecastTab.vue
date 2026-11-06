@@ -56,12 +56,23 @@ async function loadDevices() {
   devicesLoading.value = true
   devicesError.value = ''
   try {
-    const resp = await dashboardApi.getDevicesForHazard(props.selectedHazardCode)
-    devices.value = resp?.list ?? resp ?? []
-    
+    const resp = await dashboardApi.getDevices({ size: 200 })
+    const list = Array.isArray(resp?.list) ? resp.list : (Array.isArray(resp) ? resp : [])
+    // 真实设备记录带 hazardCode，据此筛出当前灾害点关联的监测设备。
+    devices.value = list
+      .filter((d) => d?.hazardCode === props.selectedHazardCode)
+      .map((d) => ({
+        ...d,
+        deviceId: d.deviceCode ?? d.id,
+        deviceName: d.name ?? d.deviceName,
+        deviceType: d.type ?? d.deviceType ?? '未知',
+        onlineStatus: d.state ?? d.status ?? '未知',
+        status: d.state ?? d.status ?? 'unknown',
+      }))
+
     // 自动选择第一个设备
     if (devices.value.length > 0) {
-      selectedDeviceId.value = devices.value[0].deviceId ?? devices.value[0].id
+      selectedDeviceId.value = devices.value[0].deviceId
       await loadForecast()
     } else {
       selectedDeviceId.value = null
@@ -205,9 +216,9 @@ const maxValue = computed(() => {
             {{ device.deviceName ?? device.name }} ({{ device.deviceType ?? '未知' }})
           </option>
         </select>
-        <span class="device-status" :class="`status-${device.status ?? 'unknown'}`">
+        <span class="device-status" :class="`status-${selectedDevice?.status ?? 'unknown'}`">
           <Radio size="12" />
-          {{ device.onlineStatus ?? device.status ?? '未知' }}
+          {{ selectedDevice?.onlineStatus ?? '未知' }}
         </span>
       </div>
 

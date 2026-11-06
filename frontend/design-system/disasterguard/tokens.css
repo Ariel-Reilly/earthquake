@@ -1,0 +1,381 @@
+/* ═══════════════════════════════════════════════════════════
+   DISASTERGUARD DESIGN SYSTEM - CSS Variables
+   ─────────────────────────────────────────────────────────
+   生成时间: 2026-10-27
+   基于: UI/UX Pro Max + 莫兰迪绿品牌色板
+   
+   整合策略:
+   - 保留莫兰迪绿 #5F7A6B 作为品牌主色（安全、镇静）
+   - 补充系统性圆角、阴影、间距、字体规范
+   - 使用 Plus Jakarta Sans 提升 B2B 专业感
+   - 确保 WCAG AA 级对比度（文字 4.5:1+）
+   ═══════════════════════════════════════════════════════════ */
+
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap');
+
+:root {
+  /* ══════════════════════════════════════════════════════════
+     1. 品牌色板 - Morandi Green Core
+     基于莫兰迪绿的低饱和度色彩系统
+     ══════════════════════════════════════════════════════════ */
+  
+  /* 主色 - Primary */
+  --color-primary: #5F7A6B;           /* 莫兰迪绿·主色 */
+  --color-primary-hover: #4A6154;     /* 悬停态 */
+  --color-primary-active: #385F49;    /* 按下态 */
+  --color-primary-soft: rgba(95, 122, 107, 0.12);  /* 浅底 */
+  --color-primary-mist: rgba(95, 122, 107, 0.06);  /* 极浅底 */
+  --color-on-primary: #FFFFFF;        /* 主色上的文字（对比度 4.68:1）*/
+  
+  /* 次要色 - Secondary（用于导航栏、深色区域）*/
+  --color-secondary: #385F49;         /* 深绿 */
+  --color-secondary-hover: #2F5141;   
+  --color-on-secondary: #F4F7F4;      /* 次要色上的文字 */
+  
+  /* 强调色 - Accent/CTA（信息蓝，用于次要按钮、链接）*/
+  --color-accent: #3E6F94;            /* 莫兰迪蓝·强调色（对比度 5.2:1）*/
+  --color-accent-hover: #2F5878;
+  --color-accent-soft: rgba(62, 111, 148, 0.12);
+  --color-on-accent: #FFFFFF;
+
+  /* ══════════════════════════════════════════════════════════
+     2. 中性色板 - Neutrals
+     ══════════════════════════════════════════════════════════ */
+  
+  --color-background: #F4F7F5;        /* 页面背景·极浅灰绿 */
+  --color-foreground: #2C3B34;        /* 主文字·深灰绿（对比度 11.2:1）*/
+  
+  --color-card: #FFFFFF;              /* 卡片背景 */
+  --color-card-foreground: #2C3B34;   /* 卡片文字 */
+  
+  --color-muted: #EEF3F0;             /* 静音背景 */
+  --color-muted-foreground: #5F6F68;  /* 次级文字（对比度 4.92:1）*/
+  
+  --color-tertiary: #8FA49A;          /* 三级文字/禁用态 */
+  
+  --color-border: #D1DCD5;            /* 边框·分割线 */
+  --color-border-hover: #B8C7BE;      /* 悬停边框 */
+  
+  --color-surface-1: #F8FAF9;         /* 表面层级 1 */
+  --color-surface-2: #EEF3F0;         /* 表面层级 2 */
+
+  /* ══════════════════════════════════════════════════════════
+     3. 语义色板 - Semantic Colors
+     保留莫兰迪风格的低饱和预警色
+     ══════════════════════════════════════════════════════════ */
+  
+  /* 危险·高危预警 */
+  --color-destructive: #C48B8B;       /* 莫兰迪红 */
+  --color-destructive-bg: rgba(196, 139, 139, 0.12);
+  --color-destructive-strong: #B76565; /* 深色用 */
+  --color-on-destructive: #1F2B25;    /* 危险色上的文字（对比度 5.18:1）*/
+  
+  /* 警告·中危预警 */
+  --color-warning: #D4B48B;           /* 莫兰迪橙 */
+  --color-warning-bg: rgba(212, 180, 139, 0.12);
+  --color-warning-strong: #C9A157;
+  --color-warning-ink: #9B761E;       /* 警告色上的深色文字 */
+  
+  /* 成功 */
+  --color-success: #6F9E7F;           /* 莫兰迪绿（偏亮）*/
+  --color-success-bg: rgba(111, 158, 127, 0.14);
+  --color-success-strong: #4A8A5F;
+  
+  /* 信息 */
+  --color-info: #8BA3C4;              /* 莫兰迪蓝 */
+  --color-info-bg: rgba(139, 163, 196, 0.14);
+
+  /* ══════════════════════════════════════════════════════════
+     4. 间距系统 - Spacing Scale (8px base)
+     Density: 7/10 (Standard, 适合 B 端密集信息展示)
+     ══════════════════════════════════════════════════════════ */
+  
+  --space-xs: 4px;      /* 0.25rem - 紧密间隙 */
+  --space-sm: 8px;      /* 0.5rem - 图标间距、行内间距 */
+  --space-md: 16px;     /* 1rem - 标准内边距 */
+  --space-lg: 24px;     /* 1.5rem - 区块内边距 */
+  --space-xl: 32px;     /* 2rem - 大间隙 */
+  --space-2xl: 48px;    /* 3rem - 区块外边距 */
+  --space-3xl: 64px;    /* 4rem - 大区块间距 */
+
+  /* 旧变量兼容映射 */
+  --sp-4: var(--space-xs);
+  --sp-8: var(--space-sm);
+  --sp-12: 12px;
+  --sp-16: var(--space-md);
+  --sp-24: var(--space-lg);
+  --sp-32: var(--space-xl);
+  --sp-48: var(--space-2xl);
+  --sp-64: var(--space-3xl);
+
+  /* ══════════════════════════════════════════════════════════
+     5. 圆角系统 - Border Radius
+     ══════════════════════════════════════════════════════════ */
+  
+  --radius-xs: 4px;     /* 细节元素 */
+  --radius-sm: 6px;     /* 徽章、标签 */
+  --radius-md: 8px;     /* 按钮、输入框 */
+  --radius-lg: 12px;    /* 卡片 */
+  --radius-xl: 16px;    /* 大卡片、模态框 */
+  --radius-2xl: 24px;   /* 特大容器 */
+  --radius-full: 9999px; /* 圆形/胶囊 */
+
+  /* 旧变量兼容映射 */
+  --r-xs: var(--radius-xs);
+  --r-sm: var(--radius-sm);
+  --r-md: var(--radius-md);
+  --r-lg: var(--radius-lg);
+  --r-xl: var(--radius-xl);
+  --r-2xl: var(--radius-2xl);
+  --r-pill: var(--radius-full);
+  --r-full: var(--radius-full);
+
+  /* ══════════════════════════════════════════════════════════
+     6. 阴影系统 - Shadow Depths
+     适度克制，避免过度立体感
+     ══════════════════════════════════════════════════════════ */
+  
+  --shadow-xs: 0 1px 2px rgba(44, 59, 52, 0.06);   /* 微提升 */
+  --shadow-sm: 0 1px 2px rgba(44, 59, 52, 0.05);   /* 细微边界 */
+  --shadow-md: 0 4px 6px rgba(44, 59, 52, 0.08);   /* 卡片、按钮 */
+  --shadow-lg: 0 10px 15px rgba(44, 59, 52, 0.1);  /* 模态框、下拉菜单 */
+  --shadow-xl: 0 20px 25px rgba(44, 59, 52, 0.12); /* 英雄图、大卡片 */
+
+  /* 特殊阴影 */
+  --shadow-hover: 0 6px 16px rgba(44, 59, 52, 0.10); /* 悬停提升 */
+  --shadow-card: var(--shadow-md);                   /* 卡片默认阴影 */
+
+  /* 焦点环（可访问性必需）*/
+  --shadow-focus: 0 0 0 3px rgba(95, 122, 107, 0.16);
+  --focus-ring: var(--shadow-focus);
+  --color-ring: var(--color-primary);
+
+  /* ══════════════════════════════════════════════════════════
+     7. 字体系统 - Typography
+     Plus Jakarta Sans: 现代 B2B 专业感，支持可变字重
+     回退至系统字体栈
+     ══════════════════════════════════════════════════════════ */
+  
+  --font-sans: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, 
+               "SF Pro Text", "Helvetica Neue", "PingFang SC", 
+               "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", "Roboto Mono", 
+               Menlo, Consolas, "Courier New", monospace;
+
+  /* 旧变量兼容 */
+  --font: var(--font-sans);
+
+  /* 字号系统（基于 16px base，递增比例 1.2-1.25）*/
+  --text-xs: 11px;      /* 0.6875rem - 辅助说明 */
+  --text-sm: 12px;      /* 0.75rem - 次要文字 */
+  --text-base: 14px;    /* 0.875rem - 主文字 */
+  --text-lg: 16px;      /* 1rem - 强调文字 */
+  --text-xl: 18px;      /* 1.125rem - 小标题 */
+  --text-2xl: 20px;     /* 1.25rem - 标题 */
+  --text-3xl: 24px;     /* 1.5rem - 大标题 */
+  --text-4xl: 30px;     /* 1.875rem - 页面标题 */
+  --text-5xl: 36px;     /* 2.25rem - 英雄标题 */
+
+  /* 字重 */
+  --font-normal: 400;
+  --font-medium: 500;
+  --font-semibold: 600;
+  --font-bold: 700;
+  --font-extrabold: 800;
+
+  /* ══════════════════════════════════════════════════════════
+     8. Z-index 层级系统
+     ══════════════════════════════════════════════════════════ */
+  
+  --z-base: 1;
+  --z-dropdown: 10;
+  --z-sticky: 20;
+  --z-top: 40;           /* 顶栏 */
+  --z-sidebar: 45;       /* 侧栏（移动端需高于顶栏）*/
+  --z-modal: 50;         /* 模态框 */
+  --z-toast: 60;         /* 通知 */
+
+  /* ══════════════════════════════════════════════════════════
+     9. 动画系统 - Animation & Transitions
+     ══════════════════════════════════════════════════════════ */
+  
+  /* 缓动曲线 */
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-spring: cubic-bezier(0.5, 1.4, 0.4, 1);  /* iOS 弹性 */
+  
+  /* 旧变量兼容 */
+  --ease-ios: var(--ease-out);
+  --ease-ios-spring: var(--ease-spring);
+
+  /* 持续时间 */
+  --duration-fast: 150ms;
+  --duration-base: 200ms;
+  --duration-slow: 300ms;
+  --duration-slower: 400ms;
+
+  /* 旧变量兼容 */
+  --dur-fast: 180ms;
+  --dur-base: 280ms;
+  --dur-slow: 420ms;
+
+  /* ══════════════════════════════════════════════════════════
+     10. 导航专用变量（保留原设计）
+     ══════════════════════════════════════════════════════════ */
+  
+  --nav-bg: linear-gradient(180deg, #4A7A5E 0%, #385F49 100%);
+  --nav-bg-flat: #41694F;
+  --nav-text: #F4F7F4;
+  --nav-text-2: rgba(244, 247, 244, 0.76);
+  --nav-text-3: rgba(244, 247, 244, 0.52);
+  --nav-separator: rgba(255, 255, 255, 0.13);
+  --nav-hover: rgba(255, 255, 255, 0.10);
+  --nav-active: rgba(255, 255, 255, 0.18);
+  --nav-glass: rgba(65, 105, 79, 0.84);
+
+  /* ══════════════════════════════════════════════════════════
+     11. 旧变量兼容层（防止未迁移页面崩溃）
+     逐步迁移后可删除
+     ══════════════════════════════════════════════════════════ */
+  
+  /* 品牌色兼容 */
+  --c-brand: var(--color-primary);
+  --c-brand-hover: var(--color-primary-hover);
+  --c-brand-deep: var(--color-primary-active);
+  --c-brand-deeper: var(--color-primary-active);
+  --c-brand-soft: var(--color-primary-soft);
+  --c-brand-mist: var(--color-primary-mist);
+  --c-brand-on: var(--color-on-primary);
+  --c-brand-light: var(--color-primary-soft);
+  --c-brand-muted: var(--color-primary-soft);
+  --c-brand-press: var(--color-primary-active);
+  --c-brand-tint: #C8D8CE;
+  --c-brand-ink: #276749;
+
+  /* 文字色兼容 */
+  --c-text: var(--color-foreground);
+  --c-text-2: var(--color-muted-foreground);
+  --c-text-3: var(--color-tertiary);
+  --c-text-4: var(--color-tertiary);
+  --c-text-inv: #FFFFFF;
+  --c-ink-1: var(--color-foreground);
+  --c-ink-2: #55655D;
+  --c-on-brand: var(--color-on-primary);
+
+  /* 背景色兼容 */
+  --c-bg: var(--color-background);
+  --c-surface: var(--color-card);
+  --c-surface-2: var(--color-surface-1);
+  --c-surface-3: var(--color-surface-2);
+  --bg-page: var(--color-background);
+  --bg-card: var(--color-card);
+  --bg-hover: rgba(95, 122, 107, 0.08);
+  --bg-active: rgba(95, 122, 107, 0.10);
+  --bg-active-hover: rgba(95, 122, 107, 0.14);
+
+  /* 边框色兼容 */
+  --c-border: var(--color-border);
+  --c-border-2: #E3EBE6;
+  --c-separator: var(--color-border);
+  --border-color: var(--color-border);
+  --border-hover: var(--color-border-hover);
+  --ios-hairline: var(--color-border);
+
+  /* 语义色兼容 */
+  --c-success: var(--color-success);
+  --c-success-bg: var(--color-success-bg);
+  --c-success-strong: var(--color-success-strong);
+  --c-warning: var(--color-warning);
+  --c-warning-bg: var(--color-warning-bg);
+  --c-warning-strong: var(--color-warning-strong);
+  --c-warning-ink: var(--color-warning-ink);
+  --c-danger: var(--color-destructive);
+  --c-danger-bg: var(--color-destructive-bg);
+  --c-danger-soft: rgba(196, 139, 139, 0.18);
+  --c-danger-strong: var(--color-destructive-strong);
+  --c-info: var(--color-info);
+  --c-info-bg: var(--color-info-bg);
+
+  /* 预警色兼容 */
+  --alert-high: var(--color-destructive);
+  --alert-high-bg: var(--color-destructive-bg);
+  --alert-medium: var(--color-warning);
+  --alert-medium-bg: var(--color-warning-bg);
+  --alert-info: var(--color-info);
+  --alert-info-bg: var(--color-info-bg);
+  --alert-on: var(--color-on-destructive);
+
+  /* 其他兼容 */
+  --c-scrim: #1F2B25;
+  --c-overlay: rgba(20, 30, 25, 0.5);
+  --c-overlay-ink: #000000;
+  --c-morandi-clay: #E9E2D8;
+  --ios-red: var(--color-destructive-strong);
+  --sidebar-w-icon: 72px;
+
+  /* 毛玻璃兼容 */
+  --glass-thin: rgba(255, 255, 255, 0.6);
+  --glass-regular: rgba(255, 255, 255, 0.8);
+  --glass-thick: rgba(255, 255, 255, 0.92);
+  --glass-blur-regular: blur(20px) saturate(160%);
+  --shadow-glass: var(--shadow-lg);
+  --brand-grad-deep: linear-gradient(135deg, var(--color-primary-active), var(--color-primary));
+
+  /* 系统色兼容 */
+  --sys-blue: #3E6F94;
+  --sys-blue-soft: var(--color-accent-soft);
+  --sys-blue-deep: #2F5878;
+  --sys-indigo: #5A5FB0;
+  --sys-indigo-soft: rgba(90, 95, 176, 0.12);
+  --sys-indigo-deep: #3F4491;
+  --sys-cyan: #2A8A98;
+  --sys-mint-soft: rgba(95, 160, 130, 0.14);
+  --sys-purple: #7A5FA8;
+  --sys-purple-soft: rgba(122, 95, 168, 0.12);
+  --sys-green: #4E8F68;
+  --sys-gray: #8A9690;
+
+  /* 网格系统 */
+  --grid-line: rgba(184, 199, 190, 0.35);
+  --grid-size: 32px;
+
+  /* 主文字颜色 */
+  --text-main: var(--color-foreground);
+  --text-muted: var(--color-muted-foreground);
+  --text-tertiary: var(--color-tertiary);
+
+  /* 主色相关 */
+  --primary: var(--color-primary);
+  --primary-hover: var(--color-primary-hover);
+  --primary-deep: var(--color-primary-active);
+  --primary-on: var(--color-on-primary);
+}
+
+/* ══════════════════════════════════════════════════════════
+   基础样式重置
+   ══════════════════════════════════════════════════════════ */
+
+:root {
+  font: 400 var(--text-base)/1.55 var(--font-sans);
+  color: var(--color-foreground);
+  background: var(--color-background);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ══════════════════════════════════════════════════════════
+   Reduced Motion 支持（可访问性必需）
+   ══════════════════════════════════════════════════════════ */
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

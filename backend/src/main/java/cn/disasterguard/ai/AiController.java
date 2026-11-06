@@ -461,16 +461,108 @@ public class AiController {
   }
 
   /**
+   * AI 欢迎语 / 推荐提问（POST /api/ai/welcome-prompts）。
+   *
+   * <p>根据前端传入的上下文（contextType / contextId / title / metadata）生成一组
+   * 与当前对象相关的推荐问题。若 contextId 命中真实灾害点，用库中名称替换标题，
+   * 让推荐问题指向真实对象；否则退化为上下文标识。返回结构真实可序列化，
+   * 并如实标注 {@code generatedBy=rule}（当前为规则生成，尚未接入 LLM）。
+   */
+  @PostMapping("/welcome-prompts")
+  @PreAuthorize("hasAuthority('ai:insight:view')")
+  public ApiResponse<Map<String, Object>> welcomePrompts(
+      @RequestBody(required = false) Map<String, Object> context) {
+    Map<String, Object> ctx = context == null ? Map.of() : context;
+    String contextType = str(ctx.get("contextType"));
+    String contextId = str(ctx.get("contextId"));
+    String title = str(ctx.get("title"));
+
+    // 数据驱动：上下文指向具体灾害点时，用真实库里的名称构造推荐问题
+    String subject = title;
+    if (isBlank(subject) && !isBlank(contextId)) {
+      HazardPoint hazard = hazardRepository.findByHazardCode(contextId);
+      if (hazard != null && !isBlank(hazard.getName())) {
+        subject = hazard.getName();
+      }
+    }
+    if (isBlank(subject)) {
+      subject = isBlank(contextId) ? "当前态势" : contextId;
+    }
+    String type = isBlank(contextType) ? "overview" : contextType;
+
+    List<Map<String, Object>> prompts = new ArrayList<>();
+    prompts.add(prompt("risk", "分析「" + subject + "」当前的风险等级和主要致灾因子"));
+    prompts.add(prompt("detail", "查看「" + subject + "」的详细信息与最新监测数据"));
+    prompts.add(prompt("forecast", "「" + subject + "」未来 24 小时的风险趋势如何"));
+    prompts.add(prompt("plan", "针对「" + subject + "」推荐对应的应急预案与处置步骤"));
+    prompts.add(prompt("report", "为「" + subject + "」生成一份综合研判报告"));
+
+    List<String> quickPrompts = prompts.stream()
+        .map(p -> String.valueOf(p.get("text")))
+        .toList();
+
+    Map<String, Object> data = new LinkedHashMap<>();
+    data.put("welcomeText", "你好，我是地脉智巡 AI 助手，正在关注「" + subject + "」。你可以直接问我：");
+    data.put("quickPrompts", quickPrompts);
+    data.put("prompts", prompts);
+    data.put("contextType", type);
+    data.put("contextId", contextId);
+    data.put("count", prompts.size());
+    data.put("generatedAt", OffsetDateTime.now(ZoneOffset.UTC).format(ISO));
+    data.put("generatedBy", "rule");
+    return ApiResponse.success(data);
+  }
+
+  private Map<String, Object> prompt(String intent, String text) {
+    Map<String, Object> p = new LinkedHashMap<>();
+    p.put("intent", intent);
+    p.put("text", text);
+    return p;
+  }
+
+  private String str(Object v) {
+    return v == null ? null : String.valueOf(v);
+  }
+
+  private boolean isBlank(String s) {
+    return s == null || s.isBlank();
+  }
+
+  /**
    * 提交 AI 反馈：值班员/系统对照实际事件，给 AI 判定打分。
    *
    * <p>v1.4.0 新增。Java 端只做代理透传；Python ai-service 存到 FeedbackStore，
    * 后续可触发 train_xgboost.py 重新训练。
+   *
+   * <p>2026-11-05：若请求未带 factors，则按 hazardCode 从 device_metric 取各指标
+   * 最新值自动填充。ai-service 的训练集只接受带 factors 的样本，不填的话
+   * "人工复核结论"永远进不了训练，系统也就永远没有真实训练数据。
    */
   @PostMapping("/feedback")
   @PreAuthorize("hasAuthority('ai:insight:view')")
   public ApiResponse<Map<String, Object>> submitFeedback(@RequestBody FeedbackRequestDto request) {
     try {
-      Map<String, Object> resp = client.submitFeedback(request);
+      FeedbackRequestDto enriched = request;
+      boolean needFactors = request.factors() == null || request.factors().isEmpty();
+      if (needFactors && request.hazardCode() != null && !request.hazardCode().isBlank()) {
+        Map<String, Double> factors = new HashMap<>();
+        for (var metric : metricRepository.findLatestByHazardCode(request.hazardCode())) {
+          if (metric.getMetricCode() != null && metric.getValue() != null) {
+            factors.putIfAbsent(metric.getMetricCode(), metric.getValue());
+          }
+        }
+        if (!factors.isEmpty()) {
+          enriched = new FeedbackRequestDto(
+              request.hazardCode(), request.predictedLevel(), request.predictedScore(),
+              request.predictedAt(), request.outcome(), request.occurred(), request.confidence(),
+              request.feedbackBy(), request.note(), factors);
+          log.info("AI 反馈自动附加指标快照 hazard={} metrics={}", request.hazardCode(), factors.keySet());
+        } else {
+          log.warn("AI 反馈未附带特征且设备指标为空 hazard={}，该样本只能用于评估、不参与训练",
+              request.hazardCode());
+        }
+      }
+      Map<String, Object> resp = client.submitFeedback(enriched);
       return ApiResponse.success(resp);
     } catch (Exception e) {
       log.warn("提交 AI 反馈失败: {}", e.getMessage());

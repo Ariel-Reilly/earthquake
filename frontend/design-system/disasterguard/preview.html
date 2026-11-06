@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DisasterGuard 设计令牌预览</title>
+  <link rel="stylesheet" href="tokens.css">
+  <style>
+    body {
+      margin: 0;
+      padding: var(--space-2xl);
+      font-family: var(--font-sans);
+      background: var(--color-background);
+      color: var(--color-foreground);
+    }
+
+    h1 {
+      font-size: var(--text-4xl);
+      font-weight: var(--font-bold);
+      margin-bottom: var(--space-xl);
+      color: var(--color-primary);
+    }
+
+    h2 {
+      font-size: var(--text-2xl);
+      font-weight: var(--font-semibold);
+      margin-top: var(--space-3xl);
+      margin-bottom: var(--space-lg);
+      border-bottom: 2px solid var(--color-border);
+      padding-bottom: var(--space-sm);
+    }
+
+    .grid {
+      display: grid;
+      gap: var(--space-lg);
+    }
+
+    .color-palette {
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    }
+
+    .color-swatch {
+      background: var(--color-card);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      padding: var(--space-md);
+      box-shadow: var(--shadow-md);
+    }
+
+    .color-box {
+      height: 80px;
+      border-radius: var(--radius-md);
+      margin-bottom: var(--space-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: var(--font-medium);
+      font-size: var(--text-sm);
+    }
+
+    .color-name {
+      font-size: var(--text-sm);
+      font-weight: var(--font-medium);
+      color: var(--color-foreground);
+      margin-bottom: var(--space-xs);
+    }
+
+    .color-value {
+      font-size: var(--text-xs);
+      font-family: var(--font-mono);
+      color: var(--color-muted-foreground);
+    }
+
+    .spacing-demo {
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    }
+
+    .spacing-box {
+      background: var(--color-card);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: var(--space-md);
+      text-align: center;
+    }
+
+    .spacing-visual {
+      background: var(--color-primary);
+      margin: var(--space-md) auto 0;
+    }
+
+    .radius-demo {
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    }
+
+    .radius-box {
+      background: var(--color-card);
+      border: 1px solid var(--color-border);
+      padding: var(--space-md);
+      text-align: center;
+      height: 120px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .radius-visual {
+      background: var(--color-primary);
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--color-on-primary);
+      font-weight: var(--font-semibold);
+    }
+
+    .shadow-demo {
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    }
+
+    .shadow-box {
+      background: var(--color-card);
+      border-radius: var(--radius-lg);
+      padding: var(--space-lg);
+      text-align: center;
+      height: 120px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: var(--font-medium);
+    }
+
+    .typography-demo {
+      grid-template-columns: 1fr;
+    }
+
+    .type-sample {
+      background: var(--color-card);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      padding: var(--space-lg);
+      margin-bottom: var(--space-md);
+    }
+
+    .buttons-demo {
+      display: flex;
+      gap: var(--space-md);
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      padding: 12px 24px;
+      border-radius: var(--radius-md);
+      font-weight: var(--font-semibold);
+      font-size: var(--text-base);
+      border: none;
+      cursor: pointer;
+      transition: all var(--duration-base) var(--ease-out);
+    }
+
+    .btn-primary {
+      background: var(--color-primary);
+      color: var(--color-on-primary);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .btn-primary:hover {
+      background: var(--color-primary-hover);
+      box-shadow: var(--shadow-hover);
+      transform: translateY(-1px);
+    }
+
+    .btn-primary:focus-visible {
+      outline: none;
+      box-shadow: var(--shadow-focus);
+    }
+
+    .btn-secondary {
+      background: transparent;
+      color: var(--color-primary);
+      border: 2px solid var(--color-primary);
+      padding: 10px 22px;
+    }
+
+    .btn-secondary:hover {
+      background: var(--color-primary-soft);
+    }
+
+    .btn-destructive {
+      background: var(--color-destructive-strong);
+      color: var(--color-on-destructive);
+    }
+
+    .btn-accent {
+      background: var(--color-accent);
+      color: var(--color-on-accent);
+    }
+
+    .card-example {
+      background: var(--color-card);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      padding: var(--space-lg);
+      box-shadow: var(--shadow-md);
+      transition: all var(--duration-base) var(--ease-out);
+      max-width: 400px;
+    }
+
+    .card-example:hover {
+      box-shadow: var(--shadow-hover);
+      transform: translateY(-2px);
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: var(--radius-full);
+      font-size: var(--text-sm);
+      font-weight: var(--font-medium);
+    }
+
+    .badge-high {
+      background: var(--color-destructive-bg);
+      color: var(--color-on-destructive);
+    }
+
+    .badge-medium {
+      background: var(--color-warning-bg);
+      color: var(--color-warning-ink);
+    }
+
+    .badge-info {
+      background: var(--color-info-bg);
+      color: var(--color-accent);
+    }
+  </style>
+</head>
+<body>
+  <h1>🎨 DisasterGuard 设计令牌预览</h1>
+  <p style="font-size: var(--text-lg); color: var(--color-muted-foreground); margin-bottom: var(--space-2xl);">
+    可视化展示所有设计令牌，方便设计评审与开发参考
+  </p>
+
+  <!-- 颜色系统 -->
+  <h2>🌈 颜色系统</h2>
+  
+  <h3 style="font-size: var(--text-xl); margin-top: var(--space-xl); margin-bottom: var(--space-md);">品牌色</h3>
+  <div class="grid color-palette">
+    <div class="color-swatch">
+      <div class="color-box" style="background: var(--color-primary); color: var(--color-on-primary);">Primary</div>
+      <div class="color-name">--color-primary</div>
+      <div class="color-value">#5F7A6B</div>
+    </div>
+    <div class="color-swatch">
+      <div class="color-box" style="background: var(--color-primary-hover); color: var(--color-on-primary);">Hover</div>
+      <div class="color-name">--color-primary-hover</div>
+      <div class="color-value">#4A6154</div>
+    </div>
+    <div class="color-swatch">
+      <div class="color-box" style="background: var(--color-primary-active); color: var(--color-on-primary);">Active</div>
+      <div class="color-name">--color-primary-active</div>
+      <div class="color-value">#385F49</div>
+    </div>
+    <div class="color-swatch">
+      <div class="color-box" style="background: var(--color-accent); color: var(--color-on-accent);">Accent</div>
+      <div class="color-name">--color-accent</div>
+      <div class="color-value">#3E6F94</div>
+    </div>
+  </div>
+
+  <h3 style="font-size: var(--text-xl); margin-top: var(--space-xl); margin-bottom: var(--space-md);">中性色</h3>
+  <div class="grid color-palette">
+    <div class="color-swatch">
+      <div class="color-box" style="background: var(--color-background);">Background</div>
+      <div class="color-name">--color-background</div>
+      <div class="color-value">#F4F7F5</div>
+    </div>
+    <div class="color-swatch">
+      <div class="color-box" style="background: var(--color-card); border: 1px solid var(--color-border);">Card</div>
+      <div class="color-name">--color-card</div>
+      <div class="color-value">#FFFFFF</div>
+    </div>
+    <div class="color-swatch">
+      <div class="color-box" style="background: var(--color-muted);">Muted</div>
+      <div class="color-name">--color-muted</div>
+      <div class="color-value">#EEF3F0</div>
+    </div>
+    <div class="color-swatch">
+      <div class="color-box" style="background: var(--color-border);">Border</div>
+      <div class="color-name">--color-border</div>
+      <div class="color-value">#D1DCD5</div>
+    </div>
+  </div>
+
+  <h3 style="font-size: var(--text-xl); margin-top: var(--space-xl); margin-bottom: var(--space-md);">语义色</h3>
+  <div class="grid color-palette">
+    <div class="color-swatch">
+      <div class="color-box" style="background: var(--color-destructive); color: var(--color-on-destructive);">Danger</div>
+      <div class="color-name">--color-destructive</div>
+      <div class="color-value">#C48B8B</div>
+    </div>
+    <div class="color-swatch">
+      <div class="color-box" style="background: var(--color-warning); color: var(--color-warning-ink);">Warning</div>
+      <div class="color-name">--color-warning</div>
+      <div class="color-value">#D4B48B</div>
+    </div>
+    <div class="color-swatch">
+      <div class="color-box" style="background: var(--color-success); color: white;">Success</div>
+      <div class="color-name">--color-success</div>
+      <div class="color-value">#6F9E7F</div>
+    </div>
+    <div class="color-swatch">
+      <div class="color-box" style="background: var(--color-info); color: white;">Info</div>
+      <div class="color-name">--color-info</div>
+      <div class="color-value">#8BA3C4</div>
+    </div>
+  </div>
+
+  <!-- 间距系统 -->
+  <h2>📏 间距系统（8px 基准）</h2>
+  <div class="grid spacing-demo">
+    <div class="spacing-box">
+      <div class="color-name">--space-xs</div>
+      <div class="color-value">4px</div>
+      <div class="spacing-visual" style="width: 4px; height: 4px;"></div>
+    </div>
+    <div class="spacing-box">
+      <div class="color-name">--space-sm</div>
+      <div class="color-value">8px</div>
+      <div class="spacing-visual" style="width: 8px; height: 8px;"></div>
+    </div>
+    <div class="spacing-box">
+      <div class="color-name">--space-md</div>
+      <div class="color-value">16px</div>
+      <div class="spacing-visual" style="width: 16px; height: 16px;"></div>
+    </div>
+    <div class="spacing-box">
+      <div class="color-name">--space-lg</div>
+      <div class="color-value">24px</div>
+      <div class="spacing-visual" style="width: 24px; height: 24px;"></div>
+    </div>
+    <div class="spacing-box">
+      <div class="color-name">--space-xl</div>
+      <div class="color-value">32px</div>
+      <div class="spacing-visual" style="width: 32px; height: 32px;"></div>
+    </div>
+    <div class="spacing-box">
+      <div class="color-name">--space-2xl</div>
+      <div class="color-value">48px</div>
+      <div class="spacing-visual" style="width: 48px; height: 24px;"></div>
+    </div>
+    <div class="spacing-box">
+      <div class="color-name">--space-3xl</div>
+      <div class="color-value">64px</div>
+      <div class="spacing-visual" style="width: 64px; height: 24px;"></div>
+    </div>
+  </div>
+
+  <!-- 圆角系统 -->
+  <h2>🔘 圆角系统</h2>
+  <div class="grid radius-demo">
+    <div class="radius-box">
+      <div class="color-name">--radius-xs</div>
+      <div class="radius-visual" style="border-radius: var(--radius-xs);">4px</div>
+    </div>
+    <div class="radius-box">
+      <div class="color-name">--radius-sm</div>
+      <div class="radius-visual" style="border-radius: var(--radius-sm);">6px</div>
+    </div>
+    <div class="radius-box">
+      <div class="color-name">--radius-md</div>
+      <div class="radius-visual" style="border-radius: var(--radius-md);">8px</div>
+    </div>
+    <div class="radius-box">
+      <div class="color-name">--radius-lg</div>
+      <div class="radius-visual" style="border-radius: var(--radius-lg);">12px</div>
+    </div>
+    <div class="radius-box">
+      <div class="color-name">--radius-xl</div>
+      <div class="radius-visual" style="border-radius: var(--radius-xl);">16px</div>
+    </div>
+    <div class="radius-box">
+      <div class="color-name">--radius-2xl</div>
+      <div class="radius-visual" style="border-radius: var(--radius-2xl);">24px</div>
+    </div>
+    <div class="radius-box">
+      <div class="color-name">--radius-full</div>
+      <div class="radius-visual" style="border-radius: var(--radius-full);">9999px</div>
+    </div>
+  </div>
+
+  <!-- 阴影系统 -->
+  <h2>💫 阴影系统</h2>
+  <div class="grid shadow-demo">
+    <div class="shadow-box" style="box-shadow: var(--shadow-xs);">--shadow-xs</div>
+    <div class="shadow-box" style="box-shadow: var(--shadow-sm);">--shadow-sm</div>
+    <div class="shadow-box" style="box-shadow: var(--shadow-md);">--shadow-md</div>
+    <div class="shadow-box" style="box-shadow: var(--shadow-lg);">--shadow-lg</div>
+    <div class="shadow-box" style="box-shadow: var(--shadow-xl);">--shadow-xl</div>
+    <div class="shadow-box" style="box-shadow: var(--shadow-hover);">--shadow-hover</div>
+  </div>
+
+  <!-- 字体系统 -->
+  <h2>🔤 字体系统</h2>
+  <div class="grid typography-demo">
+    <div class="type-sample" style="font-size: var(--text-5xl); font-weight: var(--font-bold);">
+      英雄标题 36px (--text-5xl / --font-bold)
+    </div>
+    <div class="type-sample" style="font-size: var(--text-4xl); font-weight: var(--font-bold);">
+      页面标题 30px (--text-4xl / --font-bold)
+    </div>
+    <div class="type-sample" style="font-size: var(--text-3xl); font-weight: var(--font-semibold);">
+      大标题 24px (--text-3xl / --font-semibold)
+    </div>
+    <div class="type-sample" style="font-size: var(--text-2xl); font-weight: var(--font-semibold);">
+      标题 20px (--text-2xl / --font-semibold)
+    </div>
+    <div class="type-sample" style="font-size: var(--text-xl); font-weight: var(--font-medium);">
+      小标题 18px (--text-xl / --font-medium)
+    </div>
+    <div class="type-sample" style="font-size: var(--text-lg);">
+      强调文字 16px (--text-lg / --font-normal)
+    </div>
+    <div class="type-sample" style="font-size: var(--text-base);">
+      主文字 14px (--text-base / --font-normal) - 这是正文的默认字号
+    </div>
+    <div class="type-sample" style="font-size: var(--text-sm); color: var(--color-muted-foreground);">
+      次要文字 12px (--text-sm) - 用于辅助说明、标签
+    </div>
+    <div class="type-sample" style="font-size: var(--text-xs); color: var(--color-muted-foreground);">
+      辅助说明 11px (--text-xs) - 用于时间戳、版本号
+    </div>
+  </div>
+
+  <!-- 按钮组件 -->
+  <h2>🔘 按钮组件</h2>
+  <div class="buttons-demo">
+    <button class="btn btn-primary">主要按钮</button>
+    <button class="btn btn-secondary">次要按钮</button>
+    <button class="btn btn-destructive">危险按钮</button>
+    <button class="btn btn-accent">强调按钮</button>
+  </div>
+
+  <!-- 卡片组件 -->
+  <h2>📇 卡片组件</h2>
+  <div class="card-example">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-md);">
+      <h3 style="margin: 0; font-size: var(--text-xl); font-weight: var(--font-semibold);">暴雨预警</h3>
+      <span class="badge badge-high">高危</span>
+    </div>
+    <p style="color: var(--color-muted-foreground); margin-bottom: var(--space-md); line-height: 1.6;">
+      预计未来 3 小时内降雨量达 50mm/h，请相关部门做好防汛准备。
+    </p>
+    <div style="display: flex; gap: var(--space-sm);">
+      <span class="badge badge-medium">中危</span>
+      <span class="badge badge-info">信息</span>
+    </div>
+  </div>
+
+  <div style="margin-top: var(--space-3xl); padding: var(--space-lg); background: var(--color-muted); border-radius: var(--radius-lg);">
+    <p style="margin: 0; color: var(--color-muted-foreground);">
+      <strong>提示</strong>: 本页面展示了所有设计令牌的实际效果。在开发时，请参考 
+      <a href="QUICK-REFERENCE.md" style="color: var(--color-accent); text-decoration: none;">QUICK-REFERENCE.md</a> 
+      查询变量名。
+    </p>
+  </div>
+</body>
+</html>

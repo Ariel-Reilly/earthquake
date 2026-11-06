@@ -3,6 +3,8 @@ package cn.disasterguard.notification;
 import cn.disasterguard.common.api.ApiResponse;
 import cn.disasterguard.common.api.PageResponse;
 import cn.disasterguard.notification.dto.NoticeTemplateDto;
+import cn.disasterguard.notification.dto.SendResultDto;
+import cn.disasterguard.notification.dto.TestSendRequest;
 import cn.disasterguard.notification.entity.NoticeTemplate;
 import cn.disasterguard.notification.repository.NoticeTemplateRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -60,10 +62,14 @@ public class NoticeTemplateController {
 
   private final NoticeTemplateRepository repository;
   private final ObjectMapper objectMapper;
+  private final NotificationService notificationService;
 
-  public NoticeTemplateController(NoticeTemplateRepository repository, ObjectMapper objectMapper) {
+  public NoticeTemplateController(NoticeTemplateRepository repository,
+                                  ObjectMapper objectMapper,
+                                  NotificationService notificationService) {
     this.repository = repository;
     this.objectMapper = objectMapper;
+    this.notificationService = notificationService;
   }
 
   /**
@@ -173,7 +179,121 @@ public class NoticeTemplateController {
         toDto(repository.save(entity)));
   }
 
+  /**
+   * 测试发送通知模板（POST /api/notice-templates/{id}/test）。
+   *
+   * <p>复用 {@link NotificationService#testSend(TestSendRequest)} 的真实发送链路
+   * （最终调用各 {@code NotificationSender} 实现，与 {@link NotificationDispatcher}
+   * 生产投递共用同一套发送器）。用模板里该渠道的正文做真实变量渲染后发送，
+   * 并如实透传真实结果：通道未配置 / 发送器禁用时返回明确失败原因，绝不伪造成功。
+   * 操作人取 SecurityContext，不信任请求体里的 operator。
+   */
+  @PostMapping("/{id}/test")
+  @PreAuthorize("hasAuthority('notice:edit')")
+  public ApiResponse<Map<String, Object>> test(
+      @PathVariable Long id,
+      @RequestBody(required = false) Map<String, Object> body) {
+    NoticeTemplate entity = repository.findById(id).orElse(null);
+    if (entity == null) {
+      return ApiResponse.fail(404, "模板不存在");
+    }
+    Map<String, Object> b = body == null ? Map.of() : body;
+    String operator = currentUsername();
+
+    // 1. 渠道：优先请求体，其次模板已配置渠道
+    Map<String, String> channels = readChannels(entity);
+    String channel = str(b.get("channel"));
+    if (isBlank(channel)) {
+      channel = channels.keySet().stream().findFirst().orElse(null);
+    }
+    if (isBlank(channel)) {
+      return ApiResponse.fail(400, "模板未配置任何通知渠道，且请求未指定 channel，无法测试发送");
+    }
+    channel = channel.trim().toUpperCase(Locale.ROOT);
+
+    // 2. 发送目标
+    String target = str(b.get("target"));
+    if (isBlank(target)) {
+      return ApiResponse.fail(400, "请填写测试发送目标 target（手机号 / 邮箱 / 设备 Token）");
+    }
+    target = target.trim();
+
+    // 3. 真实变量渲染（operator 强制取自 SecurityContext，覆盖请求体同名字段）
+    Map<String, Object> variables = new LinkedHashMap<>();
+    if (b.get("variables") instanceof Map<?, ?> raw) {
+      raw.forEach((k, v) -> {
+        if (k != null) {
+          variables.put(String.valueOf(k), v);
+        }
+      });
+    }
+    variables.putIfAbsent("name", entity.getTemplateName());
+    variables.putIfAbsent("level", entity.getLevel());
+    variables.putIfAbsent("hazardType", entity.getDisasterType());
+    variables.putIfAbsent("time", OffsetDateTime.now().toString());
+    variables.put("operator", operator);
+
+    String titleTemplate = isBlank(entity.getTitleTemplate())
+        ? "【通知模板测试】" + entity.getTemplateName()
+        : entity.getTitleTemplate();
+    String contentTemplate = templateContentFor(channels, channel);
+    if (isBlank(contentTemplate)) {
+      contentTemplate = "【模板测试】模板《" + entity.getTemplateName()
+          + "》由 " + (operator == null ? "system" : operator) + " 发起测试发送。";
+    }
+    String title = render(titleTemplate, variables);
+    String content = render(contentTemplate, variables);
+
+    // 4. 真实发送链路
+    SendResultDto result = notificationService.testSend(
+        new TestSendRequest(channel, target, title, content, variables));
+
+    Map<String, Object> data = new LinkedHashMap<>();
+    data.put("templateId", id);
+    data.put("templateName", entity.getTemplateName());
+    data.put("channel", channel);
+    data.put("target", target);
+    data.put("title", title);
+    data.put("operator", operator);
+    data.put("status", result.status());
+    data.put("results", result.results());
+    data.put("message", result.message());
+    if (!"SUCCESS".equals(result.status())) {
+      return ApiResponse.fail(502,
+          "测试发送失败（" + result.status() + "）：" + result.message());
+    }
+    return ApiResponse.success("测试发送成功", data);
+  }
+
   // ---------------------------------------------------------------- 内部方法
+
+  /** 取模板中指定渠道的正文（渠道名大小写不敏感）。 */
+  private String templateContentFor(Map<String, String> channels, String channel) {
+    for (Map.Entry<String, String> e : channels.entrySet()) {
+      if (e.getKey() != null && e.getKey().equalsIgnoreCase(channel)) {
+        return e.getValue();
+      }
+    }
+    return null;
+  }
+
+  /** 真实变量渲染：替换 {{key}} 与 ${key} 占位符。 */
+  private String render(String template, Map<String, Object> variables) {
+    if (template == null) {
+      return "";
+    }
+    String out = template;
+    for (Map.Entry<String, Object> e : variables.entrySet()) {
+      String val = e.getValue() == null ? "" : String.valueOf(e.getValue());
+      out = out.replace("{{" + e.getKey() + "}}", val)
+          .replace("${" + e.getKey() + "}", val);
+    }
+    return out;
+  }
+
+  private String str(Object v) {
+    return v == null ? null : String.valueOf(v);
+  }
 
   private void apply(NoticeTemplate entity, NoticeTemplateDto body) {
     entity.setTemplateName(body.getName().trim());

@@ -1,0 +1,59 @@
+{
+  "dataset_root": "D:/Projects/DisasterGuard/ai-service/datasets/disaster-v2",
+  "class_names": [
+    "crack",
+    "landslide"
+  ],
+  "total_images": 754,
+  "total_instances": 2623,
+  "class_distribution": {
+    "landslide": 1989,
+    "crack": 634
+  },
+  "split_stats": {
+    "train": {
+      "images": 584,
+      "labels": 584,
+      "instances": 2155,
+      "empty_label_images": 1,
+      "orphan_images": 0,
+      "orphan_labels": 0,
+      "undecodable_images": 0,
+      "bad_lines": 0,
+      "bad_class_id": 0,
+      "bad_coordinates": 0
+    },
+    "val": {
+      "images": 102,
+      "labels": 102,
+      "instances": 261,
+      "empty_label_images": 0,
+      "orphan_images": 0,
+      "orphan_labels": 0,
+      "undecodable_images": 0,
+      "bad_lines": 0,
+      "bad_class_id": 0,
+      "bad_coordinates": 0
+    },
+    "test": {
+      "images": 68,
+      "labels": 68,
+      "instances": 207,
+      "empty_label_images": 1,
+      "orphan_images": 0,
+      "orphan_labels": 0,
+      "undecodable_images": 0,
+      "bad_lines": 0,
+      "bad_class_id": 0,
+      "bad_coordinates": 0
+    }
+  },
+  "duplicate_content_groups": 0,
+  "cross_split_leaks": 0,
+  "box_area_norm_p50": 0.012154,
+  "box_min_side_norm_p50": 0.085938,
+  "tiny_boxes_lt_0_01_side": 2,
+  "errors": [],
+  "warnings": [],
+  "passed": true
+}

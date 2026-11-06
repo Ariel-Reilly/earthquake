@@ -190,3 +190,13 @@ frontend/scripts/_shots/
 /node_modules/
 /package-lock.json
 /package.json
+
+# ===== 真实标注数据集（ai-service/datasets）=====
+# 图像与标签共 23MB 且可由 scripts/dataset/build_yolo_dataset.py 重建，不入库。
+# 保留 dataset.yaml / stats.json / validation.json / DATASET_CARD.md / samples 以便审计。
+ai-service/datasets/_raw/
+ai-service/datasets/_tmp_samples/
+ai-service/datasets/*/images/
+ai-service/datasets/*/labels/
+# 训练产物（runs/ 含权重与 ONNX，可由训练脚本重建）
+ai-service/runs/

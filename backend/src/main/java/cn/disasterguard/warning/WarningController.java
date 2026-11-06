@@ -210,14 +210,13 @@ public class WarningController {
   }
 
   /**
-   * 【测试接口】手动触发预警，用于测试 A2（统一事件关联）和 B2（WebSocket推送）。
-   * 
-   * 该接口不需要任何参数和权限拦截，直接调用 WarningCreateService.doPersist 方法，
-   * 手动构造一条 WarningEvent 数据并保存。
-   * 
-   * warningCode 随机生成，title 为"【测试】手动触发预警"，level 为"红色预警"，
-   * hazardCode 填一个现有的隐患点编号（如 HZ-004）。
+   * 【调试接口】手动触发一条测试预警，用于联调统一事件关联与 WebSocket 推送。
+   *
+   * R5：此前该端点在 SecurityConfig 里 permitAll 且无任何方法级鉴权，
+   * 任何人都能匿名往预警表写「红色预警」并广播，属于可被利用的假预警注入口。
+   * 现在要求登录且具备 warnings:create 权限；生产环境建议由配置整体关闭。
    */
+  @PreAuthorize("hasAuthority('warnings:create')")
   @PostMapping("/debug-trigger")
   public ApiResponse<Map<String, Object>> debugTrigger() {
     try {

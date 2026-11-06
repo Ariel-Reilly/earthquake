@@ -1,9 +1,10 @@
 """
-YOLO 裂缝/落石图像识别模型加载与推理。
+YOLO 灾害目标检测模型加载与推理（业务类别：crack / landslide）。
 
 自动检测 models/yolo_crack.onnx 是否存在：
-- 存在：用 onnxruntime 加载并做真实推理
-- 不存在：返回 mock 检测结果（含随机 bbox + 置信度）
+- 存在且输出类别数 == len(CLASSES)：用 onnxruntime 做真实业务推理
+- 存在但输出 80 类：判定为 COCO 通用模型占位，加载时明确告警（历史的 yolo_crack.onnx 即属此类）
+- 不存在：返回 mock 结果（含随机 bbox），响应里 mock=True，调用方不得当作识别结果
 
 不硬依赖 ultralytics，只在训练脚本中使用。
 模型目录可通过环境变量 MODELS_DIR 覆盖。
@@ -11,7 +12,6 @@ YOLO 裂缝/落石图像识别模型加载与推理。
 from __future__ import annotations
 
 import os
-import random
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 
@@ -19,10 +19,8 @@ import numpy as np
 
 from app.config import MODELS_DIR
 
-# YOLOv8n 是在 COCO 数据集上预训练的，所以实际可识别 80 个 COCO 类别。
-# 演示场景下，我们把这些原始类别映射到与业务更相关的灾害领域标签。
-# 当训练数据为业务专用裂缝数据集（train_crack_yolo.py 流程）时，
-# 可重新导出 ONNX 后把这个映射表换成 5 类 [crack, rockfall, slump, debris, normal]。
+# COCO 的 80 个原始类别。仅在模型被判定为 COCO 通用模型时用于展示原始类别名，
+# 这些名字与灾害业务无关，不能作为灾种结论（见 routers/detection.py 的判定逻辑）。
 COCO_CLASSES = [
     "person", "bicycle", "car", "motorcycle", "airplane", "bus", "train", "truck",
     "boat", "traffic light", "fire hydrant", "stop sign", "parking meter", "bench",
@@ -38,30 +36,43 @@ COCO_CLASSES = [
     "hair drier", "toothbrush",
 ]
 
-# 业务类别（用于训练后模型的 5 类输出；当前用 ultralytics 预训练权重时仅供占位/文档）
-CLASSES = ["crack", "rockfall", "slump", "debris", "normal"]
+# 业务类别。当前只覆盖数据集真实具备的两类：
+#   crack     —— 混凝土/路面裂缝（Roboflow 实例分割集，634 实例）
+#   landslide —— 滑坡（Zenodo 尼泊尔 + 意大利人工掩码集，629 实例）
+# 早期版本这里写死过 5 类 [crack, rockfall, slump, debris, normal]，但没有任何公开标注数据
+# 支撑 rockfall/slump/debris，等于虚报能力，已按 datasets/disaster-v2 的真实覆盖收敛为 2 类。
+# 未来补齐对应标注数据后，改这里 + 重新训练导出即可。
+CLASSES = ["crack", "landslide"]
 
 
 def get_class_name(class_id: int, is_business_model: bool = False) -> str:
-    """统一的类别名查询：业务模型（5类）→ 用 CLASSES；COCO 模型（80类）→ 用 COCO_CLASSES。"""
+    """统一的类别名查询：业务模型 → 用 CLASSES；COCO 模型（80类）→ 用 COCO_CLASSES。"""
     if is_business_model:
         return CLASSES[class_id] if 0 <= class_id < len(CLASSES) else f"cls_{class_id}"
     return COCO_CLASSES[class_id] if 0 <= class_id < len(COCO_CLASSES) else f"cls_{class_id}"
 
 
-def detect_business_model(model_path: Path) -> bool:
-    """根据 ONNX 模型的输出维度判断是否为业务 5 类模型：最后一维为 9（4 box + 5 class）。
-    COCO 模型最后一维固定为 84（4 + 80）。"""
+def infer_num_classes(model_path: Path) -> int:
+    """用 onnxruntime 读输出维度，推断模型类别数（不依赖 onnx 包）。
+
+    YOLOv8 导出后常见输出形状 [1, 4+nc, anchors] 或 [1, anchors, 4+nc]，
+    其中取值落在 5..100 的那个维度就是 4+nc。
+    """
     try:
-        import onnx
-        m = onnx.load(str(model_path))
-        out_shape = [d.dim_value for d in m.graph.output[0].type.tensor_type.shape.dim]
-        # [batch, num_predictions, 4+num_classes]
-        if len(out_shape) >= 3 and out_shape[-1] == 9:
-            return True
+        import onnxruntime as ort
+        sess = ort.InferenceSession(str(model_path), providers=["CPUExecutionProvider"])
+        shape = sess.get_outputs()[0].shape
+        for d in shape:
+            if isinstance(d, int) and 5 <= d <= 100:
+                return d - 4
     except Exception:
         pass
-    return False
+    return 0
+
+
+def detect_business_model(model_path: Path) -> bool:
+    """模型输出类别数是否等于业务类别数，且 >0。"""
+    return infer_num_classes(model_path) == len(CLASSES)
 
 
 class YoloDetector:
@@ -75,9 +86,10 @@ class YoloDetector:
         self.model_path = Path(model_path) if model_path else (MODELS_DIR / "yolo_crack.onnx")
         self.session = None
         self.model_loaded = False
-        # 是否为业务 5 类模型（由 ONNX 输出维度推断）
+        # 是否为业务模型（输出类别数与 CLASSES 一致）
         self.is_business_model = False
-        self.model_variant = "yolov8n-coco"  # 用于响应里的 model 字段
+        self.num_classes = 0
+        self.model_variant = "none"  # 用于响应里的 model 字段
         self._load()
 
     def _load(self) -> None:
@@ -88,17 +100,32 @@ class YoloDetector:
         try:
             import onnxruntime as ort
             providers = ort.get_available_providers()
-            # 优先 GPU，回退 CPU
             provider = "CUDAExecutionProvider" if "CUDAExecutionProvider" in providers else "CPUExecutionProvider"
             self.session = ort.InferenceSession(str(self.model_path), providers=[provider])
-            # 推断模型类型：COCO 80 类 vs 业务 5 类
-            self.is_business_model = detect_business_model(self.model_path)
-            self.model_variant = "yolov8n-crack" if self.is_business_model else "yolov8n-coco"
+
+            # 用会话自身的输出维度推断类别数：COCO=80，业务模型=len(CLASSES)
+            nc = 0
+            shape = self.session.get_outputs()[0].shape
+            for d in shape:
+                if isinstance(d, int) and 5 <= d <= 100:
+                    nc = d - 4
+                    break
+            self.num_classes = nc
+            self.is_business_model = (nc == len(CLASSES))
             self.model_loaded = True
-            print(
-                f"[YoloDetector] 模型加载成功: {self.model_path}, provider={provider}, "
-                f"variant={self.model_variant} (输出类别数={5 if self.is_business_model else 80})"
-            )
+
+            if self.is_business_model:
+                self.model_variant = "yolov8n-business"
+                print(f"[YoloDetector] 业务模型加载成功: {self.model_path}, provider={provider}, "
+                      f"类别数={nc} {CLASSES}")
+            elif nc == 80:
+                self.model_variant = "yolov8n-coco"
+                print(f"[YoloDetector] 警告：{self.model_path.name} 是 COCO 通用模型（80 类），"
+                      f"不是灾害检测模型，输出类别与业务无关。请用 datasets/disaster-v2 训练后替换。")
+            else:
+                self.model_variant = f"unknown-{nc}cls"
+                print(f"[YoloDetector] 警告：模型输出 {nc} 类，与业务类别数 {len(CLASSES)} 不一致，"
+                      f"类别名可能错位。")
         except ImportError:
             print("[YoloDetector] onnxruntime 未安装，降级为 mock 推理")
         except Exception as e:
@@ -143,7 +170,7 @@ class YoloDetector:
                 "model": self.model_variant,
                 "mock": False,
                 "is_business_model": self.is_business_model,
-                "num_classes": 5 if self.is_business_model else 80,
+                "num_classes": self.num_classes,
             }
         except ImportError:
             print("[YoloDetector] cv2 未安装，降级为 mock")
@@ -153,7 +180,8 @@ class YoloDetector:
             return self._run_mock()
 
     def _parse_yolo_output(self, output: np.ndarray, orig_w: int, orig_h: int) -> List[Dict]:
-        """解析 YOLOv8 ONNX 输出格式: [1, 84, 8400] → N 个检测框"""
+        """解析 YOLOv8 ONNX 输出。形状为 [1, 4+nc, anchors]，COCO 即 [1, 84, 8400]，
+        2 类业务模型即 [1, 6, 8400]，解析逻辑与类别数无关。"""
         detections: List[Dict] = []
         try:
             if output.ndim == 3:
@@ -224,32 +252,23 @@ class YoloDetector:
 
     # Mock 降级
     def _run_mock(self) -> Dict[str, Any]:
+        """无模型时的降级结果：**返回空检测，不编造任何框**。
+
+        历史版本在这里 `random.choice` 生成 0–2 个随机框，前端会把它渲染成"识别到 2 处滑坡"，
+        属于伪造识别结果。现在改为明确返回空列表 + mock 标记，前端据此显示"模型未就绪"，
+        而不是展示看似真实的检测框。
         """
-        启发式 mock：返回 0-2 个随机检测框，用于无模型环境。
-        类别名固定使用业务 5 类（crack/rockfall/slump/debris/normal）以兼容前端。
-        """
-        num = random.randint(0, 2)
-        dets = []
-        for _ in range(num):
-            cls = random.choice(CLASSES[:4])  # 不出现 "normal"
-            conf = round(random.uniform(0.4, 0.85), 4)
-            x1 = round(random.uniform(0.05, 0.4), 2)
-            y1 = round(random.uniform(0.05, 0.4), 2)
-            x2 = round(x1 + random.uniform(0.1, 0.35), 2)
-            y2 = round(y1 + random.uniform(0.1, 0.35), 2)
-            dets.append({
-                "class_id": CLASSES.index(cls),
-                "class_name": cls,
-                "confidence": conf,
-                "bbox": [x1, y1, x2, y2],
-            })
         return {
-            "detections": dets,
-            "model": "heuristic-mock-placeholder",
+            "detections": [],
+            "model": "none",
             "mock": True,
-            "is_business_model": True,
-            "num_classes": 5,
-            "warning": "模型未加载，返回启发式 mock 结果；请运行 scripts/download_models.py",
+            "is_business_model": False,
+            "num_classes": len(CLASSES),
+            "warning": (
+                "未加载业务模型，返回空结果（不生成任何检测框）。"
+                "请用 scripts/training/train_crack_yolo.py --data datasets/disaster-v2 "
+                "--export-onnx 训练并导出 models/yolo_crack.onnx"
+            ),
         }
 
 

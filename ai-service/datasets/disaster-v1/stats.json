@@ -1,0 +1,144 @@
+{
+  "dataset_name": "disaster-v1",
+  "built_at": "2026-11-05T12:11:54.508818+00:00",
+  "class_names": [
+    "crack",
+    "landslide"
+  ],
+  "total_images": 767,
+  "images_per_split": {
+    "train": 590,
+    "val": 106,
+    "test": 71
+  },
+  "class_instances": {
+    "crack": 634,
+    "landslide": 629
+  },
+  "class_mapping": {
+    "object -> crack": 365,
+    "cracks-and-spalling -> crack": 269,
+    "mask:nepal-landslide-segmentation -> landslide": 442,
+    "mask:italy-landslide-segmentation -> landslide": 187
+  },
+  "empty_label_images": {
+    "train": 30,
+    "val": 5,
+    "test": 6
+  },
+  "clipped_boxes": 53,
+  "cross_split_dedup_removed": 0,
+  "missing_images": 0,
+  "dropped_total": {
+    "mask_component_below_min_area": 190
+  },
+  "per_source": [
+    {
+      "source": "crack-instance-segmentation",
+      "kind": "coco",
+      "split": "train",
+      "license": "upstream-undeclared",
+      "homepage": "https://huggingface.co/datasets/fcakyon/crack-instance-segmentation",
+      "images_in": 323,
+      "images_kept": 323,
+      "annotations_kept": 459,
+      "empty_label_images": 0,
+      "annotation_origin": {
+        "coco_bbox": 459
+      },
+      "raw_class_to_target": {
+        "object -> crack": 256,
+        "cracks-and-spalling -> crack": 203
+      },
+      "dropped": {}
+    },
+    {
+      "source": "crack-instance-segmentation",
+      "kind": "coco",
+      "split": "val",
+      "license": "upstream-undeclared",
+      "homepage": "https://huggingface.co/datasets/fcakyon/crack-instance-segmentation",
+      "images_in": 73,
+      "images_kept": 73,
+      "annotations_kept": 102,
+      "empty_label_images": 0,
+      "annotation_origin": {
+        "coco_bbox": 102
+      },
+      "raw_class_to_target": {
+        "cracks-and-spalling -> crack": 44,
+        "object -> crack": 58
+      },
+      "dropped": {}
+    },
+    {
+      "source": "crack-instance-segmentation",
+      "kind": "coco",
+      "split": "test",
+      "license": "upstream-undeclared",
+      "homepage": "https://huggingface.co/datasets/fcakyon/crack-instance-segmentation",
+      "images_in": 37,
+      "images_kept": 37,
+      "annotations_kept": 73,
+      "empty_label_images": 0,
+      "annotation_origin": {
+        "coco_bbox": 73
+      },
+      "raw_class_to_target": {
+        "cracks-and-spalling -> crack": 22,
+        "object -> crack": 51
+      },
+      "dropped": {}
+    },
+    {
+      "source": "nepal-landslide-segmentation",
+      "kind": "mask",
+      "split": {
+        "train": 184,
+        "val": 23,
+        "test": 23
+      },
+      "auto_split": {
+        "train": 0.8,
+        "val": 0.1,
+        "test": 0.1
+      },
+      "duplicates_dropped_in_source": 0,
+      "license": "cc-by-4.0",
+      "homepage": "https://zenodo.org/records/3688363",
+      "images_in": 230,
+      "images_kept": 230,
+      "annotations_kept": 442,
+      "empty_label_images": 14,
+      "annotation_origin": {
+        "mask_component_extent": 442
+      },
+      "dropped": {}
+    },
+    {
+      "source": "italy-landslide-segmentation",
+      "kind": "mask",
+      "split": {
+        "train": 83,
+        "val": 10,
+        "test": 11
+      },
+      "auto_split": {
+        "train": 0.8,
+        "val": 0.1,
+        "test": 0.1
+      },
+      "duplicates_dropped_in_source": 0,
+      "license": "cc-by-4.0",
+      "homepage": "https://zenodo.org/records/4287425",
+      "images_in": 104,
+      "images_kept": 104,
+      "annotations_kept": 187,
+      "empty_label_images": 27,
+      "annotation_origin": {
+        "mask_component_extent": 187
+      },
+      "dropped": {}
+    }
+  ]
+}

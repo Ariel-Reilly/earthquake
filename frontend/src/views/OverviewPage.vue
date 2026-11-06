@@ -17,8 +17,6 @@ import {
   WEATHER_LEGENDS,
 } from "../services/_architecture/domain/weatherService";
 import { createOpenLayersController, gradeAccuracy } from "../services/mapService";
-import { composeSentinelScene, pollSentinelJob, cancelSentinelJob, describeJobStatus } from "../services/sentinelService";
-import { transform } from "ol/proj";
 import {
   getRealtimeState,
   onRealtimeUpdate,
@@ -125,9 +123,7 @@ const weatherError = ref("");
 const mapContainer = ref(null);
 const mapController = ref(null);
 const mapMode = ref("vector");
-/** v1.8.0：Sentinel-1+2 合成任务状态，null=空闲，{jobId, status, progress} = 进行中 */
-const sentinelJob = ref(null);
-/** v1.8.0：当前合成卫星元数据（合成时间、来源），由 mapController.sentinel.getMeta() 填充 */
+/** v2.0：当前卫星影像底图元数据（源名称 / 坐标系 / 是否已切备源），由 getBaseMapMeta() 填充 */
 const sentinelMeta = ref(null);
 /** v1.7.2：图层下拉弹窗的开关状态 */
 const layerPanelOpen = ref(false);
@@ -409,6 +405,8 @@ async function createOrResizeMap() {
       zoom: 10,
       baseMap: "vector",
     });
+    // 卫星影像瓦片加载失败不再静默白屏：由 mapService 自动切备源，同时如实提示用户
+    mapController.value.onTileError?.((message) => emit("notify", message));
     syncSentinelMeta();
   }
   bindMapEvents();
@@ -835,105 +833,40 @@ function toggleMapMode() {
   emit(
     "notify",
     mapMode.value === "vector"
-      ? "已切换到天地图矢量底图"
-      : "已切换到天地图卫星底图",
+      ? "卫星影像：已开启地名注记"
+      : "卫星影像：纯影像模式（无注记）",
   );
   nextTick(() => syncMapLayers());
 }
 
 /**
- * v1.8.0：合成 Sentinel-1（雷达 SAR）+ Sentinel-2（光学真彩）卫星图层。
+ * v2.0：卫星影像改为常驻的合规瓦片金字塔，不再有任何 AI 合成任务。
  *
- * 流程：composeSentinelScene() 提交 AOI → AI Service /sentinel/compose
- *       → Copernicus Data Space / GEE 拉取 S1 GRD + S2 L2A
- *       → 合成两份 PNG（S2 真彩 + S1 SAR 伪彩色）
- *       → pollSentinelJob() 轮询状态
- *       → setSentinelOverlay() 把结果挂到地图
- *       → 地图切换到卫星模式并聚焦到 AOI
- *
- * 调用方在 UI 上显示进度条（sentinelJob.progress）和文案（describeJobStatus）。
- * 合成过程中地图仍可正常使用（叠加层加载期间底图保持原样）。
+ * 旧链路（Sentinel-1 SAR + Sentinel-2 真彩异步合成）已被移除，原因：
+ *   - 切卫星模式先隐藏所有底图 + 1x1 透明占位 → 必然白屏
+ *   - 合成结果常返回 file:// / mock:// / localhost:8001 等浏览器不可达地址
+ *   - 依赖境外 Copernicus / AWS / NASA STAC，未配凭证时退化为 512x512 随机噪声
+ *   - 任务状态存在进程内 dict，多 worker 轮询随机 404
+ * 现在这个函数只做「切到纯卫星影像 + 重新拉取瓦片」，失败由 onTileError 如实反馈。
  */
-async function startSentinelCompose() {
-  if (!mapController.value) {
+function startSentinelCompose() {
+  const controller = mapController.value;
+  if (!controller) {
     emit("notify", "地图尚未初始化，请稍后重试");
     return;
   }
-  if (sentinelJob.value) {
-    emit("notify", "合成任务正在进行中，请等待完成");
-    return;
-  }
-  // 拿当前视图的 AOI bbox
-  const view = mapController.value.map.getView();
-  const extent = view.calculateExtent(mapController.value.map.getSize());
-  const [minX, minY, maxX, maxY] = extent;
-  // OL extent 是 EPSG:3857，转 EPSG:4326
-  const [minLon, minLat] = toLonLat([minX, minY]);
-  const [maxLon, maxLat] = toLonLat([maxX, maxY]);
-  const bbox = [minLon, minLat, maxLon, maxLat];
-  // 地图切到卫星模式（显示 Sentinel 图层）
   mapMode.value = "satellite";
-  mapController.value.setMode("satellite");
-  try {
-    // 1. 提交合成任务
-    const job = await composeSentinelScene({ bbox, maxCloud: 15 });
-    sentinelJob.value = job;
-    emit("notify", "Sentinel 合成任务已提交，正在排队…");
-    // 2. 轮询直到完成
-    await pollSentinelJob(
-      job.jobId,
-      (updatedJob) => {
-        sentinelJob.value = updatedJob;
-      },
-      { timeoutMs: 5 * 60 * 1000 },
-    );
-    // 3. 拿到结果，挂到地图
-    const finalJob = sentinelJob.value;
-    if (finalJob.status !== "succeeded") {
-      emit("notify", `合成失败：${finalJob.message || finalJob.status}`);
-      return;
-    }
-    const { result } = finalJob;
-    if (!result || (!result.s2Url && !result.sarUrl)) {
-      emit("notify", "合成完成但未返回有效图源 URL");
-      return;
-    }
-    mapController.value.sentinel.setOverlay({
-      s2Url: result.s2Url,
-      sarUrl: result.sarUrl,
-      bbox,
-      meta: { jobId: finalJob.jobId, provider: result.provider || "copernicus", ...result.meta },
-    });
-    syncSentinelMeta();
-    emit("notify", "Sentinel-1+2 合成卫星已加载（数据来源：Copernicus Data Space）");
-  } catch (err) {
-    if (err.name === "AbortError" || err.message?.includes("被取消")) {
-      emit("notify", "合成任务已取消");
-    } else {
-      emit("notify", `合成出错：${err.message}`);
-    }
-  } finally {
-    sentinelJob.value = null;
-  }
+  controller.setMode("satellite");
+  controller.baseLayers?.satellite?.getSource?.()?.refresh?.();
+  const meta = controller.getBaseMapMeta?.();
+  emit("notify", `卫星影像已加载：${meta?.source?.name || "高德卫星影像"}`);
+  nextTick(() => syncMapLayers());
 }
 
-/** 把 EPSG:3857 坐标转 EPSG:4326（经纬度）。 */
-function toLonLat(coord) {
-  try {
-    return transform(coord, "EPSG:3857", "EPSG:4326");
-  } catch {
-    // fallback: 大致估算（仅中国区域误差 <1%）
-    const x = coord[0] / 20037508.34 * 180;
-    const y = coord[1] / 20037508.34 * 180;
-    const lat = (Math.atan(Math.exp(y * Math.PI / 180)) * 360 / Math.PI) - 90;
-    return [x, lat];
-  }
-}
-
-/** 从 mapController 拉取当前 Sentinel 合成元数据，同步到 sentinelMeta。 */
+/** 从 mapController 拉取当前卫星影像底图元数据（历史变量名 sentinelMeta，保留兼容模板）。 */
 function syncSentinelMeta() {
-  if (!mapController.value?.sentinel) return;
-  sentinelMeta.value = mapController.value.sentinel.getMeta();
+  if (!mapController.value?.getBaseMapMeta) return;
+  sentinelMeta.value = mapController.value.getBaseMapMeta();
 }
 
 /**
@@ -1501,8 +1434,11 @@ function buildTrendSentence(card) {
 }
 
 function openCompareDeepAnalysis() {
-  // 占位：保持与现有"打开任务/通知"一致的提示风格；不实际跳转路由。
-  emit("notify", "已记录：深入分析模块尚在规划中，敬请期待。");
+  // 深入分析落到 AI 洞察页，带上当前对比维度，避免"敬请期待"式空响应。
+  router.push({
+    path: "/dashboard/ai-insight",
+    query: { from: "overview-compare" },
+  });
 }
 
 function buildCompareCsv() {
@@ -1671,31 +1607,17 @@ function toggleCompareLegend(which) {
               </button>
               <button class="filter-btn" @click="toggleMapMode">
                 <Landmark :size="14" />{{
-                  mapMode === "vector" ? "切换卫星" : "切换矢量"
+                  mapMode === "vector" ? "切换纯影像" : "切换注记"
                 }}
               </button>
               <button
                 class="filter-btn"
-                :class="{ 'is-sentinel-active': sentinelMeta?.s2 || sentinelMeta?.sar }"
-                :disabled="!!sentinelJob"
-                title="合成 Sentinel-1（雷达）+ Sentinel-2（光学）卫星图层"
+                title="重新加载合规卫星影像瓦片（无合成任务，无境外数据源）"
                 @click="startSentinelCompose"
               >
-                <Loader2 v-if="sentinelJob" :size="14" class="spin" />
-                <Layers v-else :size="14" />
-                <span v-if="sentinelJob">
-                  {{ describeJobStatus(sentinelJob).label }}
-                </span>
-                <span v-else-if="sentinelMeta?.s2">合成卫星（已加载）</span>
-                <span v-else>合成卫星</span>
+                <Layers :size="14" />
+                <span>刷新卫星影像</span>
               </button>
-              <div v-if="sentinelJob" class="sentinel-progress-wrap">
-                <div
-                  class="sentinel-progress-bar"
-                  :class="`tone-${describeJobStatus(sentinelJob).tone}`"
-                  :style="{ width: `${describeJobStatus(sentinelJob).percent}%` }"
-                ></div>
-              </div>
               <button class="square-btn" @click="refreshWeather">
                 <CloudRain :size="17" />
               </button>
@@ -1818,46 +1740,41 @@ function toggleCompareLegend(which) {
                 </header>
 
                 <section class="layer-popup-section">
-                  <h6>底图</h6>
+                  <h6>卫星影像底图</h6>
                   <div class="basemap-row">
                     <button
                       class="basemap-pill"
                       :class="{ active: mapMode === 'vector' }"
                       @click="mapMode === 'vector' || toggleMapMode()"
                     >
-                      矢量
+                      影像 + 注记
                     </button>
                     <button
                       class="basemap-pill"
                       :class="{ active: mapMode === 'satellite' }"
                       @click="mapMode === 'satellite' || toggleMapMode()"
                     >
-                      卫星
+                      纯影像
                     </button>
                   </div>
                   <div class="sentinel-layer-info">
                     <p class="sentinel-info-text">
-                      <Layers :size="12" />Sentinel-1（雷达 SAR） + Sentinel-2（光学真彩）合成卫星
+                      <Layers :size="12" />高德卫星影像瓦片（多级别金字塔，支持 19 级缩放）
                     </p>
                     <p class="sentinel-info-sub">
-                      数据来源：Copernicus Data Space / Google Earth Engine
+                      国内合规影像源 · 无需合成任务 · 主源失败自动切换天地图/备用子域
                     </p>
-                    <p v-if="sentinelMeta?.s2" class="sentinel-loaded-badge">
+                    <p class="sentinel-loaded-badge">
                       <span class="badge-dot success"></span>
-                      已合成 · {{ sentinelMeta.s2.meta?.provider || "Copernicus" }}
-                    </p>
-                    <p v-else class="sentinel-idle-badge">
-                      <span class="badge-dot idle"></span>
-                      未合成 · 点击工具栏「合成卫星」触发
+                      已就绪 · {{ sentinelMeta?.source?.name || "高德卫星影像" }}
+                      <template v-if="sentinelMeta?.backupActive">（备用源）</template>
                     </p>
                     <button
                       class="basemap-pill sentinel-compose-btn"
-                      :disabled="!!sentinelJob"
                       @click="startSentinelCompose"
                     >
-                      <Loader2 v-if="sentinelJob" :size="11" class="spin" />
-                      <Layers v-else :size="11" />
-                      {{ sentinelJob ? describeJobStatus(sentinelJob).label : "开始合成" }}
+                      <Layers :size="11" />
+                      重新加载影像瓦片
                     </button>
                   </div>
                 </section>

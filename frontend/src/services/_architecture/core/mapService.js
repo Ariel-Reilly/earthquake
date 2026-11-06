@@ -8,7 +8,6 @@ import VectorSource from 'ol/source/Vector'
 import ImageStaticSource from 'ol/source/ImageStatic'
 import Cluster from 'ol/source/Cluster'
 import XYZ from 'ol/source/XYZ'
-import OSM from 'ol/source/OSM'
 import GeoJSON from 'ol/format/GeoJSON'
 import { Attribution, ScaleLine, defaults as defaultControls } from 'ol/control'
 import { fromLonLat } from 'ol/proj'
@@ -20,26 +19,33 @@ import Point from 'ol/geom/Point'
 import LineString from 'ol/geom/LineString'
 import { wgs84ToGcj02, gcj02ToWgs84 } from '../../../utils/coordTransform.js'
 
-const cesiumToken = import.meta.env.VITE_CESIUM_ION_TOKEN || ''
-const vectorFallback = import.meta.env.VITE_MAP_TILE_URL || 'https://{a-c}.tile.openstreetmap.org/{z}/{x}/{y}.png'
 /**
- * v1.8.0：卫星底图改为 Sentinel-1（雷达 SAR）+ Sentinel-2（光学真彩）合成。
+ * 卫星影像底图 v2.0（2026-11-05 重构）
  *
- * 数据管线：
- *   - 数据源：Copernicus Data Space（ESA 官方）或 Google Earth Engine（GEE 备份）
- *   - 后端：AI Service /sentinel/compose 接收 AOI bbox + 时间窗口 → 拉取 S1 GRD + S2 L2A →
- *     用 GEE Python SDK 合成两份 WMTS 瓦片：
- *       ① S2 真彩（B4/B3/B2）→ 作为卫星底图的"地表颜色"层
- *       ② S1 SAR 伪彩色（VV→红，VH→绿，VV/VH 比值→蓝）→ 叠加在 S2 上凸显形变 / 含水量
- *   - 前端：把两份瓦片作为 ImageStatic 渲染到 EPSG:4326 经纬度 AOI 范围上，按 zIndex 叠放
+ * 背景：旧实现把「卫星底图」做成一次异步 AI 合成任务（Sentinel-1 SAR + Sentinel-2 真彩），
+ * 切到卫星模式时先隐藏矢量底图、合成图层又是 1x1 透明占位且 visible:false → 必然白屏；
+ * 合成结果常返回 file:// / mock:// / localhost:8001 等浏览器不可达地址；
+ * 兜底矢量底图是境外 OSM（实测 CONNECT tunnel 502），所以经常性「合成失败 + 白屏」。
  *
- * 不再使用 v1.7.1 引入的高德 / 天地图 / ESRI / Mapbox / Google 等通用卫星源：
- *   - 这些是通用卫星图，没有 SAR 通道，没法做形变分析
- *   - 高德/天地图在国内访问更稳定，但 Sentinel 是开源 / 持续更新 / 真正与 AI 模块对齐的数据
+ * 新实现：直接加载合规卫星影像**瓦片金字塔**，不再有任何合成任务、不再有境外源。
+ *   - 主源：高德影像瓦片 style=6（实测 HTTP 200 / image/jpeg / 29KB@z10，支持到 18~19 级）
+ *   - 注记：高德影像注记 style=8（透明 PNG，默认关闭，可在图层面板开启）
+ *   - 备源：天地图 img_w WMTS（需 VITE_TDT_TOKEN，用户到天地图开放平台自行申请），
+ *           未配置时使用高德备用子域；主源连续失败自动切换。
+ *   - 禁止：OSM / ArcGIS / Mapbox / Google / Cesium Ion / Sentinel STAC 等境外源。
  *
- * 矢量底图保留：用户切到矢量时仍使用天地图 / 高德矢量 / OSM 兜底（与点位坐标系一致）。
+ * 坐标系：高德瓦片为 GCJ-02，业务点位存 WGS-84，由 applyDatum() 偏移；
+ *         天地图为 CGCS2000（≈WGS-84），切到备源时把 pointDatum 改回 wgs84 并重投影。
  */
-const mapAttribution = import.meta.env.VITE_TDT_ATTRIBUTION || '高德地图'
+const AMAP_IMAGERY_HOSTS = [
+  'webst01.is.autonavi.com',
+  'webst02.is.autonavi.com',
+  'webst03.is.autonavi.com',
+  'webst04.is.autonavi.com',
+]
+const TDT_TOKEN = import.meta.env.VITE_TDT_TOKEN || import.meta.env.VITE_TDT_TK || ''
+// Cesium Ion 是境外商业影像服务，无合规资质且默认 token 必然失败，已彻底停用。
+const mapAttribution = '© 高德地图 · 卫星影像'
 // 渲染分辨率倍率：把 OL / Cesium 画布拉到设备原生像素密度，让卫星瓦片在高清屏上不发糊。
 // 用户可通过 VITE_MAP_PIXEL_RATIO 强制覆盖，默认取 window.devicePixelRatio 但封顶 2.5，
 // 避免 3x/4x 屏带来 9–16 倍渲染开销。
@@ -86,39 +92,27 @@ export function gradeAccuracy(accuracy) {
   return { grade: 3, label: '仅供参考', color: 'red' }
 }
 
+/** 天地图影像 WMTS。需用户自行到天地图开放平台申请 tk（VITE_TDT_TOKEN），未配置返回空串。 */
 function buildTdtUrl(layer) {
-  // （仅当用户配置了 VITE_TDT_TOKEN 时使用，否则降到高德矢量 / OSM 兜底）。
-  const tdtToken = import.meta.env.VITE_TDT_TOKEN || import.meta.env.VITE_TDT_TK || ''
-  if (!tdtToken) {return ''}
-  return `https://t0.tianditu.gov.cn/${layer}_w/wmts?service=wmts&request=GetTile&version=1.0.0&layer=${layer}&style=default&tileMatrixSet=w&format=tiles&tileMatrix={z}&tileRow={y}&tileCol={x}&tk=${tdtToken}`
+  if (!TDT_TOKEN) {return ''}
+  return `https://t0.tianditu.gov.cn/${layer}_w/wmts?service=wmts&request=GetTile&version=1.0.0&layer=${layer}&style=default&tileMatrixSet=w&format=tiles&tileMatrix={z}&tileRow={y}&tileCol={x}&tk=${encodeURIComponent(TDT_TOKEN)}`
 }
 
-// 卫星底图不再使用高德 style=6 —— 由 Sentinel-1+2 合成图层替换。
-function buildAmapUrl(style) {
-  if (style !== '7') {return ''}
-  const amapToken = import.meta.env.VITE_AMAP_TOKEN || ''
-  if (!amapToken) {return ''}
-  const encodedKey = encodeURIComponent(amapToken)
-  return `https://webrd01.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=${style}&x={x}&y={y}&z={z}&key=${encodedKey}`
-}
-
-// WGS-84 → GCJ-02 火星坐标转换，仅在 [72.004, 137.8347] × [0.8293, 55.8271] 范围内有偏移。
-// Sentinel-1+2 合成图层与点位数据均使用 WGS-84，不需要做坐标系偏移。
 /**
- * GCJ-02 → WGS-84 火星坐标逆变换。仅在中国境内（[72.004, 137.8347] × [0.8293, 55.8271]）有偏移，
- * 境外原样返回。用于把 AMap geocoding 返回的 GCJ-02 经纬度还原回系统存储的 WGS-84，
- * 让"地址搜索结果"能在数据库点位图层（hazard/device/personnel）上正确对位。
- *
- * 实现已抽到 utils/coordTransform.js，避免本模块和 geocodeService 之间互相导入。
+ * 高德影像瓦片。style=6 卫星影像（实测 HTTP 200 / image/jpeg），style=8 影像注记（透明 PNG）。
+ * 这是国内具备测绘资质服务商的公开影像瓦片服务，当前不需要 key；若后续改成需鉴权，
+ * 把自有 key 配到 VITE_AMAP_TILE_KEY 即可 —— 代码里绝不内置任何有效 key。
  */
+function buildAmapImageryUrl(style, hostIndex = 0) {
+  const host = AMAP_IMAGERY_HOSTS[hostIndex % AMAP_IMAGERY_HOSTS.length]
+  const amapTileKey = import.meta.env.VITE_AMAP_TILE_KEY || ''
+  const keyPart = amapTileKey ? `&key=${encodeURIComponent(amapTileKey)}` : ''
+  return `https://${host}/appmaptile?style=${style}&x={x}&y={y}&z={z}${keyPart}`
+}
+
+/** GCJ-02 ↔ WGS-84 转换实现已抽到 utils/coordTransform.js。 */
 
 function tileLayerFromUrl(url, visible, tileSize, sourceMeta = null) {
-  if (!url) {
-    const layer = new TileLayer({ source: new OSM(), visible })
-    layer.set('sourceMeta', { kind: 'osm', name: 'OSM 兜底', updatedAt: '2017-12', tileSize: 256, priority: 99 })
-    return layer
-  }
-  // Sentinel / Copernicus / GEE 都不需要 referer
   const source = new XYZ({
     url,
     crossOrigin: 'anonymous',
@@ -170,34 +164,42 @@ function createSentinelLayers() {
  *   - 默认不可见，由 UI "合成卫星" 按钮触发 fetch → poll → setSentinelOverlay 流程
  */
 function createBaseLayers(mode) {
-  // 矢量底图：①天地图 vec_w ②高德 style=7（标准矢量带注记）③OSM 兜底
-  const amapVectorUrl = buildAmapUrl('7')
-  const vector = tileLayerFromUrl(
-    buildTdtUrl('vec') || amapVectorUrl || vectorFallback,
-    mode === 'vector',
-    amapVectorUrl ? 256 : undefined,
-  )
-  const vectorAnnoUrl = buildTdtUrl('cva')
-  const vectorAnno = !amapVectorUrl && vectorAnnoUrl ? tileLayerFromUrl(vectorAnnoUrl, mode === 'vector') : null
+  // ① 主影像：高德卫星影像瓦片（真实瓦片金字塔，zoom 3~19，不再需要任何合成任务）
+  const primaryUrl = buildAmapImageryUrl(6, 0)
+  const satellite = tileLayerFromUrl(primaryUrl, true, 256, {
+    kind: 'amap-imagery', name: '高德卫星影像', datum: 'gcj02',
+    updatedAt: new Date().toISOString(), priority: 1,
+  })
+  // ② 影像注记（透明 PNG，不是矢量底图）：mode=vector 时叠加地名，mode=satellite 时纯影像
+  const satelliteAnno = tileLayerFromUrl(buildAmapImageryUrl(8, 0), mode !== 'satellite', 256, {
+    kind: 'amap-imagery-anno', name: '影像地名注记', datum: 'gcj02', priority: 2,
+  })
+  // ③ 备影像：优先天地图 img_w（需 tk），否则高德备用子域；仅在主源连续失败时接管
+  const tdtImgUrl = buildTdtUrl('img')
+  const backupUrl = tdtImgUrl || buildAmapImageryUrl(6, 1)
+  const backupDatum = tdtImgUrl ? 'wgs84' : 'gcj02'
+  const vector = tileLayerFromUrl(backupUrl, false, 256, {
+    kind: tdtImgUrl ? 'tdt-imagery' : 'amap-imagery-backup',
+    name: tdtImgUrl ? '天地图卫星影像（备源）' : '高德卫星影像（备用子域）',
+    datum: backupDatum, priority: 3,
+  })
+  const tdtAnnoUrl = buildTdtUrl('cia')
+  const vectorAnno = tdtAnnoUrl
+    ? tileLayerFromUrl(tdtAnnoUrl, false, 256, { kind: 'tdt-imagery-anno', name: '天地图注记', datum: 'wgs84', priority: 4 })
+    : null
+  // ④ 保留旧 Sentinel 叠加层 API 形状（默认全隐藏），仅为向后兼容存量调用，不参与底图显示
   const sentinelLayers = createSentinelLayers()
-  const satellite = sentinelLayers.s2TrueColor
-  const satelliteAnno = sentinelLayers.sarFalseColor
-  if (mode === 'satellite') {
-    // 默认隐藏，必须先经过"合成卫星"流程才能显示
-    satellite.setVisible(false)
-    satelliteAnno.setVisible(false)
-  }
-  // 与数据库点位一致，不需要再做 GCJ-02 偏移；矢量底图若切到高德 style=7 才走 GCJ-02
-  const vectorDatum = amapVectorUrl ? 'gcj02' : 'wgs84'
-  const satelliteDatum = 'wgs84'
   return {
     vector,
     vectorAnno,
     satellite,
     satelliteAnno,
-    vectorDatum,
-    satelliteDatum,
+    vectorDatum: 'gcj02',
+    satelliteDatum: 'gcj02',
+    backupDatum,
     sentinelLayers,
+    primaryUrl,
+    backupUrl,
   }
 }
 
@@ -262,10 +264,12 @@ const WEATHER_EXTENTS = {
 
 export function createOpenLayersController(container, { center = [107.21, 30.61], zoom = 10, baseMap = 'vector' } = {}) {
   const baseLayers = createBaseLayers(baseMap)
-  // 当前可见底图坐标系：用户切到矢量看 AMap style=7 时是 GCJ-02，切到卫星看 AMap style=6 时是 GCJ-02，
-  // 其余（天地图/OSM/ESRI）保持 WGS-84。pointDatum 必须跟随"当前可见底图"实时切换，
-  // 否则会出现"地图换了底图但点位还在用旧 datum"的 50–500m 系统性偏移。
-  let pointDatum = (baseMap === 'satellite' ? baseLayers.satelliteDatum : baseLayers.vectorDatum)
+  // 两种模式都是卫星影像：satellite=纯影像，vector=影像+地名注记。不存在矢量底图。
+  let currentMode = baseMap === 'satellite' ? 'satellite' : 'vector'
+  // 主影像（高德）为 GCJ-02；故障转移到天地图备源时切回 wgs84 并重投影全部点位。
+  // pointDatum 必须跟随当前可见底图，否则点位会出现 50–500m 系统性偏移。
+  let pointDatum = baseLayers.satelliteDatum
+  let backupActive = false
   // 当前选中的灾害点 id（用于放大后高亮该详细点）
   let selectedHazardId = null
   const hazardLayer = createClusterLayer((feature) => buildClusterStyle(feature, 'hazard', selectedHazardId))
@@ -300,10 +304,11 @@ export function createOpenLayersController(container, { center = [107.21, 30.61]
     pixelRatio: resolvePixelRatio(),
     // 顺序：底图 → 注记 → 气象 overlay → 业务图层；overlay 排在业务图层之下，避免遮挡标记
     layers: [
-      baseLayers.vector,
-      baseLayers.vectorAnno,
+      // 卫星影像常驻最底层且始终可见；备影像层平时隐藏，仅在主源连续失败时接管
       baseLayers.satellite,
+      baseLayers.vector,
       baseLayers.satelliteAnno,
+      baseLayers.vectorAnno,
       weatherOverlayLayers.satellite,
       weatherOverlayLayers.radar,
       weatherOverlayLayers.precip24h,
@@ -352,56 +357,97 @@ export function createOpenLayersController(container, { center = [107.21, 30.61]
     userLocation: null,
   }
 
-  function setBaseMap(nextMode) {
-    const useVector = nextMode !== 'satellite'
-    baseLayers.vector.setVisible(useVector)
-    if (baseLayers.vectorAnno) {baseLayers.vectorAnno.setVisible(useVector)}
-    // S2 真彩 + SAR 叠加层由 setSentinelOverlay() 显式控制（合成完成后才 show），
-    // 避免用户在合成完成前看到一张透明 placeholder 图。
-    baseLayers.satellite.setVisible(false)
-    baseLayers.satelliteAnno.setVisible(false)
-    // 坐标系判定：Sentinel 合成图层均使用 WGS-84，与点位坐标系一致，不需要 GCJ-02 偏移
-    // 切底图后必须更新 pointDatum，并对所有已绘制点位重新投影。
-    // 旧逻辑只跟 satelliteDatum 走，导致矢量看 AMap style=7 (GCJ-02) 时点位仍是 WGS-84 → 系统性 50–500m 偏移。
-    const nextDatum = useVector ? baseLayers.vectorDatum : baseLayers.satelliteDatum
-    if (nextDatum !== pointDatum) {
-      pointDatum = nextDatum
-      // 按新 datum 重新绘制所有已记录的 WGS-84 原点
-      fillPointFeatures(hazardLayer.source, itemRegistry.hazards, pointDatum)
-      fillPointFeatures(deviceLayer.source, itemRegistry.devices, pointDatum)
-      fillPointFeatures(warningLayer.source, itemRegistry.warnings, pointDatum)
-      fillPointFeatures(personnelLayer.source, itemRegistry.personnel, pointDatum)
-      // 轨迹是 LineString，单独处理
-      personnelTrailLayer.getSource().clear()
-      itemRegistry.personnelTrails.forEach((item) => {
-        if (!Array.isArray(item.route) || item.route.length < 2) {return}
-        const coordinates = item.route.map((step) =>
-          fromLonLat(applyDatum([Number(step.lon), Number(step.lat)], pointDatum)),
-        )
-        const trail = new Feature({ geometry: new LineString(coordinates) })
-        trail.set('kind', 'personnel-trail')
-        trail.set('name', item.name)
-        personnelTrailLayer.getSource().addFeature(trail)
-      })
-      // 我的位置标记也要跟着改 datum
-      if (itemRegistry.userLocation) {
-        const u = itemRegistry.userLocation
-        userLocationSource.clear()
-        const [projLon, projLat] = applyDatum([u.lon, u.lat], pointDatum)
-        const feature = new Feature({
-          geometry: new Point(fromLonLat([projLon, projLat])),
-        })
-        feature.set('kind', 'user-location')
-        feature.set('lon', u.lon)
-        feature.set('lat', u.lat)
-        feature.set('accuracy', u.accuracy)
-        feature.set('timestamp', u.timestamp)
-        userLocationSource.addFeature(feature)
-      }
+  /** 切换 datum 后把所有已绘制的 WGS-84 原点重新投影（主源 GCJ-02 ↔ 天地图备源 WGS-84）。 */
+  function reprojectAllPoints(nextDatum) {
+    if (nextDatum === pointDatum) {return}
+    pointDatum = nextDatum
+    fillPointFeatures(hazardLayer.source, itemRegistry.hazards, pointDatum)
+    fillPointFeatures(deviceLayer.source, itemRegistry.devices, pointDatum)
+    fillPointFeatures(warningLayer.source, itemRegistry.warnings, pointDatum)
+    fillPointFeatures(personnelLayer.source, itemRegistry.personnel, pointDatum)
+    personnelTrailLayer.getSource().clear()
+    itemRegistry.personnelTrails.forEach((item) => {
+      if (!Array.isArray(item.route) || item.route.length < 2) {return}
+      const coordinates = item.route.map((step) =>
+        fromLonLat(applyDatum([Number(step.lon), Number(step.lat)], pointDatum)),
+      )
+      const trail = new Feature({ geometry: new LineString(coordinates) })
+      trail.set('kind', 'personnel-trail')
+      trail.set('name', item.name)
+      personnelTrailLayer.getSource().addFeature(trail)
+    })
+    if (itemRegistry.userLocation) {
+      const u = itemRegistry.userLocation
+      userLocationSource.clear()
+      const [projLon, projLat] = applyDatum([u.lon, u.lat], pointDatum)
+      const feature = new Feature({ geometry: new Point(fromLonLat([projLon, projLat])) })
+      feature.set('kind', 'user-location')
+      feature.set('lon', u.lon)
+      feature.set('lat', u.lat)
+      feature.set('accuracy', u.accuracy)
+      feature.set('timestamp', u.timestamp)
+      userLocationSource.addFeature(feature)
     }
-    map.renderSync()
-    return useVector ? 'vector' : 'satellite'
   }
+
+  /**
+   * 切换底图模式。两种模式都是卫星影像瓦片，差别只在是否叠加地名注记：
+   *   satellite → 纯卫星影像；vector → 卫星影像 + 地名注记（兼容历史 UI 命名）。
+   * 关键修复：主影像层**永远可见**，不会再出现「切到卫星先白屏、合成失败也不回滚」。
+   */
+  function setBaseMap(nextMode) {
+    currentMode = nextMode === 'satellite' ? 'satellite' : 'vector'
+    const showAnno = currentMode === 'vector' && !backupActive
+    baseLayers.satellite.setVisible(!backupActive)
+    baseLayers.vector.setVisible(backupActive)
+    if (baseLayers.satelliteAnno) {baseLayers.satelliteAnno.setVisible(showAnno)}
+    if (baseLayers.vectorAnno) {baseLayers.vectorAnno.setVisible(backupActive && currentMode === 'vector')}
+    map.renderSync()
+    return currentMode
+  }
+
+  /* ─── 瓦片失败可见化 + 自动切换备源 ─────────────────────────────── */
+  const tileErrorListeners = new Set()
+  let tileErrorCount = 0
+  let tileErrorTimer = null
+  function emitTileError(message) {
+    tileErrorListeners.forEach((fn) => {
+      try {fn(message)} catch (_) { /* 回调异常不能打断地图渲染 */ }
+    })
+  }
+  function activateBackup(reason) {
+    if (backupActive) {return}
+    backupActive = true
+    baseLayers.vector.setVisible(true)
+    baseLayers.satellite.setVisible(false)
+    if (baseLayers.satelliteAnno) {baseLayers.satelliteAnno.setVisible(false)}
+    if (baseLayers.vectorAnno) {baseLayers.vectorAnno.setVisible(currentMode === 'vector')}
+    reprojectAllPoints(baseLayers.backupDatum)
+    baseLayers.vector.getSource().refresh()
+    map.renderSync()
+    emitTileError(`主卫星影像加载失败（${reason}），已切换到${baseLayers.vector.get('sourceMeta')?.name || '备用影像源'}`)
+  }
+  function bindTileError(layer, isBackup) {
+    const source = layer?.getSource?.()
+    if (!source || typeof source.on !== 'function') {return}
+    source.on('tileloaderror', () => {
+      if (isBackup) {
+        emitTileError('备用卫星影像源同样加载失败，请检查网络或 VITE_TDT_TOKEN 配置')
+        return
+      }
+      tileErrorCount += 1
+      if (tileErrorCount < 4) {
+        if (tileErrorTimer) {clearTimeout(tileErrorTimer)}
+        tileErrorTimer = setTimeout(() => {tileErrorCount = 0}, 8000)
+        return
+      }
+      if (tileErrorTimer) {clearTimeout(tileErrorTimer)}
+      activateBackup(`${tileErrorCount} 个瓦片请求失败`)
+      tileErrorCount = 0
+    })
+  }
+  bindTileError(baseLayers.satellite, false)
+  bindTileError(baseLayers.vector, true)
 
   /**
    * v1.8.0：把合成好的 Sentinel-1+2 图层挂到地图上。
@@ -938,12 +984,74 @@ export function createOpenLayersController(container, { center = [107.21, 30.61]
     return result
   }
 
+  /**
+   * 兼容别名：视图层（CommandScreenPage / RealTimeMapPage）历史上调用了这些名字，
+   * 旧实现没有导出，静默失败导致「大屏点位不显示、缩放/图层按钮点了没反应」。
+   * 这里统一补齐为真实实现，不再让 UI 出现死按钮。
+   */
+  function zoomIn() {
+    const view = map.getView()
+    view.setZoom(Math.min((view.getZoom() || 0) + 1, view.getMaxZoom()))
+  }
+  function zoomOut() {
+    const view = map.getView()
+    view.setZoom(Math.max((view.getZoom() || 0) - 1, view.getMinZoom()))
+  }
+  function getItems() {
+    return [
+      ...itemRegistry.hazards,
+      ...itemRegistry.devices,
+      ...itemRegistry.warnings,
+      ...itemRegistry.personnel,
+    ].filter((item) => item && item.lon != null && item.lat != null)
+  }
+  function setGeoJSON(kind, geojson) {
+    const key = String(kind || '').toLowerCase()
+    if (key === 'hazard' || key === 'hazards') {setHazardsGeoJson(geojson)}
+    else if (key === 'warning' || key === 'warnings') {setWarningsGeoJson(geojson)}
+    else if (key === 'device' || key === 'devices') {setDevicesGeoJson(geojson)}
+    else if (key === 'personnel') {setPersonnelGeoJson(geojson)}
+    else {setGeoJsonFeatures(hazardLayer.source, geojson)}
+  }
+  function showWeatherOverlay(kind = 'satellite') {setWeatherOverlay(kind, true)}
+  function hideWeatherOverlay() {
+    Object.keys(weatherOverlayLayers).forEach((kind) => setWeatherOverlay(kind, false))
+  }
+  /** 订阅瓦片加载错误，返回取消订阅函数；UI 应据此显示可见报错而不是静默白屏。 */
+  function onTileError(fn) {
+    if (typeof fn !== 'function') {return () => {}}
+    tileErrorListeners.add(fn)
+    return () => tileErrorListeners.delete(fn)
+  }
+  function getBaseMapMeta() {
+    const active = backupActive ? baseLayers.vector : baseLayers.satellite
+    return {
+      mode: currentMode,
+      datum: pointDatum,
+      backupActive,
+      source: active.get('sourceMeta') || null,
+      hasImageryTiles: true,
+    }
+  }
+
   return {
     map,
-    destroy,
-    getMode: () => (baseLayers.satellite.getVisible() ? 'satellite' : 'vector'),
+    destroy: () => {
+      if (tileErrorTimer) {clearTimeout(tileErrorTimer)}
+      tileErrorListeners.clear()
+      destroy()
+    },
+    getMode: () => currentMode,
     getDatum: () => pointDatum,
     setMode: setBaseMap,
+    zoomIn,
+    zoomOut,
+    getItems,
+    setGeoJSON,
+    showWeatherOverlay,
+    hideWeatherOverlay,
+    onTileError,
+    getBaseMapMeta,
     setCenter,
     zoomToPoint,
     setSelectedHazard,
@@ -984,16 +1092,17 @@ export function createOpenLayersController(container, { center = [107.21, 30.61]
 
 export async function createCesiumViewer(container, { center = [107.21, 30.61], point = null, sentinelTiles = null } = {}) {
   const Cesium = await import('cesium')
-  if (cesiumToken) {Cesium.Ion.defaultAccessToken = cesiumToken}
+  // Cesium Ion 属境外商业影像服务，无合规资质且默认 token 必然失败，已彻底停用。
+  // 3D 地球同样使用国内合规卫星影像瓦片金字塔。
 
   const overlay = ensureOverlay(container)
   overlay.style.display = 'block'
   overlay.style.visibility = 'visible'
   overlay.style.opacity = '1'
 
-  // 旧 v1.7.1 的 ESRI / Mapbox / Google 等通用卫星已被 Sentinel 合成图层替代
   let imageryProvider
   if (sentinelTiles && sentinelTiles.s2Url) {
+    // 兼容：若调用方显式传入了自有影像 URL，仍按单张图渲染（不再是默认链路）
     imageryProvider = new Cesium.SingleTileImageryProvider({
       url: sentinelTiles.s2Url,
       rectangle: Cesium.Rectangle.fromDegrees(
@@ -1005,13 +1114,11 @@ export async function createCesiumViewer(container, { center = [107.21, 30.61], 
       credit: mapAttribution,
     })
   } else {
-    // 占位：用 Cesium 自带的 NaturalEarthII 替代旧 ESRI/Mapbox，避免再去依赖私有图源
-    imageryProvider = await Cesium.IonImageryProvider.fromAssetId(2, {
-      credit: new Cesium.Credit('Sentinel 合成未启用 · Natural Earth II 占位'),
-    }).catch(() => new Cesium.SingleTileImageryProvider({
-      url: makeTransparentPlaceholderDataUrl(),
-      rectangle: Cesium.Rectangle.fromDegrees(center[0] - 0.2, center[1] - 0.2, center[0] + 0.2, center[1] + 0.2),
-    }))
+    imageryProvider = new Cesium.UrlTemplateImageryProvider({
+      url: buildAmapImageryUrl(6, 0),
+      maximumLevel: 18,
+      credit: new Cesium.Credit(mapAttribution),
+    })
   }
 
   const viewer = new Cesium.Viewer(overlay, {

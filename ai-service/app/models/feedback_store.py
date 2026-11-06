@@ -22,26 +22,72 @@ outcome 解释（机器学习混淆矩阵标准命名）：
   false_positive  AI 预测会出事 + 实际没事（误报）
   false_negative  AI 预测不会 + 实际出事（漏报）
 
-数据保留策略：内存 deque(maxlen=10000)；持久化后续可换 PostgreSQL/Redis。
+数据保留策略：内存 deque(maxlen=10000) + **JSONL 落盘**（models/feedback/feedback.jsonl）。
+
+落盘是 2026-11-05 补上的：此前反馈只存在内存 deque 里，进程一重启全部丢失，
+导致"人工复核 → 训练样本"这条链永远攒不出数据，只能靠合成样本训练。
 """
 from __future__ import annotations
 
+import json
+import os
 import threading
 import time
 from collections import deque
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 
 VALID_OUTCOMES = {"true_positive", "true_negative", "false_positive", "false_negative"}
 
+# 反馈落盘目录：容器内可通过 AI_FEEDBACK_DIR 挂载到持久卷。
+FEEDBACK_DIR = Path(
+    os.getenv("AI_FEEDBACK_DIR")
+    or (Path(__file__).resolve().parent.parent.parent / "models" / "feedback")
+)
+FEEDBACK_FILE = FEEDBACK_DIR / "feedback.jsonl"
+
 
 class FeedbackStore:
-    """反馈存储（线程安全，内存版）。"""
+    """反馈存储（线程安全，内存 + JSONL 持久化）。"""
 
-    def __init__(self, max_size: int = 10000) -> None:
+    def __init__(self, max_size: int = 10000, persist_path: Optional[Path] = None) -> None:
         self._lock = threading.Lock()
         self._items: deque = deque(maxlen=max_size)
         self._next_id = 1
+        self._persist_path = Path(persist_path) if persist_path else FEEDBACK_FILE
+        self._load_from_disk()
+
+    def _load_from_disk(self) -> None:
+        """启动时把历史反馈读回内存；坏行跳过，不影响服务启动。"""
+        if not self._persist_path.exists():
+            return
+        try:
+            with self._persist_path.open("r", encoding="utf-8") as fh:
+                for line in fh:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        record = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    self._items.append(record)
+                    rid = record.get("id")
+                    if isinstance(rid, int) and rid >= self._next_id:
+                        self._next_id = rid + 1
+        except OSError:
+            # 读不到就当空库启动，不影响推理服务
+            return
+
+    def _append_to_disk(self, record: Dict[str, Any]) -> None:
+        """追加一行 JSONL。失败只告警不抛错——反馈不能因为磁盘问题写不进去就丢请求。"""
+        try:
+            self._persist_path.parent.mkdir(parents=True, exist_ok=True)
+            with self._persist_path.open("a", encoding="utf-8") as fh:
+                fh.write(json.dumps(record, ensure_ascii=False) + "\n")
+        except OSError:
+            pass
 
     def add(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -75,12 +121,18 @@ class FeedbackStore:
         if "note" not in payload:
             payload["note"] = ""
 
+        # 真实特征快照：有则训练时直接使用；没有则训练阶段丢弃该样本，
+        # 不再用 predicted_score 反推特征（那是臆造输入，学不到真实规律）。
+        if "factors" not in payload:
+            payload["factors"] = {}
+
         with self._lock:
             record = dict(payload)
             record["id"] = self._next_id
             record["feedback_at"] = int(time.time() * 1000)  # epoch ms
             self._next_id += 1
             self._items.append(record)
+            self._append_to_disk(record)
         return record
 
     def list_recent(self, limit: int = 50) -> List[Dict[str, Any]]:
@@ -151,20 +203,24 @@ class FeedbackStore:
     def to_training_rows(self) -> List[Dict[str, Any]]:
         """
         导出训练样本（用于 train_xgboost.py）。
-        每条样本包含：hazard_code/label（1=发生/0=未发生）+ score/level。
-        真实 label 用 occurred 字段（true=1, false=0）。
+
+        训练需要的 7 维特征来自 ``factors``（提交反馈时由后端附上的真实指标快照）。
+        ``factors`` 为空的记录会照常导出，但 ``has_features=False``，
+        训练阶段会跳过它们——不能用 predicted_score 反推特征来凑样本。
         """
         with self._lock:
             items = list(self._items)
         return [
             {
                 "hazard_code": r.get("hazard_code"),
-                "predicted_score": float(r.get("predicted_score", 0.0)),
+                "predicted_score": float(r.get("predicted_score", 0.0) or 0.0),
                 "predicted_level": r.get("predicted_level", "LOW"),
                 "outcome": r.get("outcome"),
                 "occurred": 1 if r.get("occurred") else 0,
-                "confidence": float(r.get("confidence", 1.0)),
+                "confidence": float(r.get("confidence", 1.0) or 1.0),
                 "feedback_at": r.get("feedback_at"),
+                "factors": dict(r.get("factors") or {}),
+                "has_features": bool(r.get("factors")),
             }
             for r in items
         ]

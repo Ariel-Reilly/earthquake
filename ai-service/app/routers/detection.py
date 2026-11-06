@@ -155,15 +155,16 @@ _ALLOWED_HOSTS = {
     if h.strip()
 }
 
-# 业务灾种映射：当前 yolo_crack.onnx 是 COCO 80 类，只能认出 person / car，
-# 无法直接给出灾种。为了让上层链路（事件 → 预警）先跑通，这里做一层
-# 临时适配——检出任意目标即视为险情、未检出视为无异常。
-# 换成业务 5 类模型后，应改为按 class_name 查真实灾种映射表。
-BUSINESS_DISASTER_TYPE = "debris_flow"
-BUSINESS_CONFIDENCE = 0.88
+# 业务类别 → 灾种码。只有模型真的是业务模型（输出类别数 == yolo_model.CLASSES）时才用。
+CLASS_TO_DISASTER = {
+    "crack": "collapse",      # 裂缝/剥落 → 崩塌类灾种的前兆
+    "landslide": "landslide",  # 滑坡
+}
+
+# 无检出时"无异常"结论的置信度（模型确实在跑且没框，才能给高置信）
 EMPTY_CONFIDENCE = 0.99
 
-DISASTER_LABELS = {"debris_flow": "泥石流", "none": "无异常"}
+DISASTER_LABELS = {"collapse": "崩塌", "landslide": "滑坡", "none": "无异常"}
 
 
 class DetectImageRequest(BaseModel):
@@ -174,8 +175,8 @@ class DetectImageRequest(BaseModel):
 
 class DetectImageResponse(BaseModel):
     # 向上层（Java 事件链路）直接给业务结论，而不是让它自己去猜 COCO 类别
-    disaster_type: str = Field(serialization_alias="disasterType", description="debris_flow / none")
-    confidence: float = Field(ge=0, le=1, description="业务置信度")
+    disaster_type: str = Field(serialization_alias="disasterType", description="collapse / landslide / none；模型非业务模型时恒为 none")
+    confidence: float = Field(ge=0, le=1, description="业务置信度；无有效判定时为 0")
     detections: List[DetectionItem] = Field(default_factory=list, description="原始检测框，便于排查")
     detection_count: int
     image_url: str
@@ -305,14 +306,30 @@ async def detect_image(req: DetectImageRequest):
     ]
     count = len(detections)
 
-    if count > 0:
-        disaster_type, confidence = BUSINESS_DISASTER_TYPE, BUSINESS_CONFIDENCE
+    # 只有"真实业务模型 + 非 mock"才允许给出灾种结论。
+    # 否则（COCO 占位模型 / 启发式 mock）检出的框与灾害无关，绝不能映射成灾种，
+    # 否则会对着一辆车报"泥石流"——这正是历史版本出现过的问题。
+    if result.get("mock"):
+        disaster_type, confidence = "none", 0.0
+        message = "模型未加载，返回启发式结果，不构成灾种判定"
+    elif not result.get("is_business_model"):
+        disaster_type, confidence = "none", 0.0
+        message = (
+            f"当前模型 {result['model']} 输出 {result.get('num_classes')} 类，"
+            "非灾害业务模型，不做灾种判定；请用 datasets/disaster-v2 训练后替换"
+        )
+    elif count > 0:
+        best = max(detections, key=lambda d: d.confidence)
+        disaster_type = CLASS_TO_DISASTER.get(best.class_name, "none")
+        confidence = best.confidence
+        message = "ok"
     else:
         disaster_type, confidence = "none", EMPTY_CONFIDENCE
+        message = "ok"
 
     logger.info(
-        "【Python AI】收到图像请求，下载成功，YOLO推理完成，检测到 %d 个目标，业务映射为：%s",
-        count, DISASTER_LABELS.get(disaster_type, disaster_type),
+        "【Python AI】YOLO 推理完成，检测到 %d 个目标，业务映射为：%s（%s）",
+        count, DISASTER_LABELS.get(disaster_type, disaster_type), message,
     )
 
     return DetectImageResponse(
@@ -324,5 +341,5 @@ async def detect_image(req: DetectImageRequest):
         device_code=req.device_code,
         model=result["model"],
         mock=result.get("mock", False),
-        message="ok",
+        message=message,
     )

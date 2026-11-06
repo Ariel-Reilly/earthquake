@@ -1,0 +1,94 @@
+{
+  "dataset_name": "disaster-v2",
+  "class_names": [
+    "crack",
+    "landslide"
+  ],
+  "_comment": "v2：把 v1 中分辨率仅 122×122 的 Nepal / Italy 滑坡源，整体替换为 CAS Landslide Dataset 的 512×512 子集（汶川、磨西镇 UAV-1m），影像面积提升约 17 倍。crack 源沿用 v1 不变。所有标注均为上游公开数据集的人工标注，经确定性几何转换（COCO bbox 线性映射 / 人工二值掩码连通域外接矩形），不含模型预测框、不含随机数、不含合成图像。详见 DATASET_CARD.md。",
+  "sources": [
+    {
+      "name": "crack-instance-segmentation",
+      "kind": "coco",
+      "split": "train",
+      "prefix": "crack-tr-",
+      "images_dir": "../../../datasets/_raw/crack_train",
+      "coco_json": "../../../datasets/_raw/crack_train/_annotations.coco.json",
+      "license": "upstream-undeclared",
+      "homepage": "https://huggingface.co/datasets/fcakyon/crack-instance-segmentation",
+      "class_map": {
+        "cracks-and-spalling": "crack",
+        "object": "crack"
+      }
+    },
+    {
+      "name": "crack-instance-segmentation",
+      "kind": "coco",
+      "split": "val",
+      "prefix": "crack-va-",
+      "images_dir": "../../../datasets/_raw/crack_valid",
+      "coco_json": "../../../datasets/_raw/crack_valid/_annotations.coco.json",
+      "license": "upstream-undeclared",
+      "homepage": "https://huggingface.co/datasets/fcakyon/crack-instance-segmentation",
+      "class_map": {
+        "cracks-and-spalling": "crack",
+        "object": "crack"
+      }
+    },
+    {
+      "name": "crack-instance-segmentation",
+      "kind": "coco",
+      "split": "test",
+      "prefix": "crack-te-",
+      "images_dir": "../../../datasets/_raw/crack_test",
+      "coco_json": "../../../datasets/_raw/crack_test/_annotations.coco.json",
+      "license": "upstream-undeclared",
+      "homepage": "https://huggingface.co/datasets/fcakyon/crack-instance-segmentation",
+      "class_map": {
+        "cracks-and-spalling": "crack",
+        "object": "crack"
+      }
+    },
+    {
+      "name": "cas-wenchuan-512",
+      "kind": "mask",
+      "split": "train",
+      "prefix": "cas-wen-",
+      "images_dir": "../../../datasets/_raw/cas/wenchuan/img",
+      "masks_dir": "../../../datasets/_raw/cas/wenchuan/mask",
+      "mask_target": "landslide",
+      "mask_name_template": "{stem}.TIF",
+      "min_component_area": 150,
+      "mask_close_kernel": 15,
+      "auto_split": {
+        "train": 0.8,
+        "val": 0.1,
+        "test": 0.1
+      },
+      "license": "CC-BY-NC-4.0",
+      "homepage": "https://zenodo.org/records/10294997",
+      "trim_fill_border": true,
+      "trim_min_ratio": 0.02
+    },
+    {
+      "name": "cas-moxi-uav1m-512",
+      "kind": "mask",
+      "split": "train",
+      "prefix": "cas-mox-",
+      "images_dir": "../../../datasets/_raw/cas/moxi/img",
+      "masks_dir": "../../../datasets/_raw/cas/moxi/mask",
+      "mask_target": "landslide",
+      "mask_name_template": "{stem}.TIF",
+      "min_component_area": 150,
+      "mask_close_kernel": 15,
+      "auto_split": {
+        "train": 0.8,
+        "val": 0.1,
+        "test": 0.1
+      },
+      "license": "CC-BY-NC-4.0",
+      "homepage": "https://zenodo.org/records/10294997",
+      "trim_fill_border": true,
+      "trim_min_ratio": 0.02
+    }
+  ]
+}

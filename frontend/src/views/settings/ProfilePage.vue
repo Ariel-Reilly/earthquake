@@ -9,7 +9,7 @@
  * 5. 帮助反馈 — 版本信息、帮助中心入口、意见反馈
  * 6. 服务状态 — 各服务连接状态展示（只读）
  */
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import ConfirmDialog from '../../components/common/ConfirmDialog.vue'
 import { useRouter } from 'vue-router'
 import {
@@ -29,6 +29,8 @@ import PasswordChange from '../../components/profile/PasswordChange.vue'
 import NotificationPreference from '../../components/profile/NotificationPreference.vue'
 import ThemeLanguage from '../../components/profile/ThemeLanguage.vue'
 import { clearAuthSession, getAuthUser, getRoleLabel } from '../../stores/auth'
+import { dashboardApi } from '../../services/dashboardApi'
+import pkg from '../../../package.json'
 
 const emit = defineEmits(['notify', 'open-task-modal', 'create-task'])
 const confirmDialogRef = ref(null)
@@ -69,44 +71,69 @@ function logout() {
 }
 
 // ========== 帮助反馈 ==========
-const appVersion = 'v1.2.0'
-const buildDate = '2025-03-15'
+// 版本号取自 package.json；构建日期由构建环境变量注入，未注入时如实标注。
+const appVersion = pkg?.version ? `v${pkg.version}` : (import.meta.env.VITE_APP_VERSION || '未配置')
+const buildDate = import.meta.env.VITE_BUILD_DATE || '未配置'
 
 function openHelpCenter() {
-  emit('notify', '帮助中心即将开放，敬请期待')
+  router.push('/dashboard/help')
 }
 
-function submitFeedback() {
-  emit('notify', '反馈功能开发中，可联系系统管理员提交建议')
+const feedbackForm = ref({ content: '', contact: '' })
+const feedbackSubmitting = ref(false)
+const feedbackResult = ref('')
+
+async function submitFeedback() {
+  if (!feedbackForm.value.content.trim()) return emit('notify', '请填写反馈内容')
+  feedbackSubmitting.value = true
+  feedbackResult.value = ''
+  try {
+    const res = await dashboardApi.submitSupportFeedback({
+      type: 'suggestion',
+      subject: '个人中心反馈',
+      content: feedbackForm.value.content.trim(),
+      contact: feedbackForm.value.contact.trim(),
+    })
+    feedbackForm.value.content = ''
+    feedbackResult.value = res?.ticketId ? `反馈已受理，受理号 ${res.ticketId}` : '反馈已受理'
+    emit('notify', feedbackResult.value)
+  } catch (e) {
+    emit('notify', `反馈提交失败：${e?.message ?? e}`)
+  } finally {
+    feedbackSubmitting.value = false
+  }
 }
 
-// ========== 服务状态 ==========
-const serviceStatus = ref([
-  { name: 'RESTful API 网关', detail: 'http://localhost:8080/api', state: '正常', color: 'teal', icon: Server },
-  { name: 'MQTT 数据接入', detail: 'mqtt://mqtt.geo-sentry.local:1883', state: '正常', color: 'teal', icon: Database },
-  { name: '时序数据库', detail: 'TDengine · 设备在线', state: '正常', color: 'teal', icon: Database },
-  { name: '消息服务', detail: '站内通知推送通道', state: '正常', color: 'teal', icon: Bell },
-])
+// ========== 服务状态（真实 /api/system/monitor） ==========
+const serviceStatus = ref([])
 const serviceLoading = ref(false)
+const serviceError = ref('')
 
-function runServiceCheck() {
+async function runServiceCheck() {
   if (serviceLoading.value) return
   serviceLoading.value = true
-  serviceStatus.value.forEach((item) => { item.state = '检测中'; item.color = 'amber' })
-  emit('notify', '正在检测服务状态...')
-  window.setTimeout(() => {
-    serviceStatus.value = [
-      { name: 'RESTful API 网关', detail: 'http://localhost:8080/api', state: '正常', color: 'teal', icon: Server },
-      { name: 'MQTT 数据接入', detail: 'mqtt://mqtt.geo-sentry.local:1883', state: '正常', color: 'teal', icon: Database },
-      { name: '时序数据库', detail: 'TDengine · 设备在线', state: '正常', color: 'teal', icon: Database },
-      { name: '消息服务', detail: '站内通知推送通道', state: '正常', color: 'teal', icon: Bell },
-    ]
+  serviceError.value = ''
+  try {
+    const data = await dashboardApi.getSystemMonitor()
+    const services = Array.isArray(data?.services) ? data.services : []
+    serviceStatus.value = services.map((s) => ({
+      name: s?.name ?? '未知服务',
+      detail: [s?.version ? `版本 ${s.version}` : '', s?.latency != null ? `${s.latency} ms` : '']
+        .filter(Boolean).join(' · ') || '—',
+      state: s?.state === 'UP' ? '正常' : (s?.state ?? '未知'),
+      color: s?.state === 'UP' ? 'teal' : 'amber',
+      icon: Server,
+    }))
+  } catch (e) {
+    serviceStatus.value = []
+    serviceError.value = e?.message ?? '服务状态暂不可用'
+    emit('notify', `服务状态暂不可用：${serviceError.value}`)
+  } finally {
     serviceLoading.value = false
-    emit('notify', '服务状态检测完成：全部正常')
-  }, 1200)
+  }
 }
 
-// 服务状态为只读展示，检测按钮模拟检查过程
+onMounted(runServiceCheck)
 </script>
 
 <template>
@@ -240,20 +267,22 @@ function runServiceCheck() {
                 <Bell :size="18" color="#cbaa76" />
                 <strong>意见反馈</strong>
               </div>
-              <p class="help-desc">遇到问题或有改进建议？欢迎向我们反馈</p>
-              <div class="feedback-channels">
-                <div class="feedback-item">
-                  <span class="fb-label">系统管理员</span>
-                  <code>admin@disasterguard.cn</code>
-                </div>
-                <div class="feedback-item">
-                  <span class="fb-label">技术支持</span>
-                  <code>support@disasterguard.cn</code>
-                </div>
-              </div>
-              <button class="help-btn" @click="submitFeedback">
-                提交反馈
+              <p class="help-desc">遇到问题或有改进建议？提交后将写入系统操作审计日志</p>
+              <textarea
+                v-model="feedbackForm.content"
+                class="feedback-input"
+                rows="3"
+                placeholder="请描述遇到的问题或改进建议"
+              />
+              <input
+                v-model="feedbackForm.contact"
+                class="feedback-input"
+                placeholder="联系方式（选填）"
+              />
+              <button class="help-btn" :disabled="feedbackSubmitting" @click="submitFeedback">
+                {{ feedbackSubmitting ? '提交中…' : '提交反馈' }}
               </button>
+              <p v-if="feedbackResult" class="feedback-result">{{ feedbackResult }}</p>
             </div>
           </div>
         </div>
@@ -270,7 +299,9 @@ function runServiceCheck() {
             </button>
           </header>
 
-          <div class="service-list">
+          <div v-if="serviceError" class="service-error-note">服务状态暂不可用：{{ serviceError }}</div>
+          <div v-else-if="!serviceStatus.length" class="service-error-note">暂无服务状态数据</div>
+          <div v-else class="service-list">
             <div
               v-for="item in serviceStatus"
               :key="item.name"
@@ -294,7 +325,7 @@ function runServiceCheck() {
 
           <div class="service-foot-note">
             <ShieldCheck :size="13" />
-            <span>服务状态为只读展示，如有异常请联系系统管理员</span>
+            <span>服务状态数据来自 /api/system/monitor，如有异常请联系系统管理员</span>
           </div>
         </div>
       </main>

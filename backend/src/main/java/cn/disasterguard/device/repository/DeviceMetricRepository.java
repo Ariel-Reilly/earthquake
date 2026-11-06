@@ -19,6 +19,19 @@ public interface DeviceMetricRepository extends JpaRepository<DeviceMetric, Long
       """, nativeQuery = true)
   List<DeviceMetric> findLatestByDeviceCodes(@Param("deviceCodes") List<String> deviceCodes);
 
+  /**
+   * 某灾害点下各指标的最新一条记录（跨该点所有设备）。
+   *
+   * <p>用于 AI 反馈提交时自动附带真实特征快照，让"人工复核结论"能沉淀成训练样本。
+   */
+  @Query(value = """
+      SELECT DISTINCT ON (metric_code) *
+      FROM device_metric
+      WHERE hazard_code = :hazardCode
+      ORDER BY metric_code, recorded_at DESC
+      """, nativeQuery = true)
+  List<DeviceMetric> findLatestByHazardCode(@Param("hazardCode") String hazardCode);
+
   List<DeviceMetric> findByDeviceCodeAndMetricCodeOrderByRecordedAtDesc(String deviceCode, String metricCode);
 
   /** 获取最近 N 条指标值（按时间升序），供 AI 时序预测。 */

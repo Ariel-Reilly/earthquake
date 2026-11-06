@@ -1,0 +1,69 @@
+{
+  "dataset_name": "disaster-v1",
+  "class_names": ["crack", "landslide"],
+  "_comment": "两个来源都是公开数据集的人工标注，经确定性格式转换（COCO bbox 线性映射 / 掩码连通域外接矩形），不含模型预测与随机数。Nepal 上游的 Val 与 Train 有 33/35 内容重复，故弃用其原始划分，只用 Training 的 230 张做确定性重划分。详见 DATASET_CARD.md。",
+  "sources": [
+    {
+      "name": "crack-instance-segmentation",
+      "kind": "coco",
+      "split": "train",
+      "prefix": "crack-tr-",
+      "images_dir": "../../../datasets/_raw/crack_train",
+      "coco_json": "../../../datasets/_raw/crack_train/_annotations.coco.json",
+      "license": "upstream-undeclared",
+      "homepage": "https://huggingface.co/datasets/fcakyon/crack-instance-segmentation",
+      "class_map": { "cracks-and-spalling": "crack", "object": "crack" }
+    },
+    {
+      "name": "crack-instance-segmentation",
+      "kind": "coco",
+      "split": "val",
+      "prefix": "crack-va-",
+      "images_dir": "../../../datasets/_raw/crack_valid",
+      "coco_json": "../../../datasets/_raw/crack_valid/_annotations.coco.json",
+      "license": "upstream-undeclared",
+      "homepage": "https://huggingface.co/datasets/fcakyon/crack-instance-segmentation",
+      "class_map": { "cracks-and-spalling": "crack", "object": "crack" }
+    },
+    {
+      "name": "crack-instance-segmentation",
+      "kind": "coco",
+      "split": "test",
+      "prefix": "crack-te-",
+      "images_dir": "../../../datasets/_raw/crack_test",
+      "coco_json": "../../../datasets/_raw/crack_test/_annotations.coco.json",
+      "license": "upstream-undeclared",
+      "homepage": "https://huggingface.co/datasets/fcakyon/crack-instance-segmentation",
+      "class_map": { "cracks-and-spalling": "crack", "object": "crack" }
+    },
+    {
+      "name": "nepal-landslide-segmentation",
+      "kind": "mask",
+      "split": "train",
+      "prefix": "nepal-",
+      "images_dir": "../../../datasets/_raw/nepal/Nepal landslide dataset/Training/image",
+      "masks_dir": "../../../datasets/_raw/nepal/Nepal landslide dataset/Training/label",
+      "mask_target": "landslide",
+      "mask_name_template": "{stem}_mask.png",
+      "strip_prefix": "b_",
+      "min_component_area": 20,
+      "auto_split": { "train": 0.8, "val": 0.1, "test": 0.1 },
+      "license": "cc-by-4.0",
+      "homepage": "https://zenodo.org/records/3688363"
+    },
+    {
+      "name": "italy-landslide-segmentation",
+      "kind": "mask",
+      "split": "train",
+      "prefix": "italy-",
+      "images_dir": "../../../datasets/_raw/italy/image",
+      "masks_dir": "../../../datasets/_raw/italy/masks",
+      "mask_target": "landslide",
+      "mask_name_template": "masks_{stem}.png",
+      "min_component_area": 20,
+      "auto_split": { "train": 0.8, "val": 0.1, "test": 0.1 },
+      "license": "cc-by-4.0",
+      "homepage": "https://zenodo.org/records/4287425"
+    }
+  ]
+}

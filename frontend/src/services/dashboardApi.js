@@ -230,6 +230,25 @@ export const dashboardApi = {
     requireBackend("删除灾害");
     return request(`/hazards/${id}`, { method: "DELETE" });
   },
+  /**
+   * 把灾害点提交到人工确认队列（真实落库，不是前端本地删卡片）。
+   * 后端口径：unified_event.state ∈ {DETECTED, CONFIRMING} 即为待确认。
+   * 返回 { hazardCode, eventCode, state, alreadyInQueue, message }。
+   */
+  submitHazardConfirmation: async (hazardCode) => {
+    requireBackend("提交人工确认");
+    return request(`/hazards/${encodeURIComponent(hazardCode)}/submit-confirmation`, {
+      method: "POST",
+    });
+  },
+  /** 归档误报（DISMISS → CLOSED），原因必填。 */
+  dismissHazard: async (hazardCode, reason) => {
+    requireBackend("归档误报");
+    return request(`/hazards/${encodeURIComponent(hazardCode)}/dismiss`, {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+    });
+  },
   getTasks: async (params = {}) => {
     requireBackend("巡检任务");
     const data = await request(`/tasks${withQuery(params)}`);

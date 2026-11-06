@@ -7,7 +7,7 @@
  *   - 异常告警列表（超阈值自动红色高亮）
  *   - 手动触发同步、暂停、重试操作
  *
- * 数据来源：dashboardApi.getDataSyncTasks()（mock 模式走 seed fallback）
+ * 数据来源：dashboardApi.getSyncTasks / getSyncStats / getSyncAnomalies（真实后端 /api/sync/*）。
  */
 <script setup>
 import {
@@ -40,22 +40,66 @@ const emit = defineEmits(["notify"]);
 // ─── 状态 ───────────────────────────────────────
 const loading = ref(true);
 const tasks = ref([]);
+const syncStats = ref(null);
+const anomalies = ref([]);
+const loadError = ref("");
 const filter = ref({ keyword: "", status: "" });
 const selectedTask = ref(null);
 const detailDrawer = ref(false);
 const refreshing = ref(null);
 const toggling = ref(null);
 
+// 后端 /api/sync/* 返回的状态码与页面展示状态的映射。
+const STATUS_MAP = {
+  RUNNING: "running",
+  COMPLETED: "completed",
+  PAUSED: "paused",
+  ERROR: "failed",
+};
+
+function toList(data) {
+  if (Array.isArray(data)) return data;
+  const list = data?.records ?? data?.items ?? data?.list;
+  return Array.isArray(list) ? list : [];
+}
+
+function normalizeTask(raw) {
+  const code = String(raw?.status ?? "").toUpperCase();
+  return {
+    id: raw?.taskId ?? raw?.id,
+    name: raw?.taskName ?? raw?.taskId ?? raw?.id,
+    source: raw?.source ?? "—",
+    target: raw?.target ?? "—",
+    status: STATUS_MAP[code] ?? (code ? code.toLowerCase() : "idle"),
+    recordCount: Number(raw?.recordsSynced ?? raw?.recordCount ?? 0),
+    delaySeconds: raw?.delaySeconds ?? null,
+    lastSyncAt: raw?.lastSyncAt ?? null,
+    interval: raw?.interval ?? "实时",
+    errorCount: Number(raw?.errorCount ?? 0),
+  };
+}
+
 // ─── 生命周期 ───────────────────────────────────
 onMounted(loadTasks);
 
 async function loadTasks() {
   loading.value = true;
+  loadError.value = "";
   try {
-    const data = await dashboardApi.getDataSyncTasks?.().catch(() => null);
-    tasks.value = Array.isArray(data) ? data : [];
-  } catch {
+    const [taskData, statsData, anomalyData] = await Promise.all([
+      dashboardApi.getSyncTasks(),
+      dashboardApi.getSyncStats(),
+      dashboardApi.getSyncAnomalies(),
+    ]);
+    tasks.value = toList(taskData).map(normalizeTask);
+    syncStats.value = statsData ?? null;
+    anomalies.value = toList(anomalyData);
+  } catch (e) {
     tasks.value = [];
+    syncStats.value = null;
+    anomalies.value = [];
+    loadError.value = e?.message ?? "加载同步状态失败";
+    emit("notify", loadError.value);
   } finally {
     loading.value = false;
   }
@@ -79,27 +123,44 @@ const filteredTasks = computed(() => {
   return list;
 });
 
-// ─── 统计卡片 ───────────────────────────────────
+// ─── 统计卡片（数字来自 /api/sync/stats，缺失字段时从真实任务列表派生） ───
 const stats = computed(() => {
+  const s = syncStats.value;
   const all = tasks.value;
   return {
-    total: all.length,
-    ok: all.filter((t) => t.status === "running" || t.status === "idle").length,
-    delayed: all.filter((t) => t.status === "delayed").length,
-    failed: all.filter((t) => t.status === "failed").length,
-    totalRecords: all.reduce((sum, t) => sum + (Number(t.recordCount) || 0), 0),
-    totalDelay: all.reduce((sum, t) => sum + (Number(t.delaySeconds) || 0), 0),
+    total: Number(s?.totalTasks ?? all.length),
+    running: Number(s?.runningTasks ?? all.filter((t) => t.status === "running").length),
+    paused: Number(s?.pausedTasks ?? all.filter((t) => t.status === "paused").length),
+    failed: Number(s?.errorTasks ?? all.filter((t) => t.status === "failed").length),
+    totalRecords: Number(s?.totalRecords ?? all.reduce((sum, t) => sum + (Number(t.recordCount) || 0), 0)),
+    anomalies: Number(s?.anomalies ?? anomalies.value.length),
   };
+});
+
+// 抽屉告警来自真实 /api/sync/anomalies，按 taskCode / 数据源编码关联。
+const selectedAlerts = computed(() => {
+  const t = selectedTask.value;
+  if (!t) return [];
+  return anomalies.value
+    .filter((a) => a?.target === t.id || a?.target === t.source)
+    .map((a) => ({
+      id: a.id,
+      level: String(a.severity ?? "").toUpperCase() === "ERROR" ? "critical" : "warning",
+      message: a.description ?? a.type ?? "异常",
+      createdAt: a.detectedAt,
+    }));
 });
 
 // ─── 状态辅助 ───────────────────────────────────
 function statusMeta(status) {
   return {
-    running: { label: "运行中",   color: "cyan",   icon: Loader2 },
-    idle:    { label: "空闲",     color: "gray",   icon: Pause },
-    delayed: { label: "延迟",     color: "orange",  icon: AlertCircle },
-    failed:  { label: "失败",     color: "red",    icon: XCircle },
-  }[status ?? "idle"] ?? { label: "未知", color: "gray", icon: AlertCircle };
+    running:   { label: "运行中", color: "cyan",   icon: Loader2 },
+    completed: { label: "已完成", color: "cyan",   icon: CheckCircle2 },
+    paused:    { label: "已暂停", color: "gray",   icon: Pause },
+    idle:      { label: "空闲",   color: "gray",   icon: Pause },
+    delayed:   { label: "延迟",   color: "orange", icon: AlertCircle },
+    failed:    { label: "失败",   color: "red",    icon: XCircle },
+  }[status ?? "idle"] ?? { label: String(status ?? "未知"), color: "gray", icon: AlertCircle };
 }
 
 function severityMeta(level) {
@@ -141,9 +202,11 @@ function closeDetail() { detailDrawer.value = false; selectedTask.value = null; 
 async function refreshTask(taskId) {
   refreshing.value = taskId;
   try {
-    await dashboardApi.triggerDataSync?.(taskId).catch(() => null);
+    await dashboardApi.triggerSyncTask(taskId);
     emit("notify", "同步任务已触发");
     await loadTasks();
+  } catch (e) {
+    emit("notify", `触发同步失败：${e?.message ?? e}`);
   } finally {
     refreshing.value = null;
   }
@@ -152,10 +215,17 @@ async function refreshTask(taskId) {
 async function toggleTask(taskId, currentStatus) {
   toggling.value = taskId;
   try {
-    const newStatus = currentStatus === "running" ? "pause" : "resume";
-    await dashboardApi.toggleDataSync?.(taskId, newStatus).catch(() => null);
-    emit("notify", newStatus === "pause" ? "同步已暂停" : "同步已恢复");
+    if (currentStatus === "running") {
+      await dashboardApi.pauseSyncTask(taskId);
+      emit("notify", "同步已暂停");
+    } else {
+      // 后端无独立 resume 端点；triggerSyncTask 会把任务重新置为 RUNNING。
+      await dashboardApi.triggerSyncTask(taskId);
+      emit("notify", "同步任务已重新触发");
+    }
     await loadTasks();
+  } catch (e) {
+    emit("notify", `操作失败：${e?.message ?? e}`);
   } finally {
     toggling.value = null;
   }
@@ -174,17 +244,17 @@ async function toggleTask(taskId, currentStatus) {
         </div>
       </div>
       <div class="ds-stat-card ds-ok">
-        <CheckCircle2 :size="22" class="stat-icon" />
+        <Loader2 :size="22" class="stat-icon" />
         <div class="stat-body">
-          <div class="stat-num">{{ stats.ok }}</div>
-          <div class="stat-label">正常</div>
+          <div class="stat-num">{{ stats.running }}</div>
+          <div class="stat-label">运行中</div>
         </div>
       </div>
-      <div class="ds-stat-card ds-delayed">
-        <AlertCircle :size="22" class="stat-icon" />
+      <div class="ds-stat-card ds-paused">
+        <Pause :size="22" class="stat-icon" />
         <div class="stat-body">
-          <div class="stat-num">{{ stats.delayed }}</div>
-          <div class="stat-label">延迟</div>
+          <div class="stat-num">{{ stats.paused }}</div>
+          <div class="stat-label">已暂停</div>
         </div>
       </div>
       <div class="ds-stat-card ds-failed">
@@ -201,11 +271,11 @@ async function toggleTask(taskId, currentStatus) {
           <div class="stat-label">总记录数</div>
         </div>
       </div>
-      <div class="ds-stat-card ds-delay">
-        <History :size="22" class="stat-icon" />
+      <div class="ds-stat-card ds-anomaly">
+        <ShieldAlert :size="22" class="stat-icon" />
         <div class="stat-body">
-          <div class="stat-num">{{ fmtDelay(stats.totalDelay) }}</div>
-          <div class="stat-label">总延迟</div>
+          <div class="stat-num">{{ stats.anomalies }}</div>
+          <div class="stat-label">异常数</div>
         </div>
       </div>
     </div>
@@ -223,9 +293,9 @@ async function toggleTask(taskId, currentStatus) {
       <select v-model="filter.status" class="ds-select">
         <option value="">全部状态</option>
         <option value="running">运行中</option>
-        <option value="delayed">延迟</option>
+        <option value="completed">已完成</option>
+        <option value="paused">已暂停</option>
         <option value="failed">失败</option>
-        <option value="idle">空闲</option>
       </select>
       <button class="ds-btn ds-btn-refresh" @click="loadTasks">
         <RefreshCw :size="15" :class="loading ? 'spin' : ''" />
@@ -237,6 +307,14 @@ async function toggleTask(taskId, currentStatus) {
     <div v-if="loading" class="ds-loading">
       <Loader2 :size="32" class="spin" />
       <span>加载同步状态…</span>
+    </div>
+
+    <!-- ── 错误态 ── -->
+    <div v-else-if="loadError" class="ds-empty">
+      <XCircle :size="48" />
+      <p>同步状态加载失败</p>
+      <small>{{ loadError }}</small>
+      <button class="ds-btn ds-btn-refresh" @click="loadTasks">重试</button>
     </div>
 
     <!-- ── 空状态 ── -->
@@ -333,9 +411,9 @@ async function toggleTask(taskId, currentStatus) {
             </div>
           </div>
 
-          <div v-if="selectedTask.alerts?.length" class="detail-section">
+          <div v-if="selectedAlerts.length" class="detail-section">
             <h4><ShieldAlert :size="15" /> 告警记录</h4>
-            <div v-for="alert in selectedTask.alerts" :key="alert.id" class="alert-item">
+            <div v-for="alert in selectedAlerts" :key="alert.id" class="alert-item">
               <span class="ds-badge" :class="`badge-${severityMeta(alert.level).color}`">
                 {{ severityMeta(alert.level).label }}
               </span>
@@ -383,16 +461,16 @@ async function toggleTask(taskId, currentStatus) {
   gap: 12px;
 }
 .ds-stat-card.ds-ok { border-color: var(--c-success); background: var(--c-success-bg); }
-.ds-stat-card.ds-delayed { border-color: var(--c-warning); background: var(--c-warning-bg); }
+.ds-stat-card.ds-paused { border-color: var(--c-warning); background: var(--c-warning-bg); }
 .ds-stat-card.ds-failed { border-color: var(--c-danger); background: var(--c-danger-bg); }
 .ds-stat-card.ds-records { border-color: var(--c-success); background: var(--c-success-bg); }
-.ds-stat-card.ds-delay { border-color: var(--c-info); background: var(--c-info-bg); }
+.ds-stat-card.ds-anomaly { border-color: var(--c-info); background: var(--c-info-bg); }
 .stat-icon { color: var(--c-text-3); }
 .ds-stat-card.ds-ok .stat-icon { color: var(--c-success); }
-.ds-stat-card.ds-delayed .stat-icon { color: var(--c-warning-strong); }
+.ds-stat-card.ds-paused .stat-icon { color: var(--c-warning-strong); }
 .ds-stat-card.ds-failed .stat-icon { color: var(--c-danger); }
 .ds-stat-card.ds-records .stat-icon { color: var(--c-brand-hover); }
-.ds-stat-card.ds-delay .stat-icon { color: var(--c-info); }
+.ds-stat-card.ds-anomaly .stat-icon { color: var(--c-info); }
 .stat-body { flex: 1; }
 .stat-num { font-size: 24px; font-weight: 700; color: var(--c-scrim); line-height: 1; }
 .stat-label { font-size: 12px; color: var(--c-text-3); margin-top: 3px; }

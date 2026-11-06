@@ -364,20 +364,22 @@ async function submitTransfer() {
  */
 async function loadAvailableOperators() {
   try {
-    const list = await dashboardApi.getOperatorsList?.().catch(() => [
-      { id: '1', name: '陈晓峰', role: '领域专家', expertise: '地质' },
-      { id: '2', name: '张文博', role: '领域专家', expertise: '测绘' },
-      { id: '3', name: '李建华', role: '领域专家', expertise: '应急' },
-    ])
-    return Array.isArray(list) ? list : []
+    const data = await dashboardApi.getUsers({})
+    const raw = Array.isArray(data) ? data : (data?.records ?? data?.items ?? data?.list ?? [])
+    return (Array.isArray(raw) ? raw : []).map((u) => ({
+      id: u.id ?? u.userId ?? u.username,
+      name: u.name ?? u.username ?? '未命名用户',
+      role: u.role ?? '',
+      expertise: u.org ?? u.department ?? '',
+    }))
   } catch (e) {
-    console.warn('加载值守人员列表失败', e)
+    emit('notify', `加载值守人员列表失败：${e?.message ?? e}`)
     return []
   }
 }
 
 function goCreateWarning(item) {
-  router.push({ path: '/dashboard/warnings/create', query: { hazardCode: item.hazardCode, name: item.name } })
+  router.push({ path: '/dashboard/warnings', query: { create: '1', hazardCode: item.hazardCode, name: item.name } })
 }
 
 function viewFullDetail(item) {
@@ -888,7 +890,7 @@ onBeforeUnmount(() => {
                   {{ op.name }}（{{ op.role }}{{ op.expertise ? ' / ' + op.expertise : '' }}）
                 </option>
               </select>
-              <small v-if="!confirmationState.availableOperators.length" style="color: var(--c-text-4);">加载中…</small>
+              <small v-if="!confirmationState.availableOperators.length" style="color: var(--c-text-4);">暂无可选值守人员（请确认用户数据是否加载成功）</small>
             </label>
             <label>转派说明
               <textarea v-model="confirmationState.transferAction.reason" placeholder="例如：需要地质专家判读岩层结构" rows="3"></textarea>

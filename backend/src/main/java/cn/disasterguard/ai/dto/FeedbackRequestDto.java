@@ -34,6 +34,14 @@ public record FeedbackRequestDto(
     @JsonProperty("occurred") @JsonAlias("occurred") Boolean occurred,
     @JsonProperty("confidence") @JsonAlias("confidence") Double confidence,
     @JsonProperty("feedback_by") @JsonAlias("feedbackBy") String feedbackBy,
-    @JsonProperty("note") @JsonAlias("note") String note
+    @JsonProperty("note") @JsonAlias("note") String note,
+    /**
+     * 真实指标快照（displacement_rate / rainfall_24h / crack_width / ...）。
+     *
+     * <p>2026-11-05 新增：ai-service 训练只接受带该字段的样本。前端不必传——
+     * {@code AiController#submitFeedback} 会在为空时按 hazardCode 从 device_metric
+     * 自动取最新值填充，保证"人工复核结论"能真正沉淀成训练样本。
+     */
+    @JsonProperty("factors") @JsonAlias("factors") java.util.Map<String, Double> factors
 ) {
 }

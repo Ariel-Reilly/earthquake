@@ -138,6 +138,11 @@ disasterguard:
     hazard-monitor-min-risk-level: ${AI_HAZARD_MONITOR_MIN_RISK_LEVEL:HIGH}
 
   device:
+    # 设备指标模拟器：默认关闭。开启后 device_metric 会被随机数灌入，
+    # 规则引擎据此生成的预警是「假预警」。仅本地演示可显式设为 true，
+    # 生产必须保持 false，改走 MQTT / HTTP 真实设备上报。
+    metric-simulator-enabled: ${DEVICE_METRIC_SIMULATOR_ENABLED:false}
+    metric-simulator-mark-source: true
     auth-strict-mode: ${DEVICE_AUTH_STRICT:false}
     offline-threshold-minutes: 5
     offline-check-interval-seconds: 60

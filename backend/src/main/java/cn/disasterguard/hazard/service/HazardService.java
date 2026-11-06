@@ -5,6 +5,8 @@ import cn.disasterguard.common.api.PageResponse;
 import cn.disasterguard.common.exception.AppException;
 import cn.disasterguard.common.geo.ViewportBounds;
 import cn.disasterguard.common.export.HazardExportRow;
+import cn.disasterguard.event.EventState;
+import cn.disasterguard.event.EventTrigger;
 import cn.disasterguard.event.entity.UnifiedEventEntity;
 import cn.disasterguard.event.service.EventStateService;
 import cn.disasterguard.hazard.dto.HazardDto;
@@ -254,6 +256,103 @@ public class HazardService {
         saved.getHazardCode(), saved.getName());
     log.info("AI Hazard detected with unified_event: hazard={}, eventCode={}", saved.getHazardCode(), eventCode);
     return toDto(saved, eventCode, null);
+  }
+
+  /**
+   * 把灾害点提交到人工确认队列。
+   *
+   * <p>确认队列（ConfirmationQueueController）的展示口径是 unified_event.state ∈
+   * {DETECTED, CONFIRMING}，所以本方法只保证「该灾害点存在一条待确认事件」：
+   * 不新建重复事件、不重置已终态事件。已确认 / 已发布预警 / 已启动应急 / 已关闭的灾害点
+   * 原样返回 state，由调用方提示"已处理过"，避免把真实灾情倒退回待确认。
+   *
+   * @param hazardCode 灾害点编号
+   * @param operator   操作人（来自 SecurityContext，不信任请求体）
+   * @return hazardCode / eventCode / state / alreadyInQueue / message
+   */
+  @Transactional
+  public Map<String, Object> submitForConfirmation(String hazardCode, String operator) {
+    HazardPoint point = repository.findByHazardCode(hazardCode);
+    if (point == null) {
+      throw new AppException(404, "未找到灾害点：" + hazardCode);
+    }
+    UnifiedEventEntity event = findHazardEvent(hazardCode);
+    if (event == null) {
+      String createdCode = eventStateService.createFromManualReport(hazardCode, point.getName(), operator);
+      event = eventStateService.findByEventCode(createdCode);
+    }
+    if (event == null) {
+      throw new AppException(500, "创建确认任务失败：" + hazardCode);
+    }
+    EventState state = event.getState();
+    boolean inQueue = state == EventState.DETECTED || state == EventState.CONFIRMING;
+    Map<String, Object> result = new LinkedHashMap<>();
+    result.put("hazardCode", hazardCode);
+    result.put("eventCode", event.getEventCode());
+    result.put("state", state == null ? null : state.name());
+    result.put("alreadyInQueue", inQueue);
+    result.put("message", inQueue
+        ? "已在人工确认队列"
+        : "该灾害点已进入后续流程（" + state + "），无需重复提交");
+    log.info("提交人工确认: hazard={} event={} state={} operator={}",
+        hazardCode, event.getEventCode(), state, operator);
+    return result;
+  }
+
+  /**
+   * 把灾害点归档为误报：DISMISS → CLOSED。
+   *
+   * <p>只允许 DETECTED / CONFIRMING / CONFIRMED（与 EventStateMachineConfig 的 DISMISS 转换一致）。
+   * 已发布预警或已启动应急的事件必须走关闭流程，不能以"误报"名义关掉真实灾情。
+   *
+   * @param reason 误报原因（必填，写入事件关闭原因与流转记录）
+   */
+  @Transactional
+  public Map<String, Object> dismiss(String hazardCode, String operator, String reason) {
+    HazardPoint point = repository.findByHazardCode(hazardCode);
+    if (point == null) {
+      throw new AppException(404, "未找到灾害点：" + hazardCode);
+    }
+    if (reason == null || reason.isBlank()) {
+      throw new AppException(400, "请填写误报原因");
+    }
+    UnifiedEventEntity event = findHazardEvent(hazardCode);
+    if (event == null) {
+      throw new AppException(404, "该灾害点没有关联的确认任务：" + hazardCode);
+    }
+    EventState state = event.getState();
+    if (state == EventState.CLOSED || state == EventState.REJECTED) {
+      throw new AppException(400, "该事件已是终态（" + state + "），不可重复归档");
+    }
+    if (state == EventState.WARNING_ISSUED || state == EventState.EMERGENCY_ACTIVE) {
+      throw new AppException(400,
+          "该事件已进入" + (state == EventState.WARNING_ISSUED ? "预警发布" : "应急响应")
+              + "阶段，请走关闭流程，不能按误报归档");
+    }
+    boolean ok = eventStateService.transition(event.getEventCode(), EventTrigger.DISMISS, operator, reason);
+    if (!ok) {
+      throw new AppException(400, "状态流转被拒绝：" + state + " → CLOSED");
+    }
+    UnifiedEventEntity updated = eventStateService.findByEventCode(event.getEventCode());
+    Map<String, Object> result = new LinkedHashMap<>();
+    result.put("hazardCode", hazardCode);
+    result.put("eventCode", event.getEventCode());
+    result.put("state", updated != null && updated.getState() != null
+        ? updated.getState().name() : "CLOSED");
+    result.put("archivedBy", operator);
+    result.put("reason", reason);
+    result.put("message", "已归档为误报");
+    log.info("归档误报: hazard={} event={} operator={} reason={}",
+        hazardCode, event.getEventCode(), operator, reason);
+    return result;
+  }
+
+  /** 取灾害点对应的 unified_event（正常 1:1，取 kind=HAZARD 的第一条）。 */
+  private UnifiedEventEntity findHazardEvent(String hazardCode) {
+    return eventStateService.findByHazardCode(hazardCode).stream()
+        .filter(e -> "HAZARD".equals(e.getKind()))
+        .findFirst()
+        .orElse(null);
   }
 
   /** AI 监测创建的灾害全部列出来（按发现时间倒序），供 AiHazardMonitorScheduler 健康检查。 */

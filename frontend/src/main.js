@@ -4,6 +4,7 @@ import App from './App.vue'
 import router from './router'
 import { initBackendMode } from './services/dashboardApi'
 import './styles.css'
+import '../design-system/disasterguard/tokens.css'
 
 /**
  * 抑制浏览器控制台告警：

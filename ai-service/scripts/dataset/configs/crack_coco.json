@@ -1,0 +1,34 @@
+{
+  "dataset_name": "disaster-v1",
+  "class_names": ["crack", "landslide"],
+  "_comment": "crack 来自 fcakyon/crack-instance-segmentation（Roboflow 导出的 COCO 实例分割，433 图）；landslide 来自 Zenodo HLAD（CC-BY-4.0，约 4000 图）。object 是 Roboflow 导出时丢失类别名的占位符，人工抽样 6/6 均为混凝土/路面裂缝，故并入 crack，逐项映射计数见 stats.json 的 class_mapping。",
+  "sources": [
+    {
+      "name": "crack-instance-segmentation",
+      "split": "train",
+      "images_dir": "../../../datasets/_raw/crack_train",
+      "coco_json": "../../../datasets/_raw/crack_train/_annotations.coco.json",
+      "license": "upstream-undeclared",
+      "homepage": "https://huggingface.co/datasets/fcakyon/crack-instance-segmentation",
+      "class_map": { "cracks-and-spalling": "crack", "object": "crack" }
+    },
+    {
+      "name": "crack-instance-segmentation",
+      "split": "val",
+      "images_dir": "../../../datasets/_raw/crack_valid",
+      "coco_json": "../../../datasets/_raw/crack_valid/_annotations.coco.json",
+      "license": "upstream-undeclared",
+      "homepage": "https://huggingface.co/datasets/fcakyon/crack-instance-segmentation",
+      "class_map": { "cracks-and-spalling": "crack", "object": "crack" }
+    },
+    {
+      "name": "crack-instance-segmentation",
+      "split": "test",
+      "images_dir": "../../../datasets/_raw/crack_test",
+      "coco_json": "../../../datasets/_raw/crack_test/_annotations.coco.json",
+      "license": "upstream-undeclared",
+      "homepage": "https://huggingface.co/datasets/fcakyon/crack-instance-segmentation",
+      "class_map": { "cracks-and-spalling": "crack", "object": "crack" }
+    }
+  ]
+}

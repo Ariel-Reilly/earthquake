@@ -179,6 +179,7 @@ async def model_reload(model_name: str = "all") -> Dict[str, Any]:
             "model_path": str(m.model_path),
             "model_variant": m.model_variant,
             "is_business_model": m.is_business_model,
+            "num_classes": m.num_classes,
         }
 
     return {
@@ -209,6 +210,7 @@ async def model_health() -> Dict[str, Any]:
             "inference_ok": True,
             "model_variant": det.model_variant,
             "is_business_model": det.is_business_model,
+            "num_classes": det.num_classes,
         }
     except Exception as e:
         results["yolo"] = {"ok": False, "error": str(e)}

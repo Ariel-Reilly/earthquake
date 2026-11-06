@@ -52,6 +52,10 @@ class FeedbackPayload(BaseModel):
     confidence: float = Field(1.0, ge=0.0, le=1.0)
     feedback_by: str = Field("anonymous", max_length=64)
     note: str = Field("", max_length=500)
+    # 真实指标快照（displacement_rate / rainfall_24h / crack_width / ...）。
+    # 提交方（后端确认/驳回流程）应把当时的 device_metric 值一并带上；
+    # 只有带这一项的记录才会被用于训练，否则只作为评估样本。
+    factors: Dict[str, float] = Field(default_factory=dict)
 
 
 class RetrainRequest(BaseModel):
@@ -125,20 +129,28 @@ async def trigger_retrain(
     """
     req = body or RetrainRequest()
     store = get_feedback_store()
-    sample_count = store.stats()["total_records"]
-    if sample_count < req.min_samples and not req.force:
+    rows = store.to_training_rows()
+    total_feedback = len(rows)
+    # 可训练样本 ≠ 反馈总条数：只有带 factors（真实指标快照）的反馈才能进训练集，
+    # 其余只能用于评估。此前直接用 total_records 判断，会让"100 条无特征反馈"
+    # 也被当成样本充足，训出来的模型其实没有真实输入。
+    trainable = sum(1 for r in rows if r.get("has_features"))
+    if trainable < req.min_samples and not req.force:
         return {
             "code": 0,
             "message": "skipped",
             "data": {
-                "reason": "样本不足",
-                "current_samples": sample_count,
+                "reason": "带真实特征快照的反馈样本不足，未训练",
+                "trainable_samples": trainable,
                 "required_samples": req.min_samples,
+                "total_feedback": total_feedback,
+                "skipped_no_features": total_feedback - trainable,
+                "hint": "反馈提交时需附带 factors（displacement_rate/rainfall_24h/crack_width 等真实指标快照）才会计入训练集",
             },
         }
 
     def _run_train() -> None:
-        logger.info("开始后台训练 xgboost_fusion，当前样本数=%d", sample_count)
+        logger.info("开始后台训练 xgboost_fusion，可训练样本数=%d（反馈总条数=%d）", trainable, total_feedback)
         try:
             # 调用同 repo 的 train_xgboost.py 脚本
             script = Path(__file__).resolve().parent.parent.parent / "app" / "training" / "train_xgboost.py"
@@ -160,8 +172,8 @@ async def trigger_retrain(
 
     if background is not None:
         background.add_task(_run_train)
-        return {"code": 0, "message": "queued", "data": {"samples": sample_count}}
+        return {"code": 0, "message": "queued", "data": {"trainable_samples": trainable, "total_feedback": total_feedback}}
     else:
         # 没有 BackgroundTasks（直接调用），同步跑
         _run_train()
-        return {"code": 0, "message": "started", "data": {"samples": sample_count}}
+        return {"code": 0, "message": "started", "data": {"trainable_samples": trainable, "total_feedback": total_feedback}}

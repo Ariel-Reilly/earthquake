@@ -132,18 +132,13 @@ function openEdit(s) {
 
 async function saveEdit() {
   if (!editing.value) return
-  const target = sources.value.find((s) => s.code === editing.value.code)
-  if (!target) return
   try {
     await dashboardApi.updateDataSource(editing.value.code, editing.value)
-    Object.assign(target, editing.value)
     emit("notify", `已保存 ${editing.value.code} 配置`)
     editDialog.value = false
+    await loadSources()
   } catch (e) {
-    // 后端不可用时本地修改
-    Object.assign(target, editing.value)
-    emit("notify", `已保存 ${editing.value.code} 配置（本地缓存，后端连接后自动同步）`)
-    editDialog.value = false
+    emit("notify", `保存失败：${e?.message ?? e}`)
   }
 }
 
@@ -179,24 +174,12 @@ async function submitNew() {
     name: newForm.value.name.trim(),
   }
   try {
-    const created = await dashboardApi.createDataSource(payload)
-    sources.value.unshift({
-      ...payload,
-      healthy: null,
-      lastSync: "—",
-      ...(created ?? {}),
-    })
+    await dashboardApi.createDataSource(payload)
     emit("notify", `已新增数据源 ${payload.code}`)
     newDialog.value = false
+    await loadSources()
   } catch (e) {
-    // 后端不可用时本地添加
-    sources.value.unshift({
-      ...payload,
-      healthy: null,
-      lastSync: "—",
-    })
-    emit("notify", `已新增数据源 ${payload.code}（本地缓存，后端连接后自动同步）`)
-    newDialog.value = false
+    emit("notify", `新增数据源失败：${e?.message ?? e}`)
   }
 }
 

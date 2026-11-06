@@ -8,6 +8,7 @@ import cn.disasterguard.emergency.dto.EmergencyDto;
 import cn.disasterguard.emergency.service.EmergencyService;
 import java.util.Map;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -51,6 +52,17 @@ public class EmergencyController {
   public ApiResponse<EmergencyDto> close(@PathVariable Long id, @RequestBody(required = false) Map<String, String> payload) {
     String summary = payload == null ? null : payload.get("summary");
     return ApiResponse.success("已闭环", emergencyService.resolve(id, summary));
+  }
+
+  /**
+   * 派发应急事件（POST /api/emergency/{id}/dispatch）。
+   * 操作人从 SecurityContext 取（Authentication#getName），不信任请求体。
+   */
+  @PostMapping("/{id}/dispatch")
+  @PreAuthorize("hasAuthority('emergency:dispatch')")
+  public ApiResponse<EmergencyDto> dispatch(@PathVariable Long id, Authentication authentication) {
+    String operator = authentication == null ? null : authentication.getName();
+    return ApiResponse.success("已派发", emergencyService.dispatch(id, operator));
   }
 
   @DeleteMapping("/{id}")

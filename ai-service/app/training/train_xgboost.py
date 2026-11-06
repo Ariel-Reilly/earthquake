@@ -58,43 +58,28 @@ logging.basicConfig(
 
 
 def _load_feedback_rows() -> List[Dict]:
-    """从 FeedbackStore 拉真实反馈。
+    """从 FeedbackStore 拉真实反馈样本。
 
-    每条反馈只携带 predicted_score（0-100），不含 7 维原始因子。
-    通过「saturation_proxy」反推：score < 35 → 全 0 因子；>= 80 → 极端组合；
-    中间段按 score/100 比例摊到 7 个因子（这个近似对 XGBoost 足以学到风险分层）。
+    只有携带 ``factors``（提交反馈时由后端附上的真实指标快照）的记录才是可用训练样本。
+    此前这里用 predicted_score 反推 7 维特征，等于把模型自己的输出当输入，
+    属于标签泄漏，训出来的模型指标虚高、上线无效。现在不再反推。
     """
     store = get_feedback_store()
     rows = store.to_training_rows()
     out = []
     for r in rows:
-        score = float(r.get("predicted_score", 0.0)) / 100.0  # 0-1
-        # 用"假设极端分布"反推 7 维特征，让正负样本能区分
-        # 正样本（发生）：displacement_rate / rainfall_24h / crack_width 偏高
-        # 负样本（未发生）：全因子偏低
-        if r.get("occurred", 0) == 1:
-            # 灾害发生：高位移 + 高降雨 + 大裂缝 + 较差场地
-            factors = {
-                "displacement_rate": min(30.0, 2.0 + 28.0 * score),
-                "displacement_total": min(200.0, 10.0 + 180.0 * score),
-                "rainfall_24h": min(150.0, 5.0 + 140.0 * score),
-                "rainfall_7d": min(400.0, 15.0 + 380.0 * score),
-                "crack_width": min(50.0, 2.0 + 45.0 * score),
-                "earthquake_mag": min(7.0, 0.5 + 4.0 * score),
-                "site_grade": min(5.0, 1.0 + 3.5 * score),
-            }
-        else:
-            # 未发生：低位移 + 少雨 + 窄裂缝
-            factors = {
-                "displacement_rate": max(0.0, 2.0 - 2.0 * score),
-                "displacement_total": max(0.0, 5.0 - 4.0 * score),
-                "rainfall_24h": max(0.0, 5.0 - 4.0 * score),
-                "rainfall_7d": max(0.0, 15.0 - 12.0 * score),
-                "crack_width": max(0.0, 1.0 + 0.5 * (1.0 - score)),
-                "earthquake_mag": max(0.0, 0.3 + 0.4 * score),
-                "site_grade": max(1.0, 1.0 + 1.5 * score),
-            }
-        out.append({"factors": factors, "label": int(r.get("occurred", 0)), "source": "feedback"})
+        raw = r.get("factors") or {}
+        factors = {
+            k: float(v)
+            for k, v in raw.items()
+            if isinstance(v, (int, float)) and not isinstance(v, bool)
+        }
+        out.append({
+            "factors": factors,
+            "label": int(r.get("occurred", 0)),
+            "source": "feedback",
+            "has_features": bool(factors),
+        })
     return out
 
 
@@ -111,17 +96,40 @@ def _augment_with_synthetic(
     return feedback_rows + synth
 
 
-def load_training_data(target_samples: int = 1500) -> Tuple[np.ndarray, np.ndarray, List[Dict]]:
-    """拉训练数据：真实反馈 + 合成补足。
+def load_training_data(
+    target_samples: int = 1500,
+    allow_synthetic: bool = False,
+) -> Tuple[np.ndarray, np.ndarray, List[Dict], Dict]:
+    """拉训练数据。
+
+    **2026-11-05 变更**：此前"真实反馈"是用 predicted_score 反推 7 维特征
+    （score<35 全 0、>=80 极端组合、中间按比例摊），等于把标签信息泄漏进特征，
+    训出来的模型在真实数据上不可用，且对外表现为"已用真实反馈训练"。
+
+    现在：
+      * 只有带 ``factors``（真实指标快照）的反馈才进训练集；
+      * 无 factors 的反馈被跳过并计数，绝不臆造特征；
+      * 合成样本默认不启用（``allow_synthetic=False``），调用方显式开启时
+        返回值里会带 ``synthetic_ratio``，避免把合成数据当真实训练成果。
 
     Returns:
-        X: shape=(n_samples, 7)
-        y: shape=(n_samples,) 0/1
-        meta: 原始记录列表
+        X, y, meta, dataset_info（含 real_samples / skipped_no_features / synthetic_samples）
     """
     feedback = _load_feedback_rows()
-    merged = _augment_with_synthetic(feedback, target_samples)
+    real_rows = [r for r in feedback if r["has_features"]]
+    skipped = len(feedback) - len(real_rows)
 
+    synthetic_rows: List[Dict] = []
+    if allow_synthetic:
+        need = max(0, target_samples - len(real_rows))
+        if need > 0:
+            synthetic_rows = SyntheticDataset.generate(n=need)
+            logger.warning(
+                "真实样本 %d 条，按调用方要求合成补足 %d 条（合成数据不可当作真实训练成果）",
+                len(real_rows), need,
+            )
+
+    merged = real_rows + synthetic_rows
     feature_names = list(DEFAULT_WEIGHTS.keys())
     X = []
     y = []
@@ -131,10 +139,20 @@ def load_training_data(target_samples: int = 1500) -> Tuple[np.ndarray, np.ndarr
         X.append([float(factors.get(name, 0.0)) for name in feature_names])
         y.append(int(row["label"]))
         meta.append(row)
+
+    total = len(merged)
+    info = {
+        "real_samples": len(real_rows),
+        "skipped_no_features": skipped,
+        "synthetic_samples": len(synthetic_rows),
+        "synthetic_ratio": round(len(synthetic_rows) / total, 4) if total else 0.0,
+        "allow_synthetic": allow_synthetic,
+    }
     return (
         np.asarray(X, dtype=np.float32),
         np.asarray(y, dtype=np.float32),
         meta,
+        info,
     )
 
 
@@ -174,21 +192,32 @@ def train_xgboost(
     meta_path: Path = DEFAULT_META_PATH,
     target_samples: int = 1500,
     val_ratio: float = 0.2,
+    allow_synthetic: bool = False,
 ) -> Dict:
     """训练 XGBoost 模型并保存。
 
+    allow_synthetic 默认 False：没有真实带特征的样本时就如实返回 skipped，
+    而不是拿合成数据训一个模型继续对外声称"已训练"。
+
     Returns:
         包含 status / samples / model_path / archive_path / val_metrics /
-        feature_importance / trained_at / training_seconds 的字典。
+        feature_importance / trained_at / training_seconds / dataset 的字典。
     """
     t0 = datetime.now(timezone.utc)
-    X, y, meta = load_training_data(target_samples=target_samples)
+    X, y, meta, dataset_info = load_training_data(
+        target_samples=target_samples,
+        allow_synthetic=allow_synthetic,
+    )
 
     if len(y) < 50:
         return {
             "status": "skipped",
-            "reason": f"样本过少 ({len(y)}<50)",
+            "reason": (
+                f"可用训练样本过少 ({len(y)}<50)：真实样本需携带 device_metric 特征快照，"
+                f"当前跳过 {dataset_info['skipped_no_features']} 条无特征反馈"
+            ),
             "samples": int(len(y)),
+            "dataset": dataset_info,
         }
 
     try:
@@ -198,6 +227,7 @@ def train_xgboost(
             "status": "skipped",
             "reason": "xgboost 未安装",
             "samples": int(len(y)),
+            "dataset": dataset_info,
         }
 
     # 拆分 train / val
@@ -278,6 +308,9 @@ def train_xgboost(
         "model_path": str(output_path),
         "archive_path": str(archive_path),
         "training_seconds": round((datetime.now(timezone.utc) - t0).total_seconds(), 2),
+        # 训练数据构成：真实样本 / 丢弃的无特征反馈 / 合成样本占比。
+        # 对外展示模型效果时必须连带这一项，避免把合成数据训练结果当真实成果。
+        "dataset": dataset_info,
     }
     meta_path.write_text(json.dumps(meta_obj, ensure_ascii=False, indent=2), encoding="utf-8")
 

@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 
 /**
  * 预案管理（Plan）REST API。
@@ -244,6 +245,64 @@ public class PlanController {
     ));
     simulation.put("summary", "模拟启动成功，预计总响应时间约90分钟");
     return ApiResponse.success(simulation);
+  }
+
+  /**
+   * 启动预案（POST /api/plans/{planId}/launch）。
+   *
+   * <p>复用 {@link #simulateLaunch(Long)} 的预案读取与 {@link #launchHistory} 启动历史，
+   * 并复用 {@link #update(Long, Map)} 的 {@code setPayload + planRepo.save} 持久化链路：
+   * 把启动信息真实回写到 {@code emergency_plan.payload}。操作人取 SecurityContext。
+   *
+   * <p>与 {@code simulate-launch} 的区别：模拟只算不落库；本端点会写入启动历史 +
+   * 预案最近启动信息，供 {@code GET /plans/launches} 查询。
+   */
+  @PostMapping("/{planId}/launch")
+  @PreAuthorize("hasAuthority('plans:launch')")
+  public ApiResponse<Map<String, Object>> launch(
+      @PathVariable Long planId,
+      @RequestBody(required = false) Map<String, Object> params,
+      Authentication authentication) {
+    String operator = authentication == null ? "system" : authentication.getName();
+    EmergencyPlan entity = planRepo.findById(planId).orElse(null);
+    if (entity == null) {
+      return ApiResponse.fail(404, "预案不存在: " + planId);
+    }
+    Map<String, Object> plan = entity.getPayload();
+    if (!"已发布".equals(String.valueOf(plan.get("status")))) {
+      return ApiResponse.fail(400, "仅「已发布」状态的预案可启动，当前状态: " + plan.get("status"));
+    }
+    Map<String, Object> body = params == null ? Map.of() : params;
+    OffsetDateTime now = OffsetDateTime.now();
+    String launchId = "LAUNCH-" + now.toEpochSecond() + "-" + planId;
+
+    Object steps = plan.get("steps") == null ? List.of() : plan.get("steps");
+    Map<String, Object> launch = new LinkedHashMap<>();
+    launch.put("launchId", launchId);
+    launch.put("planId", planId);
+    launch.put("name", plan.get("name"));
+    launch.put("level", plan.get("level"));
+    launch.put("status", "执行中");
+    launch.put("launchedBy", operator);
+    launch.put("launchedAt", now.toString());
+    launch.put("trigger", body.getOrDefault("trigger", "manual"));
+    launch.put("steps", steps);
+    launch.put("stepCount", steps instanceof List<?> l ? l.size() : 0);
+
+    synchronized (launchHistory) {
+      launchHistory.add(launch);
+    }
+
+    // 回写预案：真实落库，记录最近一次启动
+    plan.put("lastLaunchId", launchId);
+    plan.put("lastLaunchedAt", now.toString());
+    plan.put("lastLaunchedBy", operator);
+    Object count = plan.get("launchCount");
+    plan.put("launchCount", count instanceof Number n ? n.intValue() + 1 : 1);
+    entity.setPayload(plan);
+    planRepo.save(entity);
+
+    return ApiResponse.success("预案已启动", launch);
   }
 
   @GetMapping("/launches")

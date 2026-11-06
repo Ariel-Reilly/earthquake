@@ -1,0 +1,22 @@
+{
+  "dataset_name": "smoke-cas",
+  "class_names": ["crack", "landslide"],
+  "_comment": "仅用于验证 build_yolo_dataset.py 的 CAS 掩码源接入，不产出正式数据集。",
+  "sources": [
+    {
+      "name": "cas-wenchuan",
+      "kind": "mask",
+      "split": "train",
+      "prefix": "cas-wen-",
+      "images_dir": "../../../datasets/_raw/cas/wenchuan/img",
+      "masks_dir": "../../../datasets/_raw/cas/wenchuan/mask",
+      "mask_target": "landslide",
+      "mask_name_template": "{stem}.TIF",
+      "min_component_area": 150,
+      "mask_close_kernel": 15,
+      "auto_split": { "train": 0.8, "val": 0.1, "test": 0.1 },
+      "license": "CC-BY-NC-4.0",
+      "homepage": "https://zenodo.org/records/10294997"
+    }
+  ]
+}

@@ -142,30 +142,12 @@ async function submitNew() {
       last: '刚刚',
     }
     const created = await dashboardApi.createDevice(payload)
-    const newDevice = created?.id ? created : { ...payload, id: Date.now() }
-    devices.value = [newDevice, ...devices.value]
-    selectedDeviceId.value = newDevice.id
     emit('notify', `已新增设备 ${newForm.value.name}`)
     newDialog.value = false
+    await loadData()
+    if (created?.id) selectedDeviceId.value = created.id
   } catch (error) {
-    // 后端不可用时本地添加
-    const newDevice = {
-      id: Date.now(),
-      code: newForm.value.code.trim(),
-      name: newForm.value.name.trim(),
-      type: newForm.value.type,
-      point: newForm.value.location.trim(),
-      lon: newForm.value.lng ? Number(newForm.value.lng) : null,
-      lat: newForm.value.lat ? Number(newForm.value.lat) : null,
-      state: newForm.value.status,
-      battery: 100,
-      signal: '强',
-      last: '刚刚',
-    }
-    devices.value = [newDevice, ...devices.value]
-    selectedDeviceId.value = newDevice.id
-    emit('notify', `已新增设备 ${newForm.value.name}（本地缓存，后端连接后自动同步）`)
-    newDialog.value = false
+    emit('notify', `新增设备失败：${error?.message ?? error}`)
   } finally {
     submittingNew.value = false
   }

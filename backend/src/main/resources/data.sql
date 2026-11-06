@@ -635,14 +635,25 @@ ON CONFLICT (rule_code) DO NOTHING;
 --   与 rule 表共用同一套规则编号；语义层面 warning_rule 是面向预警发布
 --   的子集，rule 是规则引擎的完整定义。
 -- =====================================================================
+-- v2.0 修复（2026-11-05）：旧 6 条规则的 metric_code 全是复合标签（rainfall_24h_slope 等），
+-- 在 device_metric 里根本不存在；RuleEngineScheduler 原来的前置门禁会因此把 6 条规则全部跳过，
+-- 预警链路从来不会自动产生预警。现在把主指标对齐真实上报的 metric_code，表达式保持
+-- 可被 WarningRuleEvaluator 求值（单条件 + AND 复合），右侧全部是数值或真实指标名。
+-- DO UPDATE 保证在已有库上重复执行 data.sql 也能把错误规则纠正回来，且不动业务数据。
 INSERT INTO warning_rule (rule_code, rule_name, metric_code, expression, warning_level, enabled, remark) VALUES
-('R001', '滑坡黄色预警（雨量+坡度）', 'rainfall_24h_slope', 'rainfall_24h > 50 AND slope > 30',           '黄色预警', TRUE, 'AI 引擎规则 R001 的预警镜像'),
-('R002', '滑坡橙色预警（雨量+位移）', 'rainfall_24h_disp',  'rainfall_24h > 80 AND displacement_rate > 5','橙色预警', TRUE, 'AI 引擎规则 R002 的预警镜像'),
-('R003', '洪水红色预警（水位+雨量）', 'water_level_rain6h', 'water_level > warning_level AND rainfall_6h > 100', '红色预警', TRUE, 'AI 引擎规则 R003 的预警镜像'),
-('R004', '设备离线告警',              'device_status',      'device_status == OFFLINE AND duration_minutes > 10', '蓝色预警', TRUE, '运维告警'),
-('R005', '地震触发巡检',              'magnitude_distance', 'magnitude >= 4.5 AND distance_km < 100', '黄色预警', TRUE, '触发 AI 巡检任务'),
-('R006', '崩塌黄色预警（裂缝扩展）', 'crack_rate_rain',    'crack_width_rate > 2.0 AND rainfall_24h > 30', '黄色预警', TRUE, 'AI 引擎规则 R006 的预警镜像')
-ON CONFLICT (rule_code) DO NOTHING;
+('R001', '滑坡黄色预警（24h 雨量）',   'rainfall_24h',      'rainfall_24h > 50',                                  '黄色预警', TRUE, '主指标对齐 device_metric.rainfall_24h'),
+('R002', '滑坡橙色预警（雨量+位移）', 'rainfall_24h',      'rainfall_24h > 80 AND displacement_rate > 5',       '橙色预警', TRUE, 'AND 复合条件由 WarningRuleEvaluator 求值'),
+('R003', '洪水红色预警（水位）',      'water_level',       'water_level > 25',                                   '红色预警', TRUE, '替代右侧为字符串 warning_level 的不可判定表达式'),
+('R004', '倾角异常蓝色预警',          'tilt_angle',        'tilt_angle > 3',                                     '蓝色预警', TRUE, '替代 device_status == OFFLINE（数值指标无法判定字符串）'),
+('R005', '位移速率黄色预警',          'displacement_rate', 'displacement_rate > 5',                              '黄色预警', TRUE, '替代无设备数据源的地震震级规则'),
+('R006', '崩塌黄色预警（裂缝扩展）', 'crack_width_rate',  'crack_width_rate > 2.0 AND rainfall_24h > 30',      '黄色预警', TRUE, 'AND 复合条件由 WarningRuleEvaluator 求值')
+ON CONFLICT (rule_code) DO UPDATE SET
+  rule_name = EXCLUDED.rule_name,
+  metric_code = EXCLUDED.metric_code,
+  expression = EXCLUDED.expression,
+  warning_level = EXCLUDED.warning_level,
+  enabled = EXCLUDED.enabled,
+  remark = EXCLUDED.remark;
 
 -- =====================================================================
 -- 12. 灾害事件源 unified_event（v2.1.0 Task#1 P1：hazard_point 是该表视图源）
@@ -731,13 +742,17 @@ INSERT INTO inspection_task (task_code, name, task_type, executor, hazard_code, 
 ON CONFLICT (task_code) DO NOTHING;
 
 -- =====================================================================
--- 15. 预警事件 warning_event（替换旧3条）
+-- 15. 预警事件 warning_event
 -- =====================================================================
-INSERT INTO warning_event (warning_code, rule_code, hazard_code, title, warning_level, trigger_value, status, triggered_at, rule_snapshot) VALUES
-('WG-001','R003','HZ-003','嘉陵江洪水红色预警','红色预警','water_level=28.5m, rainfall_6h=108mm','已发布',NOW() - INTERVAL '5 hour','{"metric":"water_level","threshold":"warning_level"}'),
-('WG-002','R002','HZ-001','青龙坡滑坡橙色预警','橙色预警','rainfall_24h=82mm, displacement_rate=6.2mm','待发布',NOW() - INTERVAL '2 hour','{"metric":"rainfall_24h","threshold":80}'),
-('WG-003','R006','HZ-002','歌乐山崩塌黄色预警','黄色预警','crack_width_rate=2.3mm/day','处理中',NOW() - INTERVAL '4 hour','{"metric":"crack_width_rate","threshold":2.0}')
-ON CONFLICT (warning_code) DO NOTHING;
+-- v2.0（2026-11-05）：移除 3 条写死的演示预警。
+-- 旧种子把 trigger_value / rule_snapshot 写成手工字符串，状态用了「已发布 / 待发布」
+-- 这类不在状态机中的值 —— 前端处置按钮因此全部隐藏，用户看到的本质是假预警。
+-- 真实预警由 RuleEngineScheduler 读取 device_metric 真实指标 + warning_rule 阈值生成，
+-- 初始状态固定「待确认」，走 人工复核 → 确认 → 派发 → 关闭 的完整状态机，
+-- 并写入可追溯的 rule_snapshot（真实指标快照）与统一事件关联。
+-- 需要演示数据时：用真实设备上报（MQTT / HTTP）或 POST /api/warnings 人工上报，
+-- 不要在初始化脚本里预置无法追溯来源的预警。
+-- INSERT INTO warning_event (...) VALUES (...);  -- 已停用，勿恢复
 
 -- =====================================================================
 -- 16. 应急事件 emergency_event（替换旧1条）

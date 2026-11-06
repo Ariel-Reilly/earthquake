@@ -64,8 +64,11 @@ public class SecurityConfigProd {
               .requestMatchers(HttpMethod.POST, "/api/auth/register",
                   "/api/auth/register/send-code").permitAll()
               .requestMatchers("/ws").permitAll()
-              .requestMatchers("/api/weather/**").permitAll()
-              .requestMatchers("/api/sentinel/**").permitAll()
+              // R5 P1-4：prod 回归修复。非 prod 的 SecurityConfig 早已限制为 GET-only，
+              // 这里却对整个前缀 permitAll，导致 WeatherController 的
+              // POST /api/weather/products/refresh 在生产可被匿名触发回源拉取外部资源。
+              .requestMatchers(HttpMethod.GET, "/api/weather/**").permitAll()
+              .requestMatchers(HttpMethod.GET, "/api/sentinel/**").permitAll()
               .requestMatchers("/api/devices/{deviceCode}/data").hasRole("DEVICE")
               .anyRequest().authenticated();
         })

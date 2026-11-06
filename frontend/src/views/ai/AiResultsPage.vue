@@ -5,10 +5,8 @@
  * 查看 AI 模型推理出的疑似灾害结果，按置信度排序后可一键推送至人工确认或归档为误报。
  */
 import { computed, onMounted, reactive, ref, watch } from "vue"
-import ConfirmDialog from '../../components/common/ConfirmDialog.vue'
-import { BarChart3, Bot, Check, Clock, Cpu, Eye, Filter, Loader2, Send, TrendingUp, X } from "lucide-vue-next"
+import { BarChart3, Bot, Clock, Cpu, Eye, Filter, Loader2, Send, TrendingUp, X } from "lucide-vue-next"
 import { dashboardApi } from "../../services/dashboardApi"
-import { getAuthUser, hasPermission } from "../../stores/auth"
 import AiHealthBadge from "../../components/AiHealthBadge.vue"
 
 const props = defineProps({
@@ -16,18 +14,18 @@ const props = defineProps({
   userRole: { type: String, default: "admin" },
 })
 const emit = defineEmits(["notify", "open-task-modal"])
-const confirmDialogRef = ref(null)
-
-const operator = getAuthUser() ?? { name: "李晨曦", role: "admin" }
 
 const loading = ref(false)
+const submittingId = ref(null)
 const results = ref({ items: [], total: 0 })
 const selected = ref(null)
 const detailDialog = ref(false)
+const dismissDialog = ref(false)
+const dismissTarget = ref(null)
+const dismissReason = ref("")
 const filter = reactive({
   minConfidence: 0.5,
   type: "",
-  voted: "any",
 })
 
 const confidenceBuckets = computed(() => {
@@ -39,7 +37,8 @@ const confidenceBuckets = computed(() => {
     { range: "0.9-1.0", count: 0, color: "#9b761e" },
   ]
   for (const r of results.value.items ?? []) {
-    const c = r.confidence ?? 0
+    const c = r.confidence
+    if (typeof c !== "number") continue
     if (c >= 0.9) buckets[4].count++
     else if (c >= 0.8) buckets[3].count++
     else if (c >= 0.7) buckets[2].count++
@@ -50,52 +49,66 @@ const confidenceBuckets = computed(() => {
 })
 
 const totalResults = computed(() => results.value.items?.length ?? 0)
-const highConfidenceCount = computed(() =>
-  (results.value.items ?? []).filter((r) => (r.confidence ?? 0) >= 0.8).length,
+/** 已评估 = 后端给了 detection_confidence；null 表示该点从未被模型打过置信度，不能编一个。 */
+const evaluatedCount = computed(() =>
+  (results.value.items ?? []).filter((r) => typeof r.confidence === "number").length,
 )
-const multiModelAgreeCount = computed(() =>
-  (results.value.items ?? []).filter((r) => (r.modelVotes ?? []).filter((v) => v > 0.5).length >= 2).length,
+const highConfidenceCount = computed(() =>
+  (results.value.items ?? []).filter((r) => typeof r.confidence === "number" && r.confidence >= 0.8).length,
+)
+const highScoreCount = computed(() =>
+  (results.value.items ?? []).filter((r) => typeof r.aiScore === "number" && r.aiScore >= 60).length,
 )
 
 const filteredResults = computed(() => {
   let list = results.value.items ?? []
   if (filter.type) list = list.filter((r) => r.type === filter.type)
-  list = list.filter((r) => (r.confidence ?? 0) >= filter.minConfidence)
-  if (filter.voted === "all") {
-    list = list.filter((r) => (r.modelVotes ?? []).filter((v) => v > 0.5).length >= 2)
-  }
+  list = list.filter((r) => typeof r.confidence === "number" && r.confidence >= filter.minConfidence)
   return list.sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0))
 })
+
+/** 灾害点类型选项来自真实返回结果，不再写死灾种清单。 */
+const typeOptions = computed(() => {
+  const set = new Set()
+  for (const r of results.value.items ?? []) {
+    if (r.type) set.add(r.type)
+  }
+  return [...set]
+})
+
+/**
+ * 后端 /hazards/ai-monitor 返回 HazardDto，真实可用字段是：
+ * detectionConfidence（模型置信度）、aiScore（综合风险分）、aiLevelLabel、
+ * aiDisasterType、aiAnalyzedAt、aiDeviceAvailable、eventCode / eventState。
+ * 缺失字段一律保留 null，由 UI 显示"—"，不再用 Math.random 或写死文案填充。
+ */
+function normalizeResult(item, index) {
+  return {
+    id: item.id ?? index,
+    hazardCode: item.hazardCode ?? "",
+    name: item.name ?? "未命名",
+    type: item.aiDisasterType ?? item.type ?? "",
+    level: item.aiLevelLabel ?? item.level ?? "",
+    confidence: typeof item.detectionConfidence === "number" ? item.detectionConfidence : null,
+    aiScore: typeof item.aiScore === "number" ? item.aiScore : null,
+    analyzedAt: item.aiAnalyzedAt ?? null,
+    deviceAvailable: item.aiDeviceAvailable,
+    source: item.source ?? "",
+    discoveredAt: item.discoveredAt ?? null,
+    regionCode: item.regionCode ?? "",
+    eventCode: item.eventCode ?? "",
+    eventState: item.eventState ?? "",
+  }
+}
 
 async function loadResults() {
   loading.value = true
   try {
     const data = await dashboardApi.getAiMonitorHazards?.() ?? []
-    const items = (data ?? []).map((h, i) => ({
-      id: h.id ?? i,
-      hazardCode: h.hazardCode ?? `HZ-${String(i + 1).padStart(3, "0")}`,
-      name: h.name ?? "未命名",
-      type: h.type ?? "滑坡",
-      level: h.level ?? "关注",
-      confidence: h.confidence ?? 0.6 + Math.random() * 0.3,
-      reason: h.reason ?? "多源证据融合",
-      discoveredAt: h.discoveredAt ?? new Date().toISOString(),
-      bbox: h.bbox ?? { lon: h.lon ?? 107.21, lat: h.lat ?? 30.61, w: 0.04, h: 0.04 },
-      modelVotes: [
-        { name: "YOLOv8", score: Math.random() * 0.4 + 0.5 },
-        { name: "LSTM",   score: Math.random() * 0.4 + 0.4 },
-        { name: "XGBoost", score: Math.random() * 0.4 + 0.5 },
-        { name: "InSAR",  score: Math.random() * 0.4 + 0.3 },
-      ],
-      evidence: [
-        { kind: "影像", desc: "S2 影像显示疑似形变区" },
-        { kind: "气象", desc: "24h 降雨 38mm 接近阈值" },
-        { kind: "地形", desc: "坡度 32 度高于阈值" },
-      ],
-      reasoning: h.aiReasoning ?? ["降水偏多", "坡度较陡"],
-    }))
+    const items = (data ?? []).map(normalizeResult)
     results.value = { items, total: items.length }
   } catch (e) {
+    results.value = { items: [], total: 0 }
     emit("notify", e.message ?? "加载推理结果失败")
   } finally {
     loading.value = false
@@ -107,33 +120,53 @@ function openDetail(item) {
   detailDialog.value = true
 }
 
+/** 提交人工确认：真实调用后端，成功与否以后端返回为准。 */
 async function pushToConfirmation(item) {
+  if (!item.hazardCode) {
+    emit("notify", "该记录缺少灾害点编号，无法提交确认")
+    return
+  }
+  submittingId.value = item.id
   try {
-    emit("notify", `已推送 ${item.name} 至人工确认队列`)
+    const res = await dashboardApi.submitHazardConfirmation(item.hazardCode)
+    emit("notify", res?.message ?? `${item.hazardCode} 已提交人工确认`)
     results.value.items = results.value.items.filter((r) => r.id !== item.id)
   } catch (e) {
-    emit("notify", e.message ?? "推送失败")
+    emit("notify", `提交失败：${e?.message ?? e}`)
+  } finally {
+    submittingId.value = null
   }
 }
 
-async function archive(item) {
-  const ok = await confirmDialogRef.value?.show({
-    title: '确认操作',
-    message: `确认将「${item.name}」归档为误报？`,
-    confirmText: '确认',
-    cancelText: '取消',
-    isDanger: true
-  })
-  if (!ok) return
-  try {
-    emit("notify", `${item.name} 已归档为误报`)
-    results.value.items = results.value.items.filter((r) => r.id !== item.id)
-  } catch (e) {
-    emit("notify", e.message ?? "归档失败")
-  }
+function openDismiss(item) {
+  dismissTarget.value = item
+  dismissReason.value = ""
+  dismissDialog.value = true
 }
 
-const has = (perm) => hasPermission(operator.role, perm)
+/** 归档误报：原因必填，后端执行 DISMISS → CLOSED。 */
+async function confirmDismiss() {
+  const reason = dismissReason.value.trim()
+  if (!reason) {
+    emit("notify", "请填写误报原因")
+    return
+  }
+  if (!dismissTarget.value?.hazardCode) {
+    emit("notify", "该记录缺少灾害点编号，无法归档")
+    return
+  }
+  submittingId.value = dismissTarget.value.id
+  try {
+    const res = await dashboardApi.dismissHazard(dismissTarget.value.hazardCode, reason)
+    emit("notify", `${dismissTarget.value.name} 已归档为误报（${res?.state ?? "CLOSED"}）`)
+    results.value.items = results.value.items.filter((r) => r.id !== dismissTarget.value.id)
+    dismissDialog.value = false
+  } catch (e) {
+    emit("notify", `归档失败：${e?.message ?? e}`)
+  } finally {
+    submittingId.value = null
+  }
+}
 
 watch(filter, () => {}, { deep: true })
 onMounted(() => loadResults())
@@ -154,9 +187,9 @@ onMounted(() => loadResults())
 
     <section class="stat-grid">
       <div class="stat-card"><strong>{{ totalResults }}</strong><span>推理结果总数</span></div>
+      <div class="stat-card"><strong class="stat-num--brand">{{ evaluatedCount }}</strong><span>已评估（有置信度）</span></div>
       <div class="stat-card"><strong class="stat-num--danger">{{ highConfidenceCount }}</strong><span>高置信度 (≥0.8)</span></div>
-      <div class="stat-card"><strong class="stat-num--warn">{{ multiModelAgreeCount }}</strong><span>多模型一致</span></div>
-      <div class="stat-card"><strong class="stat-num--brand">{{ filteredResults.length }}</strong><span>当前筛选下</span></div>
+      <div class="stat-card"><strong class="stat-num--warn">{{ highScoreCount }}</strong><span>AI 综合分 ≥60</span></div>
     </section>
 
     <section class="confidence-chart">
@@ -178,15 +211,9 @@ onMounted(() => loadResults())
       <code>{{ filter.minConfidence.toFixed(2) }}</code>
       <select v-model="filter.type">
         <option value="">全部灾种</option>
-        <option value="滑坡">滑坡</option>
-        <option value="崩塌">崩塌</option>
-        <option value="泥石流">泥石流</option>
-        <option value="地面塌陷">地面塌陷</option>
+        <option v-for="t in typeOptions" :key="t" :value="t">{{ t }}</option>
       </select>
-      <select v-model="filter.voted">
-        <option value="any">任意模型投票</option>
-        <option value="all">≥2 个模型一致</option>
-      </select>
+      <span class="filter-hint">仅显示模型已给出置信度的记录</span>
     </section>
 
     <div v-if="loading" class="loading-row">
@@ -198,7 +225,7 @@ onMounted(() => loadResults())
     <ul v-else class="result-list">
       <li v-for="r in filteredResults" :key="r.id" @click="openDetail(r)">
         <div class="thumb">
-          <div class="thumb-rect" :style="{ background: r.confidence > 0.85 ? '#c7553b' : r.confidence > 0.7 ? '#c4a86e' : '#658fc1' }">
+          <div class="thumb-rect" :style="{ background: r.confidence >= 0.85 ? '#c7553b' : r.confidence >= 0.7 ? '#c4a86e' : '#658fc1' }">
             <Cpu :size="20" />
           </div>
         </div>
@@ -207,45 +234,37 @@ onMounted(() => loadResults())
             <strong>{{ r.name }}</strong>
             <span class="hazard-code">{{ r.hazardCode }}</span>
           </div>
-          <p>{{ r.type }} · {{ r.reason }}</p>
-          <div class="vote-row">
-            <span v-for="v in r.modelVotes" :key="v.name" class="vote-chip" :class="{ agree: v.score > 0.5 }" :title="`${v.name} 得分 ${v.score.toFixed(2)}`">
-              {{ v.name }} {{ v.score.toFixed(2) }}
-            </span>
+          <p>
+            {{ r.type || "未分类" }}
+            <template v-if="r.regionCode"> · {{ r.regionCode }}</template>
+            <template v-if="r.aiScore !== null"> · AI 综合分 {{ r.aiScore.toFixed(0) }}</template>
+          </p>
+          <div class="tag-row">
+            <span v-if="r.level" class="tag">{{ r.level }}</span>
+            <span v-if="r.eventState" class="tag">{{ r.eventState }}</span>
+            <span v-if="r.deviceAvailable === false" class="tag tag--muted">无设备数据</span>
+            <span v-if="r.analyzedAt" class="tag tag--muted">分析于 {{ r.analyzedAt.slice(0, 16).replace("T", " ") }}</span>
           </div>
         </div>
         <div class="confidence">
-          <div class="conf-circle" :style="{ '--c': r.confidence }">
+          <div v-if="r.confidence !== null" class="conf-circle" :style="{ '--c': r.confidence }">
             <strong>{{ (r.confidence * 100).toFixed(0) }}</strong>
             <small>置信度</small>
           </div>
+          <div v-else class="conf-circle conf-circle--empty">
+            <strong>—</strong>
+            <small>未评估</small>
+          </div>
         </div>
         <div class="actions" @click.stop>
-          <!-- 值班员：转人工确认（推入确认工作台） -->
           <button
-            v-if="has('ai:result:transfer')"
             class="primary-btn small"
+            :disabled="submittingId === r.id"
             @click="pushToConfirmation(r)"
           >
-            <Send :size="12" />转人工确认
+            <Send :size="12" />{{ submittingId === r.id ? "提交中…" : "提交人工确认" }}
           </button>
-          <!-- 专家：复核通过（直接放行进预警） -->
-          <button
-            v-else-if="has('ai:result:review')"
-            class="primary-btn small"
-            @click="pushToConfirmation(r)"
-          >
-            <Check :size="12" />复核通过
-          </button>
-          <!-- 超管/AI工程师：推送确认 -->
-          <button
-            v-else-if="has('confirmation:confirm')"
-            class="primary-btn small"
-            @click="pushToConfirmation(r)"
-          >
-            <Send :size="12" />推送确认
-          </button>
-          <button class="ghost-btn small danger" @click="archive(r)">
+          <button class="ghost-btn small danger" :disabled="submittingId === r.id" @click="openDismiss(r)">
             <X :size="12" />误报
           </button>
         </div>
@@ -260,34 +279,80 @@ onMounted(() => loadResults())
         </header>
         <div class="detail-grid">
           <section class="evidence-block">
-            <h4>多源证据</h4>
+            <h4>灾害点信息</h4>
             <ul>
-              <li v-for="(e, i) in selected.evidence" :key="i">
-                <span class="kind">{{ e.kind }}</span>{{ e.desc }}
-              </li>
+              <li><span class="kind">编号</span>{{ selected.hazardCode || "—" }}</li>
+              <li><span class="kind">灾种</span>{{ selected.type || "未分类" }}</li>
+              <li><span class="kind">区域</span>{{ selected.regionCode || "—" }}</li>
+              <li><span class="kind">来源</span>{{ selected.source || "—" }}</li>
+              <li><span class="kind">发现时间</span>{{ selected.discoveredAt ? selected.discoveredAt.slice(0, 19).replace("T", " ") : "—" }}</li>
             </ul>
           </section>
           <section class="vote-block">
-            <h4>多模型投票</h4>
-            <div v-for="v in selected.modelVotes" :key="v.name" class="vote-bar">
-              <span class="model-name">{{ v.name }}</span>
+            <h4>模型评估结果</h4>
+            <div class="metric-row">
+              <span class="metric-name">检测置信度</span>
               <div class="track">
-                <div class="fill" :style="{ width: v.score * 100 + '%', background: v.score > 0.5 ? '#6f9e7f' : '#9aab9f' }"></div>
+                <div
+                  class="fill"
+                  :style="{ width: (selected.confidence ?? 0) * 100 + '%', background: selected.confidence >= 0.8 ? '#6f9e7f' : '#9aab9f' }"
+                ></div>
               </div>
-              <code>{{ v.score.toFixed(2) }}</code>
+              <code>{{ selected.confidence !== null ? selected.confidence.toFixed(2) : "未评估" }}</code>
             </div>
+            <div class="metric-row">
+              <span class="metric-name">AI 综合分</span>
+              <div class="track">
+                <div class="fill" :style="{ width: (selected.aiScore ?? 0) + '%', background: '#658fc1' }"></div>
+              </div>
+              <code>{{ selected.aiScore !== null ? selected.aiScore.toFixed(0) : "—" }}</code>
+            </div>
+            <p class="metric-meta">
+              风险等级：{{ selected.level || "—" }} · 分析时间：{{ selected.analyzedAt ? selected.analyzedAt.slice(0, 19).replace("T", " ") : "—" }}
+            </p>
+            <p v-if="selected.deviceAvailable === false" class="metric-warn">
+              该灾害点暂无在线监测设备，本次评估仅使用遥感与气象数据。
+            </p>
           </section>
           <section class="reason-block">
-            <h4>AI 推理理由</h4>
-            <ol>
-              <li v-for="(r, i) in selected.reasoning" :key="i">{{ r }}</li>
-            </ol>
+            <h4>事件关联</h4>
+            <p class="link-line">
+              统一事件：<code>{{ selected.eventCode || "尚未生成" }}</code>
+            </p>
+            <p class="link-line">
+              当前状态：<code>{{ selected.eventState || "—" }}</code>
+            </p>
+            <p class="hint-text">
+              提交人工确认后，该灾害点会进入确认工作台，由值班员认领、复核，再决定发布预警或归档。
+            </p>
           </section>
         </div>
       </div>
     </div>
+
+    <div v-if="dismissDialog && dismissTarget" class="modal-mask" @click.self="dismissDialog = false">
+      <div class="modal-card">
+        <header>
+          <h3><X :size="16" />归档为误报</h3>
+          <button class="icon-btn" @click="dismissDialog = false"><X :size="14" /></button>
+        </header>
+        <p class="dismiss-tip">
+          将「{{ dismissTarget.name }}」归档为误报后，对应统一事件会流转到 CLOSED 并记录原因。
+          已发布预警或已启动应急的事件不允许按误报关闭。
+        </p>
+        <label class="dismiss-field">
+          <span>误报原因（必填）</span>
+          <textarea v-model="dismissReason" rows="3" placeholder="例如：现场核实为施工扬尘，非滑坡形变"></textarea>
+        </label>
+        <div class="dismiss-actions">
+          <button class="ghost-btn" @click="dismissDialog = false">取消</button>
+          <button class="primary-btn danger" :disabled="submittingId === dismissTarget.id" @click="confirmDismiss">
+            {{ submittingId === dismissTarget.id ? "提交中…" : "确认归档" }}
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
-    <ConfirmDialog ref="confirmDialogRef" />
 </template>
 
 <style scoped>
@@ -326,9 +391,9 @@ onMounted(() => loadResults())
 .title-row strong { color: var(--c-text); font-size: 14px; }
 .hazard-code { color: var(--c-text-2); font-size: 11px; font-family: monospace; }
 .meta p { margin: 2px 0; color: var(--c-text-2); font-size: 12px; }
-.vote-row { display: flex; gap: 4px; flex-wrap: wrap; }
-.vote-chip { padding: 2px 7px; border-radius: var(--r-xs); background: var(--c-bg); color: var(--c-text-2); font-size: 10px; }
-.vote-chip.agree { background: var(--c-success-bg); color: var(--c-brand-deep); font-weight: 600; }
+.tag-row { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
+.tag { padding: 2px 7px; border-radius: var(--r-xs); background: var(--c-brand-soft); color: var(--c-brand-deep); font-size: 10px; font-weight: 600; }
+.tag--muted { background: var(--c-bg); color: var(--c-text-2); font-weight: 400; }
 /* 统计数字强调色（原为模板内联 style，改为 class 以支持暗色主题）*/
 .stat-num--danger { color: var(--c-danger-strong); }
 .stat-num--warn { color: var(--c-warning-ink); }
@@ -367,6 +432,29 @@ onMounted(() => loadResults())
 .vote-bar .track { flex: 1; height: 8px; background: var(--c-border-2); border-radius: var(--r-xs); overflow: hidden; }
 .vote-bar .fill { height: 100%; border-radius: var(--r-xs); transition: width .3s; }
 .vote-bar code { font-size: 11px; color: var(--c-brand-deep); }
+
+.conf-circle--empty { background: var(--c-bg); }
+.conf-circle--empty strong { color: var(--c-text-2); }
+
+.metric-row { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; }
+.metric-name { width: 80px; font-size: 12px; color: var(--c-brand-deep); }
+.metric-row .track { flex: 1; height: 8px; background: var(--c-border-2); border-radius: var(--r-xs); overflow: hidden; }
+.metric-row .fill { height: 100%; border-radius: var(--r-xs); transition: width .3s; }
+.metric-row code { font-size: 11px; color: var(--c-brand-deep); min-width: 48px; text-align: right; }
+.metric-meta { margin: 10px 0 0; font-size: 11px; color: var(--c-text-2); line-height: 1.7; }
+.metric-warn { margin: 6px 0 0; font-size: 11px; color: var(--c-warning-ink); line-height: 1.7; }
+.link-line { margin: 0 0 8px; font-size: 12px; color: var(--c-text); }
+.link-line code { padding: 2px 6px; background: var(--c-bg); border-radius: var(--r-xs); font-size: 11px; }
+.hint-text { margin: 8px 0 0; font-size: 11px; color: var(--c-text-2); line-height: 1.7; }
+
+.filter-hint { margin-left: auto; color: var(--c-text-2); font-size: 11px; }
+
+.dismiss-tip { margin: 0 0 14px; font-size: 12px; color: var(--c-text-2); line-height: 1.7; }
+.dismiss-field { display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--c-brand-deep); }
+.dismiss-field textarea { padding: 8px 10px; border: 1px solid var(--c-separator); border-radius: var(--r-sm); font-family: inherit; font-size: 12px; color: var(--c-text); background: var(--c-surface); resize: vertical; }
+.dismiss-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+.primary-btn.danger { background: var(--c-danger-strong); }
+.primary-btn:disabled, .ghost-btn:disabled { opacity: .55; cursor: not-allowed; }
 
 .spin { animation: spin 1s linear infinite; }
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }

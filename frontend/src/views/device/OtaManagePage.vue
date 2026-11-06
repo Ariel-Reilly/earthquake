@@ -58,6 +58,9 @@ const uploadForm = reactive({
   dragging: false,
 })
 
+// 保留 <input type=file> / 拖拽得到的真实 File 对象，用于 FormData 上传。
+let selectedFile = null
+
 const newTaskForm = reactive({
   firmwareId: "",
   deviceIds: [],
@@ -90,98 +93,14 @@ const statusTabs = [
   { value: "failed", label: "失败" },
 ]
 
-// 离线状态下的样例固件与设备
-const sampleFirmware = [
-  {
-    id: "fw-001",
-    version: "v2.4.1",
-    deviceType: "rain",
-    sizeKb: 4380,
-    sha256: "9af23b6c01e7d4f5",
-    uploadedAt: "2026-08-28 10:24",
-    remark: "修复低功耗模式唤醒异常",
-  },
-  {
-    id: "fw-002",
-    version: "v1.7.3",
-    deviceType: "crack",
-    sizeKb: 2960,
-    sha256: "2c6a18bd3340f8e1",
-    uploadedAt: "2026-08-21 14:08",
-    remark: "新增蓝牙就近升级通道",
-  },
-  {
-    id: "fw-003",
-    version: "v3.0.0-rc2",
-    deviceType: "gnss",
-    sizeKb: 8120,
-    sha256: "44e0cdb9102a8d75",
-    uploadedAt: "2026-08-15 09:15",
-    remark: "重大协议升级，需配合回归测试",
-  },
-  {
-    id: "fw-004",
-    version: "v2.1.6",
-    deviceType: "tilt",
-    sizeKb: 1840,
-    sha256: "b9d2f7e4c0ab8315",
-    uploadedAt: "2026-08-05 16:42",
-    remark: "提升抗电磁干扰能力",
-  },
-]
-
-const sampleDevices = [
-  { id: "RAIN-101", name: "龙安镇雨量站 A" },
-  { id: "RAIN-102", name: "龙安镇雨量站 B" },
-  { id: "RAIN-205", name: "石桥村雨量站" },
-  { id: "CRACK-018", name: "北山滑坡裂缝计" },
-  { id: "TILT-031", name: "塔山倾角仪" },
-  { id: "GNSS-005", name: "GNSS 基站 5 号" },
-]
-
-const sampleTasks = [
-  {
-    id: "OTA-20260828-01",
-    deviceId: "RAIN-101",
-    deviceName: "龙安镇雨量站 A",
-    firmwareId: "fw-001",
-    firmwareVersion: "v2.4.1",
-    progress: 64,
-    status: "running",
-    updatedAt: "2026-08-28 11:12",
-  },
-  {
-    id: "OTA-20260827-02",
-    deviceId: "RAIN-205",
-    deviceName: "石桥村雨量站",
-    firmwareId: "fw-001",
-    firmwareVersion: "v2.4.1",
-    progress: 100,
-    status: "success",
-    updatedAt: "2026-08-27 18:40",
-  },
-  {
-    id: "OTA-20260826-03",
-    deviceId: "TILT-031",
-    deviceName: "塔山倾角仪",
-    firmwareId: "fw-004",
-    firmwareVersion: "v2.1.6",
-    progress: 32,
-    status: "failed",
-    updatedAt: "2026-08-26 09:55",
-    errorLog: "写入校验失败，已自动回滚至 v2.1.5",
-  },
-  {
-    id: "OTA-20260825-04",
-    deviceId: "GNSS-005",
-    deviceName: "GNSS 基站 5 号",
-    firmwareId: "fw-003",
-    firmwareVersion: "v3.0.0-rc2",
-    progress: 0,
-    status: "pending",
-    updatedAt: "2026-08-25 22:10",
-  },
-]
+// 固件 / 升级任务 / 设备全部来自真实 API，不再内置离线样例数据。
+const devices = ref([])
+const deviceOptions = computed(() =>
+  devices.value.map((d) => ({
+    id: d.id ?? d.deviceCode,
+    name: d.name ?? d.deviceCode ?? String(d.id),
+  }))
+)
 
 const kpis = computed(() => {
   const total = firmwareList.value.length
@@ -208,19 +127,28 @@ const filteredTasks = computed(() => {
   return taskList.value.filter((t) => t.status === filter.status)
 })
 
+function toRecords(data) {
+  if (Array.isArray(data)) return data
+  const v = data?.records ?? data?.items ?? data?.list
+  return Array.isArray(v) ? v : []
+}
+
 async function loadAll() {
   loading.value = true
   try {
-    const [fw, tk] = await Promise.all([
-      dashboardApi.listFirmware().catch(() => ({ records: sampleFirmware, total: sampleFirmware.length })),
-      dashboardApi.listOtaTasks({ status: filter.status === "all" ? undefined : filter.status }).catch(
-        () => ({ records: sampleTasks, total: sampleTasks.length }),
-      ),
+    const [fw, tk, dev] = await Promise.all([
+      dashboardApi.listFirmware(),
+      dashboardApi.listOtaTasks({ status: filter.status === "all" ? undefined : filter.status }),
+      dashboardApi.getDevices({ size: 200 }),
     ])
-    firmwareList.value = fw?.records ?? []
-    taskList.value = tk?.records ?? []
+    firmwareList.value = toRecords(fw)
+    taskList.value = toRecords(tk)
+    devices.value = toRecords(dev)
   } catch (e) {
-    emit("notify", e.message ?? "加载 OTA 数据失败")
+    firmwareList.value = []
+    taskList.value = []
+    devices.value = []
+    emit("notify", `加载 OTA 数据失败：${e?.message ?? e}`)
   } finally {
     loading.value = false
   }
@@ -233,6 +161,7 @@ function openUpload() {
   uploadForm.deviceType = "rain"
   uploadForm.remark = ""
   uploadForm.dragging = false
+  selectedFile = null
   uploadDialog.value = true
 }
 
@@ -249,6 +178,7 @@ function handleFilePick(e) {
 }
 
 function applyFile(file) {
+  selectedFile = file
   uploadForm.fileName = file.name
   uploadForm.fileSize = Math.round(file.size / 1024)
   if (!uploadForm.version) {
@@ -259,11 +189,11 @@ function applyFile(file) {
 }
 
 async function submitUpload() {
-  if (!uploadForm.fileName) return emit("notify", "请选择固件文件")
+  if (!selectedFile) return emit("notify", "请选择固件文件")
   if (!uploadForm.version.trim()) return emit("notify", "请填写版本号")
   try {
     await dashboardApi.uploadFirmware({
-      file: { name: uploadForm.fileName, size: uploadForm.fileSize },
+      file: selectedFile,
       version: uploadForm.version.trim(),
       deviceType: uploadForm.deviceType,
       remark: uploadForm.remark.trim(),
@@ -294,10 +224,9 @@ async function removeFirmware(fw) {
   }
 }
 
-function downloadFirmware(fw) {
-  emit("notify", `已生成 ${fw.version} 下载链接（演示）`)
-}
-
+// 后端 OtaController 仅提供固件列表 / 上传 / 删除，没有固件下载端点，
+// dashboardApi 也没有对应下载方法，因此下载按钮禁用并在 UI 明确说明，
+// 不再用"已生成下载链接（演示）"伪造成功。
 function pushFromFirmware(fw) {
   newTaskForm.firmwareId = fw.id
   newTaskForm.deviceIds = []
@@ -374,8 +303,8 @@ async function openDetail(task) {
   try {
     const detail = await dashboardApi.getOtaTaskDetail(task.id)
     if (detail) detailTask.value = { ...task, ...detail }
-  } catch {
-    /* 离线时使用已有信息 */
+  } catch (e) {
+    emit("notify", `加载任务详情失败：${e?.message ?? e}`)
   }
 }
 
@@ -457,6 +386,7 @@ onMounted(loadAll)
     </div>
 
     <section v-if="activeTab === 'firmware'" class="panel-card">
+      <div class="firmware-hint">固件下载：后端暂未提供固件下载接口，下载按钮已禁用。</div>
       <div v-if="loading" class="loading-row">
         <Loader2 :size="16" class="spin" />加载固件包…
       </div>
@@ -489,7 +419,7 @@ onMounted(loadAll)
               <td>{{ fw.uploadedAt }}</td>
               <td class="muted">{{ fw.remark || "—" }}</td>
               <td class="ops">
-                <button class="ghost-btn" @click="downloadFirmware(fw)" title="下载">
+                <button class="ghost-btn" disabled title="后端暂未提供固件下载接口，暂不可用">
                   <Download :size="13" />
                 </button>
                 <button v-if="has('devices:ota')" class="ghost-btn" @click="pushFromFirmware(fw)" title="推升级任务">
@@ -625,9 +555,10 @@ onMounted(loadAll)
           </select>
         </label>
         <div class="device-picker">
-          <span class="picker-label">目标设备（{{ newTaskForm.deviceIds.length }} / {{ sampleDevices.length }}）</span>
-          <ul>
-            <li v-for="d in sampleDevices" :key="d.id">
+          <span class="picker-label">目标设备（{{ newTaskForm.deviceIds.length }} / {{ deviceOptions.length }}）</span>
+          <div v-if="!deviceOptions.length" class="picker-empty">暂无可选设备（请确认设备数据是否已加载）</div>
+          <ul v-else>
+            <li v-for="d in deviceOptions" :key="d.id">
               <label class="check-row">
                 <input type="checkbox" :checked="isDeviceSelected(d.id)" @change="toggleDevice(d.id)" />
                 <strong>{{ d.name }}</strong>
@@ -744,6 +675,7 @@ onMounted(loadAll)
 .progress .fill { height: 100%; background: var(--c-brand); border-radius: 3px; transition: width .3s; }
 .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
 
+.firmware-hint { margin-bottom: 12px; padding: 8px 12px; border: 1px solid var(--c-separator); border-radius: var(--r-sm); background: var(--c-surface-2); color: var(--c-text-2); font-size: 12px; }
 .loading-row, .empty-row { padding: 28px; text-align: center; color: var(--c-text-2); font-size: 13px; }
 
 .modal-mask { position: fixed; inset: 0; background: var(--c-overlay); display: grid; place-items: center; z-index: 100; padding: 20px; }
@@ -760,6 +692,7 @@ onMounted(loadAll)
 
 .device-picker { margin-bottom: 14px; }
 .picker-label { display: block; margin-bottom: 8px; color: var(--c-brand-deep); font-size: 12px; font-weight: 600; }
+.picker-empty { padding: 16px; text-align: center; color: var(--c-text-2); font-size: 12px; border: 1px dashed var(--c-separator); border-radius: var(--r-sm); }
 .device-picker ul { list-style: none; padding: 0; margin: 0; border: 1px solid var(--c-brand-soft); border-radius: var(--r-sm); max-height: 200px; overflow-y: auto; }
 .device-picker li { border-bottom: 1px solid var(--c-border-2); }
 .device-picker li:last-child { border-bottom: 0; }

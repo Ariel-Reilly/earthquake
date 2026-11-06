@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { ShieldCheck, UsersRound, MapPin, MessageSquareText, FileText, Clock3, ListChecks, XCircle, Send, ShieldAlert, Bot, X, Loader2 } from 'lucide-vue-next'
 import PermissionButton from '../../components/PermissionButton.vue'
+import StatCard from '../../components/ui/StatCard.vue'
 import { dashboardApi } from '../../services/dashboardApi'
 
 const emit = defineEmits(['notify'])
@@ -185,29 +186,65 @@ onMounted(loadData)
 
 <template>
   <div>
-    <div v-if="loading" class="panel" style="padding: 24px;">应急数据加载中...</div>
+    <div v-if="loading" class="panel" style="padding: var(--space-lg);">应急数据加载中...</div>
     <template v-else>
       <div class="stats-grid">
-        <div class="stat-card"><div class="stat-icon orange"><ShieldCheck :size="19" /></div><div class="stat-copy"><span>处置中的事件</span><strong>{{ activeCount }} <small>起</small></strong><em class="positive">联动响应 <i>已启动</i></em></div></div>
-        <div class="stat-card"><div class="stat-icon teal"><Bot :size="19" /></div><div class="stat-copy"><span>AI 标高/极高</span><strong>{{ aiCriticalCount }} <small>起</small></strong><em :class="aiCriticalCount ? 'negative' : 'positive'">{{ aiCriticalCount ? '需立即处置' : '运行良好' }} <i>综合风险</i></em></div></div>
-        <div class="stat-card"><div class="stat-icon blue"><UsersRound :size="19" /></div><div class="stat-copy"><span>应急力量</span><strong>{{ formatCount(personnelCount) }} <small v-if="personnelCount !== null">人</small></strong><em class="positive">在线值守 <i>随时出动</i></em></div></div>
-        <div class="stat-card"><div class="stat-icon purple"><FileText :size="19" /></div><div class="stat-copy"><span>复盘报告</span><strong>{{ formatCount(reportCount) }} <small v-if="reportCount !== null">份</small></strong><em class="positive">持续沉淀 <i>经验库</i></em></div></div>
+        <StatCard
+          :icon="ShieldCheck"
+          label="处置中的事件"
+          :count="activeCount"
+          suffix="起"
+          icon-variant="orange"
+          status-text="联动响应"
+          status-subtext="已启动"
+          status-class="positive"
+        />
+        <StatCard
+          :icon="Bot"
+          label="AI 标高/极高"
+          :count="aiCriticalCount"
+          suffix="起"
+          icon-variant="teal"
+          :status-text="aiCriticalCount ? '需立即处置' : '运行良好'"
+          status-subtext="综合风险"
+          :status-class="aiCriticalCount ? 'negative' : 'positive'"
+        />
+        <StatCard
+          :icon="UsersRound"
+          label="应急力量"
+          :count="formatCount(personnelCount)"
+          :suffix="personnelCount !== null ? '人' : ''"
+          icon-variant="blue"
+          status-text="在线值守"
+          status-subtext="随时出动"
+          status-class="positive"
+        />
+        <StatCard
+          :icon="FileText"
+          label="复盘报告"
+          :count="formatCount(reportCount)"
+          :suffix="reportCount !== null ? '份' : ''"
+          icon-variant="purple"
+          status-text="持续沉淀"
+          status-subtext="经验库"
+          status-class="positive"
+        />
       </div>
 
       <!-- AI 应急研判：每个事件挂上 AI 评分 -->
-      <div v-if="incidents.length" class="ai-hazard-card" style="margin: 0 0 16px;">
+      <div v-if="incidents.length" class="ai-hazard-card" style="margin: 0 0 var(--space-md);">
         <div class="ai-card-head">
           <div>
             <small><Bot :size="13" />AI 应急研判</small>
             <strong>已对所有处置事件关联 AI 综合评分 · 5 分钟自动刷新</strong>
           </div>
         </div>
-        <ul class="ai-hazard-reasons" style="border-top: none; padding-top: 4px;">
+        <ul class="ai-hazard-reasons" style="border-top: none; padding-top: var(--space-xs);">
           <li v-for="(inc, i) in incidents" :key="`ai-${inc.id ?? i}`">
             <strong>{{ inc.title }}</strong>
             <template v-if="inc.hazardCode && aiOf(inc.hazardCode)">
               · 关联 {{ inc.hazardCode }}
-              <span :class="`ai-tag ai-tag-${(aiOf(inc.hazardCode).riskLevel || '').toLowerCase()}`" style="margin-left:4px">
+              <span :class="`ai-tag ai-tag-${(aiOf(inc.hazardCode).riskLevel || '').toLowerCase()}`" style="margin-left: var(--space-xs)">
                 AI {{ aiLevelLabel(aiOf(inc.hazardCode).riskLevel) }} {{ Number(aiOf(inc.hazardCode).riskScore || 0).toFixed(0) }}
               </span>
             </template>
@@ -274,7 +311,7 @@ onMounted(loadData)
               <p>{{ selectedIncident ? '可继续补充现场图片和处置结果' : '请先选择一个处置事件查看进度' }}</p>
             </div>
           </div>
-          <div class="heading-actions" style="padding: 0 20px 18px; justify-content: flex-end;">
+          <div class="heading-actions" style="padding: 0 var(--space-lg) var(--space-md); justify-content: flex-end;">
             <div class="action-btn-wrapper" :class="{ 'is-disabled': !selectedIncident || dispatchLoading }">
               <PermissionButton
                 permission="emergency:dispatch"
@@ -420,180 +457,247 @@ onMounted(loadData)
 </template>
 
 <style scoped>
-/* 按钮禁用包装器 */
-.action-btn-wrapper { display: inline-block; }
+/* ──────────────────────────────────────────────────────────
+   按钮禁用包装器
+   ────────────────────────────────────────────────────────── */
+.action-btn-wrapper {
+  display: inline-block;
+}
+
 .action-btn-wrapper.is-disabled {
   opacity: 0.5;
   cursor: not-allowed;
   pointer-events: none;
 }
 
-/* 选中高亮样式 */
+/* ──────────────────────────────────────────────────────────
+   选中高亮样式
+   ────────────────────────────────────────────────────────── */
 .warning-item.selected {
-  background: rgba(111, 158, 127, 0.06);
-  margin: 0 -8px;
-  padding-left: 8px;
-  padding-right: 8px;
-  border-radius: var(--r-sm);
-  border-left: 3px solid var(--c-brand);
+  background: var(--color-primary-mist);
+  margin: 0 calc(-1 * var(--space-sm));
+  padding-left: var(--space-sm);
+  padding-right: var(--space-sm);
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--color-primary);
 }
 
-/* 应急步骤状态样式 */
-.system-list .step-done strong { color: var(--c-brand-deep); }
-.system-list .step-active strong { color: var(--c-warning); }
-.system-list .step-pending strong { color: var(--c-text-3); }
+/* ──────────────────────────────────────────────────────────
+   应急步骤状态样式
+   ────────────────────────────────────────────────────────── */
+.system-list .step-done strong {
+  color: var(--color-primary-active);
+}
 
-/* 详情抽屉 */
+.system-list .step-active strong {
+  color: var(--color-warning);
+}
+
+.system-list .step-pending strong {
+  color: var(--color-tertiary);
+}
+
+/* ──────────────────────────────────────────────────────────
+   详情抽屉
+   ────────────────────────────────────────────────────────── */
 .incident-drawer-backdrop {
   position: fixed;
   inset: 0;
   background: rgba(15, 23, 42, 0.35);
   backdrop-filter: blur(2px);
-  z-index: 200;
+  z-index: var(--z-modal);
   display: flex;
   justify-content: flex-end;
 }
+
 .incident-drawer {
   width: 520px;
   max-width: 92vw;
   height: 100vh;
-  background: var(--c-surface);
+  background: var(--color-card);
   display: flex;
   flex-direction: column;
   box-shadow: -16px 0 40px rgba(46, 67, 93, 0.18);
 }
+
 .id-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  padding: 20px 22px 18px;
-  color: var(--c-on-brand);
-  background: linear-gradient(135deg, var(--c-danger) 0%, var(--c-danger-strong) 100%);
+  padding: var(--space-lg) var(--space-lg) var(--space-md);
+  color: var(--color-on-primary);
+  background: linear-gradient(135deg, var(--color-destructive) 0%, var(--color-destructive-strong) 100%);
 }
-.id-header-meta { flex: 1; min-width: 0; }
+
+.id-header-meta {
+  flex: 1;
+  min-width: 0;
+}
+
 .id-header .eyebrow {
-  font-size: 10.5px;
+  font-size: var(--text-xs);
   letter-spacing: 1.5px;
   opacity: 0.85;
-  font-weight: 600;
+  font-weight: var(--font-semibold);
 }
+
 .id-header h2 {
-  margin: 4px 0 8px;
-  font-size: 18px;
-  font-weight: 700;
+  margin: var(--space-xs) 0 var(--space-md);
+  font-size: var(--text-xl);
+  font-weight: var(--font-bold);
   display: flex;
   align-items: center;
-  gap: 8px;
-  color: var(--c-on-brand);
+  gap: var(--space-sm);
+  color: var(--color-on-primary);
   line-height: 1.3;
 }
+
 .id-event-code {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-sm);
   flex-wrap: wrap;
 }
+
 .id-event-code code {
   background: rgba(255, 255, 255, 0.18);
-  padding: 3px 8px;
-  border-radius: var(--r-xs);
-  font-size: 11px;
-  font-family: ui-monospace, monospace;
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-xs);
+  font-size: var(--text-xs);
+  font-family: var(--font-mono);
   letter-spacing: 0.5px;
 }
+
 .level-pill {
-  padding: 3px 8px;
-  border-radius: var(--r-pill);
-  font-size: 11px;
-  font-weight: 700;
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  font-weight: var(--font-bold);
   letter-spacing: 0.5px;
   background: rgba(255, 255, 255, 0.2);
-  color: var(--c-on-brand);
+  color: var(--color-on-primary);
 }
-.level-pill.orange { background: rgba(255, 200, 100, 0.35); }
-.level-pill.yellow { background: rgba(255, 220, 100, 0.35); }
-.level-pill.blue { background: rgba(100, 180, 255, 0.35); }
+
+.level-pill.orange {
+  background: rgba(255, 200, 100, 0.35);
+}
+
+.level-pill.yellow {
+  background: rgba(255, 220, 100, 0.35);
+}
+
+.level-pill.blue {
+  background: rgba(100, 180, 255, 0.35);
+}
 
 .id-close {
   background: rgba(255, 255, 255, 0.15);
   border: none;
   width: 32px;
   height: 32px;
-  border-radius: var(--r-sm);
-  color: var(--c-on-brand);
+  border-radius: var(--radius-md);
+  color: var(--color-on-primary);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  transition: background var(--duration-fast) var(--ease-out);
 }
-.id-close:hover { background: rgba(255, 255, 255, 0.28); }
+
+.id-close:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
 
 .id-body {
   flex: 1;
   overflow-y: auto;
-  padding: 18px 22px;
+  padding: var(--space-md) var(--space-lg);
 }
+
 .id-section {
-  margin-bottom: 22px;
-  padding-bottom: 16px;
+  margin-bottom: var(--space-lg);
+  padding-bottom: var(--space-md);
   border-bottom: 1px dashed rgba(125, 145, 165, 0.25);
 }
-.id-section:last-child { border-bottom: none; padding-bottom: 0; }
+
+.id-section:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
 .id-section-title {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--c-ink-1);
-  margin: 0 0 10px;
+  font-size: var(--text-xs);
+  font-weight: var(--font-bold);
+  color: var(--color-foreground);
+  margin: 0 0 var(--space-md);
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-xs);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
+
 .id-meta-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
+  gap: var(--space-md);
 }
+
 .id-meta-cell {
   background: rgba(247, 250, 253, 0.7);
   border: 1px solid rgba(125, 145, 165, 0.18);
-  border-radius: var(--r-sm);
-  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  padding: var(--space-sm);
 }
+
 .id-meta-cell .k {
   display: block;
-  font-size: 10.5px;
-  color: var(--c-text-2);
-  margin-bottom: 2px;
+  font-size: var(--text-xs);
+  color: var(--color-muted-foreground);
+  margin-bottom: var(--space-xs);
 }
-.id-meta-cell .v {
-  font-size: 13px;
-  color: var(--c-ink-1);
-}
-.id-meta-cell .v.code {
-  font-family: ui-monospace, monospace;
-  font-size: 12px;
-  color: var(--c-brand);
-}
-.id-meta-cell .v.orange { color: var(--c-warning-strong); }
-.id-meta-cell .v.yellow { color: var(--c-warning-ink); }
-.id-meta-cell .v.blue { color: var(--c-text-3); }
 
-/* 步骤时间线 */
+.id-meta-cell .v {
+  font-size: var(--text-base);
+  color: var(--color-foreground);
+}
+
+.id-meta-cell .v.code {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--color-primary);
+}
+
+.id-meta-cell .v.orange {
+  color: var(--color-warning-strong);
+}
+
+.id-meta-cell .v.yellow {
+  color: var(--color-warning-ink);
+}
+
+.id-meta-cell .v.blue {
+  color: var(--color-tertiary);
+}
+
+/* ──────────────────────────────────────────────────────────
+   步骤时间线
+   ────────────────────────────────────────────────────────── */
 .id-steps {
   display: flex;
   flex-direction: column;
   gap: 0;
   position: relative;
 }
+
 .id-step-row {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
-  padding: 10px 0;
+  gap: var(--space-md);
+  padding: var(--space-md) 0;
   position: relative;
 }
+
 .id-step-icon {
   width: 32px;
   height: 32px;
@@ -601,36 +705,48 @@ onMounted(loadData)
   display: grid;
   place-items: center;
   flex: 0 0 auto;
-  background: rgba(60,60,67,.08);
-  color: var(--c-text-3);
+  background: rgba(60, 60, 67, 0.08);
+  color: var(--color-tertiary);
   z-index: 1;
+  transition: all var(--duration-fast) var(--ease-out);
 }
+
 .id-step-row.step-done .id-step-icon {
-  background: var(--c-brand-mist);
-  color: var(--c-brand-deep);
+  background: var(--color-primary-mist);
+  color: var(--color-primary-active);
 }
+
 .id-step-row.step-active .id-step-icon {
-  background: var(--c-warning-bg);
-  color: var(--c-warning);
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
 }
+
 .id-step-info {
   flex: 1;
-  padding-top: 4px;
+  padding-top: var(--space-xs);
 }
+
 .id-step-info strong {
   display: block;
-  font-size: 13px;
-  color: var(--c-ink-1);
-  font-weight: 600;
+  font-size: var(--text-base);
+  color: var(--color-foreground);
+  font-weight: var(--font-semibold);
 }
+
 .id-step-info span {
   display: block;
-  font-size: 11px;
-  color: var(--c-text-3);
-  margin-top: 2px;
+  font-size: var(--text-xs);
+  color: var(--color-tertiary);
+  margin-top: var(--space-xs);
 }
-.id-step-row.step-done .id-step-info span { color: var(--c-brand-deep); }
-.id-step-row.step-active .id-step-info span { color: var(--c-warning); }
+
+.id-step-row.step-done .id-step-info span {
+  color: var(--color-primary-active);
+}
+
+.id-step-row.step-active .id-step-info span {
+  color: var(--color-warning);
+}
 
 .id-step-line {
   position: absolute;
@@ -638,107 +754,194 @@ onMounted(loadData)
   top: 42px;
   bottom: -10px;
   width: 2px;
-  background: rgba(60,60,67,.08);
+  background: rgba(60, 60, 67, 0.08);
+  transition: background var(--duration-fast) var(--ease-out);
 }
-.id-step-row.step-done .id-step-line { background: var(--c-brand-hover); }
+
+.id-step-row.step-done .id-step-line {
+  background: var(--color-primary-hover);
+}
 
 .id-summary {
-  font-size: 13px;
-  color: var(--c-ink-1);
+  font-size: var(--text-base);
+  color: var(--color-foreground);
   line-height: 1.6;
   background: rgba(247, 250, 253, 0.7);
-  padding: 10px 12px;
-  border-radius: var(--r-sm);
-  border-left: 3px solid var(--c-brand);
+  padding: var(--space-md);
+  border-radius: var(--radius-md);
+  border-left: 3px solid var(--color-primary);
   margin: 0;
 }
 
 .id-ai-score {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 10px;
+  gap: var(--space-md);
+  padding: var(--space-md);
   background: rgba(247, 250, 253, 0.7);
-  border-radius: var(--r-sm);
+  border-radius: var(--radius-md);
 }
+
 .score-num {
   width: 56px;
   height: 56px;
   border-radius: 50%;
   display: grid;
   place-items: center;
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--c-on-brand);
-  background: var(--c-text-3);
+  font-size: var(--text-3xl);
+  font-weight: var(--font-bold);
+  color: var(--color-on-primary);
+  background: var(--color-tertiary);
 }
-.score-num.ai-tag-critical { background: var(--c-danger); }
-.score-num.ai-tag-high { background: var(--c-warning); }
-.score-num.ai-tag-medium { background: var(--sys-blue); }
-.score-num.ai-tag-low { background: var(--c-brand); }
+
+.score-num.ai-tag-critical {
+  background: var(--color-destructive);
+}
+
+.score-num.ai-tag-high {
+  background: var(--color-warning);
+}
+
+.score-num.ai-tag-medium {
+  background: var(--sys-blue);
+}
+
+.score-num.ai-tag-low {
+  background: var(--color-primary);
+}
+
 .score-info strong {
   display: block;
-  font-size: 14px;
-  color: var(--c-ink-1);
+  font-size: var(--text-lg);
+  color: var(--color-foreground);
 }
+
 .score-info span {
   display: block;
-  font-size: 11px;
-  color: var(--c-text-2);
-  margin-top: 2px;
+  font-size: var(--text-xs);
+  color: var(--color-muted-foreground);
+  margin-top: var(--space-xs);
 }
+
 .id-empty {
-  padding: 14px;
+  padding: var(--space-md);
   text-align: center;
-  color: var(--c-text-3);
-  font-size: 12px;
+  color: var(--color-tertiary);
+  font-size: var(--text-sm);
   background: rgba(247, 250, 253, 0.5);
-  border-radius: var(--r-sm);
+  border-radius: var(--radius-md);
 }
 
 .id-footer {
-  border-top: 1px solid rgba(125, 145, 165, 0.18);
-  padding: 14px 22px 16px;
+  border-top: 1px solid var(--color-border);
+  padding: var(--space-md) var(--space-lg);
   background: rgba(247, 250, 253, 0.6);
 }
+
 .id-footer-title {
-  font-size: 11px;
-  color: var(--c-text-2);
-  margin-bottom: 8px;
-  font-weight: 600;
+  font-size: var(--text-xs);
+  color: var(--color-muted-foreground);
+  margin-bottom: var(--space-sm);
+  font-weight: var(--font-semibold);
 }
+
 .id-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--space-sm);
 }
+
 .id-action-btn {
   border: 1px solid;
-  padding: 8px 16px;
-  border-radius: var(--r-sm);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-md);
   cursor: pointer;
-  font-size: 12px;
-  font-weight: 600;
-  transition: all 0.15s;
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  transition: all var(--duration-fast) var(--ease-out);
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-xs);
 }
-.id-action-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-.id-action-btn.tone-red { background: rgba(224, 96, 96, 0.08); border-color: var(--c-danger); color: var(--c-danger-strong); }
-.id-action-btn.tone-red:hover:not(:disabled) { background: var(--c-danger); color: var(--c-on-brand); }
-.id-action-btn.tone-gray { background: var(--c-brand-mist); border-color: var(--c-border); color: var(--c-ink-2); }
-.id-action-btn.tone-gray:hover:not(:disabled) { background: var(--c-border); color: var(--c-ink-1); }
 
-.spin { animation: spin 1s linear infinite; }
-@keyframes spin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
+.id-action-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
 
-.drawer-enter-active, .drawer-leave-active {
-  transition: opacity 0.18s ease;
+.id-action-btn.tone-red {
+  background: rgba(224, 96, 96, 0.08);
+  border-color: var(--color-destructive);
+  color: var(--color-destructive-strong);
 }
-.drawer-enter-active .incident-drawer, .drawer-leave-active .incident-drawer {
-  transition: transform 0.24s cubic-bezier(0.22, 0.61, 0.36, 1);
+
+.id-action-btn.tone-red:hover:not(:disabled) {
+  background: var(--color-destructive);
+  color: var(--color-on-primary);
 }
-.drawer-enter-from, .drawer-leave-to { opacity: 0; }
-.drawer-enter-from .incident-drawer, .drawer-leave-to .incident-drawer { transform: translateX(100%); }
+
+.id-action-btn.tone-gray {
+  background: var(--color-primary-mist);
+  border-color: var(--color-border);
+  color: var(--color-muted-foreground);
+}
+
+.id-action-btn.tone-gray:hover:not(:disabled) {
+  background: var(--color-border);
+  color: var(--color-foreground);
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.drawer-enter-active,
+.drawer-leave-active {
+  transition: opacity var(--duration-fast) var(--ease-out);
+}
+
+.drawer-enter-active .incident-drawer,
+.drawer-leave-active .incident-drawer {
+  transition: transform 240ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+.drawer-enter-from,
+.drawer-leave-to {
+  opacity: 0;
+}
+
+.drawer-enter-from .incident-drawer,
+.drawer-leave-to .incident-drawer {
+  transform: translateX(100%);
+}
+
+/* 统计卡片网格 */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
+}
+
+/* 双列内容网格 */
+.content-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-lg);
+}
+
+@media (max-width: 1024px) {
+  .content-grid {
+    grid-template-columns: 1fr;
+  }
+}
 </style>

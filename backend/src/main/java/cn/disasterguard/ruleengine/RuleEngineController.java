@@ -90,14 +90,17 @@ public class RuleEngineController {
   }
 
   /**
-   * 测试规则
+   * 测试规则。
+   *
+   * <p>inputData 来自请求体 {@link RuleTestRequest#inputData()}。此前签名同时声明
+   * {@code @RequestBody RuleTestRequest} 和 {@code @RequestParam Map inputData}，
+   * 而前端把 inputData 放在 body 里，导致后端永远拿到空 Map —— 规则试算恒为
+   * "条件不满足"，属于前后端参数契约错位。
    */
   @PostMapping("/test")
   @PreAuthorize("hasAuthority('rules:edit')")
-  public ApiResponse<RuleTestResponse> test(
-      @RequestBody RuleTestRequest request,
-      @RequestParam Map<String, Object> inputData) {
-
+  public ApiResponse<RuleTestResponse> test(@RequestBody RuleTestRequest request) {
+    Map<String, Object> inputData = request.inputData() == null ? Map.of() : request.inputData();
     RuleTestResponse result = service.test(request, inputData);
     return ApiResponse.success(result);
   }
