@@ -4,16 +4,21 @@
 
 ## 脚本一览
 
-| 脚本 | 版本 | 目标模型 | 状态 | 训练样本 |
+> ⚠️ **样本来源如实标注（2026-11-06）**：目前只有 `train_crack_yolo.py` 使用真实人工标注数据集
+> （`datasets/disaster-v2`，770 图 / 2632 实例）。其余脚本的 `synthesize_sample*()` 用 `random`
+> 合成训练样本，**对外不得宣称「基于真实监测数据训练」**。`train_xgboost` 已默认
+> `allow_synthetic=False`，只有带 `factors` 的真实反馈样本才会进训练集。
+
+| 脚本 | 版本 | 目标模型 | 状态 | 训练样本来源 |
 |------|------|---------|------|---------|
-| `train_comprehensive_v1.py` | v1 | comprehensive_v2.json | ⚠️ 已废弃（二分类） | 5000 |
-| `train_comprehensive_v2.py` | v2.1.0 | comprehensive_v2.json | ✅ 生产 | 8000 |
-| `train_fusion_v1.py` | v1 | xgboost_fusion.json | ⚠️ 已废弃（二分类） | 5000 |
-| `train_fusion_v2.py` | v2 | xgboost_fusion.json | ⚠️ 已废弃（概率） | 8000 |
-| `train_fusion_v3.py` | v3.0.0 | xgboost_fusion.json | ✅ 生产 | 8000 |
-| `train_crack_yolo.py` | — | yolo_crack.onnx | ✅ 生产 | YOLO 数据集 |
-| `train_isolation_forest.py` | — | isolation_forest.joblib | ✅ 生产 | CSV 或合成 |
-| `train_lstm_displacement.py` | — | lstm_displacement.pt | ✅ 生产 | CSV 或合成 |
+| `train_comprehensive_v1.py` | v1 | comprehensive_v2.json | ⚠️ 已废弃（二分类） | 合成 |
+| `train_comprehensive_v2.py` | v2.1.0 | comprehensive_v2.json | ⚠️ 可运行，合成样本 | 合成 |
+| `train_fusion_v1.py` | v1 | xgboost_fusion.json | ⚠️ 已废弃（二分类） | 合成 |
+| `train_fusion_v2.py` | v2 | xgboost_fusion.json | ⚠️ 已废弃（概率） | 合成 |
+| `train_fusion_v3.py` | v3.0.0 | xgboost_fusion.json | ⚠️ 可运行，合成样本 | 合成 |
+| `train_crack_yolo.py` | — | yolo_crack.onnx | ✅ 真实标注数据集 | disaster-v2（人工标注） |
+| `train_isolation_forest.py` | — | isolation_forest.joblib | ⚠️ 可运行，默认合成 | 合成（可传真实 CSV 覆盖） |
+| `train_lstm_displacement.py` | — | lstm_displacement.pt | ⚠️ 可运行，默认合成 | 合成（可传真实 CSV 覆盖） |
 
 ## 输出目录
 

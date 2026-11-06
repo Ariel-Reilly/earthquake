@@ -63,13 +63,16 @@ public class NoticeTemplateController {
   private final NoticeTemplateRepository repository;
   private final ObjectMapper objectMapper;
   private final NotificationService notificationService;
+  private final TestRecipientGuard recipientGuard;
 
   public NoticeTemplateController(NoticeTemplateRepository repository,
                                   ObjectMapper objectMapper,
-                                  NotificationService notificationService) {
+                                  NotificationService notificationService,
+                                  TestRecipientGuard recipientGuard) {
     this.repository = repository;
     this.objectMapper = objectMapper;
     this.notificationService = notificationService;
+    this.recipientGuard = recipientGuard;
   }
 
   /**
@@ -214,7 +217,14 @@ public class NoticeTemplateController {
     // 2. 发送目标
     String target = str(b.get("target"));
     if (isBlank(target)) {
-      return ApiResponse.fail(400, "请填写测试发送目标 target（手机号 / 邮箱 / 设备 Token）");
+      // 页面上的「测试」按钮不带 target。默认取白名单里的第一个项目测试成员，
+      // 既让按钮可用，又保证默认目标绝不落到外部人员身上。
+      target = recipientGuard.firstRecipient();
+    }
+    if (isBlank(target)) {
+      return ApiResponse.fail(400,
+          "未配置项目测试成员名单（NOTIFICATION_TEST_RECIPIENTS），无法测试发送；"
+              + "请在请求中提供白名单内的 target");
     }
     target = target.trim();
 
@@ -258,11 +268,19 @@ public class NoticeTemplateController {
     data.put("status", result.status());
     data.put("results", result.results());
     data.put("message", result.message());
-    if (!"SUCCESS".equals(result.status())) {
+    // 现阶段 6 个 Sender 都是演示实现，正常结果就是 MOCK_SENT，永远不会有 SUCCESS。
+    // 只认 SUCCESS 会把「如实返回的演示结果」误判成失败，并把 data 里的状态丢掉。
+    boolean accepted = "SUCCESS".equals(result.status())
+        || "MOCK_SENT".equals(result.status())
+        || "PROBE_ONLY".equals(result.status());
+    if (!accepted) {
       return ApiResponse.fail(502,
-          "测试发送失败（" + result.status() + "）：" + result.message());
+          "测试发送未成功（" + result.status() + "）：" + result.message());
     }
-    return ApiResponse.success("测试发送成功", data);
+    String summary = "SUCCESS".equals(result.status())
+        ? "测试发送成功"
+        : "测试发送已受理（" + result.status() + "，未真实投递）";
+    return ApiResponse.success(summary, data);
   }
 
   // ---------------------------------------------------------------- 内部方法

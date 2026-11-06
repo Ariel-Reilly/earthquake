@@ -72,7 +72,7 @@ public class WebhookSender implements NotificationSender {
 
       // Mock: 模拟成功
       Thread.sleep(20);
-      return SendResult.success(messageId);
+      return SendResult.mockSuccess(messageId, "Webhook 回调未配置真实目标地址");
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       return SendResult.failure("Webhook 请求被中断");

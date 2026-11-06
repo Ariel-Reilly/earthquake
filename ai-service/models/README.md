@@ -1,5 +1,11 @@
 # AI 模型文件目录
 
+> **⚠ 权重使用范围（2026-11-06 项目决策：本项目不商用）**
+> `yolo_crack.onnx` 由 `datasets/disaster-v2` 训练，其中滑坡影像来自
+> CAS Landslide Dataset（**CC-BY-NC-4.0，禁止商业使用**）。该权重仅限教学 / 竞赛演示 /
+> 项目内部测试使用，**不得随商业交付分发**。商用前必须换源重训，详见
+> `datasets/disaster-v2/DATASET_CARD.md` §6.5 与 `DEPLOYMENT.md`「6. 当前阶段使用边界」。
+
 将训练好的模型文件放入此目录，ai-service 启动时自动加载：
 
 | 文件 | 模型类型 | 训练脚本 | 推理依赖 |

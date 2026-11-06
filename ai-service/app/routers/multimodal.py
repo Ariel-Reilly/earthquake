@@ -2,6 +2,7 @@
 多模态融合 API 路由
 """
 
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, HTTPException
@@ -117,16 +118,27 @@ async def fuse_modals(request: FuseRequest) -> FuseResponse:
     )
 
 
+def _demo_meta() -> Dict[str, Any]:
+    """演示数据的统一标记。
+
+    下面 5 个端点尚未接入融合结果库，fusedScore / 贡献度 / 权重都是固定示意值，
+    时间戳曾写死为 2026-09-13。保留响应结构是为了让前端页面能跑通，但调用方
+    （前端页面、Java 网关）必须能据此显示「演示数据」，不能当成真实研判结果。
+    接入真实数据源后删除本标记，并同步移除前端的演示标签。
+    """
+    return {
+        "mock": True,
+        "dataSource": "demo",
+        "note": "融合结果库未接入，当前为固定演示值，不可用于真实研判",
+    }
+
+
 @router.get("/insight/{event_id}")
 async def get_insight(event_id: str) -> Dict[str, Any]:
-    """
-    获取融合研判
+    """获取融合研判（演示数据）。
 
-    从数据库获取已有的融合结果。
+    TODO: 按 event_id 从融合结果库加载真实记录，接入后删除 _demo_meta()。
     """
-    # TODO: 从数据库加载融合记录
-    # 这里返回模拟数据
-
     return {
         "eventId": event_id,
         "fusedScore": 87.5,
@@ -162,57 +174,39 @@ async def get_insight(event_id: str) -> Dict[str, Any]:
                 "confidence": 0.88
             }
         },
-        "createdAt": "2026-09-13T10:30:00Z"
+        "createdAt": datetime.now(timezone.utc).isoformat(),
+        **_demo_meta(),
     }
 
 
 @router.get("/contributions/{event_id}")
 async def get_contributions(event_id: str) -> Dict[str, Any]:
-    """
-    获取贡献度详情
-    """
-    # TODO: 从数据库加载
+    """获取贡献度详情（演示数据，TODO: 从融合结果库加载）。"""
     return {
         "eventId": event_id,
         "contributions": {
-            "satellite": {
-                "weight": 0.40,
-                "contribution": 0.55,
-                "score": 85
-            },
-            "forecast": {
-                "weight": 0.30,
-                "contribution": 0.25,
-                "score": 72
-            },
-            "social_media": {
-                "weight": 0.15,
-                "contribution": 0.15,
-                "score": 65
-            },
-            "device": {
-                "weight": 0.15,
-                "contribution": 0.05,
-                "score": 60
-            }
-        }
+            "satellite": {"weight": 0.40, "contribution": 0.55, "score": 85},
+            "forecast": {"weight": 0.30, "contribution": 0.25, "score": 72},
+            "social_media": {"weight": 0.15, "contribution": 0.15, "score": 65},
+            "device": {"weight": 0.15, "contribution": 0.05, "score": 60}
+        },
+        **_demo_meta(),
     }
 
 
 @router.post("/refresh")
 async def refresh_insight(request: InsightRequest) -> Dict[str, Any]:
-    """
-    手动刷新融合研判
+    """手动刷新融合研判。
 
-    重新获取各模态数据并融合。
+    保留 status=success 以兼容前端契约，但明确标注这是演示端点：
+    数据源未接入，点击刷新**不会**重新计算任何模态分数。
     """
-    # TODO: 实际执行刷新逻辑
     return {
         "eventId": request.eventId,
         "status": "success",
-        "message": "融合研判已刷新"
+        "message": "演示端点：融合结果库未接入，未执行真实刷新",
+        **_demo_meta(),
     }
-
 
 
 class WeightConfigRequest(BaseModel):
@@ -223,10 +217,7 @@ class WeightConfigRequest(BaseModel):
 
 @router.get("/weights/{disaster_type}")
 async def get_weights(disaster_type: str) -> Dict[str, Any]:
-    """
-    获取权重配置
-    """
-    # TODO: 从数据库加载
+    """获取权重配置（演示数据，TODO: 从配置库加载）。"""
     return {
         "disasterType": disaster_type,
         "weights": {
@@ -234,7 +225,8 @@ async def get_weights(disaster_type: str) -> Dict[str, Any]:
             "forecast": 0.30,
             "social_media": 0.15,
             "device": 0.15
-        }
+        },
+        **_demo_meta(),
     }
 
 
@@ -243,12 +235,11 @@ async def update_weights(
     disaster_type: str,
     request: WeightConfigRequest
 ) -> Dict[str, Any]:
-    """
-    更新权重配置
-    """
-    # TODO: 保存到数据库
+    """更新权重配置（演示数据，仅回显请求，未持久化）。"""
     return {
         "disasterType": disaster_type,
         "weights": request.weights,
-        "updatedAt": "2026-09-13T10:30:00Z"
+        "updatedAt": datetime.now(timezone.utc).isoformat(),
+        "persisted": False,
+        **_demo_meta(),
     }

@@ -13,6 +13,7 @@ import java.time.OffsetDateTime;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpHeaders;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -91,8 +92,25 @@ public class AuthController {
     return ApiResponse.success("登录成功", response);
   }
 
+  /**
+   * 登出：把当前请求携带的 JWT 加入黑名单，使其在剩余 TTL 内立即失效。
+   *
+   * <p>JwtAuthenticationFilter 对 /api/auth/logout 免过滤（见 shouldNotFilter），
+   * 所以这里不能依赖 SecurityContext，必须从 Authorization 头自行取 token 验签。
+   * 验签失败或 token 已过期时不阻断登出，只记 debug —— 客户端本来也会丢弃该 token。
+   */
   @PostMapping("/logout")
-  public ApiResponse<Void> logout() {
+  public ApiResponse<Void> logout(HttpServletRequest request) {
+    String header = request.getHeader(HttpHeaders.AUTHORIZATION);
+    if (header != null && header.startsWith("Bearer ")) {
+      try {
+        Claims claims = jwtService.parseToken(header.substring(7).trim());
+        jwtService.revoke(claims);
+        log.info("登出已吊销 JWT user={}", claims.getSubject());
+      } catch (Exception e) {
+        log.debug("登出时 JWT 无法吊销（可能已过期或已失效）: {}", e.getMessage());
+      }
+    }
     return ApiResponse.success("退出成功", null);
   }
 

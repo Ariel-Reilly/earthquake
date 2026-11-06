@@ -32,6 +32,10 @@ spring:
 
 # prod profile：覆盖所有安全敏感配置为严格模式（防止用户忘记在环境变量中设置）
 disasterguard:
+  # 生产同样保持 fail-closed：不显式注入名单，任何对外投递都会被 BLOCKED。
+  # 这里刻意不设默认值，避免换 profile 时把开发期名单带进生产。
+  notification:
+    test-recipients: ${NOTIFICATION_TEST_RECIPIENTS:}
   security:
     dev-users-enabled: false
   device:

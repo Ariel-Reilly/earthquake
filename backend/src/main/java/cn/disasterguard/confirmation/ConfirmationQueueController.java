@@ -26,6 +26,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 /**
  * 人工确认工作台（v1.7.0+ P3-4 确认队列 + v2.0 全功能实现）。
@@ -212,6 +213,26 @@ public class ConfirmationQueueController {
     return latest;
   }
 
+  /**
+   * 取当前登录用户作为操作人。
+   *
+   * <p>历史缺陷：claim/confirm/reject 曾直接读请求体 payload.get("operator")，
+   * transfer 则读 event.getClosedBy()，等于允许调用方伪造操作人与审批留痕。
+   * 四个写端点都有 @PreAuthorize，SecurityContext 必然存在；这里统一取
+   * Authentication#getName()（与 HazardController 一致），请求体里的 operator
+   * 一律忽略，仅保留该字段以兼容现有前端调用。
+   *
+   * @return 登录用户名；无有效身份时返回 null，由调用方返回 401
+   */
+  private String currentOperator() {
+    var auth = SecurityContextHolder.getContext().getAuthentication();
+    if (auth == null || auth.getName() == null || auth.getName().isBlank()
+        || "anonymousUser".equals(auth.getName())) {
+      return null;
+    }
+    return auth.getName();
+  }
+
   // 下面是 claim / transfer / confirm / reject 等接口
 
   /**
@@ -227,9 +248,10 @@ public class ConfirmationQueueController {
       @PathVariable Long id,
       @RequestBody Map<String, String> payload
   ) {
-    String operator = payload.get("operator");
-    if (operator == null || operator.isBlank()) {
-      return ApiResponse.fail(400, "请提供操作人");
+    // 操作人只认 SecurityContext，请求体里的 operator 一律忽略（见 currentOperator）。
+    String operator = currentOperator();
+    if (operator == null) {
+      return ApiResponse.fail(401, "未登录或登录状态已失效");
     }
 
     UnifiedEventEntity event = unifiedEventRepository.findById(id).orElse(null);
@@ -289,7 +311,12 @@ public class ConfirmationQueueController {
       return ApiResponse.fail(400, "仅允许转派确认中的任务");
     }
 
-    String fromUser = event.getClosedBy() == null ? "system" : event.getClosedBy();
+    // 转派人也取当前登录用户；旧实现读 event.getClosedBy()，既可能拿到"system"，
+    // 也可能把上一个处理人当成发起人，留痕不可信。
+    String fromUser = currentOperator();
+    if (fromUser == null) {
+      return ApiResponse.fail(401, "未登录或登录状态已失效");
+    }
 
     // 记录转派历史
     EventTransfer transfer = new EventTransfer();
@@ -331,12 +358,9 @@ public class ConfirmationQueueController {
       @PathVariable Long id,
       @RequestBody Map<String, String> payload
   ) {
-    String operator = payload.get("operator");
+    // 操作人一律取 SecurityContext，不信任请求体（请求体里的 operator 字段保留兼容但忽略）。
+    String operator = currentOperator();
     String reason = payload.get("reason");
-
-    if (operator == null || operator.isBlank()) {
-      return ApiResponse.fail(400, "请提供操作人");
-    }
 
     UnifiedEventEntity event = unifiedEventRepository.findById(id).orElse(null);
     if (event == null) {
@@ -379,12 +403,9 @@ public class ConfirmationQueueController {
       @PathVariable Long id,
       @RequestBody Map<String, String> payload
   ) {
-    String operator = payload.get("operator");
+    // 操作人一律取 SecurityContext，不信任请求体（请求体里的 operator 字段保留兼容但忽略）。
+    String operator = currentOperator();
     String reason = payload.get("reason");
-
-    if (operator == null || operator.isBlank()) {
-      return ApiResponse.fail(400, "请提供操作人");
-    }
     if (reason == null || reason.isBlank()) {
       return ApiResponse.fail(400, "请提供驳回原因");
     }

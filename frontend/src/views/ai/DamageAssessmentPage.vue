@@ -156,18 +156,24 @@ const CONCERN = computed(() => assessmentResult.value?.overall?.concernLabel ?? 
 const DISASTER_TYPE = computed(() => assessmentResult.value?.disasterType?.disasterType ?? '—')
 const DT_COLOR = computed(() => DISASTER_TYPE_COLOR[DISASTER_TYPE.value] ?? '#718096')
 
-// 七维度雷达图 SVG
+// 七维度雷达图 SVG：键名严格对齐后端 /api/ai/disaster-assessment 返回的
+// dimensions.{remote_sensing / meteorology / terrain / sensor / historical /
+// social_media / supporting}。历史版本只画 5 个 v1 兼容键、还含一个后端没有的
+// `image`（恒为 0），却把标题写成「七维度」，属于图实不符。
+// RADAR_* 计算全部按 DIMENSIONS.length 推导，增减维度无需改绘图代码。
 const RADAR_W = 320
 const RADAR_H = 280
 const RADAR_CX = RADAR_W / 2
 const RADAR_CY = RADAR_H / 2
 const RADAR_R = 100
 const DIMENSIONS = [
-  { key: 'geographic',     label: '地理',           icon: Mountain,     weight: 0.30 },
-  { key: 'precipitation',  label: '降水',           icon: CloudRain,    weight: 0.25 },
-  { key: 'sensor',         label: '传感器',         icon: Radio,        weight: 0.20 },
-  { key: 'historical',      label: '历史',           icon: Newspaper,    weight: 0.15 },
-  { key: 'image',          label: '影像',           icon: Image,        weight: 0.10 },
+  { key: 'remote_sensing', label: '遥感',     icon: Image,      weight: 0.20 },
+  { key: 'meteorology',    label: '气象',     icon: CloudRain,  weight: 0.20 },
+  { key: 'terrain',        label: '地形',     icon: Mountain,   weight: 0.15 },
+  { key: 'sensor',         label: '传感器',   icon: Radio,      weight: 0.20 },
+  { key: 'historical',     label: '历史',     icon: Newspaper,  weight: 0.10 },
+  { key: 'social_media',   label: '舆情',     icon: Globe,      weight: 0.075 },
+  { key: 'supporting',     label: '辅助',     icon: BarChart3,  weight: 0.075 },
 ]
 const DIM_SCORE = computed(() => {
   const dims = assessmentResult.value?.dimensions ?? {}

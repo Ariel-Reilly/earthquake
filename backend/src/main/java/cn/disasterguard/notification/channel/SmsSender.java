@@ -44,7 +44,7 @@ public class SmsSender implements NotificationSender {
       // 模拟发送延迟
       Thread.sleep(100);
 
-      return SendResult.success(messageId);
+      return SendResult.mockSuccess(messageId, "短信网关未接入");
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       return SendResult.failure("短信发送被中断");

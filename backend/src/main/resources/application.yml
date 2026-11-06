@@ -71,6 +71,19 @@ ai:
 disasterguard:
   frontend-origin: ${FRONTEND_ORIGIN:http://localhost:5173}
 
+  # 现阶段投递边界：只有白名单内的「项目测试成员」允许进入通知发送链路。
+  # 逗号 / 分号 / 换行分隔，可填手机号、邮箱、设备 Token 或用户名，须与请求里的 target 一致。
+  # 留空 = 全部拦截（fail-closed）；名单不落库、不硬编码个人信息，请放进 .env 或部署环境变量。
+  notification:
+    test-recipients: "${NOTIFICATION_TEST_RECIPIENTS:}"
+
+  # 注册申请验证码下发开关。此前这两个键只被 @Value / ProductionConfigValidator 引用，
+  # yml 里却没有对应项，导致 .env 与 compose 传的 REGISTER_* 从未生效（死配置）。
+  # 注意：短信 SDK 的真实开关是下面 sms.enabled（ALIYUN_SMS_ENABLED），两者不是一回事。
+  register:
+    sms-enabled: ${REGISTER_SMS_ENABLED:false}
+    email-enabled: ${REGISTER_EMAIL_ENABLED:false}
+
   security:
     dev-users-enabled: ${DEV_USERS_ENABLED:true}
     # AES-256-GCM 密钥，用于加密注册申请单里的身份证号。

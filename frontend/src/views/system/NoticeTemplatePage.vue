@@ -181,8 +181,20 @@ function duplicate(item) {
 
 async function testTemplate(item) {
   try {
-    await dashboardApi.testNoticeTemplate(item.id, { channel: "sms" })
-    emit("notify", "测试发送成功，请查看接收端")
+    const res = await dashboardApi.testNoticeTemplate(item.id, { channel: "sms" })
+    const status = res?.status
+    if (status === "BLOCKED") {
+      emit("notify", "已拦截：当前仅允许发送给项目测试成员")
+    } else if (status === "MOCK_SENT" || status === "PROBE_ONLY") {
+      emit("notify", "测试发送已受理，但当前为演示发送，未真实投递")
+    } else if (status === "SUCCESS") {
+      emit("notify", "测试发送成功，请查看接收端")
+    } else if (status) {
+      emit("notify", `测试发送未成功：${res?.message ?? status}`)
+    } else {
+      // 前端 mock 模式下 res.status 为 undefined，不能默认当成成功
+      emit("notify", "演示模式未返回发送状态，无法确认是否投递")
+    }
   } catch (e) {
     emit("notify", `测试发送失败：${e?.message ?? e}`)
   }

@@ -43,6 +43,7 @@ public class NotificationRouter {
   private final Map<String, NotificationSender> senders;
   private final ObjectMapper objectMapper;
   private final NotificationDispatcher dispatcher;
+  private final TestRecipientGuard recipientGuard;
 
   // 限流：每个渠道每分钟最大发送数
   private final Map<String, RateLimiter> rateLimiters = new ConcurrentHashMap<>();
@@ -59,13 +60,15 @@ public class NotificationRouter {
       UserPreferenceRepository userPreferenceRepository,
       List<NotificationSender> senderList,
       ObjectMapper objectMapper,
-      NotificationDispatcher dispatcher) {
+      NotificationDispatcher dispatcher,
+      TestRecipientGuard recipientGuard) {
     this.configRepository = configRepository;
     this.recordRepository = recordRepository;
     this.receiptRepository = receiptRepository;
     this.userPreferenceRepository = userPreferenceRepository;
     this.objectMapper = objectMapper;
     this.dispatcher = dispatcher;
+    this.recipientGuard = recipientGuard;
     this.senders = senderList.stream()
         .collect(Collectors.toMap(NotificationSender::getChannel, s -> s));
 
@@ -105,6 +108,18 @@ public class NotificationRouter {
       Long recordId, String channel, String target,
       String title, String content, Map<String, Object> variables) {
 
+    // 投递边界（最先执行）：现阶段只允许发给项目测试成员。名单外不调用 Sender、
+    // 不消耗限流额度，回执写 BLOCKED 而不是 SENT —— 失败重试也不会反复触碰它。
+    if (!recipientGuard.isAllowed(target)) {
+      log.warn("通知被测试成员白名单拦截: channel={}, target={}, allowlistSize={}",
+          channel, TestRecipientGuard.mask(target), recipientGuard.size());
+      createReceipt(recordId, channel, target,
+          TestRecipientGuard.BLOCKED_STATUS, TestRecipientGuard.BLOCKED_REASON);
+      return new SendResultDto.ChannelResult(
+          channel, target,
+          TestRecipientGuard.BLOCKED_STATUS, TestRecipientGuard.BLOCKED_REASON);
+    }
+
     if (isRateLimited(channel)) {
       log.warn("渠道 {} 触发限流，跳过", channel);
       createReceipt(recordId, channel, target, "RATE_LIMITED", "触发限流");
@@ -124,13 +139,27 @@ public class NotificationRouter {
     log.info("发送结果: channel={}, target={}, status={}, duration={}ms",
         channel, target, result.success() ? "SUCCESS" : "FAILED", duration);
 
-    // 记录回执
-    String status = result.success() ? "SENT" : "FAILED";
-    createReceipt(recordId, channel, target, status, result.errorMsg());
+    // 回执状态必须区分「真实送达 / 演示发送 / 失败」：mock Sender 也返回 success=true，
+    // 若仍写 SENT，toDto 的 sent 统计就会把打了日志的演示回执算成已送达。
+    String status = result.mock() ? "MOCK_SENT"
+        : result.success() ? "SENT" : "FAILED";
+    String receiptNote = result.mock()
+        ? "[演示发送·未真实投递] " + (result.mockReason() == null ? "渠道未接入外部网关" : result.mockReason())
+        : result.errorMsg();
+    // SCREEN / SOUND_LIGHT 是站内广播，没有定向收件人；即使 target 在白名单内，
+    // 实际可见范围仍是所有在线客户端，必须写在回执里而不是假装只发给了该 target。
+    if ("SCREEN".equals(channel) || "SOUND_LIGHT".equals(channel)) {
+      String broadcastNote = "广播类渠道：站内所有在线客户端可见，收件人不限于指定 target";
+      receiptNote = receiptNote == null ? broadcastNote : receiptNote + "｜" + broadcastNote;
+    }
+    if (result.mock()) {
+      log.warn("[MOCK] 渠道 {} 未真实投递，仅生成演示回执: {}", channel, result.mockReason());
+    }
+    createReceipt(recordId, channel, target, status, receiptNote);
 
     return new SendResultDto.ChannelResult(
         channel, target,
-        result.success() ? "SUCCESS" : "FAILED",
+        result.mock() ? "MOCK_SENT" : (result.success() ? "SUCCESS" : "FAILED"),
         result.errorMsg()
     );
   }

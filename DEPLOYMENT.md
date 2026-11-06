@@ -250,14 +250,17 @@ psql -h <host> -U disasterguard -d disasterguard -f backend/src/main/resources/s
 psql -h <host> -U disasterguard -d disasterguard -f backend/src/main/resources/data.sql
 
 # 3) 启动
-docker compose -f docker-compose.prod.yml up -d
+# ⚠️ docker-compose.prod.yml 是**覆盖文件**（只写了需要改的字段，postgres/redis/minio
+#    没有 image）。必须与基础文件一起加载，单独 -f 会被 compose 判为非法编排：
+#    "service postgres has neither an image nor a build context specified"。
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 ```
 
 ### 4.3 已知部署缺口（务必人工确认）
 
-1. **`docker-compose.prod.yml` 未定义 `emqx` 与 `ai-service` 服务**，但后端仍引用了 `tcp://emqx:1883` 与 `http://ai-service:8001/api/ai`。部署前必须二选一：
-   - 在该文件补上这两个服务定义；或
-   - 显式设置 `EMQX_ENABLED=false`、`AI_ENABLED=false` 关闭相关能力。
+1. **`emqx` 与 `ai-service` 已在 `docker-compose.prod.yml` 定义**（两个独立 service，后端走容器网 `tcp://emqx:1883` 与 `http://ai-service:8001/api/ai`）。旧版本节写的「缺服务定义」已作废，不要再据此关闭 `EMQX_ENABLED` / `AI_ENABLED`。仍需人工确认的是：
+   - EMQX 目前为 **allow-all 匿名放行**，`EMQX_*`、`EMQX_DASHBOARD_PASSWORD` 仍是 `CHANGE_ME_*` 占位；正式发布前必须开启认证并注入真实凭据（同时同步 `hardware-sandbox/gateway/config.yaml` 的网关凭据）。
+   - `ai-service` 镜像内必须带 `models/` 权重，否则图像/融合接口会返回 `mock: true`。
 2. **表结构无版本化迁移**。目前依赖手工执行 `schema.sql`，改动结构时需人工比对，长期建议引入 Flyway / Liquibase。
 3. `schema.sql` 内含 `DROP VIEW hazard_point` / `DROP TABLE hazard_point CASCADE` 的升级路径，**禁止**在已有数据的库上直接重复执行。
 
@@ -276,3 +279,43 @@ docker compose -f docker-compose.prod.yml up -d
 | 图像识别超时 | 图片过大或推理排队 | 检查 `DETECT_TIMEOUT_SECONDS`、单图 ≤ 10MB |
 | 前端 401 | `JWT_SECRET` 变更导致旧令牌失效 | 重新登录 |
 | 身份证号解密失败 | `DATA_ENCRYPTION_KEY` 被更换 | 恢复原密钥；该密钥不可轮换 |
+| 通知回执全是 `BLOCKED` | `NOTIFICATION_TEST_RECIPIENTS` 未配置（fail-closed） | 按 §6.2 填入项目测试成员名单；这不是故障 |
+
+---
+
+## 6. 当前阶段使用边界（2026-11-06 决策，部署前必读）
+
+### 6.1 不商用
+
+项目当前定位为**非商业用途**：教学、竞赛演示、毕业设计、项目内部测试。因此：
+
+- 保留 `ai-service/datasets/disaster-v2` 中 CAS Landslide Dataset（**CC-BY-NC-4.0**）的滑坡影像，
+  现阶段**不换源、不重训**；`crack` 源上游未声明许可，同样只在非商业范围内使用。
+- `ai-service/models/yolo_crack.onnx` 是上述数据的训练产物，**不得随商业交付分发**。
+- 一旦用途改为商业部署 / 对外收费服务，必须先替换为可商用数据或取得作者授权、重新训练并重新评估，
+  同时复核 crack 源许可。约束原文见 `DATASET_CARD.md` §6.5。
+
+### 6.2 只投递给项目测试成员
+
+现阶段任何对外投递（预警通知、渠道测试、模板测试、注册验证码）**只允许发给白名单内的项目测试成员**：
+
+| 项 | 说明 |
+|---|---|
+| 配置项 | `NOTIFICATION_TEST_RECIPIENTS`（`.env` / 部署环境变量），逗号分隔 |
+| 后端键 | `disasterguard.notification.test-recipients`，dev / docker / prod 均默认空 |
+| 默认行为 | **留空 = 全部拦截（fail-closed）**，不会误发给外部人员 |
+| 名单外结果 | 回执状态 `BLOCKED`，备注写明「未投递」，**不调用任何 Sender**，不写 `sentAt`，不记为 `SENT`；补齐名单后可通过「重试」补发 |
+| 名单内结果 | 仍走现有 6 个演示 Sender（未接网关），回执状态 `MOCK_SENT`、备注「演示发送·未真实投递」，**不计入 `sent` 统计**（单独计 `mockSent`） |
+| 无收件人探测 | 渠道连通性测试 `target` 为空时返回 `PROBE_ONLY`，**不调用任何 Sender**（`ScreenSender` 会向所有在线 WebSocket 客户端广播，空 target 不等于零副作用） |
+| 站内广播渠道 | `SCREEN` / `SOUND_LIGHT` 没有定向收件人，即使 target 在白名单，可见范围仍是所有在线客户端；回执备注会写明，不能对外宣称「只发给了指定成员」 |
+| 注册验证码 | 仅当短信真实网关已接入（`ALIYUN_SMS_ENABLED=true` 且 `access-key-id` 非 `CHANGE_ME`）时，验证码下发才受名单约束；邮箱 Sender 仍是演示实现，不产生对外投递 |
+
+> **边界说明**：白名单是**准入闸门**，不是**投递能力**。它保证消息不会发给外部人员，
+> 但**不提供真实送达**；真实送达需另行接入 SMTP / 短信 / APP 推送网关。
+> 「名单内 = 已送达」是错误理解，回执与页面均以 `mock` 标记区分。
+
+覆盖的三条链路：`NotificationRouter#sendToChannel`（预警派发）、
+`NotificationService#testSend`（渠道页 / 模板页测试发送）、
+`VerificationCodeService#send`（注册验证码真实下发）。
+名单为空时，赛场演示里「通知派发」会留下 `BLOCKED` 回执——这是预期行为，不是故障；
+需要演示「发给测试成员」时，先在 `.env` 填入实际名单再重启后端。

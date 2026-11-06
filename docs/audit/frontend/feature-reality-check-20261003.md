@@ -151,7 +151,7 @@
 
 | # | 位置 | 问题 |
 |---|------|------|
-| 12 | `views/data/AnalyticsPage.vue:391,410,439,471` | 4 个图表（折线/堆叠柱/多线/混淆矩阵）纯 CSS div 模拟，**项目未装任何图表库**（package.json 无 echarts/chart.js） |
+| 12 | `views/data/AnalyticsPage.vue:391,410,439,471` | ~~4 个图表纯 CSS div 模拟~~ → **已修（见本文开头 2026-11-06 复核节）**：4 图改绑真实 `inspectionReport` 字段并删除硬编码兜底数组。本条为 10-03 历史基线，勿再据此判定当前状态 |
 | 13 | `views/system/BackupRecoveryPage.vue:179-192,219` | 校验进度用 for+setTimeout 伪造；下载只弹提示 |
 | 14 | `views/system/HelpCenterPage.vue:42-54` | 反馈提交 setTimeout 模拟，不落库 |
 | 15 | `views/warning/WarningCreatePage.vue:60-89` | 预警模板硬编码，仅覆盖 3 个灾种 |

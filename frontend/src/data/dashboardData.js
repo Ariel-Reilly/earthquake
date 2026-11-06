@@ -38,7 +38,10 @@ export const dashboardMenu = [
   { path: '/dashboard/ai-insight',                label: 'AI 综合研判',    icon: 'ShieldAlert',    group: 'ai', order: 5 },
   { path: '/dashboard/disaster-forecast',         label: '灾害预测',       icon: 'Flame',          group: 'ai', order: 6 },
   { path: '/dashboard/damage-assessment',         label: '灾损评估',       icon: 'FileWarning',    group: 'ai', order: 7 },
-  { path: '/dashboard/social-media',              label: '社交媒体舆情',   icon: 'MessageCircle',  group: 'ai', order: 8 },
+  // R6：该模块没有页面实现（router/index.js 的 /dashboard/social-media 只是 redirect 到 hazards）。
+  // 菜单项与 stores/auth.js 的 ROLE_MENU_MAP 路径一并撤下，避免点击后跳到无关页面。
+  // 需要恢复时先补齐页面与真实路由，再同时放开这两处。
+  // { path: '/dashboard/social-media', label: '社交媒体舆情', icon: 'MessageCircle', group: 'ai', order: 8 },
   { path: '/dashboard/confirmation-workbench',    label: '人工确认工作台', icon: 'ClipboardCheck', group: 'ai', order: 9, danger: true },
   { path: '/dashboard/confirmation-sign',         label: '会签与转派',     icon: 'FileText',       group: 'ai', order: 10 },
   { path: '/dashboard/field-inspection',          label: '现场巡检',       icon: 'HardHat',        group: 'ai', order: 11 },

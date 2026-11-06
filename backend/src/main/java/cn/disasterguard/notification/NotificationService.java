@@ -35,6 +35,7 @@ public class NotificationService {
   private final NotificationChannelConfigRepository configRepository;
   private final List<NotificationSender> senders;
   private final ObjectMapper objectMapper;
+  private final TestRecipientGuard recipientGuard;
 
   public NotificationService(
       NotificationRouter router,
@@ -42,13 +43,15 @@ public class NotificationService {
       NotificationReceiptRepository receiptRepository,
       NotificationChannelConfigRepository configRepository,
       List<NotificationSender> senders,
-      ObjectMapper objectMapper) {
+      ObjectMapper objectMapper,
+      TestRecipientGuard recipientGuard) {
     this.router = router;
     this.recordRepository = recordRepository;
     this.receiptRepository = receiptRepository;
     this.configRepository = configRepository;
     this.senders = senders;
     this.objectMapper = objectMapper;
+    this.recipientGuard = recipientGuard;
   }
 
   /**
@@ -106,9 +109,31 @@ public class NotificationService {
   }
 
   /**
-   * 测试发送
+   * 测试发送（渠道页 / 通知模板页共用）。
+   *
+   * <p>同样受测试成员白名单约束：只覆盖 Router 正式派发是不够的，这个入口会直接调用
+   * Sender，历史上是绕过派发链路的旁路。「不填 target 的连通性探测」不调用任何 Sender
+   * —— {@code ScreenSender} 会向所有在线 WebSocket 客户端广播，空 target 不等于零副作用。
    */
   public SendResultDto testSend(TestSendRequest request) {
+    if (TestRecipientGuard.isProbeWithoutTarget(request.target())) {
+      String note = "[渠道探测·未投递] 未提供收件人，仅校验渠道配置，未调用任何发送器";
+      return new SendResultDto(null, "PROBE_ONLY",
+          List.of(new SendResultDto.ChannelResult(request.channel(), "", "PROBE_ONLY", note)),
+          "渠道配置已校验；未提供收件人，未投递任何消息");
+    }
+    if (!recipientGuard.isAllowed(request.target())) {
+      log.warn("测试发送被白名单拦截: channel={}, target={}, allowlistSize={}",
+          request.channel(), TestRecipientGuard.mask(request.target()), recipientGuard.size());
+      return new SendResultDto(
+          null,
+          TestRecipientGuard.BLOCKED_STATUS,
+          List.of(new SendResultDto.ChannelResult(
+              request.channel(), request.target(),
+              TestRecipientGuard.BLOCKED_STATUS, TestRecipientGuard.BLOCKED_REASON)),
+          TestRecipientGuard.BLOCKED_REASON);
+    }
+
     NotificationSender sender = senders.stream()
         .filter(s -> s.getChannel().equals(request.channel()))
         .findFirst()
@@ -126,17 +151,32 @@ public class NotificationService {
         request.variables() != null ? request.variables() : Map.of()
     );
 
+    // 演示 Sender 返回的是「已受理」，不是「已送达」；不能对外报 SUCCESS。
+    final String status;
+    final String note;
+    if (result.mock()) {
+      status = "MOCK_SENT";
+      note = "[演示发送·未真实投递] "
+          + (result.mockReason() == null ? "渠道未接入外部网关" : result.mockReason());
+    } else {
+      status = result.success() ? "SUCCESS" : "FAILED";
+      note = result.success() ? null : result.errorMsg();
+    }
+
     List<SendResultDto.ChannelResult> results = List.of(
-        new SendResultDto.ChannelResult(
-            request.channel(),
-            request.target(),
-            result.success() ? "SUCCESS" : "FAILED",
-            result.errorMsg()
-        )
+        new SendResultDto.ChannelResult(request.channel(), request.target(), status, note)
     );
 
-    return new SendResultDto(null, result.success() ? "SUCCESS" : "FAILED",
-        results, result.success() ? "测试发送成功" : "测试发送失败: " + result.errorMsg());
+    String message = switch (status) {
+      case "MOCK_SENT" -> "测试发送已受理，但当前为演示发送，未真实投递";
+      case "SUCCESS" -> "发送成功";
+      default -> "发送失败: " + result.errorMsg();
+    };
+    if (result.mock()) {
+      log.warn("[MOCK] 测试发送未真实投递: channel={}, status={}", request.channel(), status);
+    }
+
+    return new SendResultDto(null, status, results, message);
   }
 
   /**
@@ -200,7 +240,10 @@ public class NotificationService {
 
     Map<String, Object> stats = new HashMap<>();
     stats.put("total", receipts.size());
+    // sent 只数真实送达；演示回执单独统计，不再把 mock 算进「已发送」。
     stats.put("sent", receipts.stream().filter(r -> "SENT".equals(r.status())).count());
+    stats.put("mockSent", receipts.stream().filter(r -> "MOCK_SENT".equals(r.status())).count());
+    stats.put("blocked", receipts.stream().filter(r -> "BLOCKED".equals(r.status())).count());
     stats.put("failed", receipts.stream().filter(r -> "FAILED".equals(r.status())).count());
     stats.put("pending", receipts.stream().filter(r -> "PENDING".equals(r.status())).count());
 

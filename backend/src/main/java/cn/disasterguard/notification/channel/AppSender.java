@@ -39,7 +39,7 @@ public class AppSender implements NotificationSender {
       // 模拟发送延迟
       Thread.sleep(50);
 
-      return SendResult.success(messageId);
+      return SendResult.mockSuccess(messageId, "APP 推送网关未接入");
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       return SendResult.failure("APP 推送被中断");

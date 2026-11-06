@@ -200,3 +200,21 @@ ai-service/datasets/*/images/
 ai-service/datasets/*/labels/
 # 训练产物（runs/ 含权重与 ONNX，可由训练脚本重建）
 ai-service/runs/
+# --- AI IDE & Workflows ---
+.trae/
+.cursor/
+.cursorrules
+.workbuddy/
+.aider*
+.copilot/
+.continue/
+*.prompt
+
+# --- IDE & System ---
+.idea/
+.vscode/
+.DS_Store
+
+# --- Python ---
+__pycache__/
+.venv/

@@ -257,12 +257,45 @@ const activeChannelType = computed(() =>
 // ── 发送日志（后端 notification/records） ──
 const logs = ref([]);
 
+// 这里是 notification_record.status 的取值域（不是 SendResultDto.status）。
+// 未知状态一律标「未知」：既不默认显示成成功，也不把「已读 / 已送达」误标成未投递。
 const STATUS_LABEL = {
-  SUCCESS: "success",
   SENT: "success",
+  DELIVERED: "success",
+  SUCCESS: "success",
   FAILED: "failed",
   PARTIAL: "failed",
+  BLOCKED: "blocked",
+  NO_CHANNEL: "blocked",
+  NO_SENDER: "blocked",
+  RATE_LIMITED: "blocked",
+  PENDING: "pending",
+  READ: "read",
+  SENDING: "demo",
+  MOCK_SENT: "demo",
+  RETRYING: "demo",
 };
+
+const STATUS_TEXT = {
+  success: "成功",
+  failed: "失败",
+  blocked: "已拦截",
+  demo: "演示/未投递",
+  pending: "待发送",
+  read: "已读",
+  unknown: "未知",
+};
+
+function statusNote(status) {
+  const kind = STATUS_LABEL[status] ?? "unknown";
+  if (kind === "failed") return "发送失败";
+  if (kind === "blocked") return "已拦截·未投递";
+  if (kind === "demo") return "演示发送·未真实投递";
+  if (kind === "pending") return "待发送";
+  if (kind === "read") return "已读";
+  if (kind === "unknown") return `状态未登记：${status ?? "—"}`;
+  return "";
+}
 
 async function loadLogs() {
   try {
@@ -273,9 +306,9 @@ async function loadLogs() {
       channel: (r.channels ?? []).map((c) => channelLabel(CODE_TO_TYPE[c] ?? c)).join("/") || "—",
       recipient: r.createdBy ?? "—",
       template: r.title ?? "—",
-      status: STATUS_LABEL[r.status] ?? (r.status === "FAILED" ? "failed" : "success"),
+      status: STATUS_LABEL[r.status] ?? "unknown",
       sentAt: r.createdAt ? new Date(r.createdAt).toLocaleTimeString("zh-CN", { hour12: false }) : "—",
-      errorMsg: r.status === "FAILED" ? "发送失败" : "",
+      errorMsg: statusNote(r.status),
     }));
   } catch {
     // 日志是次要信息，失败就留空，不弹错也不塞假数据
@@ -323,10 +356,17 @@ async function testConnection(channel) {
       title: "渠道连通性测试",
       content: "这是一条来自 DisasterGuard 的测试消息",
     });
-    if (result?.success === false) {
-      emit("notify", `测试失败：${result.message ?? "通道返回失败"}`);
-    } else {
+    // 后端返回的是 SendResultDto.status，没有 success 字段；按状态如实提示，
+    // 不再把「演示发送 / 已拦截」误报成连接测试成功。
+    const status = result?.status;
+    if (status === "BLOCKED") {
+      emit("notify", "已拦截：当前仅允许发送给项目测试成员");
+    } else if (status === "PROBE_ONLY" || status === "MOCK_SENT") {
+      emit("notify", `${channel.name} 渠道配置已校验；当前为演示发送，未真实投递`);
+    } else if (status === "SUCCESS") {
       emit("notify", `${channel.name} 连接测试成功`);
+    } else {
+      emit("notify", `测试失败：${result?.message ?? status ?? "通道返回失败"}`);
     }
   } catch (e) {
     emit("notify", `测试失败：${e.message ?? e}`);
@@ -427,6 +467,8 @@ const healthStyle = (h) =>
 
 const statusStyle = (s) =>
   s === "success" ? { bg: "#dcfce7", color: "#166534" } :
+  s === "demo" || s === "pending" || s === "unknown" ? { bg: "#f1efe8", color: "#6b6250" } :
+  s === "read" ? { bg: "#e8eef0", color: "#4a6154" } :
   { bg: "#fee2e2", color: "#991b1b" };
 
 const channelIcon = (type) => {
@@ -604,8 +646,8 @@ const channelColor = (type) => {
                 <td>
                   <span class="status-badge" :style="statusStyle(log.status)">
                     <CheckCircle2 v-if="log.status === 'success'" :size="11" />
-                    <XCircle v-else :size="11" />
-                    {{ log.status === "success" ? "成功" : "失败" }}
+                    <XCircle v-else-if="log.status === 'failed' || log.status === 'blocked'" :size="11" />
+                    {{ STATUS_TEXT[log.status] ?? "未知" }}
                   </span>
                 </td>
                 <td class="log-error">{{ log.errorMsg }}</td>

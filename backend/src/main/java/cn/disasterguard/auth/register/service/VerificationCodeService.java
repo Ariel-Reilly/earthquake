@@ -2,6 +2,7 @@ package cn.disasterguard.auth.register.service;
 
 import cn.disasterguard.auth.register.config.SmsProperties;
 import cn.disasterguard.common.exception.AppException;
+import cn.disasterguard.notification.TestRecipientGuard;
 import cn.disasterguard.notification.channel.EmailSender;
 import com.aliyun.dypnsapi20170525.Client;
 import com.aliyun.dypnsapi20170525.models.SendSmsVerifyCodeRequest;
@@ -21,6 +22,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.env.Environment;
 import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
 
 /**
@@ -76,6 +78,7 @@ public class VerificationCodeService {
   // 阿里云号码认证服务配置（可选注入，enabled=false 时为 null）
   private final SmsProperties smsProperties;
   private final Client aliyunDypnsClient;
+  private final TestRecipientGuard recipientGuard;
 
   public VerificationCodeService(
       StringRedisTemplate redis,
@@ -83,13 +86,18 @@ public class VerificationCodeService {
       Environment environment,
       @Value("${disasterguard.register.email-enabled:false}") boolean emailEnabled,
       SmsProperties smsProperties,
-      @Autowired(required = false) Client aliyunDypnsClient) {
+      // 参数级 @Autowired(required=false) 对构造器注入并不生效（Spring 把构造器参数
+      // 视为必需），关闭 ALIYUN_SMS_ENABLED 时 Client bean 不存在会直接启动失败。
+      // @Nullable 才是让该参数真正可选的正确写法。
+      @Autowired(required = false) @Nullable Client aliyunDypnsClient,
+      TestRecipientGuard recipientGuard) {
     this.redis = redis;
     this.emailSender = emailSender;
     this.emailEnabled = emailEnabled;
     this.prodProfile = java.util.Arrays.asList(environment.getActiveProfiles()).contains("prod");
     this.smsProperties = smsProperties;
     this.aliyunDypnsClient = aliyunDypnsClient;
+    this.recipientGuard = recipientGuard;
   }
 
   /**
@@ -116,6 +124,17 @@ public class VerificationCodeService {
     // 「60 秒 1 次 / 每天 10 次」的额度，用户却永远收不到验证码。
     if (!isChannelReady(phone)) {
       throw new AppException(50301, "验证码服务未配置");
+    }
+
+    // 现阶段投递边界：只有确实具备真实投递能力的分支才需要闸门。
+    // 短信需 enabled + Client bean 存在 + 凭证不是 CHANGE_ME 占位；邮箱 Sender 目前只打日志，
+    // 不产生对外投递。默认 ALIYUN_SMS_ENABLED=true 但凭证是占位值，不能据此把注册验证码全拦掉。
+    // 检查放在频控之前，避免被拦请求白扣额度。
+    if (phone && isRealSmsDelivery() && !recipientGuard.isAllowed(value)) {
+      log.warn("[投递边界] 验证码真实下发被拦截: type={}, target={}",
+          type, TestRecipientGuard.mask(value));
+      throw new AppException(40301,
+          "当前阶段仅允许向项目测试成员下发验证码，该收件人不在白名单");
     }
 
     enforceRateLimit(value);
@@ -184,6 +203,15 @@ public class VerificationCodeService {
     }
   }
 
+  /** 短信是否真的会离开本机：开关打开 + Client 已构造 + 凭证不是占位值。 */
+  private boolean isRealSmsDelivery() {
+    String ak = smsProperties.getAccessKeyId();
+    return smsProperties.isEnabled()
+        && aliyunDypnsClient != null
+        && ak != null && !ak.isBlank()
+        && !"CHANGE_ME".equalsIgnoreCase(ak.trim());
+  }
+
   /**
    * 渠道是否可用。
    *
@@ -229,8 +257,9 @@ public class VerificationCodeService {
    * 正确替换。业务端生成的验证码必须包含在模板参数中。
    */
   private void deliverSms(String phone, String code) {
-    if (!smsProperties.isEnabled()) {
-      // prod 的「未接入」已在 send() 入口拦截，这里只可能是非 prod 的降级分支
+    if (!isRealSmsDelivery()) {
+      // 网关未接入（开关关闭 / 无 Client bean / 凭证仍是 CHANGE_ME）时走日志降级，
+      // 不要拿占位凭证去调 SDK 再抛 50301。
       log.info("[验证码-本地降级] channel=SMS phone={} code={}", phone, code);
       return;
     }

@@ -480,11 +480,13 @@ def score_historical(factors: Dict[str, float]) -> Dict[str, Any]:
 
 def score_social_media(factors: Dict[str, float]) -> Dict[str, Any]:
     """[6] 社交媒体与文本维度：GDACS 灾害警报 / 社交媒体舆情 / 应急热线。
-    GDACS alertscore (1-5) → social_alert_level (0-4)：直接 -1 归一化。
+    social_alert_level 的口径是 0-4（0=无，4=紧急），与模块头部因子表、
+    disaster_assessment_model.py 一致，直接截断到区间即可。
     """
-    # GDACS alertscore (1=Green, 2=Yellow, 3=Orange, 4=Red) → Python 0-3
+    # 历史缺陷：这里曾按 GDACS 1-5 做 -1 归一化，把 4（紧急）算成 3，
+    # 使最高档舆情评分系统性偏低约 25%。上游传入的已经是 0-4，不再减 1。
     raw_alert = factors.get("social_alert_level", 0.0)
-    alert_level = max(0.0, min(4.0, raw_alert - 1.0))  # GDACS 1→0, 2→1, 3→2, 4→3, 5→4
+    alert_level = max(0.0, min(4.0, raw_alert))
     post_count  = int(factors.get("social_post_count", 0))
     sentiment    = max(-1.0, min(1.0, factors.get("social_sentiment_score", 0.0)))
     emergency   = max(0.0, min(4.0, factors.get("social_emergency_level", 0.0)))
@@ -893,7 +895,7 @@ class ComprehensiveRiskModel:
         # 1. 特征工程：派生 6 个业务衍生特征（降雨饱和/骤雨强度/持续天数/坡脚侵蚀/地质×距水/位移加速度）
         enriched_factors = compute_derived_features(factors)
 
-        # 2. 自适应归一化器：把原始因子观测推进滑动窗口，让动态上限参与后续评分
+        # 2. 自适应归一化器：把原始因子观测推进滑动窗口（当前仅维护窗口，不参与评分）
         normalizer = get_adaptive_normalizer()
         for key in ("rainfall_24h", "rainfall_7d", "slope_deg", "vegetation_cover",
                     "rainfall_30d", "soil_grade", "distance_to_water_m", "geology_grade"):
@@ -904,8 +906,8 @@ class ComprehensiveRiskModel:
                 except (TypeError, ValueError):
                     pass
 
-        # 3. 用区域自适应上限增强评分（仅当样本数足够时替换 NORM_MAX）
-        self._maybe_use_adaptive_norms(region_code)
+        # 3. 计算自适应上限差异诊断（只读，applied=0；尚未接入评分路径）
+        adaptive_norm_diagnostics = self._maybe_use_adaptive_norms(region_code)
 
         # 4. 六维度独立评分（remote_sensing / meteorology / terrain / sensor / historical / supporting）
         #  注：supporting 维度包含 social_media + 辅助数据（夜间灯光/基础设施/电力）
@@ -969,6 +971,14 @@ class ComprehensiveRiskModel:
                 if k in enriched_factors
             },
             "derived_contributions": derived_contributions,
+            # 自适应归一化只维护滑动窗口，尚未接入 score_* 的 max_val 参数。
+            # 把诊断结果对外暴露，避免「enabled 看起来像已生效」的纸面功能。
+            "adaptive_normalization": {
+                "enabled": False,
+                "applied": 0,
+                "differing_factors": adaptive_norm_diagnostics,
+                "note": "动态上限仅为只读诊断；评分仍使用静态 NORM_MAX。",
+            },
             "region_code": region_code,
             "reasoning": reasoning,
             "suggested_actions": actions,
@@ -977,37 +987,39 @@ class ComprehensiveRiskModel:
     # ─────────────────────────────────────────────────────────────────
     # 内部：自适应归一化集成
     # ─────────────────────────────────────────────────────────────────
-    def _maybe_use_adaptive_norms(self, region_code: str) -> None:
-        """
-        当某区域某因子的滑动窗口样本数 ≥ MIN_SAMPLES 时，用 adaptive_normalizer
-        的动态上限覆盖模块级 NORM_MAX 常量（仅在本次推理的全局可见范围内）。
+    def _maybe_use_adaptive_norms(self, region_code: str) -> Dict[str, Dict[str, float]]:
+        """计算区域动态上限，但**不覆盖模块级 NORM_MAX**。
 
-        用法：
-            from app.models.comprehensive_model import score_meteorology
-            score_meteorology(factors)  # 此时会读取全局 RAIN_24H_NORM_MAX
-        """
-        global RAIN_24H_NORM_MAX, RAIN_7D_NORM_MAX, RAIN_30D_NORM_MAX
-        global SLOPE_NORM_MAX, DISTANCE_NORM_MAX, GEOLOGY_NORM_MAX
-        global SOIL_NORM_MAX, VEGETATION_NORM_MAX
+        历史实现这里只有一个 `pass` 占位，却让 adaptive_normalization_enabled
+        看起来像已生效——实际上 score_* 始终读静态 fallback，属于纸面功能。
+        现在改为返回差异诊断，并明确标记 applied=0（未生效），不再假装。
 
+        为什么不直接 globals()[name] = dyn：NORM_MAX 是进程级全局，并发请求会
+        互相串扰（A 区域的动态上限被 B 区域读到），是真的数据竞争。要真正启用，
+        需要把 max_val 作为**每次推理的局部参数**传进 score_* / safe_norm，
+        而不是改全局；这项改造尚未完成，故此处保持只读诊断。
+        """
         normalizer = get_adaptive_normalizer()
         overrides = {
-            "rainfall_24h": (RAIN_24H_NORM_MAX, "RAIN_24H_NORM_MAX"),
-            "rainfall_7d":  (RAIN_7D_NORM_MAX,  "RAIN_7D_NORM_MAX"),
-            "rainfall_30d": (RAIN_30D_NORM_MAX, "RAIN_30D_NORM_MAX"),
-            "slope_deg":    (SLOPE_NORM_MAX,    "SLOPE_NORM_MAX"),
-            "distance_to_water_m": (DISTANCE_NORM_MAX, "DISTANCE_NORM_MAX"),
-            "geology_grade":       (GEOLOGY_NORM_MAX,  "GEOLOGY_NORM_MAX"),
-            "soil_grade":          (SOIL_NORM_MAX,     "SOIL_NORM_MAX"),
-            "vegetation_cover":    (VEGETATION_NORM_MAX, "VEGETATION_NORM_MAX"),
+            "rainfall_24h": RAIN_24H_NORM_MAX,
+            "rainfall_7d": RAIN_7D_NORM_MAX,
+            "rainfall_30d": RAIN_30D_NORM_MAX,
+            "slope_deg": SLOPE_NORM_MAX,
+            "distance_to_water_m": DISTANCE_NORM_MAX,
+            "geology_grade": GEOLOGY_NORM_MAX,
+            "soil_grade": SOIL_NORM_MAX,
+            "vegetation_cover": VEGETATION_NORM_MAX,
         }
-        for factor_key, (fallback_val, _) in overrides.items():
+        diagnostics: Dict[str, Dict[str, float]] = {}
+        for factor_key, fallback_val in overrides.items():
             dyn = normalizer.get_dynamic_max(factor_key, region_code, fallback=fallback_val)
             if abs(dyn - fallback_val) > 1e-6:
-                # 动态上限生效；通过 globals() 替换（仅当差异 > 1e-6 才覆盖）
-                pass  # 当前实现：dynamic_max 已经被 normalizer 维护，这里只是占位，
-                       # 全局 NORM_MAX 常量保留为 fallback，score_* 函数内部不强制替换。
-                       # 真正集成时应在 score_*/safe_norm 中优先查 normalizer。
+                diagnostics[factor_key] = {
+                    "static_max": fallback_val,
+                    "dynamic_max": dyn,
+                    "applied": 0.0,  # 0 = 未接入评分路径；改造完成后改为 1.0
+                }
+        return diagnostics
 
     # ─────────────────────────────────────────────────────────────────
     # 内部：衍生特征贡献度

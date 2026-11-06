@@ -72,10 +72,22 @@ public class NotificationDispatcher {
       }
     }
 
+    // MOCK_SENT 是「已受理但未真实投递」，不能算 SENT，也不能让记录卡在 SENDING。
     long successCount = results.stream()
-        .filter(r -> "SUCCESS".equals(r.status()))
+        .filter(r -> "SUCCESS".equals(r.status()) || "MOCK_SENT".equals(r.status()))
         .count();
-    record.setStatus(successCount > 0 ? "PARTIAL" : "SENDING");
+    long blockedCount = results.stream()
+        .filter(r -> TestRecipientGuard.BLOCKED_STATUS.equals(r.status()))
+        .count();
+    long mockCount = results.stream()
+        .filter(r -> "MOCK_SENT".equals(r.status()))
+        .count();
+    // 全部被拦 → BLOCKED；全部演示发送 → MOCK_SENT；混合成功 → PARTIAL；其余 SENDING。
+    record.setStatus(!results.isEmpty() && blockedCount == results.size()
+        ? TestRecipientGuard.BLOCKED_STATUS
+        : !results.isEmpty() && mockCount == results.size()
+            ? "MOCK_SENT"
+            : successCount > 0 ? "PARTIAL" : "SENDING");
     record.setUpdatedAt(OffsetDateTime.now());
     try {
       recordRepository.save(record);
@@ -92,15 +104,19 @@ public class NotificationDispatcher {
     NotificationRecord record = recordRepository.findById(recordId)
         .orElseThrow(() -> new RuntimeException("记录不存在: " + recordId));
 
-    List<NotificationReceipt> failedReceipts = receiptRepository
-        .findByRecordIdAndStatus(recordId, "FAILED");
+    // BLOCKED 也要能重试：补齐测试成员名单后，历史被拦的消息应当可以补发，
+    // 否则闸门一旦配置过严就等于永久丢弃。名单外仍会在 sendToChannel 再次被拦。
+    List<NotificationReceipt> retryable = new ArrayList<>();
+    retryable.addAll(receiptRepository.findByRecordIdAndStatus(recordId, "FAILED"));
+    retryable.addAll(receiptRepository.findByRecordIdAndStatus(
+        recordId, TestRecipientGuard.BLOCKED_STATUS));
 
-    if (failedReceipts.isEmpty()) {
+    if (retryable.isEmpty()) {
       return new SendResultDto(recordId, "NO_FAILED", List.of(), "没有需要重试的记录");
     }
 
     List<SendResultDto.ChannelResult> results = new ArrayList<>();
-    for (NotificationReceipt receipt : failedReceipts) {
+    for (NotificationReceipt receipt : retryable) {
       Integer retryCount = receipt.getRetryCount();
       if (retryCount != null && retryCount >= 3) {
         log.warn("回执 {} 已达最大重试次数", receipt.getId());

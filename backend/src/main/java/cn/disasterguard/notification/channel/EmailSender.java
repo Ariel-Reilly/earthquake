@@ -42,7 +42,7 @@ public class EmailSender implements NotificationSender {
       // 模拟发送延迟
       Thread.sleep(80);
 
-      return SendResult.success(messageId);
+      return SendResult.mockSuccess(messageId, "邮件网关未接入（JavaMail/阿里云邮件）");
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       return SendResult.failure("邮件发送被中断");

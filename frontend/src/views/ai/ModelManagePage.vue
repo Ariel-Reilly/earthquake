@@ -343,23 +343,13 @@ async function loadDriftMonitor() {
       driftResult.value = drift
       driftTrend.value = trend.trend || []
     }
-  } catch (_e) {
-    // 使用模拟数据
-    driftResult.value = {
-      modelId: selectedDriftModel.value?.id || 'xgboost_fusion',
-      overallStatus: 'SLIGHT',
-      features: {
-        rainfall_24h: { psi: 0.12, ks: 0.08, level: 'SLIGHT' },
-        displacement_rate: { psi: 0.28, ks: 0.15, level: 'SIGNIFICANT' },
-        soil_moisture: { psi: 0.05, ks: 0.03, level: 'NORMAL' },
-        slope: { psi: 0.02, ks: 0.01, level: 'NORMAL' },
-      },
-      recommendation: '位移速率特征显著漂移，建议重训模型',
-    }
-    driftTrend.value = Array.from({ length: 30 }, (_, i) => ({
-      timestamp: new Date(Date.now() - i * 86400000).toISOString(),
-      psi: 0.05 + (i % 5) * 0.02 + Math.random() * 0.03,
-    })).reverse()
+  } catch (e) {
+    // 漂移检测接口不可用时**不造数据**：置空并明确提示。
+    // 历史实现在这里编造 PSI/KS 与 30 天趋势（含 Math.random），会让运维把
+    // 本地随机数当成模型真实漂移，进而误触发重训。
+    driftResult.value = null
+    driftTrend.value = []
+    emit('notify', `漂移检测服务不可用：${e?.message ?? '请检查 AI 服务 /api/ai/drift 是否已接入'}`)
   } finally {
     driftLoading.value = false
   }

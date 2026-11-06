@@ -45,6 +45,10 @@ class ProductionConfigValidatorTest {
     validator.dataEncryptionKey = "bVFtZUNhdG9naWNrZXlGb3JUZXN0U2VjcmV0MzJCeXRlcw==";
     validator.registerSmsEnabled = false;
     validator.registerEmailEnabled = false;
+    // 这两个字段由 @Value 注入；本测试直接 new，不走 Spring，不显式赋值会让
+    // 「只应校验 MINIO_ENDPOINT」的用例先被 POSTGRES_PASSWORD 为空拦下（历史误判为环境依赖）。
+    validator.datasourcePassword = "a-strong-test-db-password-2026";
+    validator.redisPassword = "a-strong-test-redis-password-2026";
     return validator;
   }
 

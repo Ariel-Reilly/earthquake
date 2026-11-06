@@ -141,6 +141,8 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: docker
       SERVER_PORT: ${SERVER_PORT:-8080}
+      # 现阶段投递白名单（留空 = 全部拦截），见 DEPLOYMENT.md「当前阶段使用边界」。
+      NOTIFICATION_TEST_RECIPIENTS: ${NOTIFICATION_TEST_RECIPIENTS:-}
       FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:5173}
       # ⚠️ compose 场景下 JWT_SECRET 必须显式提供，用 :? 让缺失在 compose 解析阶段就失败并给出提示，
       # 而不是等到容器里抛栈。

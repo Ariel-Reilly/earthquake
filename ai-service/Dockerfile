@@ -34,4 +34,7 @@ EXPOSE 8001
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8001/api/ai/health')" || exit 1
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8001"]
+# 并发上限：CPU 推理是同步任务，放行无限并发会把线程池与内存吃满，健康检查随之超时。
+# 刻意不加 --workers：sentinel.py 的卫星/差异任务存在进程内字典，多 worker 会导致任务互相查不到。
+# 需要横向扩容时先把任务状态迁到 Redis，再开 workers。
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8001", "--limit-concurrency", "32"]

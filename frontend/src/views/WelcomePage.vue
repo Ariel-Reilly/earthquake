@@ -114,14 +114,17 @@ async function startKpiAnimation() {
     if (reduced) return;
   }
   if (!kpiWanted || kpiInterval) return;
+  // 本页是匿名可达的落地页，KPI_TARGETS 是**示意基线**，不是从后端取的真实指标。
+  // 用确定性交替代替 Math.random()：保留"数字在动"的视觉效果，但不伪造随机业务数据。
   kpiInterval = setInterval(() => {
-    const devChange = Math.random() > 0.5 ? 1 : -1;
+    const tick = kpiPulse.value + 1;
+    const devChange = tick % 2 === 0 ? 1 : -1;
     kpiNumbers.devices = Math.max(340, Math.min(350, kpiNumbers.devices + devChange));
     kpiTrend.devices = devChange > 0 ? 'up' : 'down';
-    const alertChange = Math.random() > 0.6 ? 1 : -1;
+    const alertChange = tick % 3 === 0 ? 1 : -1;
     kpiNumbers.alerts = Math.max(10, Math.min(15, kpiNumbers.alerts + alertChange));
     kpiTrend.alerts = alertChange > 0 ? 'up' : 'down';
-    kpiPulse.value++;
+    kpiPulse.value = tick;
   }, 2400);
 }
 
@@ -149,6 +152,8 @@ const terminalLogs = ref(
   ].map((l) => ({ ...l, id: ++logSeq })),
 );
 let logInterval = null;
+/** 日志池按序轮播：不再用 Math.random 随机挑，避免落地页出现"随机业务事件"的误解。 */
+let logCursor = 0;
 const logPool = [
   { type: 'info', text: '累计降雨', value: '32 mm' },
   { type: 'warn', tag: 'WARNING', text: '大坪坡崩塌 · 雨量激增', badge: '中' },
@@ -160,7 +165,8 @@ const logPool = [
 function startLogStream() {
   if (logInterval) return;
   logInterval = setInterval(() => {
-    const randomLog = logPool[Math.floor(Math.random() * logPool.length)];
+    const randomLog = logPool[logCursor % logPool.length];
+    logCursor += 1;
     terminalLogs.value.push({ ...randomLog, id: ++logSeq });
     if (terminalLogs.value.length > 6) terminalLogs.value.shift();
   }, 2600);
@@ -1022,6 +1028,8 @@ onBeforeUnmount(() => {
             </div>
 
             <div class="frame-main">
+              <!-- 落地页匿名可达，下面的数字是示意基线而非实时业务指标，必须显式标注 -->
+              <div style="padding:4px 10px 0;text-align:right;font-size:10px;letter-spacing:.04em;color:var(--c-text-tertiary,#8a9a90)">落地页示意数据 · 非实时业务指标</div>
               <div class="preview-top">
                 <div class="preview-kpi">
                   <small>监测点</small>

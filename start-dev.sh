@@ -326,7 +326,8 @@ ai_service() {
   info "API 文档: http://localhost:8001/docs"
 
   cd "$PROJECT_ROOT/ai-service"
-  exec "$uvicorn" app.main:app --host 0.0.0.0 --port 8001 $reload_arg
+  # 与 Dockerfile 保持一致：限制并发，单 worker（sentinel.py 任务表是进程内字典）。
+  exec "$uvicorn" app.main:app --host 0.0.0.0 --port 8001 --limit-concurrency 32 $reload_arg
 }
 
 # ─────────────────────────────────────────────

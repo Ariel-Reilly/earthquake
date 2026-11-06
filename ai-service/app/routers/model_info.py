@@ -285,10 +285,13 @@ class RetrainRequest(BaseModel):
 
 
 @router.post("/retrain")
-async def model_retrain(req: RetrainRequest | None = None) -> Dict[str, Any]:
-    """同步训练新模型（小数据集下 1-3s 完成；生产应改为 BackgroundTasks）。
+def model_retrain(req: RetrainRequest | None = None) -> Dict[str, Any]:
+    """重新训练融合模型并 reload。
 
-    训练完成后自动 reload。
+    训练是纯 CPU 同步任务（1-3s～数十秒）。这里刻意保持同步路由定义（def 而非
+    async def）：Starlette 会把 def 路由调度到 anyio 工作线程，不阻塞事件循环。
+    若改成 async def 却直接调用 train_xgboost()，整个服务的健康检查与其它
+    请求都会在训练期间被冻住（R3/R4 已记录过同类问题）。
     """
     req = req or RetrainRequest()
     result = train_xgboost(

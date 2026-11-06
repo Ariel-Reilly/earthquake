@@ -48,7 +48,7 @@ public class SoundLightSender implements NotificationSender {
       // 模拟发送延迟
       Thread.sleep(30);
 
-      return SendResult.success(messageId);
+      return SendResult.mockSuccess(messageId, "声光报警设备未接入");
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       return SendResult.failure("声光报警被中断");
