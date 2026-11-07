@@ -48,19 +48,18 @@ services:
   # `emqx ctl` 是否支持 authn，不支持则直通启动 broker（详见 infra/emqx/init.sh 头部
   # 注释）。换镜像或改写启动命令都会让这段降级逻辑失效，进而容器起不来。
   #
-  # ⚠️⚠️ 已知安全缺口（EMQX 5.9.0，上生产前必须处理）⚠️⚠️
-  #   5.9.0 的 `emqx ctl` 没有 authn / authorization 子命令，init.sh 探测到后会跳过
-  #   认证用户与 ACL 的创建，broker 以**未启用任何认证器**的状态运行 —— 即默认
-  #   allow-all：任何能连到 1883 的客户端无需账号密码即可订阅/发布任意主题。
-  #   因此下面这两个变量（EMQX_USERNAME / EMQX_PASSWORD）以及
-  #   EMQX_AUTH__MNESIA__PASSWORD_HASH 在当前版本下**只是占位、并未真正生效**，
-  #   backend 即便带着它们连接，也不会被校验。
-  #   生产环境必须手动补齐其一：
-  #     ① 在 Dashboard（18083）→ Access Control → Authentication 中创建
-  #        Built-in Database 认证器 + 用户，并配置 Authorization 规则；
-  #     ② 或挂载 emqx.conf / cluster.hocon，写入 authentication + authorization 段落；
-  #     ③ 或升级到 `emqx ctl` 支持 authn 的版本后由 init.sh 自动创建。
-  #   在补齐之前，务必保证 1883/8883 不对公网开放（本文件已默认只绑 127.0.0.1）。
+  # ⚠️ 安全边界现状（R10 P1-1 之后）
+  #   5.9.0 的 `emqx ctl` 没有 authn 子命令，因此认证改由 init.sh 用**声明式环境变量
+  #   + 引导文件**开启（EMQX_AUTHENTICATION__1__*，R4 已在独立容器实测有效）：
+  #     · 匿名连接被拒绝        · 错密码被拒绝        · 正确凭据收发正常
+  #   下面这组 EMQX_USERNAME / EMQX_PASSWORD 现在**是真实生效的**，
+  #   backend / 沙盘网关必须持有同一组值，否则连不上 broker。
+  #
+  #   ⚠️ 仍未做 ACL（authorization.sources 不能用环境变量表达，只设 TYPE 会因缺 path
+  #      导致 broker 启动失败）：所有设备共用同一个 MQTT 账号，因此**认证解决了
+  #      "匿名伪造数据"，但没有解决"任意持证设备越权发布"**。
+  #      上生产前仍需补 ACL（挂 emqx.conf / cluster.hocon 或走 REST API）。
+  #      在此之前务必保证 1883/8883 不对公网开放（本文件已默认只绑 127.0.0.1）。
   # ---------------------------------------------------------------------------
   emqx:
     image: emqx/emqx:5.9.0
@@ -69,16 +68,15 @@ services:
     environment:
       # 节点名与 cookie 决定集群身份，多副本部署时不能用默认值。
       EMQX_NODE_NAME: ${EMQX_NODE_NAME:-emqx@127.0.0.1}
-      EMQX_NODE_COOKIE: ${EMQX_NODE_COOKIE:-CHANGE_ME_emqx_node_cookie_2024}
+      # 以下三项都用 :? 强制注入，与 postgres/redis/minio/JWT 保持一致：
+      # 旧写法带 CHANGE_ME 默认兜底，照抄 .env.example 部署会静默使用公开凭据。
+      EMQX_NODE_COOKIE: ${EMQX_NODE_COOKIE:?生产环境必须设置 EMQX_NODE_COOKIE}
       EMQX_DASHBOARD__DEFAULT_USERNAME: ${EMQX_DASHBOARD_USER:-admin}
-      EMQX_DASHBOARD__DEFAULT_PASSWORD: ${EMQX_DASHBOARD_PASSWORD:-CHANGE_ME_emqx_dashboard_password}
-      # 下面三行在当前 EMQX 5.9.0 下**未被真正校验**（原因见本节开头「已知安全缺口」）。
-      # 保留它们是为了升级到支持 authn 的版本后，init.sh 能直接按同一组值建用户，无需再改。
-      # init.sh 创建 built_in_database 认证用户时的哈希算法，须与创建命令一致。
-      EMQX_AUTH__MNESIA__PASSWORD_HASH: bcrypt
-      # 必须与 backend 的 EMQX_USERNAME / EMQX_PASSWORD 完全同源。
+      EMQX_DASHBOARD__DEFAULT_PASSWORD: ${EMQX_DASHBOARD_PASSWORD:?生产环境必须设置 EMQX_DASHBOARD_PASSWORD}
+      # 认证由 init.sh 在启动时写入引导文件并导出 EMQX_AUTHENTICATION__1__*；
+      # 这两项是 init.sh 的数据来源，必须与 backend 的 EMQX_USERNAME / EMQX_PASSWORD 同源。
       EMQX_USERNAME: ${EMQX_USERNAME:-disasterguard_backend}
-      EMQX_PASSWORD: ${EMQX_PASSWORD:-CHANGE_ME_emqx_secure_password_2024}
+      EMQX_PASSWORD: ${EMQX_PASSWORD:?生产环境必须设置 EMQX_PASSWORD}
       TZ: ${TZ:-Asia/Shanghai}
     # 必须用 init.sh 启动：它负责建认证用户/ACL 后 exec broker（PID 1，可正常收 SIGTERM）
     command: ["bash", "/opt/emqx/data/config/init.sh"]
@@ -146,7 +144,13 @@ services:
       # ProductionConfigValidator 阻断（当前 SmsSender/EmailSender 仍是 Mock）。
       REGISTER_SMS_ENABLED: ${REGISTER_SMS_ENABLED:-false}
       REGISTER_EMAIL_ENABLED: ${REGISTER_EMAIL_ENABLED:-false}
-      FILE_BASE_URL: ${FILE_BASE_URL:-http://minio:9000}
+      # ⚠️ 刻意不读 ${FILE_BASE_URL}：根目录 .env 里它是 http://localhost:19000
+      #   （宿主机直跑用），注入 prod 容器会让附件链接指向用户本机。
+      #   默认 minio:9000 只能容器间解析，浏览器打不开附件。部署时把
+      #   MINIO_PUBLIC_URL 设为浏览器可达的公网地址（https://minio.example.com），
+      #   并把 MINIO_ENDPOINT_PROD 设为同一地址、把该域名加入下方 ai-service 的
+      #   DETECT_IMAGE_ALLOWED_HOSTS，三者需成对修改。
+      FILE_BASE_URL: ${MINIO_PUBLIC_URL:-http://minio:9000}
       # prod profile 已默认覆盖：DEV_USERS_ENABLED=false, DEVICE_AUTH_STRICT=true, WS_REQUIRE_TICKET=true
       DEV_USERS_ENABLED: "false"
       DEVICE_AUTH_STRICT: "true"
@@ -179,21 +183,25 @@ services:
       # 用户名/密码必须与 emqx 服务的 EMQX_USERNAME / EMQX_PASSWORD 同源 ——
       # infra/emqx/init.sh 用同一组值创建认证用户，不一致会导致 MQTT 鉴权失败。
       EMQX_USERNAME: ${EMQX_USERNAME:-disasterguard_backend}
-      EMQX_PASSWORD: ${EMQX_PASSWORD:-CHANGE_ME_emqx_secure_password_2024}
+      # 用 :? 强制注入：原默认值 CHANGE_ME_emqx_secure_password_2024 未被
+      # ProductionConfigValidator 的黑名单命中，照抄默认值能启动却等于公开口令。
+      EMQX_PASSWORD: ${EMQX_PASSWORD:?生产环境必须设置 EMQX_PASSWORD}
       EMQX_ENABLED: ${EMQX_ENABLED:-true}
       # 必须用容器网络内的服务名，不能写 localhost —— 那会指向 backend 容器自己。
-      EMQX_MQTT_URL: ${EMQX_MQTT_URL:-tcp://emqx:1883}
+      EMQX_MQTT_URL: tcp://emqx:1883
       # TDengine（可选）
       TDENGINE_ENABLED: ${TDENGINE_ENABLED:-false}
       TDENGINE_URL: jdbc:TAOS-RS://tdengine:6041/disasterguard
       TDENGINE_USERNAME: ${TDENGINE_USERNAME:-root}
       TDENGINE_PASSWORD: ${TDENGINE_PASSWORD:-taosdata}
       # AI 服务（ai-service 已在下方定义，同一网络内用服务名访问）
-      AI_SERVICE_BASE_URL: ${AI_SERVICE_BASE_URL:-http://ai-service:8001/api/ai}
-      # 图像识别是**独立**配置项（AiImageProperties.imageServiceUrl），不跟随 service-base-url。
-      # 不显式设置时会回落到 application.yml 的 http://127.0.0.1:8001/api/ai/detect-image，
-      # 而在容器内 127.0.0.1 指向 backend 自身 → 图像识别必然连接被拒、AI 链路静默中断。
-      AI_IMAGE_SERVICE_URL: ${AI_IMAGE_SERVICE_URL:-http://ai-service:8001/api/ai/detect-image}
+      # ⚠ 刻意不读 ${AI_SERVICE_BASE_URL}：根目录 .env 给的是
+      #   http://localhost:8001/api/ai（宿主机直跑用），注入容器后 localhost 指向
+      #   backend 自身，AI 链路会静默中断。生产固定在容器网络内用服务名解析。
+      AI_SERVICE_BASE_URL: http://ai-service:8001/api/ai
+      # 图像识别是独立配置项（AiImageProperties.imageServiceUrl），同上必须用服务名，
+      # 否则会回落到 application.yml 的 127.0.0.1:8001 而连接被拒。
+      AI_IMAGE_SERVICE_URL: http://ai-service:8001/api/ai/detect-image
       AI_ENABLED: ${AI_ENABLED:-true}
       AI_SCHEDULER_ENABLED: ${AI_SCHEDULER_ENABLED:-false}
       TZ: ${TZ:-Asia/Shanghai}
@@ -290,6 +298,10 @@ services:
       args:
         VITE_USE_BACKEND: "true"
         VITE_API_BASE_URL: /api
+        # 必须注入：前端源码的兜底值是 http://localhost:8001/api/ai，
+        # 不注入会让生产浏览器请求用户本机 8001（AI 能力全断）。
+        # 走 infra/nginx/frontend.conf 的 /ai-service/ 同源反代，避免 CORS 与端口暴露。
+        VITE_AI_SERVICE_BASE: /ai-service/api/ai
         VITE_WS_URL: /ws
         VITE_REALTIME_POLL_INTERVAL: "15000"
         VITE_PERSONNEL_POLL_INTERVAL: "30000"
@@ -298,6 +310,14 @@ services:
     image: disasterguard-frontend:latest
     container_name: disasterguard-frontend
     restart: unless-stopped
+    # nginx 在加载配置时就会解析 proxy_pass 里的静态主机名；backend / ai-service
+    # 尚未创建时会出现 `host not found in upstream` 并导致前端容器反复重启。
+    # 这里只要求 started（不等 healthy），避免 AI 冷启动拖慢前端启动。
+    depends_on:
+      backend:
+        condition: service_started
+      ai-service:
+        condition: service_started
     ports:
       - "${FRONTEND_HOST_PORT:-80}:80"
     healthcheck:

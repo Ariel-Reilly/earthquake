@@ -177,9 +177,13 @@ public class ProductionConfigValidator {
             + "请设置非空凭据，或关闭 EMQX_ENABLED。");
       } else {
         String pwd = emqxPassword.trim().toLowerCase();
-        if (pwd.equals("change_me_emqx_password") || pwd.equals("disasterguard_backend")
-            || WEAK_TOKENS.contains(pwd)) {
-          errors.add("EMQX_PASSWORD 命中默认/弱密码（当前值='" + emqxPassword + "'）。请设置强随机值。");
+        // isDevDefaultSecret 覆盖 DEV_DEFAULT_SECRETS 精确值及所有 CHANGE_ME* 占位值。
+        // 此前只比对两个硬编码字面量，prod compose 的 CHANGE_ME_emqx_secure_password_2024
+        // 与 .env.example 的 CHANGE_ME_generate_* 都能绕过校验，等于允许公开口令上线。
+        if (isDevDefaultSecret(emqxPassword) || pwd.equals("change_me_emqx_password")
+            || pwd.equals("disasterguard_backend") || WEAK_TOKENS.contains(pwd)) {
+          errors.add("EMQX_PASSWORD 命中默认/弱密码或未替换的占位值（当前值='" + emqxPassword
+              + "'）。请设置强随机值：openssl rand -base64 24");
         }
       }
     }

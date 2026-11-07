@@ -40,7 +40,8 @@
 | `BACKEND_HOST_PORT` | 否 | `127.0.0.1:8080`（prod `8081`） | 宿主机映射端口 |
 | `FRONTEND_HOST_PORT` | 否 | `127.0.0.1:5173` | 前端宿主机端口 |
 | `FRONTEND_ORIGIN` | 生产必填 | `http://localhost:5173` | CORS 白名单 + WebSocket Origin 校验。**prod 下含 localhost 会被拒绝启动** |
-| `FILE_BASE_URL` | 生产必填 | `http://localhost:19000`（容器内 `http://minio:9000`） | 附件访问基地址。**prod 下含 `localhost:9000` 会被拒绝启动** |
+| `FILE_BASE_URL` | 否（仅宿主机直跑） | `http://localhost:19000` | 宿主机直跑时的附件访问基地址。**prod compose 不再读取此变量**，避免开发用的 localhost 被注入容器 |
+| `MINIO_PUBLIC_URL` | 生产必填 | `http://minio:9000`（仅容器间可达） | prod 下 `FILE_BASE_URL` 的实际取值。必须设为浏览器可达的公网地址（如 `https://minio.example.com`），并把 `MINIO_ENDPOINT_PROD` 设为同一地址、把该域名加入 `DETECT_IMAGE_ALLOWED_HOSTS`，否则「能上传、打不开附件」 |
 | `TZ` | 否 | `Asia/Shanghai` | 容器时区 |
 
 ### 2.2 PostgreSQL / PostGIS
@@ -87,7 +88,7 @@
 | `JWT_SECRET` | **是** | `this_is_a_very_secure_secret_key_for_disaster_guard_2026_!@#` | JWT 签名密钥，长度 ≥ 32。**prod 下命中该默认值会阻断启动**。生成：`openssl rand -base64 48` |
 | `JWT_EXPIRE` | 否 | `PT2H` | ISO-8601 Duration 格式的令牌有效期 |
 | `JWT_ISSUER` | 否 | `disasterguard` | 签发者标识 |
-| `DATA_ENCRYPTION_KEY` | **是** | `a_very_secure_data_encryption_key_2026_!@#` | AES-256-GCM 密钥，加密注册申请中的身份证号。**变更后历史密文永久不可解**。生成：`openssl rand -base64 32` |
+| `DATA_ENCRYPTION_KEY` | **是（无默认值）** | 无，`docker-compose.prod.yml:144` 用 `${VAR:?}` 强制校验 | AES-256-GCM 密钥，加密注册申请中的身份证号。**缺失时 compose 解析阶段即失败**；**变更后历史密文永久不可解**。生成：`openssl rand -base64 32` |
 | `DEV_USERS_ENABLED` | 生产必填 | `true` | 是否启用硬编码开发账号。**prod 下必须为 `false`** |
 | `DEVICE_AUTH_STRICT` | 生产必填 | `false` | 设备上报是否强制鉴权。**prod 下必须为 `true`** |
 | `WS_REQUIRE_TICKET` | 生产必填 | `false` | 是否禁止 `?token=` 直连，强制一次性 ticket。**prod 下必须为 `true`** |
@@ -118,8 +119,8 @@
 | `EMQX_DATA_QOS` | 否 | `1` | QoS 等级 |
 | `EMQX_USERNAME` | 启用时必填 | 空 | 后端连接 broker 的用户名 |
 | `EMQX_PASSWORD` | 启用时必填 | 空 | 后端连接 broker 的密码（长度 ≥ 16） |
-| `EMQX_DASHBOARD_USER` / `EMQX_DASHBOARD_PASSWORD` | 否 | `admin` / `CHANGE_ME_emqx_secure_password_2024` | 管理台登录凭据 |
-| `EMQX_NODE_COOKIE` | 否 | `disasterguard-cookie` | 集群 Cookie |
+| `EMQX_DASHBOARD_USER` / `EMQX_DASHBOARD_PASSWORD` | **prod 必填** | `admin` / 无（prod 用 `:?` 强制） | 管理台登录凭据。dev compose 仍有 `CHANGE_ME_*` 兜底，prod 已去掉 |
+| `EMQX_NODE_COOKIE` | **prod 必填** | `disasterguard-cookie`（仅 dev） | 集群 Cookie。prod 缺失时 compose 直接拒绝解析；生成：`openssl rand -hex 32` |
 | `EMQX_MQTT_HOST_PORT` / `EMQX_WS_HOST_PORT` / `EMQX_HTTP_HOST_PORT` | 否 | `11883` / `18083` / `28083` | 端口映射 |
 
 > broker 侧（`infra/emqx/init.sh`）与后端必须使用**同一组** `EMQX_USERNAME` / `EMQX_PASSWORD`，否则 MQTT 鉴权必然失败。
@@ -227,13 +228,17 @@ docker compose ps
 | `MINIO_ROOT_PASSWORD` | compose 拒绝解析 |
 | `JWT_SECRET` | compose 拒绝解析 |
 | `DATA_ENCRYPTION_KEY` | compose 拒绝解析 |
-| `MINIO_ENDPOINT` | compose 拒绝解析（必须是客户端可达的公开地址） |
+| `EMQX_PASSWORD` | compose 拒绝解析 |
+| `EMQX_DASHBOARD_PASSWORD` | compose 拒绝解析 |
+| `EMQX_NODE_COOKIE` | compose 拒绝解析 |
+| `MINIO_ENDPOINT` | **不参与 `:?` 校验**：prod 改用 `MINIO_ENDPOINT_PROD`（默认 `http://minio:9000`）。若需浏览器直接打开附件，必须把它改成对外可达域名，否则会被 `ProductionConfigValidator` 判定「指向本机」而阻断启动 |
 
 此外 `SPRING_PROFILES_ACTIVE=prod` 下还会由 `ProductionConfigValidator` 阻断以下情况：
 
 - `DEV_USERS_ENABLED=true` / `DEVICE_AUTH_STRICT=false` / `WS_REQUIRE_TICKET=false`
 - `FRONTEND_ORIGIN` 含 `localhost` 或为 `*`
 - `FILE_BASE_URL` 含 `localhost:9000`
+- `EMQX_PASSWORD` 为空、命中弱口令或仍是任意未替换的 `CHANGE_ME*` 占位值
 - `MINIO_ENDPOINT` 指向 `localhost` / `127.0.0.1` / `0.0.0.0`
 - `JWT_SECRET` / `DATA_ENCRYPTION_KEY` / `MINIO_SECRET_KEY` / `POSTGRES_PASSWORD` 为空、过短或**仍为 `application.yml` 的开发默认值**
 - 种子用户密码仍为 `admin123`
@@ -306,9 +311,10 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 | 默认行为 | **留空 = 全部拦截（fail-closed）**，不会误发给外部人员 |
 | 名单外结果 | 回执状态 `BLOCKED`，备注写明「未投递」，**不调用任何 Sender**，不写 `sentAt`，不记为 `SENT`；补齐名单后可通过「重试」补发 |
 | 名单内结果 | 仍走现有 6 个演示 Sender（未接网关），回执状态 `MOCK_SENT`、备注「演示发送·未真实投递」，**不计入 `sent` 统计**（单独计 `mockSent`） |
-| 无收件人探测 | 渠道连通性测试 `target` 为空时返回 `PROBE_ONLY`，**不调用任何 Sender**（`ScreenSender` 会向所有在线 WebSocket 客户端广播，空 target 不等于零副作用） |
+| 无收件人探测 | `target` 为空时返回 `PROBE_ONLY`，**不调用任何 Sender**（`ScreenSender` 会向所有在线 WebSocket 客户端广播，空 target 不等于零副作用）。探测**只确认该渠道发送器已注册**：不查渠道配置、不连外部网关，因此不得宣称「渠道配置已校验 / 网关连通」；渠道未注册时如实返回 `NO_SENDER` |
 | 站内广播渠道 | `SCREEN` / `SOUND_LIGHT` 没有定向收件人，即使 target 在白名单，可见范围仍是所有在线客户端；回执备注会写明，不能对外宣称「只发给了指定成员」 |
-| 注册验证码 | 仅当短信真实网关已接入（`ALIYUN_SMS_ENABLED=true` 且 `access-key-id` 非 `CHANGE_ME`）时，验证码下发才受名单约束；邮箱 Sender 仍是演示实现，不产生对外投递 |
+| 注册验证码 | 仅当短信真实网关已接入（`ALIYUN_SMS_ENABLED=true` 且 `access-key-id` 非 `CHANGE_ME`）时，验证码下发才受名单约束。**prod 且网关未接入时接口明确返回 50301**，不会「报成功但用户收不到」；非 prod 允许日志降级。邮箱 Sender 仍是演示实现，不产生对外投递；将来接入 SMTP 必须同步声明真实投递能力，否则 fail-closed 抛错 |
+| 派发记录终态 | 全部成功 `SENT` / 全部演示 `MOCK_SENT` / 全部拦截 `BLOCKED` / 全部失败 `FAILED` / 混合 `PARTIAL` / 尚无渠道结果 `SENDING`。全失败不会再被误标成「发送中」 |
 
 > **边界说明**：白名单是**准入闸门**，不是**投递能力**。它保证消息不会发给外部人员，
 > 但**不提供真实送达**；真实送达需另行接入 SMTP / 短信 / APP 推送网关。
