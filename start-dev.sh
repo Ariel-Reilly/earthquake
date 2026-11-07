@@ -238,7 +238,7 @@ backend() {
   export DEVICE_AUTH_STRICT=false
   export TDENGINE_ENABLED=false
   export EMQX_ENABLED=false
-  export AI_ENABLED=false
+  export AI_ENABLED=true
 
   info "后端: http://localhost:8080/api"
   info "Swagger: http://localhost:8080/swagger-ui.html"
@@ -360,7 +360,7 @@ all_stack() {
     export DEVICE_AUTH_STRICT=false
     export TDENGINE_ENABLED=false
     export EMQX_ENABLED=false
-    export AI_ENABLED=false
+    export AI_ENABLED=true
     cd "$PROJECT_ROOT/backend"
     mvn spring-boot:run -DskipTests > "$(service_log backend)" 2>&1
   ) &

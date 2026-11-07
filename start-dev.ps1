@@ -376,8 +376,12 @@ function Invoke-Backend {
   $env:DEV_USERS_ENABLED     = "true"
   $env:DEVICE_AUTH_STRICT    = "false"
   $env:TDENGINE_ENABLED      = "false"
+  # 宿主机直跑时 EMQX 的 1883 只映射到 11883，保持关闭可避免 MQTT 连接失败；
+  # 需要 MQTT 主数据源时请用 docker profile 或显式设置 EMQX_MQTT_URL。
   $env:EMQX_ENABLED          = "false"
-  $env:AI_ENABLED            = "false"
+  # AI 服务由本脚本 [3/4] 步骤在 8001 启动，AI_SERVICE_BASE_URL 默认值正指向它，
+  # 与下方生成的后台启动脚本保持一致（此前一边 false、一边 true）。
+  $env:AI_ENABLED            = "true"
 
   Write-Info "POSTGRES=15432  REDIS=16379  MINIO=19000  PROFILE=$SpringProfile"
   Write-Info "后端: http://localhost:8080/api"
