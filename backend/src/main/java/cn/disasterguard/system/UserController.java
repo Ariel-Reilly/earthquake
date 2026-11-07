@@ -209,7 +209,7 @@ public class UserController {
       return ApiResponse.fail(404, "用户不存在");
     }
     String newPassword = body == null ? null : str(body.get("newPassword"));
-    if (isBlank(newPassword) || newPassword.length() < 6) {
+    if (newPassword == null || newPassword.isBlank() || newPassword.length() < 6) {
       return ApiResponse.fail(400, "新密码至少 6 个字符");
     }
 
@@ -258,10 +258,6 @@ public class UserController {
 
   private String str(Object v) {
     return v == null ? null : String.valueOf(v);
-  }
-
-  private boolean isBlank(String s) {
-    return s == null || s.isBlank();
   }
 
   private Map<String, Object> toDto(SysUser u) {

@@ -48,31 +48,27 @@ public class WebhookSender implements NotificationSender {
     }
 
     try {
+      if (target == null || target.isBlank()) {
+        return SendResult.failure("Webhook 目标地址为空，请配置渠道的回调 URL");
+      }
       String messageId = UUID.randomUUID().toString();
-      log.info("[WEBHOOK Mock] 发送 Webhook 到 {}: {}", target, title);
+      log.info("[WEBHOOK] 发送 Webhook 到 {}: {}", target, title);
 
-      // 构建 Webhook payload
       String payload = buildPayload(messageId, title, content, variables);
 
-      // TODO: 在生产环境中启用真实 HTTP 请求
-      // HttpRequest request = HttpRequest.newBuilder()
-      //     .uri(URI.create(target))
-      //     .header("Content-Type", "application/json")
-      //     .header("X-Notification-Id", messageId)
-      //     .timeout(Duration.ofMillis(timeoutMs))
-      //     .POST(HttpRequest.BodyPublishers.ofString(payload))
-      //     .build();
-      //
-      // HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-      // if (response.statusCode() >= 200 && response.statusCode() < 300) {
-      //   return SendResult.success(messageId);
-      // } else {
-      //   return SendResult.failure("HTTP " + response.statusCode() + ": " + response.body());
-      // }
+      HttpRequest request = HttpRequest.newBuilder()
+          .uri(URI.create(target))
+          .header("Content-Type", "application/json")
+          .header("X-Notification-Id", messageId)
+          .timeout(Duration.ofMillis(timeoutMs))
+          .POST(HttpRequest.BodyPublishers.ofString(payload))
+          .build();
 
-      // Mock: 模拟成功
-      Thread.sleep(20);
-      return SendResult.mockSuccess(messageId, "Webhook 回调未配置真实目标地址");
+      HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+      if (response.statusCode() >= 200 && response.statusCode() < 300) {
+        return SendResult.success(messageId);
+      }
+      return SendResult.failure("HTTP " + response.statusCode() + ": " + response.body());
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       return SendResult.failure("Webhook 请求被中断");

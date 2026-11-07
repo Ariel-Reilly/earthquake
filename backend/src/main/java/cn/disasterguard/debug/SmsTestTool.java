@@ -148,6 +148,8 @@ public class SmsTestTool {
       if (response == null || response.getBody() == null) {
         System.err.println("❌ 响应为空");
         System.exit(1);
+        // System.exit 不返回，但静态分析仍会认为下面可能空指针访问，显式终止控制流。
+        return;
       }
 
       String code = response.getBody().getCode();
