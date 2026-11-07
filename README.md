@@ -199,7 +199,7 @@ sequenceDiagram
 ### 0. 前置要求
 
 - **JDK 17+**、**Maven 3.9+**
-- **Node.js 20+**（前端）
+- **Node.js 22+**（前端：`package-lock.json` 中的 `@cesium/*` 要求 ≥ 22，与 `frontend/Dockerfile`、CI 保持一致）
 - **Python 3.11+**（AI 服务）
 - **Docker Desktop**（基础设施）
 

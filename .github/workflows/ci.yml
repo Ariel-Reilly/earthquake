@@ -32,7 +32,9 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          # package-lock.json 中 @cesium/* 要求 node >=22，eslint 要求 ^20.19 || ^22.13 || >=24，
+          # frontend/Dockerfile 也用 node:22-alpine。固定 20 会让 npm ci / build 不可靠。
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
@@ -47,6 +49,11 @@ jobs:
 
       - name: Vite build
         run: npm run build
+
+      # 此前 CI 只做 lint/build，仓库里的 vitest 用例从未执行，等于没有回归门禁。
+      # pretest 会自动跑 check:random（禁止业务代码里的 Math.random 兜底）。
+      - name: Unit tests (vitest)
+        run: npm test
 
       # ── 设计令牌完整性门禁（2026-10-09 新增）─────────────────────────────
       # 背景：批量把 #hex 替换成 var(--token) 时，若脚本未排除「令牌定义行」，
@@ -101,6 +108,12 @@ jobs:
       - name: mvn test-compile (含 test 源码)
         run: mvn -B -q -DskipTests test-compile
 
+      # 此前 CI 从不执行任何 Java 测试。三个 @SpringBootTest 集成用例需要
+      # Postgres/Redis/MinIO 等外部服务，纯 CI runner 上必然失败，故显式排除；
+      # 其余纯单元测试（约 100 个）全部纳入阻断门禁。
+      - name: Unit tests (mvn)
+        run: mvn -B -q test -Dtest='!DisasterguardApplicationTests,!RuleEngineIntegrationTest,!RuleMatchingVerificationTest' -DfailIfNoSpecifiedTests=false
+
   # ───────────────────────────────────────────────────────────────────
   # AI 服务：Python 语法健全性检查
   # ───────────────────────────────────────────────────────────────────
@@ -154,7 +167,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: 后端 Controller 漏 import 注解扫描
         run: node scripts/audit/check-missing-imports.mjs
