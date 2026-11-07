@@ -1,10 +1,12 @@
 ﻿#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """精确检测 frontend request/get/post 调用 vs 后端 Controller 映射关系"""
-import re, glob
+import os, re, glob
 from pathlib import Path
 
-ROOT = r'd:\Projects\DisasterGuard'
+# 由脚本自身位置推导仓库根目录，避免把开发机绝对路径写死在源码里。
+# scripts/audit/orphan_endpoint_scan.py -> parents[2] 即仓库根。
+ROOT = str(Path(__file__).resolve().parents[2])
 
 def find_calls(content, func_name):
     """在代码中找出 func_name(...) 的调用，返回括号内的参数字符串"""
@@ -61,7 +63,7 @@ def norm_path(p):
 # === 后端接口扫描 ===
 backend_eps = {}
 for path in glob.glob(f'{ROOT}/backend/src/main/java/cn/disasterguard/**/*Controller.java', recursive=True):
-    rel = path.replace(ROOT + '\', '').replace('\', '/')
+    rel = os.path.relpath(path, ROOT).replace(os.sep, '/')
     src = open(path, encoding='utf-8', errors='ignore').read()
     base = ''
     for line in src.splitlines():
@@ -87,7 +89,7 @@ fp_files = (list(Path(f'{ROOT}/frontend/src/services').glob('*.js')) +
             list(Path(f'{ROOT}/frontend/src/stores').rglob('*.js')))
 
 for fp in fp_files:
-    rel = str(fp).replace(ROOT + '\', '').replace('\', '/')
+    rel = os.path.relpath(str(fp), ROOT).replace(os.sep, '/')
     try:
         content = open(fp, encoding='utf-8').read()
     except UnicodeDecodeError:
@@ -130,10 +132,10 @@ for verb, path, file in fp_calls:
 
 print(f'[前端] 不同 (verb, path) 数 {len(fp_norm_keys)}')
 
-KNOWN_GAPS = {
-    ('GET', '/api/ai/drift'): '[2026-09-21] ModelManagePage 引用，后端未实现',
-    ('GET', '/api/ai/multimodal'): '[2026-09-21] AiInsightPage 引用，后端未实现',
-}
+# 2026-11-06：GET /api/ai/drift 与 GET /api/ai/multimodal 已由
+# AiDeprecatedGapController 提供 501 + deprecated 桩，不再是「后端未实现」的缺口，
+# 从基线移除，让扫描重新覆盖这两个映射。当前基线为空。
+KNOWN_GAPS = {}
 
 def fuzzy_match(be_path, fe_path):
     if be_path == fe_path: return True
@@ -177,14 +179,46 @@ for (verb, path), file in backend_eps.items():
     if not matched and (verb, path) not in KNOWN_GAPS:
         unused.append((verb, path, file))
 
-print(f'\n[后端未被前端引用] {len(unused)} 个（已扣除 fuzzy 匹配）\n')
+# 2026-11-06（R10 P2-5）：本脚本只认字面量路径，对「模板拼接」无能为力——
+# 例如 aiApi 里 request(`/ai/xxx${path}`) 的基址段、dashboardApi 里
+# `${base}/coverage` 这类写法，静态解析时会变成一个不完整的路径，
+# 于是后端明明被调用却报成「未被引用」。这里再做一次末段可见性判断：
+# 路径最后一段以字符串形式出现在前端源码里 → 归为「疑似误报」，
+# 单独列出来人工复核，而不是混在真孤儿里让报告失真。
+FE_SOURCE = ''
+for fp in fp_files:
+    try:
+        FE_SOURCE += open(fp, encoding='utf-8', errors='ignore').read()
+    except OSError:
+        pass
+
+
+def tail_segment_visible(path: str) -> bool:
+    seg = path.rstrip('/').split('/')[-1]
+    seg = re.sub(r'\{[^}]*\}|\*VAR\*', '', seg)
+    if len(seg) < 3:
+        return False
+    return (f"'{seg}'" in FE_SOURCE or f'"{seg}"' in FE_SOURCE
+            or f'/{seg}' in FE_SOURCE)
+
+
+confirmed = [x for x in unused if not tail_segment_visible(x[1])]
+suspected = [x for x in unused if tail_segment_visible(x[1])]
+
+print(f'\n[后端未被前端引用] {len(confirmed)} 个确认 + {len(suspected)} 个疑似（末段在源码可见，需人工复核）\n')
 by_file = {}
-for v, p, f in unused:
+for v, p, f in confirmed:
     by_file.setdefault(f, []).append((v, p))
 for f in sorted(by_file):
     print(f'>>> {f}')
     for v, p in sorted(by_file[f]):
         print(f'    {v:6s} {p}')
+
+if suspected:
+    print(f'\n△ 疑似误报（路径可能由模板拼接，末段字符串存在于前端源码）：{len(suspected)} 个')
+    for v, p, _f in sorted(suspected, key=lambda x: x[1]):
+        print(f'    {v:6s} {p}')
+
 if KNOWN_GAPS:
     print(f'\n○ 已知缺口（已登记基线，共 {len(KNOWN_GAPS)})：')
     for (verb, path), note in KNOWN_GAPS.items():

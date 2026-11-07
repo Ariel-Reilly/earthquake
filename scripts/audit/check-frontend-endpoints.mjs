@@ -56,10 +56,15 @@ function collectBackendMappings() {
   let files = walkFiles(BACKEND_SRC).filter(p => p.endsWith('.java'));
 
   const mappings = new Map(); // "METHOD PATH" -> file
+  // 已弃用 501 桩占用的映射：文件里同时出现 @Deprecated 与 NOT_IMPLEMENTED 即视为桩。
+  // 这些映射「存在」但「没实现」，不能让门禁误以为缺口已被功能补齐（R8 P2-6）。
+  const deprecatedStubs = new Set();
 
   for (const abs of files) {
     const rel = path.relative(ROOT, abs);
-    const lines = readFileSync(abs, 'utf8').split('\n');
+    const src = readFileSync(abs, 'utf8');
+    const lines = src.split('\n');
+    const isStubFile = /NOT_IMPLEMENTED/.test(src) && /@Deprecated/.test(src);
 
     // 类级 basePath：找到 class 声明后向前回溯最近的类级 @RequestMapping
     let basePath = '';
@@ -83,7 +88,9 @@ function collectBackendMappings() {
       if (shortcut) {
         const method = shortcut[1].toUpperCase();
         const sub = shortcut[2] || '';
-        mappings.set(`${method} ${normalizePath(basePath + sub)}`, rel);
+        const key = `${method} ${normalizePath(basePath + sub)}`;
+        mappings.set(key, rel);
+        if (isStubFile) deprecatedStubs.add(key);
         continue;
       }
 
@@ -93,12 +100,14 @@ function collectBackendMappings() {
         const v = rm[1].match(/(?:value\s*=\s*)?"(\/[^"]*)"/);
         const mm = rm[1].match(/method\s*=\s*RequestMethod\.(\w+)/);
         if (v && mm) {
-          mappings.set(`${mm[1].toUpperCase()} ${normalizePath(basePath + v[1])}`, rel);
+          const key = `${mm[1].toUpperCase()} ${normalizePath(basePath + v[1])}`;
+          mappings.set(key, rel);
+          if (isStubFile) deprecatedStubs.add(key);
         }
       }
     }
   }
-  return mappings;
+  return { mappings, deprecatedStubs };
 }
 
 // ---------------------------------------------------------------- 前端调用
@@ -170,7 +179,7 @@ if (process.argv.includes('--self-test')) {
   process.exit(ok ? 0 : 1);
 }
 
-const backend = collectBackendMappings();
+const { mappings: backend, deprecatedStubs } = collectBackendMappings();
 const backendPaths = new Set([...backend.keys()].map(k => k.split(' ')[1]));
 
 // 已知一定存在的映射（解析器回归测试：这些若解析不出来，说明注解解析写错了，
@@ -204,14 +213,12 @@ if (selfCheckFailures.length > 0) {
  * 但**任何新出现的缺口都会让本脚本以退出码 1 失败**。
  * 修复后请从此清单移除，让门禁重新覆盖该路径。
  *
- * 格式：[HTTP方法, 规范化路径, 发现日期, 说明]
+ * 2026-11-06：原两条 GET /api/ai/drift、GET /api/ai/multimodal 已由
+ * AiDeprecatedGapController 提供显式 501 + deprecated 桩，不再是「后端没有映射」的缺口，
+ * 因此从基线移除，让本门禁重新覆盖这两个路径。
+ * 当前基线为空；后续新增缺口仍按 [HTTP方法, 规范化路径, 发现日期, 说明] 登记。
  */
-const KNOWN_GAPS = [
-  ['GET', '/api/ai/drift', '2026-09-21',
-    'ModelManagePage.vue 引用的漂移监控接口，Spring Boot 端 /api/ai 下未实现（无通配转发）'],
-  ['GET', '/api/ai/multimodal', '2026-09-21',
-    'AiInsightPage.vue 引用的多模态分析接口，Spring Boot 端 /api/ai 下未实现'],
-];
+const KNOWN_GAPS = [];
 
 const knownGapKeys = new Set(KNOWN_GAPS.map(([m, p]) => `${m} ${p}`));
 
@@ -220,13 +227,17 @@ const seen = new Set();
 const missing = [];
 const methodMismatch = [];
 const pendingKnown = [];
+const deprecatedHits = [];
 
 for (const c of calls) {
   const key = `${c.method} ${c.path}`;
   if (seen.has(key)) continue;
   seen.add(key);
 
-  if (backend.has(key)) continue;
+  if (backend.has(key)) {
+    if (deprecatedStubs.has(key)) deprecatedHits.push(c);
+    continue;
+  }
 
   if (knownGapKeys.has(key)) {
     pendingKnown.push(c);
@@ -252,6 +263,14 @@ if (methodMismatch.length > 0) {
   console.log(`\n⚠ 路径存在但 HTTP 方法不匹配 (${methodMismatch.length})：`);
   methodMismatch.sort((a, b) => a.path.localeCompare(b.path))
     .forEach(c => console.log(`    ${c.method} ${c.path}   后端仅有: ${c.available.join('/')}   <- ${c.file}`));
+}
+
+if (deprecatedHits.length > 0) {
+  console.log(`\n○ 命中已弃用 501 桩（映射存在但未实现，共 ${deprecatedHits.length}）：`);
+  deprecatedHits.sort((a, b) => a.path.localeCompare(b.path)).forEach(c => {
+    console.log(`    ${c.method} ${c.path}   后端返回 501 NOT_IMPLEMENTED   <- ${c.file}`);
+  });
+  console.log('    这些路径「通过」只代表有映射兜底，不代表功能已实现；请勿据此判定缺口已修复。');
 }
 
 if (pendingKnown.length > 0) {

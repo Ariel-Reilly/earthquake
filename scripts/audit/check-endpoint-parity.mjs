@@ -132,10 +132,16 @@ for (const file of walk(FRONTEND).filter((f) => /\.(js|vue)$/.test(f))) {
     .replace(/\/\*[\s\S]*?\*\//g, '')
     .replace(/^\s*\/\/.*$/gm, '');
   // request(`/xxx/${id}`, { method: "PUT" })  /  request("/xxx")
-  const re = /\brequest\(\s*[`'"]([^`'"]+)[`'"]\s*(?:,\s*(\{[^}]*\}))?/g;
+  // R10 P2-5：aiApi.js 里的 15 处调用走的是 fetch / fetchApi，此前只解析 request(
+  // 会把整个 AI 模块的端点漏掉，对账结果偏乐观。这里一并纳入。
+  const re = /\b(?:request|fetchApi|fetch)\(\s*[`'"]([^`'"]+)[`'"]\s*(?:,\s*(\{[^}]*\}))?/g;
   let m;
   while ((m = re.exec(src))) {
-    const p = normalize(API_PREFIX + m[1]);
+    // 以插值开头的路径（如 `${AI_BASE}/feedback/stats`）是动态基址，静态阶段无法判定
+    if (m[1].startsWith('${')) continue;
+    // request() 收相对路径（内部再拼 API_BASE）；裸 fetch 可能已经写了 /api 前缀，
+    // 无条件再拼一次会得到 /api/api/... 这种假孤儿（ws-ticket 就是这种情况）
+    const p = normalize((m[1].startsWith('/api/') ? '' : API_PREFIX) + m[1]);
     if (!m[1].startsWith('/')) continue;            // 非相对路径跳过
     const opts = m[2] || '';
     const methodMatch = opts.match(/method\s*:\s*["']?(\w+)["']?/);

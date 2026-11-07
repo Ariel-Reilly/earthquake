@@ -109,6 +109,29 @@ ${body}
   public static List<String> permissionsListOf(String role) {
     return List.copyOf(permissionsOf(role));
   }
+
+  /** 全部已注册角色（供角色管理页 / 权限矩阵页展示）。 */
+  public static Set<String> roles() {
+    return ROLE_PERMISSIONS.keySet();
+  }
+
+  /** 角色 → 权限码快照（排序后），供 PermissionRegistryController 输出矩阵。 */
+  public static Map<String, List<String>> snapshot() {
+    Map<String, List<String>> result = new java.util.LinkedHashMap<>();
+    ROLE_PERMISSIONS.keySet().stream()
+        .sorted()
+        .forEach(role -> result.put(role, ROLE_PERMISSIONS.get(role).stream().sorted().toList()));
+    return result;
+  }
+
+  /** 所有角色权限码的并集（去重 + 排序）。 */
+  public static List<String> allPermissions() {
+    return ROLE_PERMISSIONS.values().stream()
+        .flatMap(Set::stream)
+        .distinct()
+        .sorted()
+        .toList();
+  }
 }
 `;
 

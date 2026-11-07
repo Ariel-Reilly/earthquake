@@ -21,11 +21,19 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 SQL_FILE = os.path.join(HERE, "register_devices.sql")
 
 RESET_SQL = """
+-- 顺序不能颠倒：先删指标，再归档预警，最后清评分日志。
+-- 只归档预警不删指标时，规则引擎会在重启后立刻用旧读数再补一条预警，
+-- 导致下一轮剧本的同一规则被「已存在未关闭预警」拦掉（表现为"哑火"）。
+DELETE FROM device_metric
+ WHERE device_code LIKE 'SB-%' OR device_code LIKE 'WS-%';
+
 UPDATE warning_event
    SET status = '已解除', close_reason = '沙盘演示重置',
        closed_at = NOW(), updated_at = NOW()
  WHERE hazard_code LIKE 'HZ-SBOX-%'
    AND status NOT IN ('已关闭','已忽略','已解除');
+
+DELETE FROM risk_score_log WHERE hazard_code LIKE 'HZ-SBOX-%';
 """
 
 CHECK_SQL = """
@@ -58,9 +66,11 @@ def main():
     ap = argparse.ArgumentParser(description="GL-Sandbox 设备注册")
     ap.add_argument("--host", default="localhost")
     ap.add_argument("--port", type=int, default=15432, help="PostGIS 宿主机映射端口")
-    ap.add_argument("--user", default="postgres")
-    ap.add_argument("--password", default=os.environ.get("PGPASSWORD", "postgres"))
-    ap.add_argument("--db", default="postgres")
+    # 默认值与本项目 docker-compose / application.yml 一致（旧默认 postgres/postgres 连不上）
+    ap.add_argument("--user", default=os.environ.get("POSTGRES_USER", "disasterguard"))
+    ap.add_argument("--password", default=os.environ.get("PGPASSWORD")
+                    or os.environ.get("POSTGRES_PASSWORD", ""))
+    ap.add_argument("--db", default=os.environ.get("POSTGRES_DB", "disasterguard"))
     ap.add_argument("--reset-warnings", action="store_true", help="仅清理沙盘预警")
     ap.add_argument("--check", action="store_true", help="仅自查")
     args = ap.parse_args()
@@ -89,7 +99,8 @@ def main():
 
     if args.reset_warnings:
         cur.execute(RESET_SQL)
-        print(f"[OK] 已归档 {cur.rowcount} 条沙盘预警（演示可重新触发）")
+        print("[OK] 沙盘演示数据已重置：清空沙盘指标 + 归档未关闭预警 + 清理评分日志")
+        print("     现在可以重新运行剧本；若后端正在运行，无需重启。")
         cur.close()
         conn.close()
         return

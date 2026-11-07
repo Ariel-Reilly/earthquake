@@ -33,7 +33,21 @@ INSERT INTO unified_event (
  106.53,29.558031,ST_SetSRID(ST_MakePoint(106.53,29.558031),4326),'滨江路低洼段及码头','DEVICE',NOW(),0.90),
 ('HAZARD','EVT-SBOX-04','DETECTED','DEVICE','HZ-SBOX-04','滨江路低洼内涝点','waterlogging','中风险','500103','渝中区水务局','沙盘监测中',
  106.53875,29.553875,ST_SetSRID(ST_MakePoint(106.53875,29.553875),4326),'滨江路下穿道','DEVICE',NOW(),0.72)
-ON CONFLICT DO NOTHING;
+-- R10 P2-11：原来用 ON CONFLICT DO NOTHING，改了隐患点名称/坐标后重跑不生效，
+-- 与下方设备表的 DO UPDATE 行为不一致。这里按 event_code 命中并覆盖可编辑字段。
+ON CONFLICT (event_code) DO UPDATE SET
+  name = EXCLUDED.name,
+  hazard_type = EXCLUDED.hazard_type,
+  risk_level = EXCLUDED.risk_level,
+  region_code = EXCLUDED.region_code,
+  owner = EXCLUDED.owner,
+  hazard_status = EXCLUDED.hazard_status,
+  longitude = EXCLUDED.longitude,
+  latitude = EXCLUDED.latitude,
+  geom = EXCLUDED.geom,
+  threat_object = EXCLUDED.threat_object,
+  detection_confidence = EXCLUDED.detection_confidence,
+  updated_at = NOW();
 
 -- ------------------------------------------------------------
 -- 2. 监测设备（8 台）
@@ -70,10 +84,17 @@ ON CONFLICT (device_code) DO UPDATE SET
   updated_at = NOW();
 
 -- ------------------------------------------------------------
--- 3. 演示前清理：归档上一轮未关闭的沙盘预警
---    ★ 必须做：RuleEngineScheduler 对 (ruleCode, hazardCode) 已存在未关闭预警时
---      不会再创建，导致二次演示"哑火"
+-- 3. 演示前重置（★ 顺序不能颠倒）
+--    a) 先删沙盘设备的指标：规则引擎取「各设备各指标最新一条」做研判，
+--       若只归档预警不删指标，重启后旧读数会立刻再补一条预警，
+--       下一轮剧本的 R001/R002 又会被「已存在未关闭预警」拦掉，表现就是"哑火"。
+--    b) 再归档未关闭预警：RuleEngineScheduler 对 (ruleCode, hazardCode)
+--       已存在未关闭预警时不会再创建。
+--    c) 清掉沙盘评分日志，避免前端风险曲线串场。
 -- ------------------------------------------------------------
+DELETE FROM device_metric
+ WHERE device_code LIKE 'SB-%' OR device_code LIKE 'WS-%';
+
 UPDATE warning_event
    SET status = '已解除',
        close_reason = '沙盘演示重置',
@@ -81,6 +102,9 @@ UPDATE warning_event
        updated_at = NOW()
  WHERE hazard_code LIKE 'HZ-SBOX-%'
    AND status NOT IN ('已关闭','已忽略','已解除');
+
+DELETE FROM risk_score_log
+ WHERE hazard_code LIKE 'HZ-SBOX-%';
 
 -- ------------------------------------------------------------
 -- 4. 注册结果自查（取消注释执行）

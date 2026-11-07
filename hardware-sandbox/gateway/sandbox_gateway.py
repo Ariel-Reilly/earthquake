@@ -4,9 +4,9 @@
 GL-Sandbox 边缘网关：把沙盘上的真实传感器读数换算成真实量纲，
 按 DisasterGuard 设备接入契约推送到 EMQX。
 
-    ESP32 节点 --串口--> [本网关: 标定 + 时间压缩 + 哨兵注入] --MQTT--> EMQX
-                                                                  --> Spring Boot
-                                                                  --> 规则引擎 / AI
+    ESP32 节点 --串口--> [本网关: 标定 + 时间压缩] --MQTT--> EMQX
+                                                            --> Spring Boot
+                                                            --> 规则引擎 / AI
 
 三种运行模式
 ------------
@@ -32,6 +32,7 @@ import random
 import sys
 import time
 from collections import deque
+from pathlib import Path
 
 try:
     import yaml
@@ -211,7 +212,6 @@ def build_payloads(raw: dict, cal: Calibrator, cfg, demo_sec: float) -> dict:
         },
         "WS-RIVER-01": {
             "water_level": round(water, 2),
-            "warning_level": float(c["warning_level_m"]),
             "rainfall_6h": round(r6, 2),
         },
         "SB-FLOOD-01": {
@@ -222,22 +222,9 @@ def build_payloads(raw: dict, cal: Calibrator, cfg, demo_sec: float) -> dict:
     return out
 
 
-def inject_sentinels(payloads: dict, cfg) -> dict:
-    """
-    ★ 注入哨兵指标。
-
-    后端 RuleEngineScheduler 有门控：
-        if (!metrics.containsKey(rule.getMetricCode())) continue;
-    而 warning_rule.metric_code 是组合键（rainfall_24h_disp 等），不是真实物理量。
-    不注入这些键，规则永远不会触发——这是沙盘接入最容易踩的坑。
-    """
-    for dev in cfg["devices"]:
-        code = dev["code"]
-        if code not in payloads:
-            continue
-        for s in dev.get("sentinels") or []:
-            payloads[code][s] = 1.0
-    return payloads
+# R10 P2-3：原 inject_sentinels（哨兵假指标注入）已彻底移除。
+# 后端 RuleEngineScheduler 按表达式里的真实指标求值，不再按 rule.metric_code 做前置门控；
+# 所有模式（serial / scenario / dryrun）都只上报真实物理量，不往 device_metric 灌脏数据。
 
 
 # ---------------------------------------------------------------- 数据源
@@ -308,6 +295,36 @@ def synthetic_raw(state):
 
 # ---------------------------------------------------------------- 发布
 
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+
+def _read_env_file(path: Path) -> dict:
+    out = {}
+    if not path.exists():
+        return out
+    for line in path.read_text(encoding="utf-8", errors="ignore").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        k, _, v = line.partition("=")
+        out[k.strip()] = v.strip().strip('"').strip("'")
+    return out
+
+
+def resolve_mqtt_credentials(cfg: dict) -> tuple[str, str]:
+    """按 config.yaml → 环境变量 → 项目根 .env 的顺序解析 MQTT 凭据。
+
+    EMQX 默认开启认证后，网关必须带凭据；把密码写进提交到仓库的 config.yaml
+    不合适，所以留空时自动回落到 .env（与会话里 docker-compose 用的是同一份）。
+    """
+    user = (cfg.get("username") or "").strip() or os.environ.get("DG_MQTT_USERNAME", "").strip()
+    pwd = (cfg.get("password") or "").strip() or os.environ.get("DG_MQTT_PASSWORD", "").strip()
+    if user:
+        return user, pwd
+    env = _read_env_file(PROJECT_ROOT / ".env")
+    return env.get("EMQX_USERNAME", "").strip(), env.get("EMQX_PASSWORD", "").strip()
+
+
 class Publisher:
     def __init__(self, cfg, print_only: bool):
         self.cfg = cfg["mqtt"]
@@ -321,9 +338,12 @@ class Publisher:
                         "      仅验证逻辑可加 --print-only")
             self.client = mqtt.Client(client_id=self.cfg.get("client_id"),
                                       protocol=mqtt.MQTTv311)
-            u = self.cfg.get("username")
+            u, p = resolve_mqtt_credentials(self.cfg)
             if u:
-                self.client.username_pw_set(u, self.cfg.get("password", ""))
+                self.client.username_pw_set(u, p)
+                print(f"[MQTT] 使用账号 {u} 连接（EMQX 已启用认证时需要）")
+            else:
+                print("[MQTT] 未找到 MQTT 凭据，按匿名连接；EMQX 若已开认证会直接被拒。")
             self.client.connect(self.cfg["host"], int(self.cfg["port"]),
                                 int(self.cfg.get("keepalive", 30)))
             self.client.loop_start()
@@ -419,8 +439,6 @@ def main():
             else:
                 raw = synthetic_raw(state)
                 payloads = build_payloads(raw, cal, cfg, demo_sec)
-
-            payloads = inject_sentinels(payloads, cfg)
 
             for dev in cfg["devices"]:
                 code = dev["code"]

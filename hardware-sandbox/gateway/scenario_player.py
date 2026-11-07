@@ -24,7 +24,7 @@ S1_LANDSLIDE = [
     (30,  dict(rain24=18.0, soil=48.0, disp_rate=0.4), dict(pump=35)),
     (90,  dict(rain24=31.0, soil=58.0, disp_rate=0.8), dict(pump=60)),
     (150, dict(rain24=46.0, soil=71.0, disp_rate=1.4), dict(pump=80)),
-    # 03:20  R001: rainfall_24h > 50 AND slope > 30  ->  黄色预警
+    # 03:20  R001: rainfall_24h > 50  ->  黄色预警（坡度条件已从生效规则移除）
     (200, dict(rain24=53.0, soil=79.0, disp_rate=2.2), dict(pump=90, stepper=10)),
     (240, dict(rain24=68.0, soil=85.0, disp_rate=3.6), dict(pump=100, stepper=35)),
     # 04:40  R002: rainfall_24h > 80 AND displacement_rate > 5  ->  橙色预警
@@ -47,7 +47,7 @@ S3_FLOOD = [
     (0,   dict(rain24=30.0, rain6h=20.0, water=170.0, pond=0.0), dict(drain=0)),
     (60,  dict(rain24=55.0, rain6h=55.0, water=172.5, pond=2.0), dict(pump=60)),
     (120, dict(rain24=88.0, rain6h=88.0, water=174.6, pond=6.0), dict(pump=85)),
-    # R003: water_level > warning_level(175.0) AND rainfall_6h > 100  ->  红色预警
+    # R003: water_level > 175.0 AND rainfall_6h > 100  ->  红色预警（阈值为规则参数，不上报）
     (170, dict(rain24=110.0, rain6h=105.0, water=175.8, pond=12.0), dict(pump=100, drain=1)),
     (200, dict(rain24=124.0, rain6h=118.0, water=176.9, pond=22.0), dict(pump=90, drain=1)),
     (240, dict(rain24=132.0, rain6h=125.0, water=177.5, pond=30.0), dict(pump=40, drain=1)),
@@ -159,8 +159,9 @@ class Scenario:
                 "rainfall_24h": round(rain24, 2),
             },
             "WS-RIVER-01": {
+                # R10 P1-3：警戒水位 175.0m 是规则参数（warning_rule.expression），
+                # 不是设备上报的物理量；不要再往 payload 里塞 warning_level。
                 "water_level": round(water, 2),
-                "warning_level": WARNING_LEVEL,
                 "rainfall_6h": round(rain6, 2),
             },
             "SB-FLOOD-01": {

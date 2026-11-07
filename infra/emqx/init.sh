@@ -16,6 +16,11 @@
 #
 # 现在的做法：先做能力探测（不需要 broker 在运行，`emqx ctl` 无参数只打印用法），
 # 只有 CLI 真的支持 authn 时才先起 broker 再初始化；否则如实告警，不等待、不撒谎。
+#
+# R10 P1-1（2026-11-06）：认证不再依赖 `emqx ctl`，改为「声明式环境变量 + 引导文件」
+#   （见文件底部 setup_authn）。EMQX 5.x 的 authentication 是 HOCON 配置项，
+#   可用 EMQX_AUTHENTICATION__1__* 覆盖，匿名连接会被拒绝。
+#   这修掉了 R4 记录、R10 端到端复现的「无凭据客户端可伪造设备数据」缺口。
 
 set -e
 
@@ -96,12 +101,48 @@ if _emqx_cli_supports_authn; then
   exit $?
 fi
 
-# ── 当前 EMQX 5.9.0 的实际路径：如实告警，然后直接启动 broker ──────────────
-echo "[emqx-init] WARNING: 当前 EMQX 版本的 CLI 不支持管理认证器（emqx ctl 无 authn 子命令）"
-echo "[emqx-init] WARNING: 跳过认证/ACL 初始化 —— MQTT 当前为默认放行（allow-all）"
-echo "[emqx-init] WARNING: EMQX_USERNAME/EMQX_PASSWORD 不参与鉴权，详见 docs/CODE_REVIEW_R4.md"
-echo "[emqx-init] ⚠ 认证初始化被跳过 —— 不要假定 MQTT 已鉴权（见上方 WARNING）"
-echo "[emqx-init] 已验证的开启方式（环境变量声明式认证）见 docs/CODE_REVIEW_R4.md 的 EMQX 小节"
+# ── 当前 EMQX 版本的实际路径：如实告警，然后直接启动 broker ──────────────
+# R10 P1-1：认证改为「声明式环境变量 + 引导文件」。
+#   EMQX 5.x 的 authentication 是 HOCON 配置项，可以用 EMQX_AUTHENTICATION__1__*
+#   覆盖，不需要 emqx ctl（5.9.0 确实没有 authn 子命令）。
+#   R4 已在独立容器实测：匿名被拒、错密码被拒、正确凭据收发正常。
+#
+#   引导文件必须满足两点，否则 broker 起不来：
+#     ① 不能带 UTF-8 BOM（会报 parse_authn_users_failed / bad_format）；
+#     ② 生成在 /opt/emqx/data（可写卷）而不是被只读挂载的 config 目录。
+AUTH_BOOTSTRAP="/opt/emqx/data/auth-bootstrap.csv"
+
+setup_authn() {
+  if [ -z "$USERNAME" ] || [ -z "$PASSWORD" ]; then
+    echo "[emqx-init] WARNING: 未提供 EMQX_USERNAME/EMQX_PASSWORD，跳过认证（allow-all）"
+    echo "[emqx-init] WARNING: 此时任意客户端可发布伪造设备数据，仅可用于本机演示"
+    return 0
+  fi
+
+  if [ "$PASSWORD" = "CHANGE_ME_emqx_secure_password_2024" ]; then
+    echo "[emqx-init] WARNING: 仍在用默认 MQTT 口令，生产环境必须替换（openssl rand -base64 24）"
+  fi
+
+  # printf 不会写 BOM；仅一个账号：username=EMQX_USERNAME
+  if ! printf 'user_id,password,is_superuser\n%s,%s,true\n' "$USERNAME" "$PASSWORD" > "$AUTH_BOOTSTRAP"; then
+    echo "[emqx-init] ERROR: 生成 $AUTH_BOOTSTRAP 失败，跳过认证（allow-all）"
+    return 0
+  fi
+  chmod 0644 "$AUTH_BOOTSTRAP" 2>/dev/null || true
+
+  export EMQX_AUTHENTICATION__1__MECHANISM=password_based
+  export EMQX_AUTHENTICATION__1__BACKEND=built_in_database
+  export EMQX_AUTHENTICATION__1__USER_ID_TYPE=username
+  export EMQX_AUTHENTICATION__1__PASSWORD_HASH_ALGORITHM__NAME=sha256
+  export EMQX_AUTHENTICATION__1__PASSWORD_HASH_ALGORITHM__SALT_POSITION=suffix
+  export EMQX_AUTHENTICATION__1__BOOTSTRAP_FILE="$AUTH_BOOTSTRAP"
+  export EMQX_AUTHENTICATION__1__BOOTSTRAP_TYPE=plain
+
+  echo "[emqx-init] ✓ 已启用内置数据库认证，账号: $USERNAME（匿名连接将被拒绝）"
+  echo "[emqx-init]   后端/沙盘网关必须带 EMQX_USERNAME / EMQX_PASSWORD，否则连不上"
+}
+
+setup_authn
 
 # ── 启动 EMQX 主进程 ──────────────────────────────────────────────────────
 # exec 替换当前 bash 为 EMQX，保持 PID=1，SIGTERM 等信号正常传递

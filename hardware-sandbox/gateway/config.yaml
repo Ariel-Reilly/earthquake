@@ -45,7 +45,9 @@ geo:
 mqtt:
   host: "127.0.0.1"
   port: 11883                     # EMQX 宿主机映射端口（容器 1883）
-  username: ""                    # EMQX 未开认证时留空
+  # EMQX 默认开启认证（R10 P1-1）。留空时网关会自动读取项目根 .env 的
+  # EMQX_USERNAME / EMQX_PASSWORD；也可用 DG_MQTT_USERNAME / DG_MQTT_PASSWORD 覆盖。
+  username: ""
   password: ""
   qos: 1
   client_id: "gl-sandbox-gateway"
@@ -70,7 +72,8 @@ calibration:
     base_m: 160.0                 # 沙盘水深 0mm 对应真实水位
     span_m: 20.0                  # 沙盘水深 80mm 对应 20m 变幅
     depth_mm: 80.0
-  warning_level_m: 175.0          # 嘉陵江警戒水位（R003 右值）
+  warning_level_m: 175.0          # 嘉陵江警戒水位——仅作沙盘档位对照，**不再作为指标上报**
+                                  # 平台侧阈值在 warning_rule.expression（R003），改阈值走规则管理页
   slope_deg: 32.0                 # 李子坝岸坡坡度（R001 右值）
   elevation_m: 245.0              # 坡体传感器高程
 
@@ -90,12 +93,12 @@ serial:
 
 # ------------------------------------------------------------
 # 设备清单
-#   metrics   : 真实物理量指标（进规则表达式）
-#   sentinels : 哨兵指标（★ 必填）
-#     后端 RuleEngineScheduler 有门控：
-#       if (!metrics.containsKey(rule.metricCode)) continue;
-#     规则不认识的组合键（如 rainfall_24h_disp）必须先存在，否则规则永不触发。
+#   metrics : 真实物理量指标（进规则表达式）
 #   同一隐患点下，同一 metric_code 只能由一台设备上报（否则互相覆盖，结果不确定）。
+#   ⚠️ R10 P2-3：原 sentinels「哨兵指标」机制已删除。
+#      它存在的理由是后端曾按 rule.metric_code 做前置门控；该门控已移除，
+#      规则现在按表达式里出现的真实指标求值，再注入 rainfall_24h_disp=1.0
+#      这类假指标只会污染 device_metric，不产生任何作用。
 # ------------------------------------------------------------
 devices:
   - code: "SB-RAIN-01"
@@ -104,7 +107,6 @@ devices:
     hazard: "HZ-SBOX-01"
     node: "Node-A"
     metrics: ["rainfall_1h", "rainfall_6h", "rainfall_24h", "rainfall_30d"]
-    sentinels: ["rainfall_24h_slope", "rainfall_24h_disp"]   # 开 R001 / R002
 
   - code: "SB-SOIL-01"
     name: "坡体土壤含水站"
@@ -112,7 +114,6 @@ devices:
     hazard: "HZ-SBOX-01"
     node: "Node-B"
     metrics: ["soil_moisture", "pore_pressure"]
-    sentinels: []
 
   - code: "SB-GNSS-01"
     name: "坡体位移站"
@@ -120,7 +121,6 @@ devices:
     hazard: "HZ-SBOX-01"
     node: "Node-B"
     metrics: ["displacement_rate", "displacement_total", "slope", "elevation_m"]
-    sentinels: []
 
   - code: "SB-INCL-01"
     name: "佛图关倾角站"
@@ -128,7 +128,6 @@ devices:
     hazard: "HZ-SBOX-02"
     node: "Node-C"
     metrics: ["tilt_angle"]
-    sentinels: []
 
   - code: "SB-CRACK-01"
     name: "佛图关裂缝计"
@@ -136,15 +135,13 @@ devices:
     hazard: "HZ-SBOX-02"
     node: "Node-C"
     metrics: ["crack_width", "crack_width_rate", "rainfall_24h"]
-    sentinels: ["crack_rate_rain"]                            # 开 R006
 
   - code: "WS-RIVER-01"
     name: "嘉陵江水位站"
     type: "water_level"
     hazard: "HZ-SBOX-03"
     node: "Node-A"
-    metrics: ["water_level", "warning_level", "rainfall_6h"]
-    sentinels: ["water_level_rain6h"]                         # 开 R003
+    metrics: ["water_level", "rainfall_6h"]
 
   - code: "SB-FLOOD-01"
     name: "滨江低洼积水站"
@@ -152,7 +149,6 @@ devices:
     hazard: "HZ-SBOX-04"
     node: "Node-A"
     metrics: ["ponding_depth", "rainfall_1h"]
-    sentinels: []
 
   # ---- C方案新增：执行器 + 视觉（下行控制 / 视频回传）----
   - code: "SB-LED-01"
@@ -161,7 +157,6 @@ devices:
     hazard: "HZ-SBOX-05"
     node: "Node-C"
     metrics: ["display_text", "display_color"]
-    sentinels: []
 
   - code: "SB-ALARM-01"
     name: "C区声光报警器"
@@ -169,7 +164,6 @@ devices:
     hazard: "HZ-SBOX-05"
     node: "Node-C"
     metrics: ["alarm_state"]
-    sentinels: []
 
   - code: "SB-SERVO-01"
     name: "A区滑坡舵机"
@@ -177,7 +171,6 @@ devices:
     hazard: "HZ-SBOX-01"
     node: "Node-A"
     metrics: ["servo_angle", "servo_speed"]
-    sentinels: []
 
   - code: "SB-PUMP-01"
     name: "B区微型水泵"
@@ -185,7 +178,6 @@ devices:
     hazard: "HZ-SBOX-03"
     node: "Node-B"
     metrics: ["pump_pwm", "flow_rate"]
-    sentinels: []
 
   - code: "SB-VALVE-01"
     name: "A区电磁阀(降雨)"
@@ -193,7 +185,6 @@ devices:
     hazard: "HZ-SBOX-01"
     node: "Node-A"
     metrics: ["valve_state"]
-    sentinels: []
 
   - code: "SB-CAM-01"
     name: "A区摄像头"
@@ -201,7 +192,6 @@ devices:
     hazard: "HZ-SBOX-01"
     node: "Node-A"
     metrics: ["ai_confidence", "ai_label"]
-    sentinels: ["ai_disp"]                                    # 开 AI+位移组合规则
 
   - code: "SB-CAM-02"
     name: "B区摄像头"
@@ -209,7 +199,6 @@ devices:
     hazard: "HZ-SBOX-03"
     node: "Node-B"
     metrics: ["ai_confidence", "ai_label"]
-    sentinels: []
 
 # ------------------------------------------------------------
 # 上报节奏

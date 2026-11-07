@@ -116,7 +116,7 @@
 | 反馈学习 | FeedbackStore（deque(maxlen=10000)）+ `/feedback` + `/model/retrain` |
 | 卫星影像 | Sentinel-1/2 合成图层（`/sentinel` 路由器，`/image`、`/layers`、`/composite`） |
 | 社交媒体 | 社交媒体灾害预警聚合（`/social_media` 路由器）|
-| 部署     | Docker（独立容器 `ai-service`，端口 8000）                  |
+| 部署     | Docker（独立容器 `ai-service`，端口 8001）                  |
 
 > AI 服务为**可选增强**：模型/依赖缺失也能启动并返回 mock 结果，后端降级为纯规则模式，不影响既有业务。Python 端 `app/training/train_xgboost.py` 已可基于合成数据 + FeedbackStore 一键训练真实模型文件 `models/xgboost_fusion.json`。
 
@@ -179,7 +179,7 @@
 └──────┬───────────────────────────────────────┘
        │ REST
 ┌──────▼──────────────────────────────────────┐
-│  AI 推理服务 ai-service (FastAPI, 8000)      │
+│  AI 推理服务 ai-service (FastAPI, 8001)      │
 │  detect / forecast / anomaly / fusion-risk  │
 └──────┬──────────────────────────────────────┘
        │
@@ -504,7 +504,7 @@ docker compose up -d postgres redis minio emqx tdengine backend frontend
 | EMQX Dashboard   | 28083      | 18083      | Web 管理界面                 |
 | TDengine TCP     | 16030      | 6030       | 时序数据原生协议             |
 | TDengine HTTP    | 16041      | 6041       | 时序数据 REST API            |
-| AI 推理服务      | 8000       | 8000       | FastAPI（可选）              |
+| AI 推理服务      | 8001       | 8001       | FastAPI（可选）              |
 
 > 生产模式（`docker-compose.prod.yml`）覆盖后端端口为 8081、前端为 80。
 
@@ -1012,7 +1012,7 @@ ai-service 返回 snake_case 字段，DTO 通过 `@JsonAlias` 解反序列化、
 | GET    | `/api/ai/analysis?businessType=&businessCode=` | 查询 AI 分析记录 |
 | DELETE | `/api/ai/analysis/{id}`                        | 删除 AI 分析记录 |
 
-#### AI 服务自身接口（`ai-service`，端口 8000）
+#### AI 服务自身接口（`ai-service`，端口 8001）
 
 | 方法 | 路径                  | 说明                         |
 | ---- | --------------------- | ---------------------------- |
@@ -1592,7 +1592,7 @@ services:
 10. **已落地项（持续闭环）**：导出（EasyExcel 真实 xlsx）、附件 MinIO 真实写入、方法级授权（`@PreAuthorize`）、设备数据上报链路、预警规则引擎、仪表盘真实聚合、**预警状态机补全**（六态）、**橙/红预警派发自动联动生成应急事件**（三层幂等防御：exists 检查 + PG 部分唯一索引 + DataIntegrityViolationException 兜底）、**值守人员完整链路**（Redis 实时缓存 + `POST /positions/report` + WebSocket 广播）、**WebSocket 实时推送 + 一次性 ticket 鉴权**（前端自动先调 `GET /api/auth/ws-ticket`，失败 fallback raw JWT；WS URL 未配置时从 `VITE_API_BASE_URL` 自动推导 http→ws、/api→/ws）、**EMQX MQTT 桥接 + 启动鉴权预检 + broker 侧认证初始化**（`EmqxSecurityPreflight` 预检 + `infra/emqx/init.sh` 首次启动创建 MQTT 认证用户）、**TDengine 接入主链路 + compile scope 自动打包（无需手动部署驱动）**、**设备数据上报鉴权 + 严格模式**、**设备离线自动心跳**（`DeviceOnlineChecker` 每 60s 扫描 `last_report_at` 超 5min 的在线设备置离线并广播）、**JWT 弱密钥 fail-fast**（启动时校验 ≥32 字符 + 精确黑名单 + 正则强度校验（纯数字/纯字母/全同字符），失败应用启动崩溃）、**DB 用户认证替代内存 fallback**、**登录密码真实验证**、**后端 AI 全链路**、**前端 AI 展示**、**前端 Docker 生产部署**（多阶段构建：node:22-alpine 构建 + nginx:1.27-alpine 运行，反向代理 `/api` 和 `/ws`，同域部署无需 CORS）、**分页结构统一**（废弃 `PagedResponse`，所有接口统一返回 `PageResponse{records,total,page,size,pages}` 五字段）、**EMQX entrypoint 自动初始化**（broker 首次启动自动执行 `init.sh` 创建 MQTT 认证用户）、**设备数据双通道去重**（PG 唯一索引 + catch DataIntegrityViolationException）、**预警规则引擎去重优化**（仓储方法索引查询替代全表扫描）、**附件 URL 自动刷新**（每次详情访问生成新 presigned URL + 显式 refresh-url 端点）、**规则引擎 AI 融合落 risk_score_log**（因子快照 JSONB，用于模型迭代回溯）、**AI 预警强制人工复核**（AI/规则输出均生成"待确认"状态预警，不自动派发）、**OperationLogAspect 审计**（AOP 自动记录所有写操作）、**MinIO 弱密钥 fail-fast**（prod 模式下检测默认凭证阻断启动）、**WebSocket require-ticket 强制模式**（prod 推荐禁用 raw JWT fallback）、ProductionConfigValidator（prod 下 7 项安全配置 fail-fast）、EMQX init.sh 3 次重试 + entrypoint 失败阻断、Dockerfile.backend/frontend 完整多阶段构建、POST /api/auth/change-password 端点补全、种子用户密码 BCrypt hash 校验、应用配置 prod profile 强制安全默认值、健康检查端点默认检测 PostgreSQL（SELECT 1）、索引冗余清理（idx_device_metric_code_time 已删除，唯一索引覆盖查询）、DeviceDataService TDengine 3 次指数退避重试、risk_score_log 补充 source 列（AI_FUSED / RULE_ONLY）、**设备指标自动清理**（DeviceMetricCleanupScheduler，默认 30 天保留）、**AI 自动取数端点**（`GET /forecast/auto` 从 DB 拉历史、`GET /fusion-risk/auto` 聚合 hazard+设备真实因子，前端 HazardDetail/WarningDetail 直接消费）、**规则引擎去重批量预取**（`findOpenWarnings` 一次性构建 `rule|hazard` 集合，替代循环 exists）、**WarningCreateService 两阶段事务**（规则引擎内部 `this` 调用绕过 AOP 代理，委托独立 bean 保证 @Transactional；AI 评分放事务外、DB 写事务内原子）、**预警 source 列 + AI_DEGRADED 标记**、**AiForecastScheduler 类级固定线程池复用**（daemon 线程 + CountDownLatch 5min 兜底）、**AsyncConfig 显式线程池**（有界队列 + CallerRunsPolicy，防默认 SimpleAsyncExecutor 无限建线程）、**设备侧时间戳去重**（ts/recorded_at/timestamp 解析，兼容 epoch 秒/毫秒/ISO/「yyyy-MM-dd HH:mm:ss」）、**MQTT 独立消费线程池**（有界队列 1000 + 丢弃最旧告警 + clientId 随机后缀）、**TDengine init.sql + healthcheck + 熔断器**（容器首启建库建表，连续失败 30s 熔断自愈）、**值守人员上报限本人**（JWT.username 与 userId 一致性校验，管理员可代报）、**Redis SCAN 遍历**（替代 KEYS * 防阻塞生产 Redis）、**后端新增 SettingsPage + 运行模式角标**、**总览/应急导出**（dashboard export + emergency export + 应急 POST /{id}/close 闭环语义）、**附件上传安全加固**（50MB 上限 + 扩展名白名单 + 文件名清洗 + UUID objectKey + 上传者取 SecurityContext）、**RedisConfig 显式连接工厂**（修复 Lettuce 自动配置缺 bean）、**ESLint 10 扁平配置**（`npm run lint` / `lint:fix`）、**ai-service CORS 可配置**（`AI_CORS_ORIGINS` 环境变量）、**值守人员 DB fallback 预加载**（executor→task、inspector→最近签到、hazard→坐标 三张索引预加载，避免 N+1）。**剩余缺口**：**真实 AI 模型文件**（需放入 `ai-service/models/`，训练脚本已就绪，可用合成数据快速演示）、EMQX broker TLS 证书（broker 自身配置，代码已预留 username/password 鉴权）、数据库迁移工具引入（当前依赖 spring.sql.init 幂等执行，复杂变更建议后续引入 Flyway）。生产环境首次部署需手动执行 schema.sql + data.sql（prod 禁用 spring.sql.init），详见 §14 第 43 条。
 11. **schema.sql 限制**：`spring.sql.init` 无法解析 PL/pgSQL `$$` 块（ScriptUtils 按分号切分），因此触发器/函数不要放进 `schema.sql`；既卷外键补齐统一走 `DatabaseForeignKeyInitializer`。
 12. **Java 记录/命名**：后端大量使用 `record`（DTO），修改字段后注意前端字段名一致性（驼峰 vs 下划线）。
-13. **AI 服务**：独立 `ai-service`（FastAPI，端口 8000）。模型/依赖缺失时服务仍可启动并返回 mock 结果；后端 `AI_ENABLED=false` 或 AI 服务不可用时自动降级为纯规则模式。部署前需能拉取 `python:3.11-slim` 基镜像与推理依赖（onnxruntime/torch/xgboost 体积较大）。
+13. **AI 服务**：独立 `ai-service`（FastAPI，端口 8001）。模型/依赖缺失时服务仍可启动并返回 mock 结果；后端 `AI_ENABLED=false` 或 AI 服务不可用时自动降级为纯规则模式。部署前需能拉取 `python:3.11-slim` 基镜像与推理依赖（onnxruntime/torch/xgboost 体积较大）。
 14. **AI 人工复核**：AI 输出（detect/forecast/anomaly/fusion）定位为辅助决策，必须人工复核后才进入正式预警流程；结果持久化于 `ai_analysis_result` 便于审计。
 15. **方法级权限**：`SecurityConfig` 已启用 `@EnableMethodSecurity`，`JwtAuthenticationFilter` 从 `PermissionRegistry` 按角色注入权限码 authority。写/删/导出等关键接口标注了 `@PreAuthorize`；权限码与前端 `ROLE_PERMISSION_MAP` 一致。未带对应权限的调用返回 403。
 16. **预警规则引擎**：`RuleEngineScheduler` 默认每 30s 评估，顶层 try-catch 兜底（单轮异常不终止后续调度）。规则命中后委托 `WarningCreateService` 创建（两阶段：事务外 AI 融合 + 事务内写库），AI 服务未部署时日志会出现 `AI 融合评分不可用，沿用规则等级` 的 WARN（属预期降级，不影响触发）；此时 `risk_score_log` 仍会写 RULE_ONLY 记录。同 `(rule,hazard)` 未闭环前不重复触发（批量预取集合判重）。
@@ -2214,7 +2214,7 @@ public ApiResponse<Map<String, Object>> composeSentinel(@RequestBody Map<String,
 
 > 当前 Java 侧仅在 §7.11「AI 服务自身接口」列表中给出 Sentinel 端点 URL；
 > 前端 `services/_architecture/core/sentinelService.js` 默认 base 是 `import.meta.env.VITE_AI_SERVICE_BASE || '/api/ai'`，
-> 生产部署时通过 Nginx 反向代理 `/api/ai/sentinel/*` 到 ai-service 容器 8000 端口。
+> 生产部署时通过 Nginx 反向代理 `/api/ai/sentinel/*` 到 ai-service 容器 8001 端口。
 
 ### 16.8 降级与故障排查
 
@@ -2235,7 +2235,7 @@ public ApiResponse<Map<String, Object>> composeSentinel(@RequestBody Map<String,
 | ai-service | `SENTINEL_CDN_BASE` | 建议指向 OSS / MinIO 公网桶 |
 | ai-service | `SENTINEL_STORAGE_DIR` | 挂载独立数据卷，避免 `/tmp` 满 |
 | 前端 | `VITE_AI_SERVICE_BASE` | 生产建议 `/api/ai`（Nginx 反代），与其它 AI 端点统一 |
-| 基础设施 | Nginx 反向代理 `/api/ai/sentinel` → ai-service:8000 | 避免浏览器 CORS |
+| 基础设施 | Nginx 反向代理 `/api/ai/sentinel` → ai-service:8001 | 避免浏览器 CORS |
 
 ### 16.10 单元测试
 
@@ -3100,7 +3100,7 @@ mvn spring-boot:run
 
 # 3. 启动 Python AI 服务
 cd ai-service
-python -m uvicorn app.main:app --reload --port 8000
+python -m uvicorn app.main:app --reload --port 8001
 
 # 4. 启动前端
 cd ..
@@ -3880,6 +3880,231 @@ pwsh scripts/env/check-ports.ps1
 - ❌ 新增大型中间产物（模型 / checkpoint / 数据卷）前先确认 `.gitignore` 是否覆盖
 - ❌ 提交前跑 `git status --ignored`，确认无新增 ignored 文件"漏出来"
 - ❌ 任何包含密码 / token / 私钥的文件请走 `.env.local`（已在 gitignore）
+
+### 28.7 前端随机数据约定（`Math.random()` 门禁）
+
+> **约定：`Math.random()` 仅允许用于动画与 mock 数据，业务逻辑必须使用确定性随机或真实数据源。**
+
+门禁脚本：`scripts/audit/check-math-random.mjs`，扫描 `frontend/src/**` 下的 `.js/.mjs/.ts/.vue`。
+
+| 允许范围 | 白名单路径（相对 `frontend/src`） |
+|---|---|
+| 动画组件 | `components/animation/**`（新建动画统一放这里）；存量 `components/` 任意层级 `Animated*.vue`、`components/common/SkeletonTable.vue`（骨架屏占位宽度，纯视觉） |
+| 演示 / Mock 数据 | `services/mock/**` |
+
+判定口径：整行是注释时出现的 `Math.random()` 只是说明文字，不计入违规；其余任何调用都会让门禁以退出码 1 失败。
+业务上确实需要「随机」时，用固定 seed 的伪随机（见 `services/_architecture/domain/deviceMapService.js`），
+或直接取真实接口数据，不得用 `Math.random()` 伪造 KPI、坐标、趋势、置信度等业务字段。
+
+```bash
+node scripts/audit/check-math-random.mjs              # 门禁；违规退出码 1
+node scripts/audit/check-math-random.mjs --self-test   # 自检白名单与注释判定
+```
+
+> ⚠ 该门禁目前是**独立脚本**，尚未挂到 CI、`package.json` scripts 或 `npm test`；
+> 不手动运行就不会拦截新增违规。接入聚合入口前请按上面的命令自查。
+
+2026-11-06 实测：自检 13/13 通过；全量扫描 144 个文件、白名单 11 个、违规 0 处；
+故意在非白名单目录注入一次 `Math.random()` 后门禁正确报 `[FAIL]` 并退出 1，删除探针后恢复 0。
+
+---
+
+## 29. JwtBlacklist 验证（Redis 吊销端到端）
+
+> 2026-11-06 实测章节。`JwtBlacklist` 已由单机内存改为 Redis 主存储，本节的结论**不是编译级推断**，
+> 而是在后端进程 + Redis 容器真实运行的情况下，由脚本逐条打出来的。
+
+### 29.1 验证脚本
+
+`scripts/audit/verify-jwt-blacklist.ps1`（Windows PowerShell 5.1，纯 ASCII）：
+
+```powershell
+# 前置：依赖容器已起（含 disasterguard-redis），后端监听 8080
+cd D:\Projects\DisasterGuard
+powershell -ExecutionPolicy Bypass -File scripts\audit\verify-jwt-blacklist.ps1
+
+# 自定义基址 / 口令 / 受保护接口
+powershell -ExecutionPolicy Bypass -File scripts\audit\verify-jwt-blacklist.ps1 `
+  -BaseUrl http://127.0.0.1:8080/api -RedisPassword $env:REDIS_PASSWORD
+```
+
+参数默认值：`-BaseUrl http://localhost:8080/api`、`-Username admin`、`-Password admin123`、
+`-RedisContainer disasterguard-redis`、`-ProtectedPath /warnings?page=1&size=1`、
+`-TtlToleranceSeconds 10`。Redis 口令取 `$env:REDIS_PASSWORD`，未设置时回落到
+`application.yml` / `docker-compose.yml` 的 dev 默认值。脚本显式清空 `DefaultWebProxy`，
+避免机器上的 `HTTP_PROXY` 把 127.0.0.1 的请求转走。
+
+退出码：`0` = 全部通过；`1` = 有断言失败；`2` = 前置被阻断（后端 / Redis / 登录不可达）。
+
+### 29.2 验证链路（7 步 / 10 条断言）
+
+| # | 动作 | 断言 |
+|---|---|---|
+| 0 | `GET /api/system/health` | HTTP 200，后端可达 |
+| 1 | `POST /api/auth/login` | 返回 JWT，解析出 `jti` 与 `exp` |
+| 2 | 用该 token `GET /api/warnings?page=1&size=1` | HTTP 200（吊销前可用） |
+| 3 | `POST /api/auth/logout`（带 `Authorization`） | 端点可达并触发 `JwtService#revoke` |
+| 4 | `redis-cli --scan --pattern 'jwt:blacklist:*'` | 命中 `jwt:blacklist:{jti}` |
+| 5 | `GET` / `TTL` 该 key | value = `"1"`；TTL ≈ `exp - now` |
+| 6 | 被吊销 token 再访问受保护接口 | **HTTP 401** |
+| 7 | 重新登录拿新 token 访问同一接口 | HTTP 200（吊销按 `jti` 隔离，不是全局封禁） |
+
+### 29.3 2026-11-06 实测结果
+
+环境：Windows 11 / Windows PowerShell 5.1 / Spring Boot 3.4（dev profile，宿主机直跑）/ `disasterguard-redis`（redis:7-alpine，healthy）/ `JWT_EXPIRE=PT24H`。
+
+```
+== JwtBlacklist Redis E2E verification ==
+[PASS] backend reachable -- GET /system/health -> HTTP 200
+[PASS] login returns JWT -- user=admin, tokenLength=283
+[PASS] JWT carries jti and exp -- jti=943d3f20-e325-4a49-a8c7-3fb8e3869b24 exp=1794040433
+[PASS] valid token accepted before logout -- GET /warnings?page=1&size=1 -> HTTP 200
+[PASS] logout endpoint succeeded -- response code=0
+[PASS] Redis holds the exact revoked key -- exactKey=jwt:blacklist:d3792486-4097-46b6-b031-842e0c842420 scanned=3
+[PASS] Redis value is "1" -- GET jwt:blacklist:d3792486-... -> '1'
+[PASS] TTL equals remaining JWT lifetime -- TTL=86399s expectedRemaining=86400s exp=1794048990 tolerance=+/-10s
+[PASS] revoked token rejected with 401 -- GET /warnings?page=1&size=1 -> HTTP 401
+[PASS] fresh login still works (jti-scoped) -- new tokenLength=283 HTTP 200
+------ Summary ------  PASS=10 FAIL=0
+[CLEANUP] DEL jwt:blacklist:d3792486-4097-46b6-b031-842e0c842420 -> deleted=1
+Verdict: PASSED - login -> revoke -> Redis key/TTL -> 401 verified end to end.
+```
+
+`scanned=3` 是「库里同时有 3 个 `jwt:blacklist:*`」的计数（2 个更早轮次的残留 + 本次 1 个），
+断言已改为 `-contains $expectedKey` 的**精确比对**，不会因为库里存在任意 key 就误判通过；
+脚本收尾会 `DEL` 本次写入的 key（`deleted=1`），避免跨轮堆积。需要保留现场排查时设置环境变量
+`KEEP_REDIS_KEY=1` 再运行。
+
+| 项目 | 实测值 |
+|---|---|
+| Redis key | `jwt:blacklist:d3792486-4097-46b6-b031-842e0c842420`（精确命中本次 `jti`） |
+| Redis value | `1` |
+| TTL | `86399 s`（JWT 剩余 `86400 s`，误差 1 s；24 h 上限未超） |
+| 吊销前后 HTTP | `200 → 401` |
+| 新 token | `200`，证明只吊销该 `jti` |
+| 收尾清理 | `DEL` 本次 key，`deleted=1`；脚本结束不残留 |
+| 全量 `mvn test` | 104/104 通过（R8 补 5 个 `JwtBlacklistTest` 降级单测后由 99 升到 104） |
+
+### 29.4 实测中暴露并修复的阻塞缺陷（必读）
+
+第一次执行脚本时第 3 步被阻断：`POST /api/auth/logout` 稳定返回 **403**，
+`JwtBlacklist#revoke` 从未被调用，Redis 里也不可能出现 key。根因：
+
+- `JwtAuthenticationFilter#shouldNotFilter` 显式跳过 `/api/auth/logout`（控制器改为自行从
+  `Authorization` 头验签），但 `SecurityConfig`（`!prod`）与 `SecurityConfigProd`（`prod`）的
+  `anyRequest().authenticated()` 仍要求已认证身份 → 请求在进控制器之前就被 403 拦下；
+- 前端 `dashboardApi.js:168` 的 `request("/auth/logout", ...).catch(() => null)` 把 403 静默吞掉，
+  所以「点退出看起来成功、服务端 token 其实还有效」。
+
+已在两套 SecurityConfig 中把 `/api/auth/logout` 加入 `permitAll`。该端点本身是安全的：
+无 token / 无效 token 时控制器只做空操作并返回成功，只有持有合法 JWT 才能吊销**该 JWT 自身**。
+修复后重启后端，脚本 10/10 全通过。**任何后续改动安全配置时，必须重跑本脚本**，
+否则「登出即吊销」会再次静默失效。
+
+> 边界：本节只证明 Redis 主存储这条链路。Redis 宕机时降级为单机内存的 WARN 分支
+> 仍是代码级核证，未做断网实测；多副本共享吊销也只由「同一个 Redis key」这一事实推断，未起多实例验证。
+
+### 29.5 手工核查 Redis 的坑：口令没注入会得到「假 0」
+
+`disasterguard-redis` 是带密码的（口令见 `.env` 的 `REDIS_PASSWORD`）。容器内**没有**导出的
+`REDIS_PASSWORD` 环境变量，所以下面这种写法会在 `sh -c` 里把 `REDISCLI_AUTH` 展开成空串：
+
+```bash
+# ✗ 错误：WRONGPASS 错误只走 stderr，被 2>/dev/null 吞掉后 wc -l 得到 0
+docker exec disasterguard-redis sh -c 'REDISCLI_AUTH=$REDIS_PASSWORD redis-cli --scan --pattern "jwt:blacklist:*" | wc -l'
+```
+
+实际报 `AUTH failed: WRONGPASS`，而 `wc -l` 统计的是空输入 → 输出 `0`，
+看起来像「库里没有黑名单 key」，实际是**根本没查成**。正确写法是从宿主机 `.env` 取口令注入容器：
+
+```bash
+set -a && . ./.env && set +a
+docker exec -e REDISCLI_AUTH="$REDIS_PASSWORD" disasterguard-redis \
+  redis-cli --scan --pattern 'jwt:blacklist:*'
+```
+
+排查时要盯 stderr：只要出现 `AUTH failed` / `NOAUTH`，这一行的计数就**不可信**。
+2026-11-06 复核时正是这条假 0 掩盖了 2 个更早轮次留下的 key（TTL 分别约 22.3 h / 21.6 h，
+会自然过期；R8 之前的脚本没有收尾清理）。当前脚本已自带清理，新跑不会再加残留。
+
+---
+
+## 30. 沙盘接入与预警链路端到端（2026-11-06）
+
+本节记录「物理沙盘 → 平台 → 预警」这条链路的真实跑法与当轮修掉的断点。
+链路本身没有 Mock：数值来自剧本（无硬件时）或 ESP32 串口（有硬件时），
+其余每一跳都是生产组件。
+
+### 30.1 数据路径
+
+```
+scenario_player.py / ESP32 串口
+  → sandbox_gateway.py（标定 + 时间压缩 + 哨兵注入）
+  → EMQX :11883   topic = disasterguard/{deviceCode}/data
+  → MqttDataSubscriber（独立消费线程池，队列满丢最旧）
+  → DeviceDataService.ingest → device_metric（PostgreSQL）
+  → RuleEngineScheduler（cron 5s，取各设备各指标最新值求值）
+  → WarningCreateService（规则命中 → AI 融合评分 xgboost v3 → 落库）
+  → warning_event + risk_score_log + ai_analysis_result
+  → RealtimeBroadcastService → 前端 WebSocket
+```
+
+对应代码：`hardware-sandbox/gateway/`、`device/mqtt/MqttDataSubscriber`、
+`device/service/DeviceDataService`、`warning/engine/RuleEngineScheduler`、
+`warning/engine/WarningCreateService`。
+
+### 30.2 启动三件套
+
+```bash
+# 1) 基础设施
+docker compose up -d
+
+# 2) 后端（三个环境变量都不能省）
+cd backend && set -a && . ../.env && set +a
+export EMQX_ENABLED=true                                   # 默认已是 true，.env 若为 false 会覆盖
+export DISASTERGUARD_WARNING_RULE_ENGINE_CRON='*/5 * * * * *'   # 默认 30s，演示太慢
+bash ../scripts/audit/mvn.sh spring-boot:run
+
+# 3) 体检 + 跑剧本
+ai-service/.venv/Scripts/python.exe scripts/demo/sandbox_e2e.py --check
+ai-service/.venv/Scripts/python.exe scripts/demo/sandbox_e2e.py --scenario s1 --reset
+```
+
+### 30.3 本轮修正的断点（都是"链路看着通、其实不通"的类型）
+
+| # | 问题 | 表现 | 处理 |
+|---|------|------|------|
+| 1 | `emqx.enabled` 默认 false | 沙盘数据一条都进不来，日志只有一行「EMQX 桥接已禁用」 | 默认改 `true`；broker 不可达时只 WARN 重试，不阻塞启动 |
+| 2 | 复合规则返回值取"最后一个命中条件" | R002 落库成 `rainfall_24h=5.85`，5.85 其实是位移速率 | 求值器改为保留首个条件（主指标）的值 |
+| 3 | 规则引擎取最新值无时间窗口 | 设备停机/换场景后，几小时前的读数继续参与研判 | 新增 `metric-stale-minutes`（默认 60），超期指标不参与 |
+| 4 | R003 用 `water_level > 25` | 沙盘水位是 160–180 m 高程口径，开场即红色预警 | 恢复 `water_level > warning_level AND rainfall_6h > 100`，跟随设备上报的警戒水位 |
+| 5 | R004 阈值 `tilt_angle > 3` | 现场倾角常态 3.2–3.8°，坡体未变形也持续报蓝色预警 | 阈值改为 5° |
+| 6 | `ai_analysis_result.result_json` 是 jsonb，实体按 varchar 绑定 | 写库抛类型错误 → AI 融合整条链路降级为 RULE_ONLY；该表长期 0 行 | 实体补 `@JdbcTypeCode(SqlTypes.JSON)` |
+| 7 | `model_name` 外键指向 `ai_model(model_code)`，AI 返回 `xgboost-fusion-v3` | 违反 `fk_ai_result_model`，融合结果丢弃 | 保存前归一化（连字符→下划线、去 `_v<N>`），未登记则置 null 并告警 |
+| 8 | `saveRecord` 排在 `aiAvailable = true` 之前 | 审计记录写失败会连带判定 AI 不可用 | 先置成功标记，再单独 catch 持久化异常 |
+| 9 | 演示重置只归档预警、不清指标 | 重启后旧读数立刻补一条预警，下一轮同规则被拦，表现为"哑火" | 重置改为「清指标 → 归档预警 → 清评分日志」，顺序不可颠倒 |
+| 10 | 演练脚本用 PIPE 接网关输出却不消费 | 管道写满后网关阻塞在 write，数据中途停且无任何报错 | 网关输出改写入临时日志文件 |
+| 11 | `register_devices.py` 默认连 `postgres/postgres` | 与 compose 里的 `disasterguard` 用户不符，直接连不上 | 默认值改为读 `POSTGRES_*` 环境变量 |
+| 12 | `requirements.txt` 写 `xgboost==2.1.3`，模型文件是 **3.4.1** 导出 | 2.x 加载 3.x 的 json **不报错、`degraded` 仍为 false，但 predict 恒返回 0.0** —— 预警照出、`source=AI_AUTO`，只是评分全是 0 分 | 依赖对齐为 `xgboost==3.4.1`，评分恢复 18.24（与 3.x 环境一致） |
+
+> 第 12 条是最难发现的一类：链路每一环都"成功"，日志没有任何 WARN，
+> 只有把 `risk_score_log.score` 与预期值对一遍才会露出来。
+> 排查 AI 评分异常时，先 `curl POST /api/ai/fusion-risk` 看原始返回，
+> 再核对 `ai-service/models/*.json` 顶层 `version` 字段与 `xgboost.__version__` 是否一致。
+
+### 30.4 实测结果（S1 暴雨型滑坡，164 轮 × 2s）
+
+| 规则 | 等级 | trigger_value | 来源 | AI 评分 |
+|------|------|---------------|------|---------|
+| R001 滑坡黄色（24h 雨量） | 黄色预警 | `rainfall_24h=50.23` | AI_AUTO | 10.14 / LOW |
+| R005 位移速率黄色 | 黄色预警 | `displacement_rate=5.02` | AI_AUTO | 17.14 / LOW |
+| R002 滑坡橙色（雨量+位移） | 橙色预警 | `rainfall_24h=80.09` | AI_AUTO | 18.24 / LOW |
+
+其余剧本同样验证过：S3 江洪在「水位 175.47 > 警戒 175.0 且 6h 雨量 105 > 100」时
+才出红色预警（R003）；S2 危岩在倾角 3.68° 时保持静默、5.03° 才出蓝色（R004）。
+
+> ⚠ AI 评分来自 `eval_dataset=synthetic` 训练的 xgboost v3，`LOW` 不代表现场低风险，
+> 只能说明"该模型在这组合成特征下给分较低"。对外汇报时不要把它当作真实精度。
 
 ---
 
