@@ -24,6 +24,58 @@ from app.models.isolation_forest import get_detector
 router = APIRouter(prefix="/api/ai", tags=["anomaly"])
 
 
+# 单条 /anomaly 与批量 /anomaly/batch 共用同一套输入归一化，避免单条修好、批量仍 422。
+def _flag_one_dimensional_input(values):
+    """由输入形态自动判定一维输入，不接受客户端伪造 input_was_1d。"""
+    if isinstance(values, dict):
+        raw = values.get("data")
+        is_1d = isinstance(raw, list) and bool(raw) and all(
+            isinstance(x, (int, float)) and not isinstance(x, bool) for x in raw
+        )
+        return {**values, "input_was_1d": is_1d}
+    return values
+
+
+def _normalize_data_shape(v):
+    """把一维标量序列归一化成 5 维样本矩阵，兼容 Java 侧旧契约。
+
+    只做几何补齐，不生成新的业务数值：每个标量在 5 个特征位上重复，
+    IsolationForest 缺少真实多维输入时由路由响应的 mock 字段如实反映。
+    """
+    if not isinstance(v, list) or not v:
+        return v
+    out = []
+    for item in v:
+        if isinstance(item, bool):
+            return v
+        if isinstance(item, (int, float)):
+            out.append([float(item)] * 5)
+        elif isinstance(item, (list, tuple)):
+            try:
+                out.append([float(x) for x in item])
+            except (TypeError, ValueError):
+                return v
+        else:
+            return v  # 交给 Pydantic 报类型错误，别静默吞掉
+    return out
+
+
+def _check_data_shape(v: List[List[float]]) -> List[List[float]]:
+    if len(v) < 3:
+        raise ValueError("data 至少需要 3 个样本")
+    if isinstance(v[0], list):
+        dim = len(v[0])
+        if dim != 5:
+            raise ValueError(
+                f"每行应为 5 维特征向量，实际为 {dim} 维；"
+                "一维标量序列会自动补齐成 5 维（结果标为 mock）"
+            )
+        for i, row in enumerate(v):
+            if len(row) != dim:
+                raise ValueError(f"第 {i} 行维度 ({len(row)}) 与第一行 ({dim}) 不一致")
+    return v
+
+
 class AnomalyRequest(BaseModel):
     device_code: str = Field(min_length=1, description="设备编码")
     data: List[List[float]] = Field(
@@ -40,58 +92,17 @@ class AnomalyRequest(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def flag_one_dimensional_input(cls, values):
-        if isinstance(values, dict):
-            raw = values.get("data")
-            is_1d = isinstance(raw, list) and bool(raw) and all(
-                isinstance(x, (int, float)) and not isinstance(x, bool) for x in raw
-            )
-            values = {**values, "input_was_1d": is_1d}
-        return values
+        return _flag_one_dimensional_input(values)
 
     @field_validator("data", mode="before")
     @classmethod
     def normalize_data_shape(cls, v):
-        """把一维标量序列归一化成 5 维样本矩阵，兼容 Java 侧旧契约。
-
-        只做几何补齐，不生成新的业务数值：每个标量在 5 个特征位上重复，
-        IsolationForest 缺少真实多维输入时由路由响应的 mock 字段如实反映。
-        """
-        if not isinstance(v, list) or not v:
-            return v
-        out = []
-        for item in v:
-            if isinstance(item, bool):
-                return v
-            if isinstance(item, (int, float)):
-                out.append([float(item)] * 5)
-            elif isinstance(item, (list, tuple)):
-                try:
-                    out.append([float(x) for x in item])
-                except (TypeError, ValueError):
-                    return v
-            else:
-                return v  # 交给 Pydantic 报类型错误，别静默吞掉
-        return out
+        return _normalize_data_shape(v)
 
     @field_validator("data")
     @classmethod
     def check_data_shape(cls, v: List[List[float]]) -> List[List[float]]:
-        if len(v) < 3:
-            raise ValueError("data 至少需要 3 个样本")
-        # 检查每行的维度一致性与 5 维契约
-        if isinstance(v[0], list):
-            dim = len(v[0])
-            if dim != 5:
-                raise ValueError(
-                    f"每行应为 5 维特征向量，实际为 {dim} 维；"
-                    "一维标量序列会自动补齐成 5 维（结果标为 mock）"
-                )
-            for i, row in enumerate(v):
-                if len(row) != dim:
-                    raise ValueError(
-                        f"第 {i} 行维度 ({len(row)}) 与第一行 ({dim}) 不一致"
-                    )
-        return v
+        return _check_data_shape(v)
 
 
 class AnomalyResponse(BaseModel):
@@ -131,6 +142,22 @@ def anomaly(req: AnomalyRequest):
 class BatchAnomalyItem(BaseModel):
     device_code: str = Field(min_length=1)
     data: List[List[float]] = Field(min_length=3)
+    input_was_1d: bool = Field(default=False, exclude=True)
+
+    @model_validator(mode="before")
+    @classmethod
+    def flag_one_dimensional_input(cls, values):
+        return _flag_one_dimensional_input(values)
+
+    @field_validator("data", mode="before")
+    @classmethod
+    def normalize_data_shape(cls, v):
+        return _normalize_data_shape(v)
+
+    @field_validator("data")
+    @classmethod
+    def check_data_shape(cls, v: List[List[float]]) -> List[List[float]]:
+        return _check_data_shape(v)
 
 
 class BatchAnomalyRequest(BaseModel):
@@ -154,13 +181,18 @@ def anomaly_batch(req: BatchAnomalyRequest):
         r = det.detect(item.data)
         if r["is_anomaly"]:
             anomalies_found += 1
+        synthetic = bool(item.input_was_1d)
         results.append(AnomalyResponse(
             device_code=item.device_code,
             is_anomaly=r["is_anomaly"],
             anomaly_indices=r["anomaly_indices"],
             score=r["score"],
             model=r["model"],
-            mock=r.get("mock", False),
+            # 与单条接口一致：一维补齐成 5 个共线特征不能报成真实多维检测。
+            mock=bool(r.get("mock", False)) or synthetic,
+            message=(
+                "一维标量输入已按 5 维共线特征补齐，结果仅为兼容旧契约的启发式判定"
+            ) if synthetic else "ok",
             feature_names=det.FEATURE_NAMES if item.data and isinstance(item.data[0], list) else None,
         ))
     return BatchAnomalyResponse(

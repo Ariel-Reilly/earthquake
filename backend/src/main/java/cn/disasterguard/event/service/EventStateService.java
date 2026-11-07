@@ -67,6 +67,22 @@ public class EventStateService {
   }
 
   /**
+   * 创建统一事件（独立事务，失败不牵连调用方）。
+   *
+   * <p>预警落库链路（{@code WarningCreateService#doPersist}）在事务内调用本方法。
+   * 若沿用 {@link #createFromAiDetection} 的 REQUIRED 传播，一旦这里抛异常，
+   * 外层事务会被标记 rollback-only，即使调用方 catch 住，最终提交也会抛
+   * {@code UnexpectedRollbackException}，把本已写好的预警一起回滚掉。
+   *
+   * <p>统一事件属于"关联增强"，不应成为预警落库的必要条件，因此用 REQUIRES_NEW
+   * 隔离开：这里失败只丢关联，不丢预警。
+   */
+  @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+  public String createFromAiDetectionIsolated(String hazardCode, String title) {
+    return create(hazardCode, title, "AI_AUTO", EventState.DETECTED);
+  }
+
+  /**
    * 创建统一事件 - 由人工现场上报触发。
    */
   @Transactional

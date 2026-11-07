@@ -149,12 +149,9 @@ const chartPaths = computed(() => {
   const lower = preds.map((v, i) => `${toX(i)},${toY(v - bandHalf)}`)
   const bandPath = `M ${upper.join(' L ')} L ${[...lower].reverse().join(' L ')} Z`
 
-  // 历史趋势（用预测值前 1/4 模拟历史）
-  const histLen = Math.max(3, Math.floor(n / 4))
-  const history = preds.slice(0, histLen)
-  const histPts = history.map((v, i) => `${toX(i)},${toY(v)}`)
-  const histPath = `M ${histPts.join(' L ')}`
-
+  // R7：原「历史趋势」曲线是拿预测值前 1/4 重复画一遍，图例却标成「历史」——
+  // 属于伪造观测数据。后端 ForecastResult 目前只下发 predictions[]，没有真实历史序列，
+  // 因此撤下该曲线与图例；待后端补 history[] 后再恢复，绝不拿预测值冒充历史。
   const yTicks = 5
   const yLabels = Array.from({ length: yTicks }, (_, i) => {
     const v = paddedMin + (i / (yTicks - 1)) * paddedRange
@@ -167,7 +164,7 @@ const chartPaths = computed(() => {
 
   return {
     W, H, PAD, cw, ch,
-    linePath, histPath, bandPath,
+    linePath, bandPath,
     yTicks, yLabels, xLabels,
     bandHalf,
     conf,
@@ -389,7 +386,6 @@ onMounted(async () => {
         <div class="dfp-chart-header">
           <strong><BarChart3 :size="15" /> 预测曲线</strong>
           <span class="dfp-chart-meta">
-            <span class="dfp-legend-dot dfp-legend-dot--brand"></span> 历史
             <span class="dfp-legend-dot dfp-legend-dot--brand"></span> 预测
             <span class="dfp-legend-dot dfp-legend-dot--band"></span> 置信区间
           </span>
@@ -417,14 +413,6 @@ onMounted(async () => {
               :d="chartPaths.bandPath"
               fill="rgba(47,143,82,.12)"
               stroke="none"
-            />
-
-            <path
-              :d="chartPaths.histPath"
-              fill="none"
-              stroke="#6f9e7f"
-              stroke-width="2"
-              stroke-dasharray="4,3"
             />
 
             <path

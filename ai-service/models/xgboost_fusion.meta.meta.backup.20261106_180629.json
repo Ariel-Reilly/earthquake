@@ -1,0 +1,39 @@
+{
+  "version": "3.0.0",
+  "objective": "reg:squarederror",
+  "output_type": "regression",
+  "trained_at": "2026-09-29T07:53:29.905974+00:00",
+  "n_samples": 8000,
+  "n_train": 6800,
+  "n_val": 1200,
+  "n_features": 7,
+  "feature_names": [
+    "displacement_rate",
+    "displacement_total",
+    "rainfall_24h",
+    "rainfall_7d",
+    "crack_width",
+    "earthquake_mag",
+    "site_grade"
+  ],
+  "norm_max": {
+    "displacement_rate": 30.0,
+    "displacement_total": 200.0,
+    "rainfall_24h": 150.0,
+    "rainfall_7d": 400.0,
+    "crack_width": 50.0,
+    "earthquake_mag": 7.0,
+    "site_grade": 5.0
+  },
+  "device_weights": {
+    "displacement_rate": 0.25,
+    "displacement_total": 0.15,
+    "rainfall_24h": 0.2,
+    "rainfall_7d": 0.12,
+    "crack_width": 0.1,
+    "earthquake_mag": 0.1,
+    "site_grade": 0.08
+  },
+  "best_iteration": 599,
+  "best_score": 0.957973073883485
+}

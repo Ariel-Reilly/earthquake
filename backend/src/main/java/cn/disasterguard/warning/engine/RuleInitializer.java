@@ -3,6 +3,7 @@ package cn.disasterguard.warning.engine;
 import cn.disasterguard.warning.entity.WarningRule;
 import cn.disasterguard.warning.repository.WarningRuleRepository;
 import cn.disasterguard.ruleengine.RuleEngineService;
+import cn.disasterguard.ruleengine.WarningRuleSyncService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
@@ -28,10 +29,13 @@ public class RuleInitializer implements CommandLineRunner {
 
   private final WarningRuleRepository ruleRepository;
   private final RuleEngineService ruleEngineService;
+  private final WarningRuleSyncService warningRuleSyncService;
 
-  public RuleInitializer(WarningRuleRepository ruleRepository, RuleEngineService ruleEngineService) {
+  public RuleInitializer(WarningRuleRepository ruleRepository, RuleEngineService ruleEngineService,
+                         WarningRuleSyncService warningRuleSyncService) {
     this.ruleRepository = ruleRepository;
     this.ruleEngineService = ruleEngineService;
+    this.warningRuleSyncService = warningRuleSyncService;
   }
 
   @Override
@@ -41,25 +45,19 @@ public class RuleInitializer implements CommandLineRunner {
       if (enabledRuleCount == 0) {
         log.warn("【P1 修复】数据库中未检测到启用的规则，正在插入演示规则...");
         insertDemoRules();
-        
-        // 【关键】插入规则后立刻刷新缓存，而不是等待规则引擎自己去加载
-        log.info("【P1 修复】刷新规则缓存...");
-        ruleEngineService.reloadRules("RuleInitializer.if");
-        
         enabledRuleCount = ruleRepository.countByEnabled(true);
-        log.info("【P1 修复】已插入并加载演示规则，当前启用规则数: {}", enabledRuleCount);
-      } else {
-        long beforeCacheCount = ruleEngineService.getCacheSize();
-        log.info("【P1 修复】规则库已就绪，启用规则数: {}，reload 前缓存: {}", 
-                 enabledRuleCount, beforeCacheCount);
-        
-        // 【关键】else 分支也需要刷新缓存，确保启动时规则引擎已加载所有规则
-        ruleEngineService.reloadRules("RuleInitializer.else");
-        
-        long afterCacheCount = ruleEngineService.getCacheSize();
-        log.info("【P1 修复】规则库已就绪，启用规则数: {}，reload 前缓存: {}，reload 后缓存: {}",
-                 enabledRuleCount, beforeCacheCount, afterCacheCount);
       }
+
+      // R10 P1-5：把 warning_rule（预警引擎唯一真相源）镜像进 rule 表。
+      // 否则规则管理页展示的是另一套编号语义（rule.R004=设备离线 vs warning_rule.R004=倾角>5），
+      // 用户在页面上改阈值对预警零影响。
+      int mirrored = warningRuleSyncService.syncAllFromWarningRule();
+      log.info("【R10 P1-5】规则管理页与预警引擎对齐 {} 条，启用规则数: {}", mirrored, enabledRuleCount);
+
+      // 【关键】同步后再刷新缓存，确保缓存里编译的是页面看到的那套条件
+      ruleEngineService.reloadRules("RuleInitializer.sync");
+      log.info("【P1 修复】规则库已就绪，启用规则数: {}，缓存规则数: {}",
+               enabledRuleCount, ruleEngineService.getCacheSize());
     } catch (Exception e) {
       log.error("【P1 修复】规则初始化失败", e);
     }

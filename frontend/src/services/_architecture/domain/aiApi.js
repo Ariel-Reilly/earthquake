@@ -3,10 +3,24 @@
  *
  * 前端不直接访问 ai-service，统一走后端网关（后端在 AI 不可用时自动降级）。
  */
-import { getAuthToken } from "../../../stores/auth.js";
+import { getAuthToken, redirectToLogin } from "../../../stores/auth.js";
 
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api";
+
+/**
+ * 统一的 fetch 包装（P2-4）：AI 页面此前 13 处裸 fetch 各自处理错误，
+ * 唯独漏了 401 —— token 过期只抛 "AI API 401: Unauthorized"，页面不跳登录。
+ * 这里统一拦截 401，其余状态码仍由各调用点自行判断。
+ */
+async function fetchApi(url, init) {
+  const resp = await globalThis.fetch(url, init);
+  if (resp.status === 401) {
+    redirectToLogin();
+    throw new Error("登录已过期，请重新登录");
+  }
+  return resp;
+}
 
 async function request(path, options = {}) {
   const token = getAuthToken();
@@ -15,7 +29,8 @@ async function request(path, options = {}) {
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...(options.headers || {}),
   };
-  const resp = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  const resp = await fetchApi(`${API_BASE}${path}`, { ...options, headers });
+  // 401 已在 fetchApi 内统一处理（跳登录 + 抛中文提示），这里只处理其它失败码
   if (!resp.ok) {
     throw new Error(`AI API ${resp.status}: ${resp.statusText}`);
   }
@@ -39,7 +54,7 @@ export const aiApi = {
     form.append("file", file);
     form.append("modelType", modelType);
     const headers = token ? { Authorization: `Bearer ${token}` } : {};
-    const resp = await fetch(`${API_BASE}/ai/detect`, {
+    const resp = await fetchApi(`${API_BASE}/ai/detect`, {
       method: "POST",
       headers,
       body: form,
@@ -95,7 +110,7 @@ export const aiApi = {
    */
   async fusionRiskAuto(hazardCode) {
     const token = getAuthToken();
-    const resp = await fetch(
+    const resp = await fetchApi(
       `${API_BASE}/ai/fusion-risk/auto?hazardCode=${encodeURIComponent(hazardCode)}`,
       { headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) } },
     );
@@ -126,7 +141,7 @@ export const aiApi = {
       horizon,
       historyLimit,
     });
-    const resp = await fetch(`${API_BASE}/ai/forecast/auto?${params}`, {
+    const resp = await fetchApi(`${API_BASE}/ai/forecast/auto?${params}`, {
       headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
     });
     if (!resp.ok) {throw new Error(`AI forecast/auto ${resp.status}`);}
@@ -158,7 +173,7 @@ export const aiApi = {
    */
   async comprehensiveAnalysis(hazardCode) {
     const token = getAuthToken();
-    const resp = await fetch(
+    const resp = await fetchApi(
       `${API_BASE}/ai/comprehensive-analysis?hazardCode=${encodeURIComponent(hazardCode)}`,
       { headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) } },
     );
@@ -179,7 +194,7 @@ export const aiApi = {
    */
   async comprehensiveAnalysisAll() {
     const token = getAuthToken();
-    const resp = await fetch(`${API_BASE}/ai/comprehensive-analysis/all`, {
+    const resp = await fetchApi(`${API_BASE}/ai/comprehensive-analysis/all`, {
       headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
     });
     if (!resp.ok) {throw new Error(`AI comprehensive-analysis/all ${resp.status}`);}
@@ -192,7 +207,7 @@ export const aiApi = {
   /** 强制刷新所有 hazard 的综合分析（管理端"一键分析"按钮）。 */
   async comprehensiveAnalysisRefresh() {
     const token = getAuthToken();
-    const resp = await fetch(`${API_BASE}/ai/comprehensive-analysis/refresh`, {
+    const resp = await fetchApi(`${API_BASE}/ai/comprehensive-analysis/refresh`, {
       method: "POST",
       headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
     });
@@ -215,7 +230,7 @@ export const aiApi = {
    */
   async chat(message) {
     const token = getAuthToken();
-    const resp = await fetch(`${API_BASE}/ai/chat`, {
+    const resp = await fetchApi(`${API_BASE}/ai/chat`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -241,7 +256,7 @@ export const aiApi = {
    */
   async disasterAssessment(hazardCode) {
     const token = getAuthToken();
-    const resp = await fetch(
+    const resp = await fetchApi(
       `${API_BASE}/ai/disaster-assessment?hazardCode=${encodeURIComponent(hazardCode)}`,
       { headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) } },
     );
@@ -255,7 +270,7 @@ export const aiApi = {
   /** 获取灾害评估字典（六大类型 + 关注度标签 + 风险等级） */
   async disasterAssessmentStatus() {
     const token = getAuthToken();
-    const resp = await fetch(`${API_BASE}/ai/disaster-assessment/status`, {
+    const resp = await fetchApi(`${API_BASE}/ai/disaster-assessment/status`, {
       headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
     });
     if (!resp.ok) {throw new Error(`AI disaster-assessment/status ${resp.status}`);}
@@ -279,7 +294,7 @@ export const aiApi = {
    */
   async submitFeedback(payload) {
     const token = getAuthToken();
-    const resp = await fetch(`${API_BASE}/ai/feedback`, {
+    const resp = await fetchApi(`${API_BASE}/ai/feedback`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -303,7 +318,7 @@ export const aiApi = {
       import.meta.env.VITE_AI_SERVICE_BASE ||
       import.meta.env.VITE_AI_SERVICE_BASE_URL ||
       "http://localhost:8001/api/ai";
-    const resp = await fetch(`${AI_BASE}/feedback/stats`);
+    const resp = await fetchApi(`${AI_BASE}/feedback/stats`);
     if (!resp.ok) {throw new Error(`AI feedback/stats ${resp.status}`);}
     const json = await resp.json();
     return json.data ?? {};
@@ -316,7 +331,7 @@ export const aiApi = {
    */
   async getModelInfo() {
     const token = getAuthToken();
-    const resp = await fetch(`${API_BASE}/ai/model/info`, {
+    const resp = await fetchApi(`${API_BASE}/ai/model/info`, {
       headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
     });
     if (!resp.ok) {throw new Error(`AI model/info ${resp.status}`);}
@@ -328,7 +343,7 @@ export const aiApi = {
   /** 重载磁盘模型（训练后热加载）。 */
   async reloadModel() {
     const token = getAuthToken();
-    const resp = await fetch(`${API_BASE}/ai/model/reload`, {
+    const resp = await fetchApi(`${API_BASE}/ai/model/reload`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -364,7 +379,7 @@ export const aiApi = {
     const body = { texts };
     if (options.bbox) {body.bbox = options.bbox;}
     if (options.timeRangeHours) {body.time_range_hours = options.timeRangeHours;}
-    const resp = await fetch(`${API_BASE}/ai/social-media/analyze`, {
+    const resp = await fetchApi(`${API_BASE}/ai/social-media/analyze`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

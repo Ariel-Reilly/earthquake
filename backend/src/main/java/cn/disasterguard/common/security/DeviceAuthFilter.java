@@ -27,7 +27,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * <p>覆盖两条设备上报路径，从请求头 {@code X-Device-Key} 读取设备密钥，
  * 校验通过后将 Authentication 注入 SecurityContext（角色 DEVICE）：
  * <ul>
- *   <li>{@code POST /api/devices/{deviceCode}/data} —— 数据上报，<b>必须</b>带密钥</li>
+ *   <li>{@code POST /api/devices/{deviceCode}/data} —— 数据上报，设备需带密钥；
+ *       不带密钥时回落 JWT（后台补录），无任何身份则由 Spring Security 拒绝</li>
  *   <li>{@code POST /api/devices/{deviceId}/upload-image} —— 图像上报，设备带密钥、
  *       Web 后台不带密钥（回落 JWT）</li>
  * </ul>
@@ -50,7 +51,7 @@ public class DeviceAuthFilter extends OncePerRequestFilter {
 
   private static final Logger log = LoggerFactory.getLogger(DeviceAuthFilter.class);
   private static final String DEVICE_PATH_PREFIX = "/api/devices/";
-  /** 设备纯数据上报：必须携带设备密钥，匿名/无密钥请求不接受。 */
+  /** 设备纯数据上报：带密钥走设备身份，不带密钥回落 JWT（后台补录）。 */
   private static final String DEVICE_DATA_SUFFIX = "/data";
   /** 设备图像上报：设备走密钥，前端 Web 页面走 JWT，故无密钥时不拦截。 */
   private static final String DEVICE_IMAGE_SUFFIX = "/upload-image";
@@ -101,14 +102,11 @@ public class DeviceAuthFilter extends OncePerRequestFilter {
 
     String providedKey = request.getHeader("X-Device-Key");
     if (providedKey == null || providedKey.isBlank()) {
-      // 图像上传同时服务硬件与 Web 后台：没有设备密钥就交回 JWT 过滤器判定身份，
-      // 二者都不通过时由 Spring Security 的 authenticated() 兜底拒绝。
-      // /data 维持原约束——设备数据上报必须证明自己是设备。
-      if (DEVICE_IMAGE_SUFFIX.equals(suffix)) {
-        filterChain.doFilter(request, response);
-        return;
-      }
-      writeError(response, 401, "缺少 X-Device-Key 请求头");
+      // 没有设备密钥时交回 JWT 过滤器判定身份：图像上传要服务 Web 后台，
+      // 数据上报也要允许后台「设备详情页」手工补录（此前只有图像路径有这个回落，
+      // 导致带 devices:edit 的管理员调用 /data 直接被 401「缺少 X-Device-Key」）。
+      // 两种身份都没有时，由 @PreAuthorize 与 Spring Security 的 authenticated() 兜底拒绝。
+      filterChain.doFilter(request, response);
       return;
     }
 

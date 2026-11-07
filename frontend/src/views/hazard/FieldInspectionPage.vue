@@ -81,6 +81,27 @@ const fenceForm = ref({
 })
 const fenceDemoHazardCenter = ref({ lon: 118.5421, lat: 30.1284 })
 
+/**
+ * 巡检上报唯一 ID：时间戳 + 设备/任务编码（不再调用原生随机数 API）。
+ * 同一毫秒内连续生成用自增序号兜底，避免 ID 碰撞。
+ */
+let inspectionSeq = 0
+function buildInspectionId(task) {
+  const deviceCode =
+    task?.deviceCode ?? task?.taskCode ?? task?.code ?? selectedTaskCode.value ?? 'DEV'
+  inspectionSeq += 1
+  return `INSP-${Date.now()}-${deviceCode}-${inspectionSeq}`
+}
+
+/** 由上报 ID 派生稳定的签到偏移：同一 ID 永远得到同一坐标，可复现、不造随机数。 */
+function offsetFromInspectionId(id) {
+  let h = 0
+  for (let i = 0; i < id.length; i += 1) {
+    h = ((h << 5) - h + id.charCodeAt(i)) | 0
+  }
+  return ((h >>> 0) / 0x100000000 - 0.5) * 0.005
+}
+
 function fillFenceFromTask() {
   if (!selectedTaskCode.value) return
   const t = tasks.value.find((tk) => (tk.taskCode ?? tk.code) === selectedTaskCode.value)
@@ -88,8 +109,8 @@ function fillFenceFromTask() {
   fenceForm.value.taskCode = t.taskCode ?? t.code ?? ''
   fenceForm.value.hazardCode = t.hazardCode ?? t.relatedHazardCode ?? 'HZ-LA-001'
   fenceForm.value.allowedRadius = t.radiusMeters ?? 100
-  // 默认在灾害点中心做一次偏移模拟"签到位置"
-  const offset = (Math.random() - 0.5) * 0.005
+  // 默认在灾害点中心做一次偏移模拟"签到位置"，偏移由本次上报 ID 确定性派生
+  const offset = offsetFromInspectionId(buildInspectionId(t))
   fenceForm.value.lon = (fenceDemoHazardCenter.value.lon + offset).toFixed(6)
   fenceForm.value.lat = (fenceDemoHazardCenter.value.lat + offset * 0.8).toFixed(6)
 }
@@ -122,9 +143,13 @@ async function runGpsCheck() {
 const records = ref([])
 const recordsLoading = ref(false)
 const submitResult = ref(null)
+// 最近一次上报的客户端流水号（时间戳 + 任务编码），仅用于前端留痕与签到坐标派生。
+// 它不随请求体发给后端，因此不参与服务端幂等/去重；后端记录编号以返回的 recordCode 为准。
+const lastReportId = ref('')
 const submitForm = ref({
   taskCode: '',
   hazardCode: '',
+  reportId: '',
   lon: '',
   lat: '',
   allowedRadius: 200,
@@ -160,7 +185,10 @@ function fillSubmitFromTask() {
   submitForm.value.taskCode = t.taskCode ?? t.code ?? ''
   submitForm.value.hazardCode = t.hazardCode ?? t.relatedHazardCode ?? 'HZ-LA-001'
   submitForm.value.allowedRadius = t.radiusMeters ?? 200
-  const offset = (Math.random() - 0.5) * 0.005
+  // 本次预填对应的唯一上报 ID，签到坐标由它确定性派生，避免随机数造成不可复现
+  const inspectionId = buildInspectionId(t)
+  submitForm.value.reportId = inspectionId
+  const offset = offsetFromInspectionId(inspectionId)
   submitForm.value.lon = (fenceDemoHazardCenter.value.lon + offset).toFixed(6)
   submitForm.value.lat = (fenceDemoHazardCenter.value.lat + offset * 0.8).toFixed(6)
   submitForm.value.inspector = currentUser.value
@@ -179,6 +207,14 @@ async function submitInspection() {
   if (submitForm.value.rainfall_mm !== '')
     formData.rainfall_mm = parseFloat(submitForm.value.rainfall_mm)
 
+  // 每份填报绑定一个客户端流水号（时间戳 + 任务编码 + 自增序号），替代原先的随机数。
+  // 同一份填报（含提交失败后的重试）沿用同一 ID，成功后清空以便下一笔重新生成；
+  // 该 ID 只用于前端留痕，不改变后端 /api/inspection/submit 的请求契约。
+  if (!submitForm.value.reportId) {
+    submitForm.value.reportId = buildInspectionId({ code: submitForm.value.taskCode })
+  }
+  lastReportId.value = submitForm.value.reportId
+
   submitResult.value = null
   try {
     submitResult.value = await dashboardApi.submitInspection({
@@ -195,8 +231,9 @@ async function submitInspection() {
         : [],
       formData,
     })
-    // 提交后刷新记录列表
+    // 提交后刷新记录列表；清空流水号，保证下一笔上报重新生成唯一 ID
     await loadRecords(submitForm.value.taskCode)
+    submitForm.value.reportId = ''
   } catch (e) {
     errorMsg.value = '巡检记录提交失败：' + (e?.message ?? '')
   }
@@ -537,6 +574,7 @@ onMounted(async () => {
           <div v-if="submitResult" class="fip-submit-result">
             <CheckCircle2 :size="14" />
             记录已上报 — 编号 <code>{{ submitResult.recordCode }}</code>
+            <span v-if="lastReportId"> · 客户端流水号 <code>{{ lastReportId }}</code></span>
             <span v-if="submitResult.abnormalFlag" class="fip-flag-tag">异常</span>
           </div>
         </form>

@@ -26,7 +26,10 @@ opencv-python-headless==4.10.0.84
 onnxruntime==1.20.1
 torch==2.5.1
 scikit-learn==1.5.2
-xgboost==2.1.3
+# ★ 必须与 models/xgboost_fusion.json 的导出环境一致（该文件 version=[3,4,1]）。
+# 用 2.x 加载 3.x 导出的 json 不会报错、degraded 仍为 false，但 predict 恒返回 0.0，
+# 表现为「AI 融合评分全是 0 分」这种静默错误 —— 排查时极难发现。
+xgboost==3.4.1
 joblib==1.4.2
 
 # 注意：ultralytics（YOLOv8 训练）仅在 scripts/download_models.py 中使用，

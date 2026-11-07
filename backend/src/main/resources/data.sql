@@ -110,8 +110,9 @@ INSERT INTO sys_permission (code, name, type, route_path, sort_order) VALUES
 ('device_map:view',    '查看设备地图',          'ROUTE', '/dashboard/device-map',    14),
 ('zone:view',          '查看区域大屏',          'ROUTE', '/dashboard/zone',          15),
 ('weather:view',       '查看气象分析',          'ROUTE', '/dashboard/weather',       16),
-('history:view',       '查看历史灾害库',        'ROUTE', '/dashboard/history-hazards',17),
-('history:export',     '导出历史灾害',          'OP',    '/dashboard/history-hazards',18),
+('weather:refresh',    '刷新气象产品',          'OP',    '/dashboard/weather',       17),
+('history:view',       '查看历史灾害库',        'ROUTE', '/dashboard/history-hazards',18),
+('history:export',     '导出历史灾害',          'OP',    '/dashboard/history-hazards',19),
 
 -- AI任务 & 结果 & 研判 & 模型
 ('ai:task:view',       '查看AI任务',            'ROUTE', '/dashboard/ai-tasks',     20),
@@ -473,6 +474,7 @@ INSERT INTO sys_role_permission (role_id, perm_code) VALUES
 ((SELECT id FROM sys_role WHERE role_code='maintenance'),'device_map:view'),
 ((SELECT id FROM sys_role WHERE role_code='maintenance'),'zone:view'),
 ((SELECT id FROM sys_role WHERE role_code='maintenance'),'weather:view'),
+((SELECT id FROM sys_role WHERE role_code='maintenance'),'weather:refresh'),
 ((SELECT id FROM sys_role WHERE role_code='maintenance'),'hazards:view'),
 ((SELECT id FROM sys_role WHERE role_code='maintenance'),'warnings:view'),
 ((SELECT id FROM sys_role WHERE role_code='maintenance'),'emergency:view'),
@@ -590,65 +592,39 @@ INSERT INTO data_sync_task (task_code, task_name, data_source_id, sync_type, cro
 ON CONFLICT (task_code) DO NOTHING;
 
 -- =====================================================================
--- 10. 规则引擎 rule（替换旧3条为完整规则集）
+-- 10. 规则引擎 rule
 -- =====================================================================
-INSERT INTO rule (rule_code, name, disaster_type, level, priority, conditions, actions, dsl_text, enabled, created_by) VALUES
-('R001', '滑坡黄色预警（雨量+坡度）',
- 'landslide','yellow',90,
- '{"logic":"AND","conditions":[{"field":"rainfall_24h","operator":">","value":50},{"field":"slope","operator":">","value":30}]}',
- '{"type":"CREATE_EVENT","hazard_type":"landslide","level":"yellow","confidence":0.80}',
- 'rainfall_24h > 50 AND slope > 30', TRUE, 'aiengineer'),
-
-('R002', '滑坡橙色预警（雨量+位移）',
- 'landslide','orange',80,
- '{"logic":"AND","conditions":[{"field":"rainfall_24h","operator":">","value":80},{"field":"displacement_rate","operator":">","value":5}]}',
- '{"type":"CREATE_EVENT","hazard_type":"landslide","level":"orange","confidence":0.88}',
- 'rainfall_24h > 80 AND displacement_rate > 5', TRUE, 'aiengineer'),
-
-('R003', '洪水红色预警（水位+雨量）',
- 'flood','red',95,
- '{"logic":"AND","conditions":[{"field":"water_level","operator":">","value":"warning_level"},{"field":"rainfall_6h","operator":">","value":100}]}',
- '{"type":"CREATE_EVENT","hazard_type":"flood","level":"red","confidence":0.93}',
- 'water_level > warning_level AND rainfall_6h > 100', TRUE, 'aiengineer'),
-
-('R004', '设备离线告警',
- 'device','blue',70,
- '{"logic":"AND","conditions":[{"field":"device_status","operator":"==","value":"OFFLINE"},{"field":"duration_minutes","operator":">","value":10}]}',
- '{"type":"CREATE_TODO","assign_role":"maintenance","priority":"HIGH"}',
- 'device_status == OFFLINE AND duration_minutes > 10', TRUE, 'sysadmin'),
-
-('R005', '地震触发巡检',
- 'earthquake','yellow',85,
- '{"logic":"AND","conditions":[{"field":"magnitude","operator":">=","value":4.5},{"field":"distance_km","operator":"<","value":100}]}',
- '{"type":"TRIGGER_AI_TASK","task_name":"earthquake_inspection"}',
- 'magnitude >= 4.5 AND distance_km < 100', TRUE, 'aiengineer'),
-
-('R006', '崩塌黄色预警（裂缝扩展）',
- 'collapse','yellow',75,
- '{"logic":"AND","conditions":[{"field":"crack_width_rate","operator":">","value":2.0},{"field":"rainfall_24h","operator":">","value":30}]}',
- '{"type":"CREATE_EVENT","hazard_type":"collapse","level":"yellow","confidence":0.78}',
- 'crack_width_rate > 2.0 AND rainfall_24h > 30', TRUE, 'aiengineer')
-ON CONFLICT (rule_code) DO NOTHING;
+-- R10 P2-6 / P1-5：这里**不再单独播种** rule 表。
+--   历史上本段写的是另一套语义（R004=设备离线、R005=地震、R003 右值引用
+--   warning_level 哨兵指标），与 warning_rule 同编号不同义，运维在页面上改阈值
+--   对预警零影响。现在 warning_rule 是唯一真相源：
+--     后端启动时 RuleInitializer → WarningRuleSyncService.syncAllFromWarningRule()
+--     把 6 条生效规则镜像进 rule 表（含条件 JSON / DSL / 等级 / 启停）；
+--     页面增删改则反向编译表达式写回 warning_rule，改完下一轮调度即生效。
+--   因此新库执行完本脚本后 rule 表为空是正常的，启动一次后端即自动填充。
+--   阈值请改规则管理页或下方 10b 段的 warning_rule 种子，不要在此处另起一套。
+-- =====================================================================
 
 -- =====================================================================
 -- 10b. 预警规则 warning_rule（warning_event.rule_code 的 FK 目标）
---   与 rule 表共用同一套规则编号；语义层面 warning_rule 是面向预警发布
---   的子集，rule 是规则引擎的完整定义。
+--   唯一真相源：RuleEngineScheduler 按本表的 expression 求值；
+--   rule 表（规则管理页）由 WarningRuleSyncService 从本表镜像生成。
 -- =====================================================================
 -- v2.0 修复（2026-11-05）：旧 6 条规则的 metric_code 全是复合标签（rainfall_24h_slope 等），
 -- 在 device_metric 里根本不存在；RuleEngineScheduler 原来的前置门禁会因此把 6 条规则全部跳过，
 -- 预警链路从来不会自动产生预警。现在把主指标对齐真实上报的 metric_code，表达式保持
 -- 可被 WarningRuleEvaluator 求值（单条件 + AND 复合），右侧全部是数值或真实指标名。
 -- DO UPDATE 保证在已有库上重复执行 data.sql 也能把错误规则纠正回来，且不动业务数据。
-INSERT INTO warning_rule (rule_code, rule_name, metric_code, expression, warning_level, enabled, remark) VALUES
-('R001', '滑坡黄色预警（24h 雨量）',   'rainfall_24h',      'rainfall_24h > 50',                                  '黄色预警', TRUE, '主指标对齐 device_metric.rainfall_24h'),
-('R002', '滑坡橙色预警（雨量+位移）', 'rainfall_24h',      'rainfall_24h > 80 AND displacement_rate > 5',       '橙色预警', TRUE, 'AND 复合条件由 WarningRuleEvaluator 求值'),
-('R003', '洪水红色预警（水位）',      'water_level',       'water_level > 25',                                   '红色预警', TRUE, '替代右侧为字符串 warning_level 的不可判定表达式'),
-('R004', '倾角异常蓝色预警',          'tilt_angle',        'tilt_angle > 3',                                     '蓝色预警', TRUE, '替代 device_status == OFFLINE（数值指标无法判定字符串）'),
-('R005', '位移速率黄色预警',          'displacement_rate', 'displacement_rate > 5',                              '黄色预警', TRUE, '替代无设备数据源的地震震级规则'),
-('R006', '崩塌黄色预警（裂缝扩展）', 'crack_width_rate',  'crack_width_rate > 2.0 AND rainfall_24h > 30',      '黄色预警', TRUE, 'AND 复合条件由 WarningRuleEvaluator 求值')
+INSERT INTO warning_rule (rule_code, rule_name, disaster_type, metric_code, expression, warning_level, enabled, remark) VALUES
+('R001', '滑坡黄色预警（24h 雨量）',   'landslide', 'rainfall_24h',      'rainfall_24h > 50',                                  '黄色预警', TRUE, '主指标对齐 device_metric.rainfall_24h'),
+('R002', '滑坡橙色预警（雨量+位移）', 'landslide', 'rainfall_24h',      'rainfall_24h > 80 AND displacement_rate > 5',       '橙色预警', TRUE, 'AND 复合条件由 WarningRuleEvaluator 求值'),
+('R003', '洪水红色预警（水位）',      'flood',     'water_level',       'water_level > 175.0 AND rainfall_6h > 100',         '红色预警', TRUE, '警戒水位 175.0m 为规则参数（嘉陵江），改阈值请走规则管理页；不再依赖沙盘注入的 warning_level 指标'),
+('R004', '倾角异常蓝色预警',          'collapse',  'tilt_angle',        'tilt_angle > 5',                                     '蓝色预警', TRUE, '阈值 5°：现场倾角常态 3.2-3.8°，旧阈值 3 会让未变形坡体持续误报'),
+('R005', '位移速率黄色预警',          'landslide', 'displacement_rate', 'displacement_rate > 5',                              '黄色预警', TRUE, '替代无设备数据源的地震震级规则'),
+('R006', '崩塌黄色预警（裂缝扩展）', 'collapse',  'crack_width_rate',  'crack_width_rate > 2.0 AND rainfall_24h > 30',      '黄色预警', TRUE, 'AND 复合条件由 WarningRuleEvaluator 求值')
 ON CONFLICT (rule_code) DO UPDATE SET
   rule_name = EXCLUDED.rule_name,
+  disaster_type = EXCLUDED.disaster_type,
   metric_code = EXCLUDED.metric_code,
   expression = EXCLUDED.expression,
   warning_level = EXCLUDED.warning_level,

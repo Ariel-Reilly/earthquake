@@ -72,22 +72,34 @@ public class NotificationDispatcher {
       }
     }
 
-    // MOCK_SENT 是「已受理但未真实投递」，不能算 SENT，也不能让记录卡在 SENDING。
-    long successCount = results.stream()
-        .filter(r -> "SUCCESS".equals(r.status()) || "MOCK_SENT".equals(r.status()))
-        .count();
+    // 只有「全部渠道都没有结果」才是真的还在发送中。全失败若标成 SENDING，
+    // 看板会永远显示「发送中」而不会暴露故障；全成功也不该标 PARTIAL。
+    var failedStatuses = java.util.Set.of(
+        "FAILED", "NO_SENDER", "NO_CHANNEL", "RATE_LIMITED");
+    long realSuccessCount = results.stream()
+        .filter(r -> "SUCCESS".equals(r.status())).count();
     long blockedCount = results.stream()
-        .filter(r -> TestRecipientGuard.BLOCKED_STATUS.equals(r.status()))
-        .count();
+        .filter(r -> TestRecipientGuard.BLOCKED_STATUS.equals(r.status())).count();
     long mockCount = results.stream()
-        .filter(r -> "MOCK_SENT".equals(r.status()))
-        .count();
-    // 全部被拦 → BLOCKED；全部演示发送 → MOCK_SENT；混合成功 → PARTIAL；其余 SENDING。
-    record.setStatus(!results.isEmpty() && blockedCount == results.size()
-        ? TestRecipientGuard.BLOCKED_STATUS
-        : !results.isEmpty() && mockCount == results.size()
-            ? "MOCK_SENT"
-            : successCount > 0 ? "PARTIAL" : "SENDING");
+        .filter(r -> "MOCK_SENT".equals(r.status())).count();
+    long failedCount = results.stream()
+        .filter(r -> failedStatuses.contains(r.status())).count();
+
+    final String finalStatus;
+    if (results.isEmpty()) {
+      finalStatus = "SENDING";
+    } else if (blockedCount == results.size()) {
+      finalStatus = TestRecipientGuard.BLOCKED_STATUS;
+    } else if (mockCount == results.size()) {
+      finalStatus = "MOCK_SENT";
+    } else if (failedCount == results.size()) {
+      finalStatus = "FAILED";
+    } else if (realSuccessCount == results.size()) {
+      finalStatus = "SENT";
+    } else {
+      finalStatus = "PARTIAL";
+    }
+    record.setStatus(finalStatus);
     record.setUpdatedAt(OffsetDateTime.now());
     try {
       recordRepository.save(record);

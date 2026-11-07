@@ -128,9 +128,12 @@ public class VerificationCodeService {
 
     // 现阶段投递边界：只有确实具备真实投递能力的分支才需要闸门。
     // 短信需 enabled + Client bean 存在 + 凭证不是 CHANGE_ME 占位；邮箱 Sender 目前只打日志，
-    // 不产生对外投递。默认 ALIYUN_SMS_ENABLED=true 但凭证是占位值，不能据此把注册验证码全拦掉。
+    // 不产生对外投递（isRealEmailDelivery() 恒为 false）。默认 ALIYUN_SMS_ENABLED=true
+    // 但凭证是占位值，不能据此把注册验证码全拦掉。
+    // 判定收敛到一处，将来邮件接入真实 SMTP 时只需改 isRealEmailDelivery() 即可自动纳管。
     // 检查放在频控之前，避免被拦请求白扣额度。
-    if (phone && isRealSmsDelivery() && !recipientGuard.isAllowed(value)) {
+    boolean realDelivery = phone ? isRealSmsDelivery() : isRealEmailDelivery();
+    if (realDelivery && !recipientGuard.isAllowed(value)) {
       log.warn("[投递边界] 验证码真实下发被拦截: type={}, target={}",
           type, TestRecipientGuard.mask(value));
       throw new AppException(40301,
@@ -213,6 +216,18 @@ public class VerificationCodeService {
   }
 
   /**
+   * 邮件是否真的会离开本机。
+   *
+   * <p>当前 {@code EmailSender} 是纯日志 Mock（无 JavaMail / SMTP），所以恒为 false。
+   * <b>接入真实邮件网关时必须把本方法改为按配置判定并返回 true</b>，否则白名单闸门不会生效。
+   * 作为兜底，{@code deliverEmail} 会在 Sender 返回非 mock 结果时 fail-closed 抛错，
+   * 避免「网关已接入、开关没开」被静默绕过。
+   */
+  private boolean isRealEmailDelivery() {
+    return false;
+  }
+
+  /**
    * 渠道是否可用。
    *
    * <p>prod 下渠道开关为 false 等同于「网关未接入」，此时必须直接失败；
@@ -222,8 +237,13 @@ public class VerificationCodeService {
    * @return 渠道可用返回 true
    */
   private boolean isChannelReady(boolean phone) {
-    boolean enabled = phone ? smsProperties.isEnabled() : emailEnabled;
-    return enabled || !prodProfile;
+    // 短信：开关开着但凭证仍是 CHANGE_ME 时，SDK 根本发不出去。若沿用「开关即就绪」，
+    // prod 下会写 Redis、返回成功、deliverSms 静默降级到日志 —— 用户永远收不到验证码，
+    // 而接口却报成功。只有真的能外发才算 ready；非 prod 保留日志降级方便本地联调。
+    if (phone) {
+      return isRealSmsDelivery() || !prodProfile;
+    }
+    return emailEnabled || !prodProfile;
   }
 
   /**
@@ -259,8 +279,12 @@ public class VerificationCodeService {
   private void deliverSms(String phone, String code) {
     if (!isRealSmsDelivery()) {
       // 网关未接入（开关关闭 / 无 Client bean / 凭证仍是 CHANGE_ME）时走日志降级，
-      // 不要拿占位凭证去调 SDK 再抛 50301。
-      log.info("[验证码-本地降级] channel=SMS phone={} code={}", phone, code);
+      // 不要拿占位凭证去调 SDK 再抛 50301。验证码明文只在非 prod 的调试日志里出现。
+      if (prodProfile) {
+        log.info("[验证码-本地降级] channel=SMS phone={}（prod 不输出验证码）", phone);
+      } else {
+        log.info("[验证码-本地降级] channel=SMS phone={} code={}", phone, code);
+      }
       return;
     }
 
@@ -316,13 +340,24 @@ public class VerificationCodeService {
   private void deliverEmail(String email, String code) {
     if (!emailEnabled) {
       // prod 的「未接入」已在 send() 入口拦截，这里只可能是非 prod 的降级分支
-      log.info("[验证码-本地降级] channel=EMAIL email={} code={}", email, code);
+      if (prodProfile) {
+        log.info("[验证码-本地降级] channel=EMAIL email={}（prod 不输出验证码）", email);
+      } else {
+        log.info("[验证码-本地降级] channel=EMAIL email={} code={}", email, code);
+      }
       return;
     }
 
     String title = "地脉智巡注册验证码";
     String content = "【地脉智巡】您的注册验证码为 " + code + "，5 分钟内有效。";
     var result = emailSender.send(email, title, content, java.util.Map.of("code", code));
+    // fail-closed：一旦 Sender 不再返回 mock（说明真实 SMTP 已接入），而 isRealEmailDelivery()
+    // 还没同步声明，就必须立刻暴露配置遗漏，不能让邮件悄悄绕过白名单闸门。
+    if (!result.mock() && !isRealEmailDelivery()) {
+      log.error("[投递边界] 邮件发送器返回真实投递结果但未声明真实投递能力，"
+          + "请先开启白名单闸门再接入 SMTP: email={}", email);
+      throw new AppException(50301, "邮件投递能力未声明，已阻止继续发送");
+    }
     if (!result.success()) {
       log.warn("验证码邮件发送失败 email={} reason={}", email, result.errorMsg());
       throw new AppException(50301, "验证码发送失败，请稍后重试");

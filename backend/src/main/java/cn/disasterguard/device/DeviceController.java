@@ -72,7 +72,10 @@ public class DeviceController {
    * 写入 device_metric 表 + TDengine 时序存储（若启用），供规则引擎消费。
    */
   @PostMapping("/{deviceCode}/data")
-  @PreAuthorize("hasAuthority('devices:edit')")
+  // 两种合法身份：后台用户（devices:edit）与设备本身（DeviceAuthFilter 注入的 device:report）。
+  // R10 修复：此前只允许 devices:edit，而 DeviceAuthFilter 给设备注入的是 device:report，
+  // 导致带 X-Device-Key 的真实设备上报一律 403（被兜底成 500），HTTP 上报通道实际不可用。
+  @PreAuthorize("hasAnyAuthority('devices:edit', 'device:report')")
   public ApiResponse<Map<String, Object>> reportData(@PathVariable String deviceCode,
                                                      @RequestBody Map<String, Object> payload) {
     int count = deviceDataService.ingest(deviceCode, payload);

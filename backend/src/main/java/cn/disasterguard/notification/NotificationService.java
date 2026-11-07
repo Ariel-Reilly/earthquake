@@ -114,13 +114,28 @@ public class NotificationService {
    * <p>同样受测试成员白名单约束：只覆盖 Router 正式派发是不够的，这个入口会直接调用
    * Sender，历史上是绕过派发链路的旁路。「不填 target 的连通性探测」不调用任何 Sender
    * —— {@code ScreenSender} 会向所有在线 WebSocket 客户端广播，空 target 不等于零副作用。
+   *
+   * <p>探测能且仅能确认「该渠道是否注册了发送器」。它不连数据库、不调外部网关，
+   * 因此不得对外宣称「渠道配置已校验 / 网关连通」——那是不成立的陈述。
    */
   public SendResultDto testSend(TestSendRequest request) {
     if (TestRecipientGuard.isProbeWithoutTarget(request.target())) {
-      String note = "[渠道探测·未投递] 未提供收件人，仅校验渠道配置，未调用任何发送器";
-      return new SendResultDto(null, "PROBE_ONLY",
-          List.of(new SendResultDto.ChannelResult(request.channel(), "", "PROBE_ONLY", note)),
-          "渠道配置已校验；未提供收件人，未投递任何消息");
+      // 与真实发送路径使用完全一致的匹配规则，避免探测说「可用」、实际发送却报 NO_SENDER。
+      boolean senderRegistered = senders.stream()
+          .anyMatch(s -> s.getChannel().equals(request.channel()));
+      String status = senderRegistered ? "PROBE_ONLY" : "NO_SENDER";
+      String note = senderRegistered
+          ? "[渠道探测·未投递] 已确认渠道 " + request.channel()
+              + " 的发送器已注册；未调用任何发送器，未校验渠道配置与外部网关连通性"
+          : "[渠道探测·未投递] 渠道 " + request.channel()
+              + " 未注册发送器；未调用任何发送器";
+      String message = senderRegistered
+          ? "渠道发送器已确认注册；未提供收件人，未调用任何发送器，未投递任何消息"
+              + "（未校验渠道配置，未校验外部网关连通性）"
+          : "渠道未注册发送器；未提供收件人，未投递任何消息";
+      return new SendResultDto(null, status,
+          List.of(new SendResultDto.ChannelResult(request.channel(), "", status, note)),
+          message);
     }
     if (!recipientGuard.isAllowed(request.target())) {
       log.warn("测试发送被白名单拦截: channel={}, target={}, allowlistSize={}",

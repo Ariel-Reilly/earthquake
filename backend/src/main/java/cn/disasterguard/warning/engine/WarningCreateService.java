@@ -33,6 +33,10 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>RuleEngineScheduler 内部同类调用 {@code this.createWarning()} 会绕过 AOP 代理，
  * 导致事务不生效。将此逻辑抽到此独立 Service，由 Scheduler 通过注入调用，
  * 保证 warning 主记录保存失败时 risk_score_log 不会成为孤儿。
+ *
+ * <p>⚠️ R10 P1-2：光抽出独立 Service 还不够——{@code createWarning()} 调用
+ * 同一个类里的 {@code doPersist()} 依然是 this 调用、依然绕过代理。现在改为
+ * 注入自身代理 {@code self} 后再调，事务边界才真正成立（有单元测试与日志佐证）。
  */
 @Service
 public class WarningCreateService {
@@ -47,13 +51,27 @@ public class WarningCreateService {
   private final EventStateService eventStateService;
   private final RealtimeBroadcastService realtimeBroadcastService;
 
+  /**
+   * 自身代理引用（R10 P1-2）。
+   *
+   * <p>{@code createWarning()} 与 {@code doPersist()} 在同一个类里，直接写
+   * {@code doPersist(...)} 是 this 调用，不经过 Spring 的 AOP 代理，方法上的
+   * {@code @Transactional} **完全不生效**——两个 Repository 各自独立提交，
+   * risk_score_log 写失败会留下孤儿预警。
+   *
+   * <p>注入自身的代理（{@code @Lazy} 打破构造期循环）后，调用走代理，
+   * 事务边界才真的成立。这与 {@code DeviceDataService} 已有的 {@code self} 写法一致。
+   */
+  private final WarningCreateService self;
+
   public WarningCreateService(WarningEventRepository warningRepository,
                               RiskScoreLogRepository riskScoreLogRepository,
                               AiServiceClient aiClient,
                               AiAnalysisService aiAnalysisService,
                               ObjectMapper objectMapper,
                               EventStateService eventStateService,
-                              RealtimeBroadcastService realtimeBroadcastService) {
+                              RealtimeBroadcastService realtimeBroadcastService,
+                              @org.springframework.context.annotation.Lazy WarningCreateService self) {
     this.warningRepository = warningRepository;
     this.riskScoreLogRepository = riskScoreLogRepository;
     this.aiClient = aiClient;
@@ -61,6 +79,7 @@ public class WarningCreateService {
     this.objectMapper = objectMapper;
     this.eventStateService = eventStateService;
     this.realtimeBroadcastService = realtimeBroadcastService;
+    this.self = self;
   }
 
   /**
@@ -87,8 +106,15 @@ public class WarningCreateService {
     if (aiClient.isEnabled()) {
       try {
         fusion = aiClient.fusionRisk(hazardCode, aiFactors);
-        aiAnalysisService.saveRecord("fusion", hazardCode, fusion.model(), fusion);
+        // 先认定 AI 有效：审计记录的持久化失败不应把已经拿到的评分丢掉。
+        // 旧顺序是 saveRecord 在前，一旦审计记录写库异常（如 jsonb 绑定 / 模型外键），
+        // aiAvailable 会停在 false，整条链路被迫退化成 RULE_ONLY。
         aiAvailable = true;
+        try {
+          aiAnalysisService.saveRecord("fusion", hazardCode, fusion.model(), fusion);
+        } catch (Exception saveEx) {
+          log.warn("AI 融合结果已获取但审计记录写入失败 hazard={}: {}", hazardCode, saveEx.getMessage());
+        }
         if (!fusion.degraded()) {
           double confidence = fusion.confidence();
           boolean highConfidence = confidence > 0.7;
@@ -129,8 +155,16 @@ public class WarningCreateService {
     }
 
     try {
-      doPersist(ruleCode, hazardCode, title, finalLevel, metricCode, triggerValue,
-          aiSource, aiAvailable, fusion, aiFactors);
+      // 必须走 self 代理：同类直调会绕过 @Transactional（R10 P1-2）
+      if (self != null) {
+        self.doPersist(ruleCode, hazardCode, title, finalLevel, metricCode, triggerValue,
+            aiSource, aiAvailable, fusion, aiFactors);
+      } else {
+        // 极端情况（如单元测试里手工 new）退化为直接调用，仅影响原子性，不影响功能
+        log.warn("WarningCreateService.self 未注入，本次预警写入无事务保证");
+        doPersist(ruleCode, hazardCode, title, finalLevel, metricCode, triggerValue,
+            aiSource, aiAvailable, fusion, aiFactors);
+      }
     } catch (Exception e) {
       log.warn("预警 DB 写入失败 ruleCode={}, hazardCode={}: {}", ruleCode, hazardCode, e.getMessage());
     }
@@ -145,7 +179,7 @@ public class WarningCreateService {
    * @return 本次生成的预警编号（如 WG-1A2B3C4D）
    */
   @Transactional
-  public String doPersist(String ruleCode, String hazardCode, String title, String level,
+  public String doPersist(String ruleCode, String hazardCode, String title, String finalLevel,
                           String metricCode, double triggerValue, String source,
                           boolean aiAvailable, FusionRiskResult fusion, Map<String, Double> factors) {
 
@@ -154,11 +188,15 @@ public class WarningCreateService {
     event.setRuleCode(ruleCode);
     event.setHazardCode(hazardCode);
     event.setTitle(title);
-    event.setWarningLevel(level);
+    event.setWarningLevel(finalLevel);
     event.setTriggerValue(metricCode + "=" + triggerValue);
     event.setStatus("待确认");
     event.setSource(source);
     event.setTriggeredAt(OffsetDateTime.now());
+    // R10 P1-4：初始化复现计数与最近命中时间，自动解除调度器据此判定静默超时
+    event.setOccurCount(1);
+    event.setLastSeenAt(event.getTriggeredAt());
+    event.setAutoResolved(false);
 
     warningRepository.save(event);
 
@@ -177,9 +215,11 @@ public class WarningCreateService {
     }
     riskScoreLogRepository.save(riskLog);
 
-    // 【修复 A2】关联统一事件：创建统一事件并保存 eventCode 到预警实体
+    // 【修复 A2】关联统一事件：创建统一事件并保存 eventCode 到预警实体。
+    // 用隔离事务版本：统一事件失败只丢关联，不能把本事务标记成 rollback-only
+    // 从而连带回滚刚写入的预警（R10 P1-2 修复后事务真实生效才暴露出的耦合）。
     try {
-      String eventCode = eventStateService.createFromAiDetection(hazardCode, title);
+      String eventCode = eventStateService.createFromAiDetectionIsolated(hazardCode, title);
       event.setUnifiedEventCode(eventCode);
       warningRepository.save(event);
       log.info("预警已关联统一事件 warningCode={}, eventCode={}", event.getWarningCode(), eventCode);
@@ -187,17 +227,39 @@ public class WarningCreateService {
       log.warn("创建统一事件失败，但预警仍已创建 warningCode={}: {}", event.getWarningCode(), e.getMessage());
     }
 
-    // 【修复 B2】实时推送预警到前端
+    // 【修复 B2】实时推送预警到前端。
+    // 必须在事务提交之后再推：旧实现直接在事务内广播，一旦事务回滚，
+    // 前端已经收到并展示了库里并不存在的预警（R10 P1-2 的连带问题）。
+    broadcastAfterCommit(event);
+
+    log.info("规则 [{}] 触发 -> 生成预警(待人工复核) hazard={}, value={}, finalLevel={}, source={}",
+        ruleCode, hazardCode, triggerValue, finalLevel, source);
+    return event.getWarningCode();
+  }
+
+  /** 事务提交后再广播；无事务上下文时立即广播。 */
+  private void broadcastAfterCommit(WarningEvent event) {
+    if (org.springframework.transaction.support.TransactionSynchronizationManager
+        .isSynchronizationActive()) {
+      org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+          new org.springframework.transaction.support.TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+              safeBroadcast(event);
+            }
+          });
+      return;
+    }
+    safeBroadcast(event);
+  }
+
+  private void safeBroadcast(WarningEvent event) {
     try {
       realtimeBroadcastService.broadcastWarning(event);
       log.info("预警已推送到 WebSocket warningCode={}", event.getWarningCode());
     } catch (Exception e) {
       log.warn("WebSocket 推送预警失败，但预警仍已创建 warningCode={}: {}", event.getWarningCode(), e.getMessage());
     }
-
-    log.info("规则 [{}] 触发 -> 生成预警(待人工复核) hazard={}, value={}, finalLevel={}, source={}",
-        ruleCode, hazardCode, triggerValue, level, source);
-    return event.getWarningCode();
   }
 
   private RiskScoreLog buildRiskLog(String hazardCode, FusionRiskResult fusion, Map<String, Double> factors) {

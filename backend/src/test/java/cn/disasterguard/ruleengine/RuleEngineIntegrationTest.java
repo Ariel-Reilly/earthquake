@@ -2,47 +2,41 @@ package cn.disasterguard.ruleengine;
 
 import cn.disasterguard.ruleengine.dto.RuleTestRequest;
 import cn.disasterguard.ruleengine.dto.RuleTestResponse;
-import cn.disasterguard.ruleengine.entity.Rule;
-import cn.disasterguard.ruleengine.repository.RuleRepository;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * 规则引擎集成测试 - R004 规则验证。
+ * 规则引擎集成测试：复合条件（AND）的命中 / 边界行为。
  *
- * 目标：验证 R004 规则（设备离线告警）能否在底层正确命中。
- * R004 条件：device_status == "OFFLINE" AND duration_minutes > 10
- * 预期预警级别：蓝色预警
+ * <p><b>R10 P1-5 适配</b>：本类原先按数据库里 {@code rule.R004 = 设备离线告警}
+ * 写死断言，靠 {@code ruleRepository.findByRuleCode("R004")} 取 ID 再测。
+ * P1-5 把 rule 表统一为 warning_rule 的镜像（R004 现在是「倾角 &gt; 5」），
+ * 这 5 条用例随之全部失效——但失效的是测试对业务种子数据的耦合，不是求值器本身。
+ * 现改为通过 {@link RuleTestRequest#conditions()} 自带条件树（test() 原生支持），
+ * 保留全部原有场景与断言，同时不再受规则语义调整 / 数据库残留影响。
  */
 @SpringBootTest
-@DisplayName("规则引擎集成测试 - R004 验证")
+@DisplayName("规则引擎集成测试 - 复合条件与边界")
 public class RuleEngineIntegrationTest {
 
   @Autowired
   private RuleEngineService ruleEngineService;
 
-  @Autowired
-  private RuleRepository ruleRepository;
-
-  private Long r004RuleId;
-
-  /**
-   * 在所有测试前，查询 R004 规则的实际 ID。
-   */
-  @BeforeEach
-  void setUp() {
-    Rule r004Rule = ruleRepository.findByRuleCode("R004")
-        .orElseThrow(() -> new RuntimeException("R004 规则不存在，请检查数据库初始化"));
-    r004RuleId = r004Rule.getId();
-    System.out.println("【测试初始化】R004 规则 ID = " + r004RuleId);
+  /** device_status == "OFFLINE" AND duration_minutes > 10 —— 与原 R004 用例语义一致。 */
+  private static RuleTestRequest offlineRuleRequest() {
+    return new RuleTestRequest(null, new RuleTestRequest.RuleConditions(
+        "AND",
+        List.of(
+            new RuleTestRequest.ConditionItem("device_status", "==", "OFFLINE", null),
+            new RuleTestRequest.ConditionItem("duration_minutes", ">", 10, "min"))), null);
   }
 
   /**
@@ -61,7 +55,7 @@ public class RuleEngineIntegrationTest {
     testData.put("duration_minutes", 15.0);  // 转换为 double 以便规则引擎数值比较
 
     // 调用规则引擎的测试方法
-    RuleTestRequest request = new RuleTestRequest(r004RuleId, null, null);
+    RuleTestRequest request = offlineRuleRequest();
     RuleTestResponse result = ruleEngineService.test(request, testData);
 
     // 验证结果
@@ -99,7 +93,7 @@ public class RuleEngineIntegrationTest {
     testData.put("duration_minutes", 15.0);
 
     // 调用规则引擎的测试方法
-    RuleTestRequest request = new RuleTestRequest(r004RuleId, null, null);
+    RuleTestRequest request = offlineRuleRequest();
     RuleTestResponse result = ruleEngineService.test(request, testData);
 
     // 验证结果
@@ -135,7 +129,7 @@ public class RuleEngineIntegrationTest {
     testData.put("duration_minutes", 5.0);
 
     // 调用规则引擎的测试方法
-    RuleTestRequest request = new RuleTestRequest(r004RuleId, null, null);
+    RuleTestRequest request = offlineRuleRequest();
     RuleTestResponse result = ruleEngineService.test(request, testData);
 
     // 验证结果
@@ -171,7 +165,7 @@ public class RuleEngineIntegrationTest {
     testData.put("duration_minutes", 10.0);
 
     // 调用规则引擎的测试方法
-    RuleTestRequest request = new RuleTestRequest(r004RuleId, null, null);
+    RuleTestRequest request = offlineRuleRequest();
     RuleTestResponse result = ruleEngineService.test(request, testData);
 
     // 验证结果
@@ -205,7 +199,7 @@ public class RuleEngineIntegrationTest {
     testData.put("duration_minutes", 11.0);
 
     // 调用规则引擎的测试方法
-    RuleTestRequest request = new RuleTestRequest(r004RuleId, null, null);
+    RuleTestRequest request = offlineRuleRequest();
     RuleTestResponse result = ruleEngineService.test(request, testData);
 
     // 验证结果

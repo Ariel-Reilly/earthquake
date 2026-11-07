@@ -55,8 +55,11 @@ public class SecurityConfigProd {
           if (swaggerEnabled) {
             auth.requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll();
           }
+          // 与 SecurityConfig 保持一致：logout 被 JwtAuthenticationFilter 跳过，
+          // 必须 permitAll 才能走到控制器里由 Authorization 头自行验签吊销。
           auth
-              .requestMatchers("/api/system/health", "/api/auth/login").permitAll()
+              .requestMatchers("/api/system/health", "/api/auth/login",
+                  "/api/auth/logout").permitAll()
               // 注册申请链路：与 SecurityConfig 保持一致（prod 也必须放行，
               // 否则 prod 下匿名用户连图形验证码都取不到，功能直接不可用）。
               .requestMatchers(HttpMethod.GET, "/api/auth/captcha",
@@ -69,7 +72,10 @@ public class SecurityConfigProd {
               // POST /api/weather/products/refresh 在生产可被匿名触发回源拉取外部资源。
               .requestMatchers(HttpMethod.GET, "/api/weather/**").permitAll()
               .requestMatchers(HttpMethod.GET, "/api/sentinel/**").permitAll()
-              .requestMatchers("/api/devices/{deviceCode}/data").hasRole("DEVICE")
+              // R10：设备数据上报放宽为「已认证」——设备走 X-Device-Key（ROLE_DEVICE/device:report），
+              // 后台补录走 JWT + devices:edit。精确权限由 @PreAuthorize 判定，
+              // 写死 hasRole("DEVICE") 会让后台补录一律 403。
+              .requestMatchers("/api/devices/{deviceCode}/data").authenticated()
               .anyRequest().authenticated();
         })
         .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)

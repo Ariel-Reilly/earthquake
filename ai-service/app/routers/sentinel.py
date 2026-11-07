@@ -1082,7 +1082,7 @@ async def compose(req: SentinelComposeRequest, background_tasks: BackgroundTasks
 
     **调用示例：**
     ```bash
-    curl -X POST http://localhost:8000/api/ai/sentinel/compose \\
+    curl -X POST http://localhost:8001/api/ai/sentinel/compose \\
          -H "Content-Type: application/json" \\
          -d '{"bbox":[107.0,30.4,107.4,30.8],"max_cloud":15}'
     ```
@@ -1160,7 +1160,7 @@ async def submit_diff(req: SentinelDiffRequest, background_tasks: BackgroundTask
 
     **示例：**
     ```bash
-    curl -X POST http://localhost:8000/api/ai/sentinel/diff \\
+    curl -X POST http://localhost:8001/api/ai/sentinel/diff \\
          -H "Content-Type: application/json" \\
          -d '{"before_job_id":"xxx","after_job_id":"yyy","bbox":[107.0,30.4,107.4,30.8]}'
     ```

@@ -97,3 +97,42 @@ def test_anomaly_route_marks_1d_result_as_mock(monkeypatch):
     )
     assert resp.mock is True
     assert "共线" in resp.message
+
+
+def test_anomaly_batch_accepts_1d_input_and_marks_mock(monkeypatch):
+    """R7：批量接口与单条共用归一化，一维输入不再 422，且同样如实标 mock。"""
+    import app.routers.anomaly as anomaly_router
+
+    class FakeDetector:
+        FEATURE_NAMES = ["displacement_rate", "crack_width", "tilt_angle",
+                         "rainfall", "vibration_freq"]
+
+        def detect(self, data):
+            assert all(len(row) == 5 for row in data)
+            return {
+                "is_anomaly": False,
+                "anomaly_indices": [],
+                "score": 0.1,
+                "model": "fake",
+                "mock": False,
+            }
+
+    monkeypatch.setattr(anomaly_router, "get_detector", lambda: FakeDetector())
+    resp = anomaly_router.anomaly_batch(anomaly_router.BatchAnomalyRequest(items=[
+        {"device_code": "SB-A", "data": [1.0, 2.0, 3.0]},
+        {"device_code": "SB-B", "data": [[1.0, 2.0, 3.0, 4.0, 5.0]] * 3},
+    ]))
+
+    assert resp.total == 2
+    assert resp.results[0].mock is True
+    assert "共线" in resp.results[0].message
+    assert resp.results[1].mock is False  # 真实 5 维输入不被误标
+
+
+def test_anomaly_batch_rejects_non_5d_matrix():
+    import app.routers.anomaly as anomaly_router
+
+    with pytest.raises(ValueError):
+        anomaly_router.BatchAnomalyRequest(items=[
+            {"device_code": "SB-A", "data": [[1.0, 2.0]] * 3},
+        ])

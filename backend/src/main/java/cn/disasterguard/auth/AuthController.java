@@ -134,8 +134,9 @@ public class AuthController {
     }
     SysUser sysUser = sysUserOpt.get();
 
-    // 兼容旧参数命名（部分前端可能仍发 "request"），但推荐用 requestBody 避免与 HttpServletRequest 重名。
-    ChangePasswordRequest req = requestBody == null ? null : requestBody;
+    // 参数名用 requestBody：避免与 HttpServletRequest 重名（同名时 Spring 会解析错类型）。
+    // 旧版注释声称"兼容旧参数命名 request"，但这里没有任何兼容分支，已按实测订正（R10 P2-10）。
+    ChangePasswordRequest req = requestBody;
     if (req == null) {
       return ApiResponse.fail(400, "请求体为空");
     }

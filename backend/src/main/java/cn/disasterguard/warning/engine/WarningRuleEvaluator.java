@@ -96,7 +96,13 @@ public class WarningRuleEvaluator {
       }
       if (ok) {
         anyOk = true;
-        matched = value;
+        // 复合表达式只保留「首个命中条款」的值。
+        // 旧实现每次命中都覆盖 matched，导致 AND 规则返回最后一个条款的数值，
+        // 而调用方是用 rule.metric_code（主指标，通常是表达式首项）拼 trigger_value 的，
+        // 于是出现 "rainfall_24h=5.85" 这种标签与数值不属于同一指标的错位。
+        if (matched == null) {
+          matched = value;
+        }
       }
     }
     return anyOk ? Optional.ofNullable(matched) : Optional.empty();

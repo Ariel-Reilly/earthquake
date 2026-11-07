@@ -125,7 +125,8 @@ const role = computed(() => getAuthRole())
 /**
  * 可新建的条目。现在只有"新建预警"，其他待补充。
  *
- * path 只用于权限判定（必须是真实菜单路径，canAccessPath 走前缀匹配）；
+ * path 只用于权限判定（必须是真实菜单路径；canAccessPath 按 '/' 边界匹配，
+ * /dashboard 这个共有根节点不展开子路径，见 stores/auth.js）；
  * target 才是实际跳转地址：列表页用 ?create=1 自行唤起创建弹窗。
  * 历史写法直接跳 /dashboard/warnings/create，那是被重定向回列表的壳路由，
  * 点完只会回到列表、丢掉"我要新建"的意图。

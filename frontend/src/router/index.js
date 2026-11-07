@@ -350,7 +350,7 @@ const router = createRouter({
         { path: "history-hazards", redirect: "/dashboard/analytics" },
         { path: "satellite-compare", redirect: "/dashboard/real-time-map" },
         { path: "warning-config", redirect: "/dashboard/warnings" },
-        { path: "social-media", redirect: "/dashboard/hazards" },
+        // R7：社交媒体舆情页从未实现；菜单已撤下，旧 redirect 会把人带到无关的隐患列表，一并移除。
         { path: "reports", redirect: "/dashboard/analytics" },
         { path: "backup-recovery", redirect: "/dashboard/system-monitor" },
         { path: "plans", redirect: "/dashboard/emergency" },
@@ -514,10 +514,10 @@ const router = createRouter({
     },
     {
       // 注册申请审核挂在 /admin 下而不是 /dashboard 下，但仍复用同一套 MainLayout：
-      // 它只对 admin 开放，放进 /dashboard 会让 canAccessPath 的前缀匹配
-      // 把 system_admin 等角色的 /dashboard 权限误判为可达。
+      // /admin 是独立的命名空间，不会落进任何角色的 /dashboard 菜单路径；
       // 真正的访问控制来自 routePermissionMap["admin-applications"] = users:approve，
       // 该权限码只存在于 ROLE_PERMISSION_MAP.admin，其余角色会被守卫拦到 403。
+      // （R8 起 canAccessPath 已按 '/' 边界匹配，历史「/dashboard 前缀误放行」理由不再适用。）
       path: "/admin",
       component: DashboardLayout,
       meta: { requiresAuth: true },

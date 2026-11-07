@@ -31,23 +31,20 @@ public final class PermissionRegistry {
           "approval:reject", "events:view", "events:transition", "events:reopen",
           "warnings:view", "warnings:confirm", "warnings:dispatch", "warnings:close",
           "warnings:create", "warnings:export", "warnings:resend", "notice:view",
-          "notice:edit", "plans:view", "plans:edit", "plans:launch",
-          "emergency:view", "emergency:start", "emergency:dispatch", "emergency:close",
-          "emergency:export", "resource:view", "resource:dispatch", "resource:assign",
-          "resource:create", "resource:edit", "devices:view", "devices:create",
-          "devices:edit", "devices:delete", "devices:export", "devices:control",
-          "devices:ota", "datasource:view", "datasource:config", "datasource:create",
-          "datasource:edit", "datasource:delete", "sync:view", "sync:manage",
-          "analytics:view", "analytics:export", "history:view", "history:export",
-          "users:view", "users:create", "users:edit", "users:delete",
-          "roles:view", "roles:edit", "rules:view", "rules:edit",
+          "notice:edit", "emergency:view", "emergency:start", "emergency:dispatch",
+          "emergency:close", "emergency:export", "resource:view", "resource:dispatch",
+          "resource:assign", "resource:create", "resource:edit", "devices:view",
+          "devices:create", "devices:edit", "devices:delete", "devices:export",
+          "devices:control", "devices:ota", "datasource:view", "datasource:config",
+          "datasource:create", "datasource:edit", "datasource:delete", "sync:view",
+          "sync:manage", "analytics:view", "analytics:export", "users:view",
+          "users:create", "users:edit", "users:delete", "roles:view",
+          "roles:edit", "users:approve", "rules:view", "rules:edit",
           "rules:create", "rules:delete", "audit:view", "audit:export",
-          "monitor:view", "backup:view", "backup:manage", "settings:view",
-          "settings:edit", "reports:view", "reports:create", "reports:delete",
-          "data:catalog:view", "messages:view", "messages:send", "todo:view",
-          "route:view", "route:plan", "route:approve", "route:export",
-          "sign:view", "sign:create", "sign:confirm", "profile:view",
-          "profile:edit"
+          "monitor:view", "settings:view", "settings:edit", "messages:view",
+          "messages:send", "todo:view", "route:view", "route:plan",
+          "route:approve", "route:export", "sign:view", "sign:create",
+          "sign:confirm", "profile:view", "profile:edit", "data:catalog:view"
       ),
       "attendant", Set.of(
           "overview:view", "overview:export", "map:view", "map:edit",
@@ -58,9 +55,8 @@ public final class PermissionRegistry {
           "confirmation:transfer", "inspection:view", "inspection:submit", "personnel:view",
           "personnel:report", "warnings:view", "warnings:confirm", "warnings:dispatch",
           "warnings:create", "warnings:export", "events:view", "events:transition",
-          "notice:view", "notice:edit", "plans:view", "plans:edit",
-          "plans:launch", "emergency:view", "emergency:dispatch", "devices:view",
-          "weather:view", "analytics:view", "reports:view", "approval:view",
+          "notice:view", "notice:edit", "emergency:view", "emergency:dispatch",
+          "devices:view", "weather:view", "analytics:view", "approval:view",
           "approval:initiate", "messages:view", "todo:view", "settings:view",
           "route:view", "route:export", "sign:view", "sign:create",
           "profile:view", "profile:edit"
@@ -72,30 +68,28 @@ public final class PermissionRegistry {
           "confirmation:claim", "confirmation:confirm", "confirmation:reject", "confirmation:transfer",
           "inspection:view", "personnel:view", "approval:view", "approval:sign",
           "approval:approve", "approval:reject", "events:view", "warnings:view",
-          "warnings:dispatch", "plans:view", "data:catalog:view", "emergency:view",
-          "emergency:dispatch", "rules:view", "reports:view", "analytics:view",
-          "messages:view", "todo:view", "settings:view", "route:view",
-          "sign:view", "sign:create", "sign:confirm", "profile:view",
-          "profile:edit"
+          "warnings:dispatch", "data:catalog:view", "emergency:view", "emergency:dispatch",
+          "rules:view", "analytics:view", "messages:view", "todo:view",
+          "settings:view", "route:view", "sign:view", "sign:create",
+          "sign:confirm", "profile:view", "profile:edit"
       ),
       "maintenance", Set.of(
           "overview:view", "map:view", "zone:view", "hazards:view",
           "devices:view", "devices:create", "devices:edit", "devices:delete",
           "devices:export", "devices:control", "devices:ota", "datasource:view",
-          "sync:view", "data:catalog:view", "weather:view", "analytics:view",
-          "emergency:view", "emergency:dispatch", "resource:view", "route:view",
-          "inspection:view", "inspection:submit", "personnel:view", "personnel:report",
-          "monitor:view", "backup:view", "messages:view", "todo:view",
+          "sync:view", "data:catalog:view", "weather:view", "weather:refresh",
+          "analytics:view", "emergency:view", "emergency:dispatch", "resource:view",
+          "route:view", "inspection:view", "inspection:submit", "personnel:view",
+          "personnel:report", "monitor:view", "messages:view", "todo:view",
           "settings:view", "profile:view", "profile:edit"
       ),
       "system_admin", Set.of(
           "overview:view", "overview:export", "analytics:view", "analytics:export",
-          "history:view", "history:export", "reports:view", "reports:create",
-          "reports:delete", "users:view", "users:create", "users:edit",
-          "users:delete", "roles:view", "roles:edit", "audit:view",
-          "audit:export", "monitor:view", "backup:view", "backup:manage",
-          "sync:view", "settings:view", "settings:edit", "messages:view",
-          "messages:send", "todo:view", "profile:view", "profile:edit"
+          "users:view", "users:create", "users:edit", "users:delete",
+          "roles:view", "roles:edit", "audit:view", "audit:export",
+          "monitor:view", "sync:view", "settings:view", "settings:edit",
+          "messages:view", "messages:send", "todo:view", "profile:view",
+          "profile:edit"
       ),
       "emergency_commander", Set.of(
           "overview:view", "overview:export", "map:view", "map:edit",
@@ -104,14 +98,12 @@ public final class PermissionRegistry {
           "inspection:view", "personnel:view", "events:view", "events:transition",
           "events:reopen", "sign:view", "sign:create", "sign:confirm",
           "warnings:view", "warnings:dispatch", "warnings:close", "warnings:create",
-          "warnings:export", "warnings:resend", "notice:view", "plans:view",
-          "plans:edit", "plans:launch", "emergency:view", "emergency:start",
-          "emergency:dispatch", "emergency:close", "resource:view", "resource:dispatch",
-          "resource:assign", "resource:create", "resource:edit", "route:view",
-          "route:plan", "route:approve", "route:export", "devices:view",
-          "approval:view", "approval:approve", "approval:reject", "reports:view",
-          "reports:create", "analytics:view", "analytics:export", "profile:view",
-          "profile:edit"
+          "warnings:export", "warnings:resend", "notice:view", "emergency:view",
+          "emergency:start", "emergency:dispatch", "emergency:close", "resource:view",
+          "resource:dispatch", "resource:assign", "resource:create", "resource:edit",
+          "route:view", "route:plan", "route:approve", "route:export",
+          "devices:view", "approval:view", "approval:approve", "approval:reject",
+          "analytics:view", "analytics:export", "profile:view", "profile:edit"
       ),
       "ai_engineer", Set.of(
           "overview:view", "analytics:view", "ai:task:view", "ai:task:create",
@@ -121,8 +113,8 @@ public final class PermissionRegistry {
           "rules:view", "rules:edit", "rules:create", "rules:delete",
           "datasource:view", "datasource:config", "datasource:create", "datasource:edit",
           "datasource:delete", "sync:view", "sync:manage", "data:catalog:view",
-          "reports:view", "monitor:view", "messages:view", "todo:view",
-          "profile:view", "profile:edit"
+          "monitor:view", "messages:view", "todo:view", "profile:view",
+          "profile:edit"
       )
   );
 
@@ -141,16 +133,12 @@ public final class PermissionRegistry {
     return List.copyOf(permissionsOf(role));
   }
 
-  /** 全部已注册角色（下划线形式）。用于前端权限矩阵渲染。 */
+  /** 全部已注册角色（供角色管理页 / 权限矩阵页展示）。 */
   public static Set<String> roles() {
     return ROLE_PERMISSIONS.keySet();
   }
 
-  /**
-   * 角色 → 权限码 的完整只读视图。
-   *
-   * <p>返回顺序稳定（LinkedHashMap + 已排序权限集），便于前端与 diff 工具比对。
-   */
+  /** 角色 → 权限码快照（排序后），供 PermissionRegistryController 输出矩阵。 */
   public static Map<String, List<String>> snapshot() {
     Map<String, List<String>> result = new java.util.LinkedHashMap<>();
     ROLE_PERMISSIONS.keySet().stream()
@@ -159,7 +147,7 @@ public final class PermissionRegistry {
     return result;
   }
 
-  /** 所有已注册权限码的并集（已排序）。 */
+  /** 所有角色权限码的并集（去重 + 排序）。 */
   public static List<String> allPermissions() {
     return ROLE_PERMISSIONS.values().stream()
         .flatMap(Set::stream)

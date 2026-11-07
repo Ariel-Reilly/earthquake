@@ -13,7 +13,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -37,19 +36,23 @@ public class RuleEngineScheduler {
   private final MonitoringDeviceRepository deviceRepository;
   private final WarningCreateService warningCreateService;
   private final boolean enabled;
+  /** 指标新鲜度窗口（分钟）：超过该时长未上报的指标不参与研判，<=0 表示不限制。 */
+  private final int metricStaleMinutes;
 
   public RuleEngineScheduler(WarningRuleRepository ruleRepository,
                              WarningEventRepository warningRepository,
                              DeviceMetricRepository metricRepository,
                              MonitoringDeviceRepository deviceRepository,
                              WarningCreateService warningCreateService,
-                             @Value("${disasterguard.warning.rule-engine-enabled:true}") boolean enabled) {
+                             @Value("${disasterguard.warning.rule-engine-enabled:true}") boolean enabled,
+                             @Value("${disasterguard.warning.metric-stale-minutes:60}") int metricStaleMinutes) {
     this.ruleRepository = ruleRepository;
     this.warningRepository = warningRepository;
     this.metricRepository = metricRepository;
     this.deviceRepository = deviceRepository;
     this.warningCreateService = warningCreateService;
     this.enabled = enabled;
+    this.metricStaleMinutes = metricStaleMinutes;
   }
 
   /**
@@ -102,7 +105,9 @@ public class RuleEngineScheduler {
       }
     }
 
-    List<DeviceMetric> latest = metricRepository.findLatestByDeviceCodes(deviceCodes);
+    List<DeviceMetric> latest = metricStaleMinutes > 0
+        ? metricRepository.findLatestByDeviceCodesSince(deviceCodes, metricStaleMinutes)
+        : metricRepository.findLatestByDeviceCodes(deviceCodes);
     // hazard_code -> { metric_code -> value }
     Map<String, Map<String, Double>> hazardMetrics = new HashMap<>();
     for (DeviceMetric m : latest) {
@@ -112,15 +117,17 @@ public class RuleEngineScheduler {
       }
     }
 
-    // 预取所有未关闭预警，构建 ruleCode|hazardCode 集合（O(1) 判断，避免循环内 N×M 次 exists 查询）
+    // 预取所有未关闭预警，构建 ruleCode|hazardCode -> 预警主键 映射（O(1) 判断，避免循环内 N×M 次 exists 查询）
+    // R10 P1-4：旧版只记 key 集合，命中后直接跳过，既不计次也不刷新时间，
+    // 一旦某条预警长期没人处理，该规则对该点就永久哑火。现在改存主键，命中时累加复现次数。
     List<String> ruleCodes = rules.stream().map(WarningRule::getRuleCode).toList();
     List<String> hazardCodes = new ArrayList<>(hazardMetrics.keySet());
-    Set<String> openWarningKeys = new java.util.HashSet<>();
+    Map<String, Long> openWarningIds = new HashMap<>();
     if (!ruleCodes.isEmpty() && !hazardCodes.isEmpty()) {
       List<WarningEvent> openWarnings = warningRepository.findOpenWarnings(
           ruleCodes, hazardCodes, List.of("已关闭", "已忽略", "已解除"));
       for (WarningEvent w : openWarnings) {
-        openWarningKeys.add(w.getRuleCode() + "|" + w.getHazardCode());
+        openWarningIds.putIfAbsent(w.getRuleCode() + "|" + w.getHazardCode(), w.getId());
       }
     }
 
@@ -136,7 +143,19 @@ public class RuleEngineScheduler {
         if (hit.isEmpty()) {
           continue;
         }
-        if (openWarningKeys.contains(rule.getRuleCode() + "|" + hazardCode)) {
+        String warningKey = rule.getRuleCode() + "|" + hazardCode;
+        Long openId = openWarningIds.get(warningKey);
+        if (openId != null) {
+          // 已有未关闭预警：累计复现次数 + 刷新最近命中时间，不重复建单
+          if (openId > 0) {
+            try {
+              warningRepository.bumpOccurrence(openId, OffsetDateTime.now());
+              log.debug("预警仍在持续 rule={} hazard={} warningId={} value={}",
+                  rule.getRuleCode(), hazardCode, openId, hit.get());
+            } catch (Exception ex) {
+              log.debug("累加预警复现次数失败 warningId={}: {}", openId, ex.getMessage());
+            }
+          }
           continue;
         }
         // 委托给独立 Service，通过代理保证 @Transactional 生效
@@ -144,8 +163,8 @@ public class RuleEngineScheduler {
           warningCreateService.createWarning(
               rule.getRuleCode(), rule.getRuleName(), hazardCode,
               rule.getWarningLevel(), rule.getMetricCode(), hit.get(), metrics);
-          // 成功后标记为已触发，避免同一次调度内重复命中
-          openWarningKeys.add(rule.getRuleCode() + "|" + hazardCode);
+          // -1 作占位：本轮已建单，同轮不再重复创建（下一轮会查到真实主键）
+          openWarningIds.put(warningKey, -1L);
           log.info("规则命中并生成预警 rule={} hazard={} metric={} value={}",
               rule.getRuleCode(), hazardCode, rule.getMetricCode(), hit.get());
         } catch (Exception ex) {

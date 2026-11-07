@@ -128,6 +128,15 @@ disasterguard:
   warning:
     rule-engine-enabled: true
     rule-engine-cron: "*/30 * * * * *"
+    # 指标新鲜度窗口（分钟）：超过该时长未上报的指标不参与阈值研判，
+    # 避免设备停机 / 换演示场景后仍用几小时前的读数误触发预警。<=0 关闭限制。
+    metric-stale-minutes: ${WARNING_METRIC_STALE_MINUTES:60}
+    # R10 P1-4：预警自动解除。规则持续命中时只累加 occur_count；
+    # 连续 auto-resolve-after-minutes 分钟没有再命中，则自动转「已解除（自动）」，
+    # 让同一 (规则, 隐患点) 可以再次报警。设为 false 或 <=0 可关闭。
+    auto-resolve-enabled: ${WARNING_AUTO_RESOLVE_ENABLED:true}
+    auto-resolve-after-minutes: ${WARNING_AUTO_RESOLVE_AFTER_MINUTES:30}
+    auto-resolve-cron: ${WARNING_AUTO_RESOLVE_CRON:0 * * * * *}
 
   ai:
     # 图像识别客户端（ImageAnalysisListener 使用）
@@ -181,7 +190,10 @@ emqx:
   client-id: ${EMQX_CLIENT_ID:disasterguard-backend}
   topic: ${EMQX_DATA_TOPIC:disasterguard/+/data}
   qos: ${EMQX_DATA_QOS:1}
-  enabled: ${EMQX_ENABLED:false}
+  # 默认开启：设备上报（沙盘 / ESP32 网关）是本平台的主数据源，关掉就等于链路断开。
+  # broker 不可达时 MqttDataSubscriber 只 WARN 并指数退避重连，不阻塞启动；
+  # 需要彻底静默时显式设置 EMQX_ENABLED=false。
+  enabled: ${EMQX_ENABLED:true}
   username: ${EMQX_USERNAME:}
   password: ${EMQX_PASSWORD:}
 

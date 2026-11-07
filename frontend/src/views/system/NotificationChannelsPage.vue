@@ -271,9 +271,10 @@ const STATUS_LABEL = {
   RATE_LIMITED: "blocked",
   PENDING: "pending",
   READ: "read",
-  SENDING: "demo",
+  // SENDING/RETRYING 是「流程进行中」，不是「演示发送」——不能和 MOCK_SENT 混为一类。
+  SENDING: "sending",
+  RETRYING: "sending",
   MOCK_SENT: "demo",
-  RETRYING: "demo",
 };
 
 const STATUS_TEXT = {
@@ -282,6 +283,7 @@ const STATUS_TEXT = {
   blocked: "已拦截",
   demo: "演示/未投递",
   pending: "待发送",
+  sending: "发送中",
   read: "已读",
   unknown: "未知",
 };
@@ -292,6 +294,7 @@ function statusNote(status) {
   if (kind === "blocked") return "已拦截·未投递";
   if (kind === "demo") return "演示发送·未真实投递";
   if (kind === "pending") return "待发送";
+  if (kind === "sending") return "发送中，结果待确认";
   if (kind === "read") return "已读";
   if (kind === "unknown") return `状态未登记：${status ?? "—"}`;
   return "";
@@ -353,16 +356,18 @@ async function testConnection(channel) {
     const result = await testSend({
       channel: code,
       target: "",
-      title: "渠道连通性测试",
+      title: "渠道探测",
       content: "这是一条来自 DisasterGuard 的测试消息",
     });
-    // 后端返回的是 SendResultDto.status，没有 success 字段；按状态如实提示，
-    // 不再把「演示发送 / 已拦截」误报成连接测试成功。
+    // 后端返回的是 SendResultDto.status，没有 success 字段；按状态如实提示。
+    // PROBE_ONLY 只确认「发送器已注册」，不校验渠道配置或外部网关连通性，不能报「已校验」。
     const status = result?.status;
     if (status === "BLOCKED") {
       emit("notify", "已拦截：当前仅允许发送给项目测试成员");
-    } else if (status === "PROBE_ONLY" || status === "MOCK_SENT") {
-      emit("notify", `${channel.name} 渠道配置已校验；当前为演示发送，未真实投递`);
+    } else if (status === "PROBE_ONLY") {
+      emit("notify", `${channel.name} 发送器已注册；未投递任何消息，未校验外部网关`);
+    } else if (status === "MOCK_SENT") {
+      emit("notify", `${channel.name} 演示发送已受理，未真实投递`);
     } else if (status === "SUCCESS") {
       emit("notify", `${channel.name} 连接测试成功`);
     } else {
@@ -468,7 +473,7 @@ const healthStyle = (h) =>
 const statusStyle = (s) =>
   s === "success" ? { bg: "#dcfce7", color: "#166534" } :
   s === "demo" || s === "pending" || s === "unknown" ? { bg: "#f1efe8", color: "#6b6250" } :
-  s === "read" ? { bg: "#e8eef0", color: "#4a6154" } :
+  s === "read" || s === "sending" ? { bg: "#e8eef0", color: "#4a6154" } :
   { bg: "#fee2e2", color: "#991b1b" };
 
 const channelIcon = (type) => {

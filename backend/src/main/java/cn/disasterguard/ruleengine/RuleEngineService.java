@@ -46,6 +46,12 @@ public class RuleEngineService {
   private final ObjectMapper objectMapper;
   private final ApplicationEventPublisher eventPublisher;
 
+  /**
+   * 规则管理页 ↔ 预警引擎 的桥（R10 P1-5）。
+   * 页面写 rule 表，预警读 warning_rule；没有这个桥，页面改阈值对预警零影响。
+   */
+  private final WarningRuleSyncService warningRuleSyncService;
+
   // 缓存已编译的规则
   private volatile Map<Long, RuleCompiler.ConditionNode> compiledRules = new HashMap<>();
 
@@ -57,7 +63,8 @@ public class RuleEngineService {
       RuleEvaluator evaluator,
       NotificationRouter notificationRouter,
       ObjectMapper objectMapper,
-      ApplicationEventPublisher eventPublisher) {
+      ApplicationEventPublisher eventPublisher,
+      WarningRuleSyncService warningRuleSyncService) {
     this.ruleRepository = ruleRepository;
     this.logRepository = logRepository;
     this.fieldDictRepository = fieldDictRepository;
@@ -66,6 +73,7 @@ public class RuleEngineService {
     this.notificationRouter = notificationRouter;
     this.objectMapper = objectMapper;
     this.eventPublisher = eventPublisher;
+    this.warningRuleSyncService = warningRuleSyncService;
   }
 
   /**
@@ -165,7 +173,13 @@ public class RuleEngineService {
     int to = Math.min(from + size, total);
     List<Rule> pageRules = from < total ? rules.subList(from, to) : List.of();
 
-    List<RuleDto> dtos = pageRules.stream().map(this::toDto).toList();
+    // 一次性取回这些编号在预警引擎里的实际表达式，用于页面标注"已生效/未生效"
+    Map<String, String> effective = warningRuleSyncService.effectiveExpressions(
+        pageRules.stream().map(Rule::getRuleCode).toList());
+
+    List<RuleDto> dtos = pageRules.stream()
+        .map(rule -> toDto(rule, effective.get(rule.getRuleCode())))
+        .toList();
 
     return new PageResponse<>(dtos, total, page, size, (total + size - 1) / size);
   }
@@ -190,13 +204,19 @@ public class RuleEngineService {
     rule.setCreatedBy(operator);
     rule = ruleRepository.save(rule);
 
+    // R10 P1-5：同步下发到预警引擎（warning_rule），否则页面新建的规则永远不会触发预警
+    WarningRuleSyncService.ApplyResult applied = warningRuleSyncService.applyToWarningRule(rule);
+    if (!applied.applied()) {
+      log.warn("新建规则 {} 未下发预警引擎：{}", rule.getRuleCode(), applied.message());
+    }
+
     // 刷新缓存
     reloadRules("RuleEngineService.create");
 
     // 发布变更事件
     publishRuleChanged(rule.getId(), "CREATED");
 
-    return toDto(rule);
+    return toDto(rule, applied.expression());
   }
 
   /**
@@ -212,13 +232,19 @@ public class RuleEngineService {
     rule.setUpdatedAt(OffsetDateTime.now());
     rule = ruleRepository.save(rule);
 
+    // R10 P1-5：把新阈值写回 warning_rule，下一轮调度即生效
+    WarningRuleSyncService.ApplyResult applied = warningRuleSyncService.applyToWarningRule(rule);
+    if (!applied.applied()) {
+      log.warn("规则 {} 未下发预警引擎：{}", rule.getRuleCode(), applied.message());
+    }
+
     // 刷新缓存
     reloadRules("RuleEngineService.update");
 
     // 发布变更事件
     publishRuleChanged(rule.getId(), "UPDATED");
 
-    return toDto(rule);
+    return toDto(rule, applied.expression());
   }
 
   /**
@@ -226,10 +252,14 @@ public class RuleEngineService {
    */
   @Transactional
   public void delete(Long id) {
-    if (!ruleRepository.existsById(id)) {
-      throw new RuntimeException("规则不存在: " + id);
-    }
+    Rule rule = ruleRepository.findById(id)
+        .orElseThrow(() -> new RuntimeException("规则不存在: " + id));
+    String ruleCode = rule.getRuleCode();
     ruleRepository.deleteById(id);
+
+    // R10 P1-5：warning_event.rule_code 有外键指向 warning_rule，不能硬删；
+    // 改为停用，让预警引擎立即停止该规则，同时保留历史预警的归属。
+    warningRuleSyncService.disableInWarningRule(ruleCode);
 
     // 刷新缓存
     reloadRules("RuleEngineService.delete");
@@ -250,13 +280,16 @@ public class RuleEngineService {
     rule.setUpdatedAt(OffsetDateTime.now());
     rule = ruleRepository.save(rule);
 
+    // R10 P1-5：启停状态也必须同步，否则页面上"已停用"的规则仍在后台报预警
+    WarningRuleSyncService.ApplyResult applied = warningRuleSyncService.applyToWarningRule(rule);
+
     // 刷新缓存
     reloadRules("RuleEngineService.toggle");
 
     // 发布变更事件
     publishRuleChanged(rule.getId(), rule.getEnabled() ? "ENABLED" : "DISABLED");
 
-    return toDto(rule);
+    return toDto(rule, applied.expression());
   }
 
   /**
@@ -528,6 +561,15 @@ public class RuleEngineService {
   }
 
   private RuleDto toDto(Rule rule) {
+    Map<String, String> effective = warningRuleSyncService.effectiveExpressions(
+        List.of(rule.getRuleCode() == null ? "" : rule.getRuleCode()));
+    return toDto(rule, effective.get(rule.getRuleCode()));
+  }
+
+  /**
+   * @param effectiveExpression 预警引擎里真正在跑的表达式；null 表示该规则未进入预警引擎
+   */
+  private RuleDto toDto(Rule rule, String effectiveExpression) {
     RuleDto.RuleConditions conditions = null;
     List<RuleDto.RuleAction> actions = null;
 
@@ -557,7 +599,9 @@ public class RuleEngineService {
         rule.getEnabled(),
         rule.getCreatedBy(),
         rule.getCreatedAt() != null ? rule.getCreatedAt().toString() : null,
-        rule.getUpdatedAt() != null ? rule.getUpdatedAt().toString() : null
+        rule.getUpdatedAt() != null ? rule.getUpdatedAt().toString() : null,
+        effectiveExpression,
+        effectiveExpression != null && !effectiveExpression.isBlank()
     );
   }
 

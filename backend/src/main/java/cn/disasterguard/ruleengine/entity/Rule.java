@@ -27,9 +27,11 @@ public class Rule {
   private Integer priority;
 
   @Column(columnDefinition = "JSON")
+  @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
   private String conditions;
 
   @Column(columnDefinition = "JSON")
+  @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
   private String actions;
 
   @Column(name = "dsl_text", columnDefinition = "TEXT")

@@ -20,6 +20,25 @@ public interface DeviceMetricRepository extends JpaRepository<DeviceMetric, Long
   List<DeviceMetric> findLatestByDeviceCodes(@Param("deviceCodes") List<String> deviceCodes);
 
   /**
+   * 各设备各指标的最近一条记录，但只在 {@code staleMinutes} 分钟内的数据才算数。
+   *
+   * <p>规则引擎专用：{@link #findLatestByDeviceCodes} 没有时间窗口，设备停机或
+   * 换场景后，几小时甚至几天前的读数仍会被当作「当前值」参与阈值研判，
+   * 造成陈旧数据误报（例如二次演示前未清理，一启动就复用上一场的高水位）。
+   *
+   * @param staleMinutes 新鲜度窗口（分钟），必须为正数
+   */
+  @Query(value = """
+      SELECT DISTINCT ON (device_code, metric_code) *
+      FROM device_metric
+      WHERE device_code IN (:deviceCodes)
+        AND recorded_at > NOW() - make_interval(mins => :staleMinutes)
+      ORDER BY device_code, metric_code, recorded_at DESC
+      """, nativeQuery = true)
+  List<DeviceMetric> findLatestByDeviceCodesSince(@Param("deviceCodes") List<String> deviceCodes,
+                                                 @Param("staleMinutes") int staleMinutes);
+
+  /**
    * 某灾害点下各指标的最新一条记录（跨该点所有设备）。
    *
    * <p>用于 AI 反馈提交时自动附带真实特征快照，让"人工复核结论"能沉淀成训练样本。

@@ -35,5 +35,23 @@
     "site_grade": 0.08
   },
   "best_iteration": 599,
-  "best_score": 0.957973073883485
+  "best_score": 0.957973073883485,
+  "feature_importance": {
+    "displacement_rate": 1414.58203125,
+    "displacement_total": 265.30181884765625,
+    "rainfall_24h": 1318.1834716796875,
+    "rainfall_7d": 393.20623779296875,
+    "crack_width": 524.00341796875,
+    "earthquake_mag": 188.73097229003906,
+    "site_grade": 90.01112365722656
+  },
+  "feature_importance_type": "gain",
+  "val_metrics": {
+    "mae": 0.7345201373100281,
+    "rmse": 0.957973062992096,
+    "level_agreement": 0.9766666666666667,
+    "eval_dataset": "synthetic",
+    "eval_seed": 42
+  },
+  "meta_backfilled_at": "2026-11-06T18:06:29.690806+08:00"
 }

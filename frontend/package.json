@@ -7,6 +7,9 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "check:random": "node ../scripts/audit/check-math-random.mjs",
+    "pretest": "npm run check:random",
+    "test": "vitest run",
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",
     "format": "prettier --write \"src/**/*.{js,vue,css,scss,html,md,json}\"",
@@ -18,7 +21,7 @@
     "check:sfc": "node scripts/verify-sfc-integrity.mjs",
     "check:design": "node scripts/check-design-consistency.mjs --top 15",
     "check:a11y": "node scripts/audit-contrast.mjs --top 12",
-    "check:all": "npm run check:tokens && npm run check:sfc && npm run check:design",
+    "check:all": "npm run check:random && npm run check:tokens && npm run check:sfc && npm run check:design",
     "tokenize:colors": "node scripts/tokenize-colors.mjs",
     "tokenize:radii": "node scripts/tokenize-radii.mjs",
     "repair:tokens": "node scripts/repair-token-cycles.mjs",
@@ -41,6 +44,7 @@
     "prettier": "^3.4.2",
     "stylelint": "^16.10.0",
     "stylelint-config-recommended-vue": "^1.5.0",
-    "stylelint-config-standard": "^36.0.1"
+    "stylelint-config-standard": "^36.0.1",
+    "vitest": "^3.2.4"
   }
 }

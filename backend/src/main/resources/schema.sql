@@ -387,6 +387,19 @@ ALTER TABLE warning_event ADD COLUMN IF NOT EXISTS resolve_area VARCHAR(64);
 -- manual_payload 承接向导页的扩展字段（区域/经纬度/影响半径/渠道/正文/有效期/上报人）。
 ALTER TABLE warning_event ADD COLUMN IF NOT EXISTS hazard_type VARCHAR(64);
 ALTER TABLE warning_event ADD COLUMN IF NOT EXISTS manual_payload TEXT;
+-- R10 P1-4：预警自动解除需要的两个字段
+--   occur_count  ：同一 (规则,隐患点) 在预警未关闭期间被重复命中的次数
+--   last_seen_at ：最近一次命中的时间；超过 auto-resolve-after-minutes 未再命中则自动解除
+--   auto_resolved：标记该预警是系统自动解除（前端据此显示"自动解除"徽标）
+ALTER TABLE warning_event ADD COLUMN IF NOT EXISTS occur_count INT NOT NULL DEFAULT 1;
+ALTER TABLE warning_event ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMPTZ;
+ALTER TABLE warning_event ADD COLUMN IF NOT EXISTS auto_resolved BOOLEAN NOT NULL DEFAULT FALSE;
+-- 存量预警没有 last_seen_at：以触发时间回填，否则自动解除逻辑会认为它们"刚命中过"而永不到期
+UPDATE warning_event SET last_seen_at = triggered_at WHERE last_seen_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_warning_autoresolve
+  ON warning_event(last_seen_at) WHERE status NOT IN ('已关闭', '已忽略', '已解除');
+-- R10 P1-5：warning_rule 成为规则唯一真相源，补 disaster_type 供规则管理页按灾种过滤
+ALTER TABLE warning_rule ADD COLUMN IF NOT EXISTS disaster_type VARCHAR(50);
 -- 幂等：result_json 在上一次运行可能已被迁移到 JSONB 并创建 GIN 索引，
 -- 直接 ALTER TYPE TEXT 会被 GIN 拒绝。先 drop GIN，下方 B 段会把列变 JSONB
 -- 并在末尾的 CREATE INDEX IF NOT EXISTS 重建 GIN。

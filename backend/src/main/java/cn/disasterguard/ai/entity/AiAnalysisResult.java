@@ -7,6 +7,8 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.OffsetDateTime;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "ai_analysis_result")
@@ -25,8 +27,17 @@ public class AiAnalysisResult {
   @Column(name = "model_name", length = 50)
   private String modelName;
 
-  /** AI 返回结果（JSON 文本）。 */
-  @Column(name = "result_json", nullable = false, columnDefinition = "text")
+  /**
+   * AI 返回结果（JSON 文本）。
+   *
+   * <p>数据库列是 {@code jsonb}，必须显式声明 {@link SqlTypes#JSON}：
+   * Hibernate 6 对裸 String 默认按 varchar 绑定，PostgreSQL 不接受
+   * varchar → jsonb 的隐式转换，会抛 "column result_json is of type jsonb but
+   * expression is of type character varying"。该异常会让融合评分整条链路降级为
+   * RULE_ONLY（预警仍生成，但 AI 等级调整与评分永久不生效）。
+   */
+  @JdbcTypeCode(SqlTypes.JSON)
+  @Column(name = "result_json", nullable = false, columnDefinition = "jsonb")
   private String resultJson;
 
   @Column(name = "confidence")

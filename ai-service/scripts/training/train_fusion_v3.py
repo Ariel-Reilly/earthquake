@@ -168,6 +168,24 @@ def train(X: np.ndarray, y: np.ndarray, output_dir: Path):
         avg_pred = y_pred[mask].mean()
         print(f"    {name:7s} ({lo:3d}-{hi-1:3d}): {mask.sum():4d} 样本, 预测均值={avg_pred:.1f}, 同档率={acc:.1%}")
 
+    # 特征重要性（gain）：按 feature_names 顺序落盘，缺失特征补 0。
+    # v3 之前这里只 print 不写 meta，导致 meta 里查不到 feature_importance，
+    # 下游（模型说明页 / 测试）无法确认模型到底看重哪几个因子。
+    raw_importance = model.get_score(importance_type="gain")
+    importance = {k: float(raw_importance.get(k, 0.0)) for k in FEATURE_COLS}
+
+    # 分档一致性：预测档位与标签档位相同的占比（回归模型的可解释指标，
+    # 不能用分类的 f1 —— v3 是 reg:squarederror，没有 f1 这个量）。
+    bin_labels = np.where(
+        y_val >= 80, "CRITICAL",
+        np.where(y_val >= 60, "HIGH", np.where(y_val >= 35, "MEDIUM", "LOW")),
+    )
+    pred_labels = np.where(
+        y_pred >= 80, "CRITICAL",
+        np.where(y_pred >= 60, "HIGH", np.where(y_pred >= 35, "MEDIUM", "LOW")),
+    )
+    level_agreement = float(np.mean(bin_labels == pred_labels))
+
     # 元数据
     meta = {
         "version": "3.0.0",
@@ -183,6 +201,16 @@ def train(X: np.ndarray, y: np.ndarray, output_dir: Path):
         "device_weights": DEVICE_W,
         "best_iteration": int(model.best_iteration),
         "best_score": float(model.best_score),
+        # v3 起补齐的两块元数据（此前只 print 不落盘）
+        "feature_importance": importance,
+        "feature_importance_type": "gain",
+        "val_metrics": {
+            "mae": mae,
+            "rmse": rmse,
+            "level_agreement": level_agreement,
+            "eval_dataset": "synthetic",
+            "eval_seed": 42,
+        },
     }
     meta_path = output_dir / "xgboost_fusion.meta.json"
     meta_path.write_text(json.dumps(meta, indent=2, ensure_ascii=False), encoding="utf-8")
@@ -190,7 +218,6 @@ def train(X: np.ndarray, y: np.ndarray, output_dir: Path):
 
     # 特征重要性
     print("\n[train] 特征重要性 (gain):")
-    importance = model.get_score(importance_type="gain")
     for k, v in sorted(importance.items(), key=lambda x: -x[1]):
         print(f"  {k}: {v:.1f}")
 

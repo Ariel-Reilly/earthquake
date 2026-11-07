@@ -184,7 +184,7 @@ defineExpose({ load })
             <th>规则名称</th>
             <th>灾种 / 级别</th>
             <th>优先级</th>
-            <th>条件数</th>
+            <th>生效表达式</th>
             <th>动作数</th>
             <th>状态</th>
             <th>版本</th>
@@ -210,7 +210,11 @@ defineExpose({ load })
               <span class="priority-badge">{{ rule.priority || 0 }}</span>
             </td>
             <td>
-              <span class="count-badge">{{ rule.conditions?.items?.length || 0 }}</span>
+              <!-- R10 P1-5：显示预警引擎里真正在跑的那条表达式，改阈值后可直接核对是否生效 -->
+              <div class="effective-cell">
+                <code v-if="rule.warningRuleActive" class="expr">{{ rule.warningRuleExpression }}</code>
+                <span v-else class="effective-off">未下发引擎</span>
+              </div>
             </td>
             <td>
               <span class="count-badge">{{ rule.actions?.length || 0 }}</span>
@@ -399,6 +403,30 @@ defineExpose({ load })
   color: #5a67d8;
   border-radius: var(--r-xs);
   font-size: 12px;
+}
+
+/* R10 P1-5：生效表达式列 */
+.effective-cell {
+  max-width: 220px;
+}
+
+.effective-cell .expr {
+  display: inline-block;
+  max-width: 100%;
+  padding: 2px 8px;
+  background: var(--c-brand-mist);
+  color: var(--c-brand-deep);
+  border-radius: var(--r-xs);
+  font-size: 12px;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.effective-cell .effective-off {
+  font-size: 12px;
+  color: var(--c-text-mute, #8a8f98);
 }
 
 .status-badge {

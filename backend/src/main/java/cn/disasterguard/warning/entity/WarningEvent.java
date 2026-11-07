@@ -86,6 +86,23 @@ public class WarningEvent {
   @Column(name = "manual_payload")
   private String manualPayload;
 
+  /**
+   * R10 P1-4：同一 (规则, 隐患点) 在预警未关闭期间被重复命中的次数。
+   *
+   * <p>旧实现只要存在未关闭预警就直接 continue，既不计次也不刷新时间，
+   * 导致一条预警挂住后该规则对该点「终身只报一次」，第二场暴雨不再报警。
+   */
+  @Column(name = "occur_count", nullable = false)
+  private Integer occurCount = 1;
+
+  /** 最近一次命中的时间；用于判定「持续 N 分钟未再命中 → 自动解除」。 */
+  @Column(name = "last_seen_at")
+  private OffsetDateTime lastSeenAt;
+
+  /** 是否由系统自动解除（true 时前端显示"自动解除"）。 */
+  @Column(name = "auto_resolved", nullable = false)
+  private Boolean autoResolved = false;
+
   public Long getId() { return id; }
   public void setId(Long id) { this.id = id; }
   public String getWarningCode() { return warningCode; }
@@ -128,4 +145,10 @@ public class WarningEvent {
   public void setManualPayload(String manualPayload) { this.manualPayload = manualPayload; }
   public String getUnifiedEventCode() { return unifiedEventCode; }
   public void setUnifiedEventCode(String unifiedEventCode) { this.unifiedEventCode = unifiedEventCode; }
+  public Integer getOccurCount() { return occurCount; }
+  public void setOccurCount(Integer occurCount) { this.occurCount = occurCount; }
+  public OffsetDateTime getLastSeenAt() { return lastSeenAt; }
+  public void setLastSeenAt(OffsetDateTime lastSeenAt) { this.lastSeenAt = lastSeenAt; }
+  public Boolean getAutoResolved() { return autoResolved; }
+  public void setAutoResolved(Boolean autoResolved) { this.autoResolved = autoResolved; }
 }

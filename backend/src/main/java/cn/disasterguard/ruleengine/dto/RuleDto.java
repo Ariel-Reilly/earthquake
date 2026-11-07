@@ -20,7 +20,14 @@ public record RuleDto(
     Boolean enabled,
     String createdBy,
     String createdAt,
-    String updatedAt
+    String updatedAt,
+    /**
+     * R10 P1-5：预警引擎（warning_rule）里真正生效的表达式。
+     * null / 空 表示这条规则只在模板库，不会触发预警。
+     */
+    String warningRuleExpression,
+    /** 是否已下发预警引擎并处于启用状态（页面据此标注"已生效/未生效"）。 */
+    Boolean warningRuleActive
 ) {
   /**
    * 规则条件

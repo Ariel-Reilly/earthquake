@@ -36,14 +36,20 @@ public class WarningController {
   private final ExcelExportService excelExportService;
   private final cn.disasterguard.warning.engine.WarningCreateService warningCreateService;
 
+  /** R10 P2-13：调试端点总开关，默认关闭；联调时显式打开。 */
+  private final boolean debugEndpointsEnabled;
+
   public WarningController(WarningService warningService,
                            WarningEventRepository warningRepository,
                            ExcelExportService excelExportService,
-                           cn.disasterguard.warning.engine.WarningCreateService warningCreateService) {
+                           cn.disasterguard.warning.engine.WarningCreateService warningCreateService,
+                           @org.springframework.beans.factory.annotation.Value(
+                               "${disasterguard.debug-endpoints:false}") boolean debugEndpointsEnabled) {
     this.warningService = warningService;
     this.warningRepository = warningRepository;
     this.excelExportService = excelExportService;
     this.warningCreateService = warningCreateService;
+    this.debugEndpointsEnabled = debugEndpointsEnabled;
   }
 
   /**
@@ -219,6 +225,12 @@ public class WarningController {
   @PreAuthorize("hasAuthority('warnings:create')")
   @PostMapping("/debug-trigger")
   public ApiResponse<Map<String, Object>> debugTrigger() {
+    // R10 P2-13：注释里写了"生产建议关闭"，却没有任何开关，等于建议落不了地。
+    // 现在默认关闭，需要联调时设 disasterguard.debug-endpoints=true。
+    if (!debugEndpointsEnabled) {
+      log.warn("debug-trigger 被调用但调试端点未开启（disasterguard.debug-endpoints=false）");
+      return ApiResponse.fail(403, "调试端点已关闭；如需联调请设置 disasterguard.debug-endpoints=true");
+    }
     try {
       // 手动构造测试数据
       String ruleCode = "R004";  // 数据库中真实存在的规则编号

@@ -235,4 +235,116 @@ class TestRecipientGuardTest {
 
     assertThat(record.getStatus()).isEqualTo("BLOCKED");  // 不是 SENDING / PARTIAL
   }
+
+  // ---------------------------------------------------------------- R7 回归断言
+
+  @Test
+  void testSend_probe_doesNotClaimGatewayWasValidated() {
+    var sender = mock(NotificationSender.class);
+    when(sender.getChannel()).thenReturn("SMS");
+    var service = new NotificationService(
+        null, null, null, null, List.of(sender), new ObjectMapper(),
+        new TestRecipientGuard(""));
+
+    SendResultDto result = service.testSend(req("SMS", ""));
+
+    assertThat(result.status()).isEqualTo("PROBE_ONLY");
+    // 探测只确认「发送器已注册」；不连库、不调网关，不能宣称渠道配置/连通性已校验。
+    assertThat(result.message()).doesNotContain("已校验");
+    assertThat(result.message()).contains("未校验外部网关连通性");
+    verify(sender, never()).send(anyString(), anyString(), anyString(), anyMap());
+  }
+
+  @Test
+  void testSend_probeOnUnknownChannel_reportsNoSender() {
+    var service = new NotificationService(
+        null, null, null, null, List.of(), new ObjectMapper(),
+        new TestRecipientGuard(""));
+
+    SendResultDto result = service.testSend(req("NO_SUCH_CHANNEL", ""));
+
+    assertThat(result.status()).isEqualTo("NO_SENDER");
+    assertThat(result.message()).contains("未注册发送器");
+  }
+
+  @Test
+  void verificationCode_prodWithoutRealGateway_failsClearly_notSilentSuccess() {
+    // prod 下开关开着但凭证仍是 CHANGE_ME：必须明确失败，不能写 Redis 后回报「发送成功」
+    // 再由 deliverSms 静默降级到日志（用户永远收不到验证码）。
+    var sms = mock(SmsProperties.class);
+    when(sms.isEnabled()).thenReturn(true);
+    when(sms.getAccessKeyId()).thenReturn("CHANGE_ME");
+    var env = mock(Environment.class);
+    when(env.getActiveProfiles()).thenReturn(new String[]{"prod"});
+    var redis = mock(StringRedisTemplate.class);
+
+    var service = new VerificationCodeService(
+        redis, mock(EmailSender.class), env, false, sms, null,
+        new TestRecipientGuard(""));
+
+    assertThatThrownBy(() -> service.send("phone", "13800000000"))
+        .isInstanceOf(AppException.class);
+    verifyNoInteractions(redis);
+  }
+
+  @Test
+  void verificationCode_realEmailSenderWithoutDeclaration_failsClosed() {
+    // 将来 EmailSender 接入真实 SMTP 时，若忘了同步声明投递能力，必须立刻暴露，
+    // 不能让邮件悄悄绕过白名单闸门。
+    var env = mock(Environment.class);
+    when(env.getActiveProfiles()).thenReturn(new String[0]);
+    var redis = mock(StringRedisTemplate.class);
+    @SuppressWarnings("unchecked")
+    ValueOperations<String, String> ops = mock(ValueOperations.class);
+    when(redis.opsForValue()).thenReturn(ops);
+    when(ops.setIfAbsent(anyString(), anyString(), any(Duration.class))).thenReturn(true);
+    var emailSender = mock(EmailSender.class);
+    when(emailSender.send(anyString(), anyString(), anyString(), anyMap()))
+        .thenReturn(NotificationSender.SendResult.success("real-msg"));  // mock=false
+
+    var service = new VerificationCodeService(
+        redis, emailSender, env, true, mock(SmsProperties.class), null,
+        new TestRecipientGuard(""));
+
+    assertThatThrownBy(() -> service.send("email", "tester@example.com"))
+        .isInstanceOf(AppException.class);
+  }
+
+  @Test
+  void dispatcher_marksRecordFailed_whenEveryChannelFails() {
+    var router = mock(NotificationRouter.class);
+    when(router.sendToChannel(any(), anyString(), anyString(), anyString(), anyString(), anyMap()))
+        .thenReturn(new SendResultDto.ChannelResult("SMS", "13900000000", "FAILED", "boom"));
+    var dispatcher = new NotificationDispatcher(
+        router, mock(NotificationRecordRepository.class),
+        mock(NotificationReceiptRepository.class));
+
+    var record = new NotificationRecord();
+    var request = new NotificationRequestDto(
+        "WARNING", "b2", "LANDSLIDE", "RED", "标题", "正文",
+        List.of("13900000000"), null, List.of("SMS"), null, null, Map.of());
+
+    dispatcher.asyncSend(record, request, List.of("SMS"));
+
+    assertThat(record.getStatus()).isEqualTo("FAILED");  // 不能卡在 SENDING
+  }
+
+  @Test
+  void dispatcher_marksRecordSent_whenEveryChannelReallySucceeds() {
+    var router = mock(NotificationRouter.class);
+    when(router.sendToChannel(any(), anyString(), anyString(), anyString(), anyString(), anyMap()))
+        .thenReturn(new SendResultDto.ChannelResult("SMS", "13900000000", "SUCCESS", null));
+    var dispatcher = new NotificationDispatcher(
+        router, mock(NotificationRecordRepository.class),
+        mock(NotificationReceiptRepository.class));
+
+    var record = new NotificationRecord();
+    var request = new NotificationRequestDto(
+        "WARNING", "b3", "LANDSLIDE", "RED", "标题", "正文",
+        List.of("13900000000"), null, List.of("SMS"), null, null, Map.of());
+
+    dispatcher.asyncSend(record, request, List.of("SMS"));
+
+    assertThat(record.getStatus()).isEqualTo("SENT");  // 不是 PARTIAL
+  }
 }

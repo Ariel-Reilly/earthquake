@@ -36,8 +36,12 @@ public class SecurityConfig {
         .cors(Customizer.withDefaults())
         .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .authorizeHttpRequests(auth -> auth
+            // logout 由 JwtAuthenticationFilter 的 shouldNotFilter 显式跳过（控制器自行从
+            // Authorization 头取 token 验签并吊销），因此这里必须同步 permitAll，
+            // 否则 anyRequest().authenticated() 会在进入控制器前直接返回 403，
+            // 登出永远无法把 JWT 写入黑名单。控制器对无头/无效 token 是安全的空操作。
             .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html",
-                "/api/system/health", "/api/auth/login").permitAll()
+                "/api/system/health", "/api/auth/login", "/api/auth/logout").permitAll()
             // 注册申请链路：只开放「提交申请 + 自查进度」，不开放自助注册。
             // 账号真正创建发生在管理员审核通过后（RegisterService.approve），
             // 因此这里放行不会产生未授权建号。
@@ -61,7 +65,11 @@ public class SecurityConfig {
             // 该前缀下当前仅 GET /coverage，同步收紧为仅 GET，
             // 防止后续新增写接口时再次对匿名裸奔。
             .requestMatchers(HttpMethod.GET, "/api/sentinel/**").permitAll()
-            .requestMatchers("/api/devices/{deviceCode}/data").hasRole("DEVICE")
+            // 设备数据上报：允许两种身份——设备（DeviceAuthFilter 注入 ROLE_DEVICE/device:report）
+            // 与后台补录用户（JWT + devices:edit）。此前写死 hasRole("DEVICE")，
+            // 导致带 devices:edit 的管理员在设备详情页手工补录时被 403。
+            // 具体权限仍由 @PreAuthorize 精确判定，这里只要求「已认证」。
+            .requestMatchers("/api/devices/{deviceCode}/data").authenticated()
             .anyRequest().authenticated())
         // 限流过滤器最先执行，保护公开端点
         .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)

@@ -220,7 +220,7 @@ export const ROLE_PERMISSION_MAP = {
     'overview:view','map:view','zone:view',
     'hazards:view',
     'devices:view','devices:create','devices:edit','devices:delete','devices:export','devices:control','devices:ota',
-    'datasource:view','sync:view','data:catalog:view','weather:view','analytics:view',
+    'datasource:view','sync:view','data:catalog:view','weather:view','weather:refresh','analytics:view',
     'emergency:view','emergency:dispatch',
     'resource:view','route:view',
     'inspection:view','inspection:submit','inspection:gps-check',
@@ -278,6 +278,49 @@ export const ROLE_PERMISSION_MAP = {
   ],
 }
 
+/**
+ * 菜单路径匹配（store action 与旧函数兼容层共用）。
+ *
+ * 1) 只有「完全相等」或「以 '/' 为边界的子路径」才放行，
+ *    避免朴素的 `path.startsWith(item.path)` 把 `/dashboard-backup`
+ *    这类兄弟路径误判为可访问。
+ * 2) `/dashboard` 是**所有角色菜单共有的命名空间根**，只做精确匹配、不展开子路径；
+ *    否则任意角色都能靠这一条拿到全部 `/dashboard/*` 页面（R4 P1-17）。
+ * 3) 错误页等框架级路径不属于任何角色菜单，但对所有已登录用户可达，
+ *    防止守卫跳到 403 页后又被 403 页自身拦截形成重定向死循环。
+ */
+const SHARED_NAMESPACE_ROOT = '/dashboard'
+const FRAMEWORK_PATHS = [
+  '/dashboard/error/403',
+  '/dashboard/error/404',
+  '/dashboard/error/500',
+]
+
+// router/index.js 仍保留的历史重定向别名（/dashboard/<alias> -> 真实页面）。
+// 它们从来不属于角色菜单；收紧 /dashboard 根节点的前缀放行后，旧书签/旧链接
+// 会被守卫判成「无权限」跳 403，而不是按路由表 redirect 到新页面（R8 回归）。
+// 放行别名本身不扩大权限：redirect 落地后的目标页面会再过一次同样的守卫判断。
+const LEGACY_REDIRECT_PATHS = [
+  '/dashboard/history-hazards',
+  '/dashboard/satellite-compare',
+  '/dashboard/warning-config',
+  '/dashboard/reports',
+  '/dashboard/backup-recovery',
+  '/dashboard/plans',
+]
+
+function matchesMenuPath(path, menuPath) {
+  if (path === menuPath) {return true}
+  if (menuPath === SHARED_NAMESPACE_ROOT) {return false}
+  const prefix = menuPath.endsWith('/') ? menuPath : menuPath + '/'
+  return path.startsWith(prefix)
+}
+
+function hasPathAccess(allowedPaths, path) {
+  if (FRAMEWORK_PATHS.includes(path) || LEGACY_REDIRECT_PATHS.includes(path)) {return true}
+  return allowedPaths.some((p) => matchesMenuPath(path, p))
+}
+
 // Pinia store — 唯一状态源
 
 function safeParse(raw) {
@@ -324,7 +367,7 @@ export const useAuthStore = defineStore('auth', {
       return this.permissions.includes(permission)
     },
     canAccessPath(path) {
-      return this.allowedPaths.some((p) => path === p || path.startsWith(`${p}/`))
+      return hasPathAccess(this.allowedPaths, path)
     },
   },
 })
@@ -361,8 +404,7 @@ export function hasPermission(role, permission) {
 export function canAccessPath(role, path) {
   const normalized = normalizeRole(role)
   if (normalized && normalized !== useAuthStore().role) {
-    const allowed = ROLE_MENU_MAP[normalized] ?? []
-    return allowed.some((p) => path === p || path.startsWith(`${p}/`))
+    return hasPathAccess(ROLE_MENU_MAP[normalized] ?? [], path)
   }
   return useAuthStore().canAccessPath(path)
 }

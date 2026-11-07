@@ -8,12 +8,19 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * 规则引擎实际匹配验证测试
+ * 规则引擎实际匹配验证测试。
+ *
+ * <p><b>R10 P1-5 适配</b>：原先按数据库主键 {@code 4L=R004 设备离线}、
+ * {@code 1L=R001 雨量+坡度} 写死，属于把测试绑在业务种子数据上。
+ * P1-5 之后 rule 表由 warning_rule 镜像生成（R004=倾角&gt;5、R001=雨量&gt;50），
+ * 主键虽未变但语义已变，用例必然失败。现改为自带条件树，验证目标回归到
+ * 「编译器 + 求值器对复合条件的判定」本身。
  */
 @SpringBootTest
 @DisplayName("规则引擎匹配验证")
@@ -25,6 +32,24 @@ public class RuleMatchingVerificationTest {
   @Autowired
   private RuleCompiler ruleCompiler;
 
+  /** device_status == "OFFLINE" AND duration_minutes > 10。 */
+  private static RuleTestRequest offlineRuleRequest() {
+    return new RuleTestRequest(null, new RuleTestRequest.RuleConditions(
+        "AND",
+        List.of(
+            new RuleTestRequest.ConditionItem("device_status", "==", "OFFLINE", null),
+            new RuleTestRequest.ConditionItem("duration_minutes", ">", 10, "min"))), null);
+  }
+
+  /** rainfall_24h > 50 AND slope > 30。 */
+  private static RuleTestRequest rainfallSlopeRuleRequest() {
+    return new RuleTestRequest(null, new RuleTestRequest.RuleConditions(
+        "AND",
+        List.of(
+            new RuleTestRequest.ConditionItem("rainfall_24h", ">", 50, "mm"),
+            new RuleTestRequest.ConditionItem("slope", ">", 30, "deg"))), null);
+  }
+
   @Test
   @DisplayName("规则 R004：设备离线条件满足，应命中")
   void testRuleR004_Match() {
@@ -32,7 +57,7 @@ public class RuleMatchingVerificationTest {
     testData.put("device_status", "OFFLINE");
     testData.put("duration_minutes", 15);
 
-    RuleTestRequest request = new RuleTestRequest(4L, null, null);
+    RuleTestRequest request = offlineRuleRequest();
     RuleTestResponse result = ruleEngineService.test(request, testData);
 
     System.out.println("\n【规则 R004 - 命中场景】");
@@ -53,7 +78,7 @@ public class RuleMatchingVerificationTest {
     testData.put("device_status", "ONLINE");
     testData.put("duration_minutes", 15);
 
-    RuleTestRequest request = new RuleTestRequest(4L, null, null);
+    RuleTestRequest request = offlineRuleRequest();
     RuleTestResponse result = ruleEngineService.test(request, testData);
 
     System.out.println("\n【规则 R004 - 不命中场景 1】");
@@ -71,7 +96,7 @@ public class RuleMatchingVerificationTest {
     testData.put("device_status", "OFFLINE");
     testData.put("duration_minutes", 5);
 
-    RuleTestRequest request = new RuleTestRequest(4L, null, null);
+    RuleTestRequest request = offlineRuleRequest();
     RuleTestResponse result = ruleEngineService.test(request, testData);
 
     System.out.println("\n【规则 R004 - 不命中场景 2】");
@@ -89,7 +114,7 @@ public class RuleMatchingVerificationTest {
     testData.put("rainfall_24h", 60);
     testData.put("slope", 35);
 
-    RuleTestRequest request = new RuleTestRequest(1L, null, null);
+    RuleTestRequest request = rainfallSlopeRuleRequest();
     RuleTestResponse result = ruleEngineService.test(request, testData);
 
     System.out.println("\n【规则 R001 - 命中场景】");
@@ -107,7 +132,7 @@ public class RuleMatchingVerificationTest {
     testData.put("rainfall_24h", 40);
     testData.put("slope", 35);
 
-    RuleTestRequest request = new RuleTestRequest(1L, null, null);
+    RuleTestRequest request = rainfallSlopeRuleRequest();
     RuleTestResponse result = ruleEngineService.test(request, testData);
 
     System.out.println("\n【规则 R001 - 不命中场景】");

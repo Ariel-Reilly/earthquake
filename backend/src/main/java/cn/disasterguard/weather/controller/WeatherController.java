@@ -17,6 +17,7 @@ import java.time.ZoneId;
 import java.util.List;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -73,6 +74,9 @@ public class WeatherController {
   }
 
   @PostMapping("/products/refresh")
+  // R10 P2-8：强制回源会打外部气象接口并消耗配额，只允许运维角色（maintenance）
+  // 触发；此前仅靠 authenticated()，任意登录用户都能刷。
+  @PreAuthorize("hasAuthority('weather:refresh')")
   @Operation(summary = "强制刷新单个产品的最新帧", description = "忽略缓存，立即拉新一次。常用于运维手动刷新。")
   public ApiResponse<WeatherProductDto> refresh(@RequestParam("kind") String kindParam) {
     WeatherProductKind kind = WeatherProductKind.fromKind(kindParam);

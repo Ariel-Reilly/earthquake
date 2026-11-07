@@ -32,7 +32,7 @@ import org.springframework.web.multipart.MultipartFile;
  * ai-service 直接返回 Pydantic model 的 JSON（无包装层），
  * 字段为 snake_case（通过 {@code @JsonProperty} 映射到 Java camelCase DTO）。
  *
- * <p>baseUrl 由配置项 {@code ai.service-base-url} 提供（默认 {@code http://localhost:8000/api/ai}），
+ * <p>baseUrl 由配置项 {@code ai.service-base-url} 提供（默认 {@code http://localhost:8001/api/ai}），
  * 包含路由前缀 {@code /api/ai}；本类的 URI 仅写相对路径（{@code /fusion-risk}、{@code /forecast} 等），
  * 避免双重前缀。
  *
@@ -47,6 +47,27 @@ public class AiServiceClient {
   private final AiProperties properties;
   private final RestClient restClient;
 
+  /**
+   * 简易熔断器（R10 P2-7）。
+   *
+   * <p>规则引擎是在调度线程里同步调 AI 的，连接超时 10s / 读超时 30s。AI 挂掉时
+   * 每条规则都要串行等满超时，一轮求值超过 cron 间隔后 `running` 守卫会丢弃整轮，
+   * 表现为"AI 挂了，预警也跟着不报了"。
+   *
+   * <p>策略：运输层连续失败 {@value #FAILURE_THRESHOLD} 次 → 熔断
+   * {@code cooldownMs}（5 分钟），期间直接抛 {@link AiUnavailableException}，
+   * 调用方按既有降级逻辑落 RULE_ONLY，不再排队等超时；冷却结束自动半开重试。
+   */
+  private static final int FAILURE_THRESHOLD = 3;
+  private static final long COOLDOWN_MS = 5 * 60 * 1000L;
+  /** 两次失败间隔超过该值就认为"不是连续失败"，清零计数（无需在每条成功路径上埋点）。 */
+  private static final long FAILURE_WINDOW_MS = 60 * 1000L;
+
+  private final java.util.concurrent.atomic.AtomicInteger consecutiveFailures =
+      new java.util.concurrent.atomic.AtomicInteger(0);
+  private volatile long lastFailureAt = 0L;
+  private volatile long circuitOpenUntil = 0L;
+
   public AiServiceClient(AiProperties properties) {
     this.properties = properties;
     // 显式配置连接/读取超时（ai.timeout-ms），避免 AI 服务挂起时长时间阻塞调用方线程。
@@ -57,7 +78,37 @@ public class AiServiceClient {
     this.restClient = RestClient.builder()
         .baseUrl(properties.serviceBaseUrl())
         .requestFactory(factory)
+        // 熔断探针：运输层异常（连不上 / 超时 / 连接被重置）在这里计数
+        .requestInterceptor((request, body, execution) -> {
+          try {
+            var response = execution.execute(request, body);
+            return response;
+          } catch (java.io.IOException ex) {
+            recordFailure(ex.getMessage());
+            throw ex;
+          }
+        })
         .build();
+  }
+
+  /** 是否处于熔断冷却期（供健康检查 / 诊断使用）。 */
+  public boolean isCircuitOpen() {
+    return circuitOpenUntil > System.currentTimeMillis();
+  }
+
+  private void recordFailure(String reason) {
+    long now = System.currentTimeMillis();
+    if (now - lastFailureAt > FAILURE_WINDOW_MS) {
+      consecutiveFailures.set(0);
+    }
+    lastFailureAt = now;
+    int failures = consecutiveFailures.incrementAndGet();
+    if (failures >= FAILURE_THRESHOLD && circuitOpenUntil <= now) {
+      circuitOpenUntil = now + COOLDOWN_MS;
+      consecutiveFailures.set(0);
+      log.error("AI 服务运输层连续失败 {} 次，熔断 {} 分钟（期间预警自动降级为 RULE_ONLY）：{}",
+          failures, COOLDOWN_MS / 60_000, reason);
+    }
   }
 
   public boolean isEnabled() {
@@ -475,6 +526,13 @@ public class AiServiceClient {
   private void requireEnabled() {
     if (!properties.enabled()) {
       throw new AiUnavailableException("AI 功能已关闭（ai.enabled=false）");
+    }
+    long openUntil = circuitOpenUntil;
+    long now = System.currentTimeMillis();
+    if (openUntil > now) {
+      // 熔断期快速失败：调用方按既有逻辑降级，不再排队等 10/30 秒超时
+      throw new AiUnavailableException(
+          "AI 服务熔断中，剩余 " + ((openUntil - now) / 1000) + " 秒");
     }
   }
 }

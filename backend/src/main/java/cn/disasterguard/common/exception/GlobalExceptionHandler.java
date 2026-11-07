@@ -99,6 +99,24 @@ public class GlobalExceptionHandler {
         .body(ApiResponse.fail(413, "文件过大，超出服务端上传上限"));
   }
 
+  /**
+   * 方法级鉴权失败（{@code @PreAuthorize} 拒绝）应返回 403，而不是被兜底成 500。
+   *
+   * <p>R10 实测：设备带合法 X-Device-Key 上报数据时，控制器要求的是
+   * {@code devices:edit} 而过滤器注入的是 {@code device:report}，抛出的
+   * {@code AuthorizationDeniedException} 一路落到 {@link #handleUnexpectedException}，
+   * 调用方看到的是「500 系统繁忙」，既误导排障也掩盖了权限配置错误。
+   */
+  @ExceptionHandler({
+      org.springframework.security.access.AccessDeniedException.class,
+      org.springframework.security.authorization.AuthorizationDeniedException.class
+  })
+  public ResponseEntity<ApiResponse<Void>> handleAccessDenied(Exception ex) {
+    log.warn("鉴权拒绝: {}", ex.getMessage());
+    return ResponseEntity.status(HttpStatus.FORBIDDEN)
+        .body(ApiResponse.fail(403, "无权访问该资源"));
+  }
+
   @ExceptionHandler(Exception.class)
   public ResponseEntity<ApiResponse<Void>> handleUnexpectedException(Exception ex, HttpServletRequest request) {
     // 未捕获异常：记录完整堆栈，便于生产排查

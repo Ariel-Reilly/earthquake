@@ -12,7 +12,8 @@
  * mock 模式下：
  *   - fetchDeviceMap() 返回 12 台设备（约 4 台标记为移动）
  *   - fetchDeviceTrajectory(code) 自动生成一条 24h 的轨迹
- *   - 多次调用同样的 deviceCode 结果完全一致（确定性）
+ *   - 设备列表与轨迹均为确定性：同一 deviceCode 多次调用结果完全一致，
+ *     速度/航向等由固定 seed 的伪随机生成，不调用原生随机数 API
  */
 import { withQuery } from '../../../utils/query.js'
 
@@ -182,8 +183,11 @@ function generateMockDeviceMap() {
     { deviceCode: 'CAMERA-001', deviceName: '高位监控-岷江边', deviceType: '固定摄像机', onlineStatus: '在线', region: 'CHENGDU-N', lon: 104.0901, lat: 30.6012, battery: null, signal: '强' },
     { deviceCode: 'CAMERA-002', deviceName: '高位监控-龙泉山', deviceType: '固定摄像机', onlineStatus: '在线', region: 'CHENGDU-S', lon: 104.0212, lat: 30.5301, battery: null, signal: '中' },
   ]
-  const devices = presets.map((p) => {
+  const devices = presets.map((p, index) => {
     const mobile = !!p.mobilityKind
+    // 固定 seed 的伪随机：由 deviceCode 派生，同一台设备每次刷新得到同一速度/航向。
+    // 原先调用原生随机数会让演示数据每次重绘都跳变，且与轨迹的确定性口径不一致。
+    const seed = hash(p.deviceCode) + index
     return {
       deviceCode: p.deviceCode,
       deviceName: p.deviceName,
@@ -196,8 +200,8 @@ function generateMockDeviceMap() {
       regionCode: p.region,
       longitude: p.lon,
       latitude: p.lat,
-      speedKmh: mobile ? Math.round(Math.random() * 25 * 10) / 10 : null,
-      headingDeg: mobile ? Math.round(Math.random() * 360) : null,
+      speedKmh: mobile ? Math.round(rand(seed) * 25 * 10) / 10 : null,
+      headingDeg: mobile ? Math.round(rand(seed + 1) * 360) : null,
       lastReportAt: nowIso,
       mobile,
     }

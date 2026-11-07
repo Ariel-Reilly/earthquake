@@ -323,6 +323,12 @@ function updateKpiFromLists() {
 }
 
 const latestWarnings = computed(() => warningList.value.slice(0, 20));
+// 滚动播报：用固定次数循环复制同一份预警数组，key 用稳定的序号，
+// 不再用原生随机数生成 key（会导致每次渲染都重建节点、动画抖动）。
+const TICKER_REPEAT = 2;
+const tickerWarnings = computed(() =>
+  Array.from({ length: TICKER_REPEAT }, () => latestWarnings.value).flat(),
+);
 const criticalWarnings = computed(() =>
   warningList.value.filter((w) => {
     const l = String(w.level ?? w.riskLevel ?? "");
@@ -624,8 +630,8 @@ function relativeTime(isoStr) {
           <div class="cs-ticker">
             <div class="cs-ticker-inner">
               <div
-                v-for="w in [...latestWarnings, ...latestWarnings]"
-                :key="`ticker-${w.id}-${Math.random()}`"
+                v-for="(w, i) in tickerWarnings"
+                :key="`ticker-${i}-${w.id ?? 'w'}`"
                 class="cs-ticker-item"
               >
                 <span class="ti-level" :class="`lvl-${w.level ?? w.riskLevel ?? 'blue'}`">

@@ -32,6 +32,10 @@ public class WarningRule {
   @Column(name = "warning_level", nullable = false)
   private String warningLevel;
 
+  /** 灾种英文码（landslide / flood / collapse / ...），供规则管理页按灾种过滤。 */
+  @Column(name = "disaster_type", length = 50)
+  private String disasterType;
+
   @Column(nullable = false)
   private Boolean enabled;
 
@@ -56,6 +60,8 @@ public class WarningRule {
   public void setExpression(String expression) { this.expression = expression; }
   public String getWarningLevel() { return warningLevel; }
   public void setWarningLevel(String warningLevel) { this.warningLevel = warningLevel; }
+  public String getDisasterType() { return disasterType; }
+  public void setDisasterType(String disasterType) { this.disasterType = disasterType; }
   public Boolean getEnabled() { return enabled; }
   public void setEnabled(Boolean enabled) { this.enabled = enabled; }
   public String getRemark() { return remark; }

@@ -6,13 +6,13 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * 定时清理 {@link JwtBlacklist} 中已过期的吊销条目。
+ * 定时清理 {@link JwtBlacklist} 内存降级表中已过期的吊销条目。
  *
- * <p>黑名单按 (tokenKey, 原 exp) 维护，token 自然过期后该条目已无意义，
- * 周期性回收避免内存单调增长。频率默认每 10 分钟一次，由 cron 控制；
- * 多副本部署下每个实例都会跑，仅单机内存，影响可忽略。
+ * <p>主存储已改为 Redis（key {@code jwt:blacklist:{jti}}，TTL 与 JWT 剩余有效期一致），
+ * 由 Redis 自行过期；这里只回收「Redis 不可用期间写入 / 本地镜像」的内存条目，
+ * 避免降级表单调增长。频率默认每 10 分钟一次，由 cron 控制；每个实例各跑各的。
  *
- * <p>无需事务：纯内存 Map 操作。
+ * <p>无需事务：纯内存 Map 操作，不触碰 Redis。
  */
 @Component
 public class JwtBlacklistCleanupScheduler {
