@@ -9,6 +9,10 @@ COPY frontend/ ./
 # 但 docker-compose 会自动将 environment 作为 build args 传递
 ARG VITE_API_BASE_URL=http://localhost:8081/api
 ARG VITE_USE_BACKEND=true
+# AI 服务基址：生产由 docker-compose.prod.yml 注入 /ai-service/api/ai（走 nginx 反代）。
+# 不注入时前端源码会回落到 http://localhost:8001/api/ai —— 仅限本地开发，
+# 打成生产镜像必须显式注入，否则浏览器会请求用户本机的 8001 端口。
+ARG VITE_AI_SERVICE_BASE
 ARG VITE_WS_URL
 ARG VITE_TDT_TOKEN
 ARG VITE_PERSONNEL_POLL_INTERVAL
@@ -24,6 +28,7 @@ RUN if [ "${VITE_USE_BACKEND}" != "true" ]; then \
     fi
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 ENV VITE_USE_BACKEND=$VITE_USE_BACKEND
+ENV VITE_AI_SERVICE_BASE=$VITE_AI_SERVICE_BASE
 ENV VITE_WS_URL=$VITE_WS_URL
 ENV VITE_TDT_TOKEN=$VITE_TDT_TOKEN
 ENV VITE_PERSONNEL_POLL_INTERVAL=$VITE_PERSONNEL_POLL_INTERVAL
