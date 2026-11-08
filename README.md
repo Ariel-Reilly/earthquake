@@ -406,7 +406,7 @@ DisasterGuard/
 | [docs/HARDWARE_SANDBOX.md](docs/HARDWARE_SANDBOX.md) | 硬件沙箱与设备模拟 |
 | [ai-service/models/README.md](ai-service/models/README.md) | AI 模型资产、实测指标与训练复现 |
 | [ai-service/datasets/README.md](ai-service/datasets/README.md) | 检测数据集构成、来源与许可说明 |
-| 12 | [`docs/INDEX.md`](docs/INDEX.md) | 全项目文档总索引（按角色、子项目、主题分区） |
+| [`docs/INDEX.md`](docs/INDEX.md) | 全项目文档总索引（按角色、子项目、主题分区） |
 
 ---
 
