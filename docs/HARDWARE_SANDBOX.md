@@ -1,5 +1,8 @@
 # 御灾智巡 · 重庆山地实体沙盘演示与测试方案（硬件版）
 
+> **历史方案说明**：本文档为 GL-Sandbox v1.1（四区 1200×800mm）历史方案；当前代码实际生效的是混合沙盘 C 方案（三区 1500×1000mm），见 `hardware-sandbox/README.md` 与 `hardware-sandbox/gateway/config.yaml`。
+>
+
 > 代号 **GL-Sandbox** · v1.1 · 2026-09-20
 > 地形：**真实高程数据驱动**，泡沫（XPS/EPS）分层加工
 > 目标：用可触摸的物理沙盘 + 真实传感器，端到端验证 DisasterGuard 平台
