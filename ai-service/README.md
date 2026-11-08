@@ -82,7 +82,7 @@ python scripts/test_disaster_scenarios.py
 
 | 模型 | 文件 | 大小 | 任务 | 验证指标 |
 |------|------|------|------|----------|
-| YOLO 目标检测 | `yolo_crack.onnx` | 13 MB | 裂缝/落石识别 | COCO 80 类 |
+| YOLO 目标检测 | `yolo_crack.onnx` | 13 MB | 裂缝/滑坡识别（crack / landslide，2 类） | test mAP50≈0.327；详见 `models/README.md` |
 | XGBoost Fusion v3 | `xgboost_fusion.json` | 3.6 MB | 设备/传感器融合 | MAE=0.74 / RMSE=0.96 |
 | Comprehensive v2 | `comprehensive_v2.json` | 3.6 MB | 七维度综合风险 | MAE=0.80 / 36 特征 |
 | LSTM 位移预测 | `lstm_displacement.pt` | 73 KB | 时序预测 | PyTorch LSTM |

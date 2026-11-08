@@ -45,7 +45,7 @@
 - `useOverviewSearch.js` → `geocodeService.js`
 - `DashboardLayout.vue` → `healthService`
 
-如需统一，评估后为其建薄层（见 REFACTOR_TASKS.md P2-11）。
+该统一方案（P2-11）已评估并取消：无薄层服务引用面仅 7 处，收益 < 成本；结论见 `docs/ONBOARDING/DECISIONS.md`「5 个取消任务的决策依据」。
 
 ## 决策记录
 

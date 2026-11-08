@@ -6,6 +6,7 @@
 datasets/
 ├── _raw/                 # 原始下载包与解压内容（不入库，被 .gitignore 忽略）
 ├── disaster-v1/          # 旧版（低分辨率滑坡源，保留作对比基线）
+├── disaster-v2.inpaint/ # v2 旧构建（TELEA inpaint），已归档，当前训练不使用
 ├── disaster-v2/          # ★ 当前训练用数据集
 │   ├── images/{train,val,test}/
 │   ├── labels/{train,val,test}/
@@ -15,6 +16,14 @@ datasets/
 │   └── DATASET_CARD.md   # ★ 数据卡：来源、许可、已知偏差、不能声称什么
 └── README.md
 ```
+
+## 数据集版本一览
+
+| 目录 | 影像 | 实例框 | 类别 | 旋转裁切填充 | 滑坡源许可 | 状态 | 数据卡 |
+|---|---|---|---|---|---|---|---|
+| `disaster-v1/` | 767 | 1263 | 2 | — | CC-BY-4.0 | 对比基线，保留 | [`DATASET_CARD.md`](disaster-v1/DATASET_CARD.md) |
+| `disaster-v2.inpaint/` | 754 | 2623 | 2 | TELEA inpaint 修复 | CC-BY-NC-4.0 | **已归档**，当前训练不使用 | [`DATASET_CARD.md`](disaster-v2.inpaint/DATASET_CARD.md) |
+| `disaster-v2/` | 770 | 2632 | 2 | 最大内接矩形裁剪（不生成像素） | CC-BY-NC-4.0 | ★ 当前训练用 | [`DATASET_CARD.md`](disaster-v2/DATASET_CARD.md) |
 
 ## 当前数据集：disaster-v2
 

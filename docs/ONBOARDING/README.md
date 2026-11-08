@@ -78,7 +78,7 @@ AI 综合风险分析、卫星影像对比、气象数据接入。
     ├── HARDWARE_SANDBOX.md      ← 硬件沙箱
     ├── UNIFIED_EVENT_STATEMACHINE.md ← 事件状态机
     ├── CDSE_SETUP.md            ← CDSE 配置
-    ├── README.md                ← 文档索引（旧入口）
+    ├── README.md                ← 文档索引（按阅读路径 / 维护原则）
     ├── guides/                  ← 操作指南
     ├── reviews/                 ← 代码评审
     └── audit/frontend/          ← 前端审计报告
