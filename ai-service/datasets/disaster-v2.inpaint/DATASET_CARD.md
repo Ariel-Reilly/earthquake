@@ -1,5 +1,8 @@
 # 灾害影像检测数据集 · 数据卡（disaster-v2）
 
+> **归档说明**：本卡对应 `disaster-v2.inpaint` 旧构建（TELEA inpaint），已被 `disaster-v2`（clean 重建，最大内接矩形裁剪）取代；当前训练使用 `../disaster-v2/DATASET_CARD.md`。
+>
+
 > 版本：v2　构建时间：2026-11-05　构建脚本：`scripts/dataset/build_yolo_dataset.py`
 > 配置：`scripts/dataset/configs/disaster_v2.json`　校验脚本：`scripts/dataset/validate_yolo_dataset.py`
 > 最近一次校验：**通过**

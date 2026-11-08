@@ -298,7 +298,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
   现阶段**不换源、不重训**；`crack` 源上游未声明许可，同样只在非商业范围内使用。
 - `ai-service/models/yolo_crack.onnx` 是上述数据的训练产物，**不得随商业交付分发**。
 - 一旦用途改为商业部署 / 对外收费服务，必须先替换为可商用数据或取得作者授权、重新训练并重新评估，
-  同时复核 crack 源许可。约束原文见 `DATASET_CARD.md` §6.5。
+  同时复核 crack 源许可。约束原文见 `ai-service/datasets/disaster-v2/DATASET_CARD.md` §6.5。
 
 ### 6.2 只投递给项目测试成员
 

@@ -27,7 +27,7 @@ onnxruntime 加载后 `is_business_model=True`，对真实裂缝图输出 crack 
 对无人机滑坡图输出 landslide 在 0.6 量级——不再是空结果。
 
 > 相对上一版（inpaint 重建）：只改了旋转裁切的填充策略——由 TELEA inpaint 改为"裁到最大内接矩形、
-> 不生成任何像素"，消除了人造涂抹纹理伪影；统计数字因此略有上升（见 `DATASET_CARD.md` §5）。
+> 不生成任何像素"，消除了人造涂抹纹理伪影；统计数字因此略有上升（见 `datasets/disaster-v2/DATASET_CARD.md` §5）。
 
 | 项目 | 值 |
 |---|---|
