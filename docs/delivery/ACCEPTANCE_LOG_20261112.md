@@ -611,9 +611,12 @@ B/C 类 P1/P2 项未纳入本轮。**演示可用 ≠ 试运行上线条件已�
 | 4 | `GET /api/notification/records` 500 `function lower(bytea) does not exist` | JPQL `CONCAT('%', :keyword, '%')` 在空关键词时把 null 参数绑成 `bytea` | `MessageController` / `NotificationService` 空关键词改传 `""`（`%%` 模式） |
 
 > 缺陷 1、2 已通过重新构建 dist / 重启 ai-service / 重载 nginx 后**真实浏览器复测通过**。
-> 缺陷 3、4 已编译进 fat jar（127,440,951 B，class 时间 14:41）并用 SQL 直连校验
-> （`notice_template_order=5`、`notification_keyword_empty=5`）；因验证实例在打包时停止，
-> **HTTP 200 复核留待重新部署新 jar 后执行**，未复核前不计入通过项。
+> 缺陷 3、4 已编译进 fat jar（127,440,951 B，class 时间 14:41），SQL 直连校验
+> （`notice_template_order=5`、`notification_keyword_empty=5`）通过。
+> **2026-11-13 复核**：用最新源码重启后端（8080）后实测
+> `GET /api/notice-templates?page=1&size=5` → `code=0`；
+> `GET /api/notification/records?page=1&size=5&keyword=` / `keyword=%20` → `code=0`（空关键词不再 500）。
+> 两条 500 修复正式关闭。
 
 ### 33.4 A1 自动化预检
 

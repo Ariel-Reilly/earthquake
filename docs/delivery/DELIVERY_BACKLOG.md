@@ -313,8 +313,9 @@
 - **门禁复核**：eslint 0 / vitest 57 / SFC 98 / 令牌 0 / `vite build` 9.48s；
   后端 `mvn -q -DskipTests package` 通过（fat jar 127,440,951 B，含新 class）。
 - **诚实边界**：
-  - 两条 500 的代码修复已编译 + SQL 直连校验（`notice_template_order=5` / `notification_keyword_empty=5`），
-    但本机验证实例在打包时已停止，**HTTP 200 复核需重新部署新 jar 后执行**；未复核前不宣称通过。
+  - 两条 500 的代码修复已编译 + SQL 直连校验；**2026-11-13 用最新源码重启后端复核**：
+    `/api/notice-templates?page=1&size=5`、`/api/notification/records?...&keyword=` / `keyword=%20`
+    均返回 `code=0`，两项已正式关闭。
   - 真实卫星影像仍依赖 CDSE/GEE/公开 STAC；本轮实测为 `dataSource=mock` 的**降级路径**，
     真实三栏影像、取消任务、听声、真机、彩排仍在 `ONSITE_ACCEPTANCE_CHECKLIST.md`。
   - 全量 `mvn test` 的 12 个 `@SpringBootTest` 环境凭据缺口保持不变（§31.4）。
