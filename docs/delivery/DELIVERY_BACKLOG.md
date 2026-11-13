@@ -97,11 +97,11 @@
 
 ### B2 会签流程收口 — L-11/L-12
 
-| ID | 任务 | 验收标准 | 预估 |
+| ID | 任务 | 验收标准 | 状态 |
 |---|---|---|---|
-| B2-1 | 统一 `signerId` 语义 | 前端发起与确认统一传 `sys_user.id`（或 username），后端兼容期结束 | 0.3d |
-| B2-2 | 多人会签真机验证 | PostgreSQL 实测 ≥2 人会签完整流程，状态/审计正确 | 0.2d |
-| B2-3 | 代签决策落地 | 若开启 `sign:proxy`：改 PermissionRegistry + 审计 warn 日志验证 | 0.2d |
+| B2-1 ✅ | 统一 `signerId` 语义 | 前端发起与确认统一传 `sys_user.id`（或 username），后端兼容期结束 | 已改为从会签记录中取当前用户的真实 `signerId`（`currentSignerId()`），不再传 username；后端兼容保留 |
+| B2-2 | 多人会签真机验证 | PostgreSQL 实测 ≥2 人会签完整流程，状态/审计正确 | ⬜ 待现场 |
+| B2-3 | 代签决策落地 | 若开启 `sign:proxy`：改 PermissionRegistry + 审计 warn 日志验证 | ⚠️ 待 A6-1 决策 |
 
 ### B3 深色模式硬编码清理
 
@@ -113,21 +113,21 @@
 
 ### B4 stylelint 基线（依赖已存在但未入门禁）
 
-| ID | 任务 | 验收标准 | 预估 |
+| ID | 任务 | 验收标准 | 状态 |
 |---|---|---|---|
-| B4-1 | 跑 `npm run lint:css` 并统计 | 得到基线数量/规则分布；输出报告 | 0.2d |
-| B4-2 | 配置 `.stylelintignore` + 分级规则 | 先 error 关键规则、warning 存量；CI 输出报告不阻断 | 0.3d |
-| B4-3 | 分批修复存量（约 1800 处旧色值/格式） | 至少 token 颜色、重复选择器、未知单位清零；再转阻断 | 1.0d |
+| B4-1 ✅ | 跑 `npm run lint:css` 并统计 | 得到基线数量/规则分布；输出报告 | 实测 **5,264 条**，Top：单行多声明 2273 / 规则空行 1139 / 颜色写法 1360 等（`STYLELINT_BASELINE.md`） |
+| B4-2 ✅ | 配置 `.stylelintignore` + 分级规则 | 先 error 关键规则、warning 存量；CI 输出报告不阻断 | CI 新增 advisory 步骤 + artifact；存量规则暂不阻断 |
+| B4-3 | 分批修复存量 | 至少 token 颜色、重复选择器、未知单位清零；再转阻断 | ⬜ 建议先 `--fix` 低风险批次（预计消除 2,500+） |
 
 ### B5 测试覆盖补强 — L-14
 
-| ID | 任务 | 验收标准 | 预估 |
+| ID | 任务 | 验收标准 | 状态 |
 |---|---|---|---|
-| B5-1 | 后端单测：预警状态机 | 确认/派发/关闭/解除非法状态 409/幂等 | 0.5d |
-| B5-2 | 后端单测：设置落库/权限 | 白名单字段、越权 403、upsert 幂等 | 0.3d |
-| B5-3 | 后端单测：分析详情聚合 | 无指标/无影像/无 AI 时降级输出 | 0.3d |
-| B5-4 | 前端组件测试 | GlobalAlarmModal 四档渲染、WarningAnalysisDetail 空态/异常 | 0.5d |
-| B5-5 | ai-service pytest 实跑 | 10 个 pytest 文件在 CI/本地可执行并纳入结果 | 0.3d |
+| B5-1 | 后端单测：预警状态机 | 确认/派发/关闭/解除非法状态 409/幂等 | ⬜ 待补 |
+| B5-2 ✅ | 后端单测：设置落库/权限 | 白名单字段、越权 403、upsert 幂等 | 新增 `SystemSettingServiceTest`（3 用例）：损坏 JSON 降级、白名单过滤、合并 upsert；并修复历史脏字段被合并写回的问题 |
+| B5-3 ✅ | 后端单测：分析详情聚合 | 无指标/无影像/无 AI 时降级输出 | 新增 `WarningAnalysisServiceTest`：全依赖无数据时 ai=null、metrics.fallback=true、images=[]，不 500 |
+| B5-4 | 前端组件测试 | GlobalAlarmModal 四档渲染、WarningAnalysisDetail 空态/异常 | ⬜ 待补（当前无 @vue/test-utils，需评估是否引依赖） |
+| B5-5 | ai-service pytest 实跑 | 10 个 pytest 文件在 CI/本地可执行并纳入结果 | ⬜ 待补 |
 
 ### B6 Analytics 真实统计 — L-17
 
@@ -216,3 +216,24 @@
 - **A4 仍待上线日**：真实域名/证书、强密钥注入、防火墙、改初始密码、审计留存（见 `PRODUCTION_HARDENING.md` §五）。
 - **剩余 P0**：A1 现场人工验收（声音/重连/真机/按钮/彩排）、A6 决策项、A2-2 演示材料归属、A4 上线日项；
   P1/P2 保持不变。
+
+---
+
+## H. 本轮执行记录（2026-11-13，B2/B4/B5 部分）
+
+- **B2-1 ✅ 会签 signerId 语义统一**：
+  - `ConfirmationSignPage.vue` 新增 `currentSignerId()`，从 `selectedRecord.signers` 中按当前用户名取
+    **真实 signerId**（即发起时写入的 `sys_user.id`），确认/驳回不再传 `operator.name`；
+  - 同时补"找不到会签身份"的提示，后端兼容逻辑保留（历史记录不受影响）。
+- **B4-1/B4-2 ✅ Stylelint 基线可见化**：
+  - 实测存量 **5,264 条**：单行多声明 2,273、规则空行 1,139、颜色写法（alpha+notation）1,360、
+    重复选择器 72、冗余前缀 39 等；
+  - CI 新增 `Stylelint (advisory baseline)`（不阻断）+ 上传 `stylelint-report` artifact；
+  - 治理计划见 `STYLELINT_BASELINE.md`（建议先 `--fix` 低风险批次，再手工处理单行多声明）。
+- **B5-2/B5-3 ✅ 后端单测补强**：
+  - `SystemSettingServiceTest`（3 用例）：损坏 JSON 降级、白名单过滤、合并式 upsert；
+  - 测试发现并修复一个真实缺陷：历史设置中非白名单字段会被合并写回 → `load()` 现按白名单过滤；
+  - `WarningAnalysisServiceTest`：全依赖无数据时 `ai=null / metrics.fallback=true / images=[]`，接口不 500；
+  - 运行方式：`cd backend; mvn -q "-Dtest=SystemSettingServiceTest,WarningAnalysisServiceTest" test`（通过）。
+- **未关闭**：B2-2 多人会签真机、B2-3 代签决策、B4-3 存量分批修复、B5-1/B5-4/B5-5 其余测试。
+- **下一步建议**：B4-3 低风险自动修复批次（单独分支 + 视觉回归），或 B5-1 预警状态机单测。

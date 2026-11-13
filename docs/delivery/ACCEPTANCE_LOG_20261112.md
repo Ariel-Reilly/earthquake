@@ -431,3 +431,40 @@ B/C 类 P1/P2 项未纳入本轮。**演示可用 ≠ 试运行上线条件已�
 - A6 甲方/安全决策项（sign:proxy、时相对比范围、演示数据水印、地图合规、时间显示）
 - A2-2 演示材料归属确认
 - B/C 类 P1/P2 不变
+
+---
+
+## 三十、B2 会签语义 / B4 Stylelint 基线 / B5 测试补强（2026-11-13）
+
+### B2-1 会签 signerId 语义统一
+
+- 前端 `ConfirmationSignPage.vue` 新增 `currentSignerId()`：从 `selectedRecord.signers` 中按当前用户名
+  取**真实 signerId**（发起时写入的 `sys_user.id`），确认/驳回不再把 `operator.name`（username）传给后端；
+- 增加"未找到当前用户会签身份"的显式提示；后端对历史两种写法的兼容逻辑保留，旧记录不受影响；
+- 回归：`npx eslint src/` 0 error、vitest 44 passed、`npm run build` 成功。
+- 剩余：B2-2 多人会签 PostgreSQL 真机验证（需现场/API 全流程）、B2-3 代签决策。
+
+### B4 Stylelint 基线
+
+- 实测 `npx stylelint "src/**/*.{css,scss,vue}"`：**5,264 条**；
+  Top：`declaration-block-single-line-max-declarations` 2,273、`rule-empty-line-before` 1,139、
+  `alpha-value-notation` 680、`color-function-notation` 680、`media-feature-range-notation` 98、
+  `no-duplicate-selectors` 72、`property-no-vendor-prefix` 39。
+- CI 新增 `Stylelint (advisory baseline)`（不阻断）+ `stylelint-report` artifact；
+- 分批治理计划见 `STYLELINT_BASELINE.md`（建议 `--fix` 低风险批次 → 手工单行多声明 → 转阻断）。
+
+### B5 后端单测补强
+
+- 新增 `SystemSettingServiceTest`（3 用例）：损坏 JSON 降级、白名单过滤、合并式 upsert；
+  **测试发现真实缺陷**：历史设置中的非白名单字段会被合并写回 → `SystemSettingService.load()`
+  现统一按白名单过滤（修复后再测通过）。
+- 新增 `WarningAnalysisServiceTest`：AI/指标/影像全部缺失时返回
+  `ai=null / metrics.fallback=true / images=[]`，接口不 500。
+- 运行：`cd backend; mvn -q "-Dtest=SystemSettingServiceTest,WarningAnalysisServiceTest" test` → 通过。
+- 剩余：B5-1 预警状态机单测、B5-4 前端组件测试（需评估是否引入 @vue/test-utils）、B5-5
+  ai-service 10 个 pytest 实跑。
+
+### 回归
+
+- 前端：eslint 0 / vitest 44 / build 成功；后端：`mvn compile` 通过、新增单测通过；
+- 设置接口运行时复验：GET/PUT/回读 code=0，18 个白名单字段返回正常。

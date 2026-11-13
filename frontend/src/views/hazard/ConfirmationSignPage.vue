@@ -36,6 +36,21 @@ const route = useRoute()
 const operator = computed(() => getAuthUser() ?? { name: 'system', role: 'admin', id: 'u-admin' })
 const canSign = computed(() => hasPermission(operator.value.role, 'sign:create'))
 
+/**
+ * 当前登录用户在本会签中的 signerId。
+ *
+ * 历史问题：发起会签时 signers 存的是 sys_user.id，但确认/驳回按钮传的是
+ * operator.name（username），后端只能同时兼容两种写法。这里统一从会签记录里
+ * 取当前用户的真实 signerId（与发起时写入的值一致），彻底消除语义歧义。
+ */
+function currentSignerId() {
+  const me = operator.value
+  const pending = selectedRecord.value?.signers?.find(
+    (s) => s.signerName === me.name && s.status === 'PENDING',
+  )
+  return pending?.signerId ?? (me.id != null ? String(me.id) : me.name)
+}
+
 const tab = ref('inbox')
 const events = ref([])
 const records = ref([])
@@ -168,6 +183,10 @@ async function submitSign(payload) {
 
 async function handleConfirm(signerId, opinion) {
   if (!selectedRecord.value) return
+  if (!signerId) {
+    emit('notify', '未找到当前用户的会签身份，请刷新页面后重试。')
+    return
+  }
   // ⚠️ 严格使用 selectedRecord.eventId，不允许 route.params.id 兜底——
   // 路由 :id 可能是 signId（嵌套路由变化时），fallback 会把 signId 误用作 eventId。
   const eventId = selectedRecord.value.eventId
@@ -192,6 +211,10 @@ async function handleConfirm(signerId, opinion) {
 
 async function handleReject(signerId, opinion) {
   if (!selectedRecord.value) return
+  if (!signerId) {
+    emit('notify', '未找到当前用户的会签身份，请刷新页面后重试。')
+    return
+  }
   const eventId = selectedRecord.value.eventId
   if (!eventId) {
     emit('notify', '会签记录缺少 eventId，无法驳回。请刷新页面后重试。')
@@ -353,10 +376,10 @@ onBeforeUnmount(() => { if (tabTimer.value) window.clearInterval(tabTimer.value)
             <label>确认意见（可填）</label>
             <textarea v-model="opinionDraft" rows="2" placeholder="请留下你的确认意见" />
             <div class="btns">
-              <button class="primary small" @click="handleConfirm(operator.name, opinionDraft); opinionDraft = ''">
+              <button class="primary small" @click="handleConfirm(currentSignerId(), opinionDraft); opinionDraft = ''">
                 <Check :size="14" /> 我已确认
               </button>
-              <button class="danger small" @click="handleReject(operator.name, opinionDraft); opinionDraft = ''">
+              <button class="danger small" @click="handleReject(currentSignerId(), opinionDraft); opinionDraft = ''">
                 <X :size="14" /> 我要驳回
               </button>
             </div>

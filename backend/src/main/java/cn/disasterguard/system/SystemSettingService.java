@@ -58,7 +58,17 @@ public class SystemSettingService {
       return new LinkedHashMap<>();
     }
     try {
-      return objectMapper.readValue(values.get(0), new TypeReference<LinkedHashMap<String, Object>>() {});
+      Map<String, Object> parsed = objectMapper.readValue(
+          values.get(0), new TypeReference<LinkedHashMap<String, Object>>() {});
+      // 防御：历史记录里可能残留旧版本/手工写入的非白名单字段，
+      // 读取时统一过滤，避免 save() 合并后把脏字段再次写回并返回给前端。
+      Map<String, Object> filtered = new LinkedHashMap<>();
+      for (String key : ALLOWED_KEYS) {
+        if (parsed.containsKey(key)) {
+          filtered.put(key, parsed.get(key));
+        }
+      }
+      return filtered;
     } catch (Exception e) {
       log.warn("系统设置 JSON 解析失败，忽略历史记录: {}", e.getMessage());
       return new LinkedHashMap<>();
