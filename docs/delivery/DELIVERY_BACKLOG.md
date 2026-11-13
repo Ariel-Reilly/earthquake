@@ -181,7 +181,7 @@
 
 ## F. 本轮执行记录（2026-11-13）
 
-- **范围**：按 D 节第 1 项，关闭 **A2**（A2-2 保留 ⚠️ 待项目经理确认）与 **A3**。
+- **范围**：按 D 节第 1 项，关闭 **A2**（A2-2 当时保留 ⚠️ 待项目经理确认，**后续已决策关闭，见 §I / §J**）与 **A3**。
 - **交付物**：`release/delivery` 分支 + tag `v1.8.0-delivery`；源码包与 SHA256 校验和
   生成于 `output/delivery-verify/`（临时产物，不入库）。
 - **代码修复**（干净机器部署演练实证的 4 个 P0）：
@@ -257,12 +257,28 @@
   AI 端点脚本实测 compose×2 → diff → 3 张图片全 200（`changePercent=89.41%`、3 热点、`dataSource=mock`）；
   **真实浏览器页面 10/10 PASS**（`verify-satellite-page.mjs`，截图在 `output/delivery-verify/`）；
   材料包 26 文件（19 PPTX，约 324 MB），SHA256 以随包 `.sha256` 文件为准（`sha256sum -c` 通过，UTF-8 条目名复核）。
-  详见 `ACCEPTANCE_LOG_20261112.md` §三十、`DEPLOYMENT_GUIDE.md` §10、`KNOWN_LIMITATIONS.md` 〇节。
+  详见 `ACCEPTANCE_LOG_20261112.md` §三十一、`DEPLOYMENT_GUIDE.md` §10、`KNOWN_LIMITATIONS.md` 〇节。
 - **既有环境缺口**：全量 `mvn test` 中 12 个 `@SpringBootTest` 上下文用例因无测试库凭据失败（与本轮无关），
-  交付门禁沿用 `mvn -DskipTests package` + 指定单测；详见验收日志 §30.4。
+  交付门禁沿用 `mvn -DskipTests package` + 指定单测；详见验收日志 §31.4。
 - **诚实边界**：
   - 未启动完整后端实例做浏览器端到端联调（启动验证实例时环境凭据审批被拦，未绕过）；
     改为「网关单测真实调用 AI + AI 端点实跑 + 前端纯函数单测」三段覆盖，SM-19 留真实浏览器现场清单。
   - 真实卫星影像仍需 CDSE/GEE 凭证或公开 STAC 源；无凭证时页面只提示降级，不展示假差异图。
   - A1 现场项、A4 上线日注入、A6-3 / A6-4、B3/B4-3/B5/B6/B7-1 与 C 类保持不变。
 - **下一步**：见 D 节第 4、5 项（A1 现场验收 + SM-19；A6-3/A6-4 + A4 上线日注入）。
+
+---
+
+## J. 交付快照收尾（2026-11-13，本轮提交后）
+
+- **提交 / 标签**：`release/delivery` 分支 `0b109e1`（本轮 26 文件）+ 本节所在文档提交；
+  **新增** annotated tag `v1.8.1-delivery` 指向该文档提交。`v1.8.0-delivery` 保留为前一轮快照，不强制移动。
+- **源码包**：`output/delivery-verify/DisasterGuard-v1.8.1-delivery.zip` + `.sha256`
+  （`git archive --prefix` 从 tag 生成，不含 `.git/`、`output/`、PPTX、`dist/`、`target/`）。
+- **演示材料包复核**：`sha256sum -c` OK；26 条目 / 19 PPTX / UTF-8 标志齐全；
+  包内 5 份文档快照已与 `docs/delivery/` 重新同步，`MANIFEST.md` 改指最新源码包，已重新打包并重算 SHA256。
+- **文档一致性修订**：验收日志重复「三十」→「三十一」（含 30.x 编号与交叉引用）；
+  `DELIVERY_CHECKLIST.md` §八「时相对比仍为重定向」→「待真实影像凭证」；
+  `DEPLOYMENT_GUIDE.md` §6「代签未授予任何角色」→「仅 admin 持有」；§F / §28 的 A2-2 历史记录加注后续决策指针。
+- **下一步不变**：D 节第 4、5 项（A1 现场验收 + SM-19；A6-3 / A6-4 + A4 上线日注入）。
+  证据详见 `ACCEPTANCE_LOG_20261112.md` §三十二。

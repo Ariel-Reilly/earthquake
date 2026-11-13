@@ -164,7 +164,7 @@ docker compose ps               # 期望 postgres/redis/minio/emqx/backend/ai-se
 | CORS 报错 | 后端 `FRONTEND_ORIGIN`；ai-service `AI_CORS_ORIGINS` | 改为真实前端 Origin，禁止 `*`；容器内 localhost 不通时改用服务名 |
 | 后端起不来，日志提示弱密钥 | `JWT_SECRET` 是否 `CHANGE_ME*` 占位 | 用 `openssl rand -base64 48` 生成；`start-dev.ps1` 首次会自动生成并写回 `.env` |
 | 健康检查 503 | PostgreSQL 是否 healthy；`POSTGRES_*` 是否与 compose 映射端口一致（15432） | 修 `.env` 后重启后端；看 `docker compose logs postgres backend` |
-| 会签确认/驳回返回 403 | 请求体 `signerId` 是否属于当前登录用户 | 属预期安全行为；管理员代签需 `sign:proxy`（当前未授予任何角色，见限制清单） |
+| 会签确认/驳回返回 403 | 请求体 `signerId` 是否属于当前登录用户 | 属预期安全行为；**管理员代签已按 A6-1 决策开启**：`sign:proxy` 仅授予 admin（其余 6 角色仍 403），每次代签写 warn 审计日志；见限制清单 L-12 / SM-15 |
 | 页面刷新 404（生产） | nginx SPA fallback | 补 `try_files ... /index.html`（`:73-75`） |
 
 ---

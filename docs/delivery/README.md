@@ -59,6 +59,6 @@ node scripts/delivery/browser-smoke.mjs
   详见 [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md) 〇节与 [DELIVERY_BACKLOG.md](DELIVERY_BACKLOG.md) §I
 - 演示材料包：`output/delivery-materials/DisasterGuard-演示材料包-v1.0.zip`（19 PPTX + 脚本/文档 + MANIFEST + SHA256，UTF-8 条目名，不入库）
 - 值班员一页纸：[OPERATOR_CARD.md](OPERATOR_CARD.md)；时相对比部署配置见 [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) §10
-- 源码提交：`release/delivery` 分支 + tag（见交付日志）；源码包与 SHA256 见 `output/delivery-verify/`
+- 源码提交：`release/delivery` 分支；本轮决策落地提交 `0b109e1`，交付快照 tag **`v1.8.1-delivery`**；源码包 `output/delivery-verify/DisasterGuard-v1.8.1-delivery.zip` + 同名 `.sha256`（旧 `v1.8.0-delivery` 保留为前一轮快照，不强制移动）
 - 已知待现场确认：声音实际外放、WS 断线重连计时、真机移动端、时相对比真实影像凭证（见 KNOWN_LIMITATIONS / SM-19）
 - **上线前仍须完成**：A1 现场人工验收（真机/听声/彩排）、A4 上线日注入（域名证书/改密/强密钥/审计留存）、A6-3/A6-4 决策（见 DELIVERY_BACKLOG）

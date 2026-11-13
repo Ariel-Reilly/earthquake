@@ -38,7 +38,7 @@
 | 原问题 / 决策 | 处理结果 | 证据 |
 |---|---|---|
 | A6-1 管理员代签默认禁用 | 决策「允许管理员代签」：`sign:proxy` 仅授予 admin，其余角色仍 403；每次代签写 warn 审计日志 | `data.sql` 权限码 93；`frontend/src/stores/auth.js`；`PermissionRegistry.java`；`SignProxyPermissionTest` |
-| A6-2 / B1 时相对比页面缺失（原 L-05） | 决策「必做」：新增独立页面、Java 网关代理、菜单/路由/权限；无真实影像时只提示降级、不展示假图 | `SatelliteComparePage.vue`、`SentinelCompareController.java`、`satelliteCompareApi.js`；`ACCEPTANCE_LOG` §三十 |
+| A6-2 / B1 时相对比页面缺失（原 L-05） | 决策「必做」：新增独立页面、Java 网关代理、菜单/路由/权限；无真实影像时只提示降级、不展示假图 | `SatelliteComparePage.vue`、`SentinelCompareController.java`、`satelliteCompareApi.js`；`ACCEPTANCE_LOG` §三十一 |
 | A6-5 时间显示口径 | 决策「跟随浏览器时区」，不做代码改动；服务端 `TZ=Asia/Shanghai` 仅用于日志/调度 | 本文件 L-15；`OPERATOR_CARD.md` §1 |
 | A2-2 演示材料归属 | 决策「单独材料包」：19 个 PPTX + 演示脚本 + 交付文档单独打包，**不入库** | `output/delivery-materials/…zip`（含 `MANIFEST.md` + SHA256） |
 | B7-3 值班员操作材料 | 新增一页纸操作卡（登录/预警处置/分析详情/代签/时相对比/时区） | `docs/delivery/OPERATOR_CARD.md` |

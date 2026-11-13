@@ -337,12 +337,14 @@
 - 效果：`git status --porcelain` 项数 **110 → 88**，剩余全部为应提交的业务代码、交付文档、
   迁移脚本与 CI 配置；`git check-ignore -v` 逐项验证生效。
 
-### A2-2 演示材料归属（⚠ 待项目经理确认）
+### A2-2 演示材料归属（当时待确认；后续决策已关闭，见 §三十一）
 
 - 盘点：根目录 **19 个 `.pptx`（合计 325 MB）**、`御灾智巡/`（4 文件 / 1.4 MB）、
   `御灾智巡_现场演示流程_操作融合稿.md`（63 KB）。
 - **当前保守处置**：不纳入源码仓库与交付提交，按「单独演示材料包」口径管理，已在 `.gitignore` 排除。
   若项目经理决定纳入仓库，去掉对应 ignore 规则即可，完全可逆。
+  > 后续（§三十一，同日）：决策已定为「单独材料包」，产出
+  > `DisasterGuard-演示材料包-v1.0.zip`（19 PPTX + 演示脚本 + 5 份交付文档 + MANIFEST + SHA256），不入库。
 
 ### A2-5 提交内容复核
 
@@ -471,9 +473,9 @@ B/C 类 P1/P2 项未纳入本轮。**演示可用 ≠ 试运行上线条件已�
 
 ---
 
-## 三十、A2-2 / A6 / B1 / B7 决策落地（2026-11-13）
+## 三十一、A2-2 / A6 / B1 / B7 决策落地（2026-11-13）
 
-### 30.1 甲方/项目经理口径（本轮输入）
+### 31.1 甲方/项目经理口径（本轮输入）
 
 | 决策 | 结论 | 动作 |
 |---|---|---|
@@ -482,7 +484,7 @@ B/C 类 P1/P2 项未纳入本轮。**演示可用 ≠ 试运行上线条件已�
 | A6-1 / B2-3 管理员代签 | **允许** | `sign:proxy` 仅授予 admin，其余角色不变 |
 | A6-2 / B1 时相对比 | **必做** | 完整实现页面 + 网关 + 菜单/路由/权限 + 诚实降级 |
 
-### 30.2 代码/脚本变更
+### 31.2 代码/脚本变更
 
 | 文件 | 变更 |
 |---|---|
@@ -497,7 +499,7 @@ B/C 类 P1/P2 项未纳入本轮。**演示可用 ≠ 试运行上线条件已�
 | `scripts/delivery/verify-sentinel-chain.mjs`、`pack-demo-materials.py`（新增） | 可复现的 AI 链路验收与 UTF-8 材料包打包脚本 |
 | 测试 | `SignProxyPermissionTest`（2）、`SentinelCompareControllerTest`（4）、`frontend/tests/satelliteCompare.spec.js`（12）、`auth.spec.js` 新增权限回归（1） |
 
-### 30.3 实测证据
+### 31.3 实测证据
 
 - **前端**：`npx vitest run` → **57 passed / 5 files**；新增 12 例覆盖 bbox 脏数据、`isRealImageJob` 诚实降级、轮询终态/取消/超时；`auth.spec.js` 新增时相对比角色放行断言。
 - **后端**：`mvn -q "-Dtest=SignProxyPermissionTest,SentinelCompareControllerTest" test` → **6/6 通过**（surefire 报告 0 failure / 0 error）。
@@ -517,7 +519,7 @@ B/C 类 P1/P2 项未纳入本轮。**演示可用 ≠ 试运行上线条件已�
   Python `zipfile` 写入并置 UTF-8 标志位 0x800，中文条目名经 `zipfile.namelist()` 复核正确。
 - **文档**：backlog §I、checklist、SMOKE_TEST SM-15/SM-19、KNOWN_LIMITATIONS 〇/L-05/L-12/L-15、README、DEPLOYMENT_GUIDE §10、OPERATOR_CARD.md。
 
-### 30.4 边界（诚实说明）
+### 31.4 边界（诚实说明）
 
 - 本轮**未启动完整新后端实例做「浏览器 → 新网关 → AI」端到端联调**：启动验证实例时环境凭据审批被拦，
   未绕过；改为「真实浏览器页面渲染（旧后端，错误态路径）+ 网关单测真实调用 ai-service + AI 端点脚本实测
@@ -529,3 +531,39 @@ B/C 类 P1/P2 项未纳入本轮。**演示可用 ≠ 试运行上线条件已�
 - 真实卫星影像仍依赖 CDSE/GEE 凭证或公开 STAC 源（C3 / L-04）；无凭证时页面只提示降级，不展示假差异图。
 - A1（听声/真机/按钮点检/彩排）、A4 上线日注入、A6-3 演示数据水印、A6-4 地图合规 Key 仍待现场/上线日；
   B3/B4-3/B5-1/B5-4/B5-5/B6/B7-1 与 C 类保持原状态。
+
+---
+
+## 三十二、交付快照收尾（2026-11-13）
+
+### 32.1 提交 / 标签 / 源码包
+
+| 项 | 值 |
+|---|---|
+| 分支 | `release/delivery` |
+| 决策落地提交 | `0b109e1`（26 文件，+1917 / -67：代签权限、时相对比页面/网关、材料包脚本、文档与测试） |
+| 快照文档提交 | 本节所在提交（`git log -1 --oneline` 可查） |
+| 新标签 | `v1.8.1-delivery`（annotated，指向快照文档提交） |
+| 旧标签 | `v1.8.0-delivery` **保留**，仍指向前一轮 `6a5deb2`，不强制移动 |
+| 源码包 | `output/delivery-verify/DisasterGuard-v1.8.1-delivery.zip` + 同名 `.sha256` |
+
+> 采用「新增 v1.8.1」而不是 `tag -f` 改写 `v1.8.0`，避免已分发快照的引用失效。
+> 源码包由 `git archive --prefix` 从 tag 生成，不含 `.git/`、`output/`、PPTX、`frontend/dist/`、`backend/target/`。
+
+### 32.2 收尾复核（实跑）
+
+- 演示材料包：`sha256sum -c` **OK**；Python `zipfile` 复核 **26 条目 / 19 PPTX**、
+  全部条目 UTF-8 标志位 `0x800`、`MANIFEST.md` 存在；中文条目名经 `namelist()` 复核为正确 Unicode。
+- 包内 5 份交付文档快照与 `docs/delivery/` 源文件 `cmp` **逐字节一致**（DEMO_SCRIPT / DELIVERY_CHECKLIST /
+  KNOWN_LIMITATIONS / README / OPERATOR_CARD 全部 OK），本轮文档修订后已同步刷新并重算 SHA256。
+- 文档一致性修订：
+  - 本日志重复的「三十」章节改为「三十一」（含 30.x → 31.x 与 backlog §I / 限制清单的交叉引用）；
+  - `DELIVERY_CHECKLIST.md` §八删除「`satellite-compare` 仍为重定向」过期表述，改为「待真实影像凭证」；
+  - `DEPLOYMENT_GUIDE.md` §6 排障表把「代签当前未授予任何角色」改为「仅 admin 持有，代签写 warn 审计」；
+  - `ACCEPTANCE_LOG` §28 的 A2-2 历史小节加注「后续决策已关闭」指针，不改写历史记录。
+- 提交复核：`git diff --cached --name-only` 中无 `output/`、`generated-videos/`、PPTX、`dist/`、`target/`、`.env` 等临时产物。
+
+### 32.3 边界不变
+
+- 仍未做「浏览器 → 新 jar 网关 → ai-service → 真实影像」端到端联调（§31.4）；
+- A1 现场人工验收、A4 上线日注入、A6-3 / A6-4、B/C 类保持原状态（backlog D 节第 4、5 项）。
