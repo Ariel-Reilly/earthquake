@@ -108,6 +108,14 @@
   --sp-48: var(--space-2xl);
   --sp-64: var(--space-3xl);
 
+  /* 中间档补全（原只在 styles.css 定义，2026-11 收敛到本文件；
+     若不定义，引用处 padding/gap 会整条失效退化为 0） */
+  --sp-2: 2px;
+  --sp-3: 3px;
+  --sp-5: 5px;
+  --sp-6: 6px;
+  --sp-10: 10px;
+
   /* ══════════════════════════════════════════════════════════
      5. 圆角系统 - Border Radius
      ══════════════════════════════════════════════════════════ */
@@ -165,6 +173,9 @@
 
   /* 旧变量兼容 */
   --font: var(--font-sans);
+  /* iOS 系统字体栈：原定义在 styles.css 的第二个 :root（双源），2026-11 收敛到此处 */
+  --font-ios: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
+              "PingFang SC", "Noto Sans SC", system-ui, "Segoe UI", Roboto, sans-serif;
 
   /* 字号系统（基于 16px base，递增比例 1.2-1.25）*/
   --text-xs: 11px;      /* 0.6875rem - 辅助说明 */
@@ -256,9 +267,16 @@
 
   /* 文字色兼容 */
   --c-text: var(--color-foreground);
+  --c-text-1: var(--color-foreground);   /* 旧页面写法（--c-text-1 === 主文字），此前未定义 → 整条 color 失效 */
   --c-text-2: var(--color-muted-foreground);
   --c-text-3: var(--color-tertiary);
   --c-text-4: var(--color-tertiary);
+  /* 三级文字的「正文/标签」场景专用色：
+     --c-text-3(#8FA49A) 白底对比度仅 2.6:1，当文字用不达标；
+     ink 版取次级文字色（白底 5.3:1、浅灰绿底 4.7:1）。底色/边框场景继续用 --c-text-3。 */
+  --c-text-3-ink: var(--color-muted-foreground);
+  /* --c-text-4 同样映射到 tertiary（浅色），当文字用一样不达标，配套 ink 版 */
+  --c-text-4-ink: var(--color-muted-foreground);
   --c-text-inv: #FFFFFF;
   --c-ink-1: var(--color-foreground);
   --c-ink-2: #55655D;
@@ -297,6 +315,22 @@
   --c-danger-strong: var(--color-destructive-strong);
   --c-info: var(--color-info);
   --c-info-bg: var(--color-info-bg);
+
+  /* 状态「浅底」变体（2026-11 补全）：
+     notification/** 等处以 background: var(--c-*-light) 做状态徽章 / 行底色，
+     此前五个变量都没定义 → 整条 background 失效，徽章变透明、只剩文字浮在页面上。 */
+  --c-warning-light: rgba(212, 180, 139, 0.16);
+  --c-success-light: rgba(111, 158, 127, 0.16);
+  --c-danger-light: rgba(196, 139, 139, 0.16);
+  --c-success-mist: rgba(111, 158, 127, 0.08);
+
+  /* 语义色「文字场景」ink 版本（2026-11）：
+     浅底/白底上达到 AA 4.5:1。原 --c-warning-ink(#9B761E) 仅 4.2:1、
+     --c-warning(#D4B48B) 仅 2.0:1、--c-danger(#C48B8B) 仅 2.4:1，
+     直接当文字用不达标；底色/边框场景继续用原语义色。 */
+  --c-warning-ink-deep: #7A5C10;
+  --c-success-ink: #2F6B45;
+  --c-danger-ink: #8E4444;
 
   /* 预警色兼容 */
   --alert-high: var(--color-destructive);
@@ -378,4 +412,78 @@
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* ══════════════════════════════════════════════════════════
+   深色模式令牌层（2026-11 补齐）
+   ─────────────────────────────────────────────────────────
+   触发钩子由 composables/useTheme.js 唯一写入：同时写
+   data-theme="dark" 与 class="theme-dark"，两种选择器都认。
+
+   为什么需要这一层：
+     深色模式此前只有 styles.css 里的一套「旧变量覆盖」（--bg-page /
+     --text-main / --primary…），而业务页大量使用 --c-bg / --c-text /
+     --c-surface 这批兼容别名。别名都指向 --color-*，而 --color-*
+     从未在深色下改写过，于是深色页面里出现「深色卡片 + 浅色底
+     (#F4F7F5) 的 hover/fill 块」「深色底 + 深绿文字(--c-brand)」。
+     本层把 --color-* 改成深色值，别名（var 引用）会自动跟随，
+     不用逐个重复声明。
+
+   未覆盖（仍需浏览器逐页复核）：
+     · 业务页写死的浅色 #fff / rgba(255,255,255,.x) 背景
+     · 各页面 scoped 样式里硬编码的 #F4F7F5 / #2C3B34
+   ══════════════════════════════════════════════════════════ */
+
+html[data-theme='dark'],
+html.theme-dark {
+  /* ── 中性色 ── */
+  --color-background: #151C18;
+  --color-foreground: #E6EEE9;
+  --color-card: #1E2822;
+  --color-card-foreground: #E6EEE9;
+  --color-muted: #232F28;
+  --color-muted-foreground: #A3B5AB;   /* 次级文字：深底 7.1:1 */
+  --color-tertiary: #8B9D93;           /* 三级文字：深底 5.3:1 */
+  --color-border: #2F3C35;
+  --color-border-hover: #43544A;
+  --color-surface-1: #232F28;
+  --color-surface-2: #2A372F;
+
+  /* ── 品牌色：深色下主色提亮，其上文字转深墨（与 styles.css 深色层一致）── */
+  --color-primary: #8EB1A0;
+  --color-primary-hover: #A5C4B5;
+  --color-primary-active: #6F9180;
+  --color-on-primary: #1F2B25;
+  --color-primary-soft: rgba(142, 177, 160, 0.16);
+  --color-primary-mist: rgba(142, 177, 160, 0.08);
+
+  /* ── 强调/语义：提亮一档，保证深底上可读 ── */
+  --color-accent: #9DB8D2;
+  --color-accent-hover: #B4CBE0;
+  --color-accent-soft: rgba(157, 184, 210, 0.16);
+  --color-on-accent: #1F2B25;
+
+  --color-destructive: #D29A9A;
+  --color-destructive-bg: rgba(210, 154, 154, 0.16);
+  --color-destructive-strong: #E2B0B0;
+  --color-on-destructive: #1F2B25;
+
+  --color-warning: #E0C49A;
+  --color-warning-bg: rgba(224, 196, 154, 0.16);
+  --color-warning-strong: #EBCF9E;
+  --color-warning-ink: #E8CE9E;        /* 深色下「警告文字」必须是浅色 */
+
+  --color-success: #8FBE9E;
+  --color-success-bg: rgba(143, 190, 158, 0.16);
+  --color-success-strong: #A8D2B4;
+
+  --color-info: #A3BBD8;
+  --color-info-bg: rgba(163, 187, 216, 0.16);
+
+  /* 文字在浅色 tint 上的 ink 版：深色下反转为浅色 */
+  --c-warning-ink-deep: #E8CE9E;
+  --c-success-ink: #A8D2B4;
+  --c-danger-ink: #E2B0B0;
+
+  color-scheme: dark;
 }

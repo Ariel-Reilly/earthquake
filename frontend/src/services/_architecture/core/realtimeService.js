@@ -1,6 +1,7 @@
-import { dashboardApi, isBackendRuntime } from "../../dashboardApi.js";
+import { dashboardApi, isBackendRuntime, API_BASE } from "../../dashboardApi.js";
 import { getAuthToken } from "../../../stores/auth.js";
 import { useRealtimeStore } from "../../../stores/realtime.js";
+import { appendWsQuery, resolveWebSocketUrl } from "../../../utils/wsUrl.js";
 
 const listeners = new Set();
 let socket = null;
@@ -375,7 +376,9 @@ function deriveWsUrl() {
   try {
     if (!base) {
       // 无配置：用当前页面 origin 兜底
-      return `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}/ws`;
+      return resolveWebSocketUrl(
+        `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}/ws`,
+      );
     }
     // base 可能是相对路径（如 "/api"），先拼接 origin
     const absolute = new URL(base, window.location.origin);
@@ -383,11 +386,13 @@ function deriveWsUrl() {
     const pathname = absolute.pathname
       .replace(/\/api\/?$/, "")
       .replace(/\/$/, "");
-    return `${wsProto}//${absolute.host}${pathname}/ws`;
+    return resolveWebSocketUrl(`${wsProto}//${absolute.host}${pathname}/ws`);
   } catch {
     // 任何异常都退回 window.location.origin（绝对兜底）
     try {
-      return `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}/ws`;
+      return resolveWebSocketUrl(
+        `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}/ws`,
+      );
     } catch {
       return "";
     }
@@ -397,21 +402,26 @@ function deriveWsUrl() {
 /** 优先用一次性 ticket 连接，失败时 fallback 到 raw JWT。 */
 async function connectSocket(url) {
   if (!url || typeof WebSocket === "undefined") {return null;}
-  wsUrl = url;
+  const normalizedUrl = resolveWebSocketUrl(url);
+  if (!normalizedUrl) {
+    console.warn("[realtimeService] WebSocket 地址非法，已跳过连接:", url);
+    return null;
+  }
+  wsUrl = normalizedUrl;
   let connectUrl;
   const token = getAuthToken();
   if (token) {
     try {
       // 1. 尝试获取一次性 ticket（更安全，JWT 不出现在服务器日志）
-      const ticketResp = await fetch("/api/auth/ws-ticket", {
+      //    用 API_BASE 而不是写死 /api：VITE_API_BASE_URL 配成绝对地址时也能取到 ticket。
+      const ticketResp = await fetch(`${API_BASE}/auth/ws-ticket`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (ticketResp.ok) {
         const payload = await ticketResp.json();
         const ticket = payload?.data?.ticket;
         if (ticket) {
-          const sep = url.includes("?") ? "&" : "?";
-          connectUrl = `${url}${sep}ticket=${encodeURIComponent(ticket)}`;
+          connectUrl = appendWsQuery(normalizedUrl, { ticket });
           tryOpen(connectUrl);
           return;
         }
@@ -420,21 +430,32 @@ async function connectSocket(url) {
       // ticket 获取失败 → fallback
     }
     // 2. Fallback：直接把 JWT 放 query（兼容旧客户端，注意 token 会暴露在服务器日志）
-    const sep = url.includes("?") ? "&" : "?";
-    connectUrl = `${url}${sep}token=${encodeURIComponent(token)}`;
+    connectUrl = appendWsQuery(normalizedUrl, { token });
   } else {
-    connectUrl = url;
+    connectUrl = normalizedUrl;
   }
   tryOpen(connectUrl);
 }
 
 function tryOpen(fullUrl) {
+  const target = resolveWebSocketUrl(fullUrl);
+  if (!target) {
+    console.warn("[realtimeService] WebSocket 地址无法规范化，已跳过连接:", fullUrl);
+    return false;
+  }
   try {
     socket?.close();
   } catch {
     // ignore close failure
   }
-  socket = new WebSocket(fullUrl);
+  try {
+    socket = new WebSocket(target);
+  } catch (err) {
+    // 例如相对路径 / 非 ws(s) 协议：不要让异常冒泡打断上层轮询兜底
+    console.warn("[realtimeService] 创建 WebSocket 失败，将仅依赖轮询:", err?.message ?? err);
+    socket = null;
+    return false;
+  }
   socket.onopen = () => {
     wsActive = true;
     lastWsMessageAt = Date.now();
@@ -488,9 +509,10 @@ function tryOpen(fullUrl) {
  */
 async function pollSnapshot() {
   const [warnings, devices, hazards] = await Promise.all([
-    dashboardApi.getWarnings(),
-    dashboardApi.getDevices(),
-    dashboardApi.getHazards({ size: 50 }),
+    // 显式 size：后端默认 size=10，不传会让实时图层只剩前 10 个点
+    dashboardApi.getWarnings({ page: 1, size: 200 }),
+    dashboardApi.getDevices({ page: 1, size: 200 }),
+    dashboardApi.getHazards({ page: 1, size: 200 }),
   ]);
   // 全量快照：后端返回即权威。已删除/失效的项会被剔除，
   // 仅保留 state 中由 WS 推送的 version > 0 的较新增量（防止回退闪烁）。
@@ -628,7 +650,8 @@ export function startRealtimeSync(options = {}) {
   // 未显式配置时，从 VITE_API_BASE_URL 自动推导：http://host:port/api → ws://host:port/ws
   // 后端不可达（演示/mock 模式）时不发起 WebSocket，仅依赖轮询兜底，避免无意义的连接失败
   if (explicitWs) {
-    wsUrl = explicitWs;
+    // 生产 compose 注入的是相对路径 /ws，浏览器只接受绝对地址，必须在这里规范化
+    wsUrl = resolveWebSocketUrl(explicitWs) || deriveWsUrl();
   } else if (!isBackendRuntime()) {
     wsUrl = "";
     console.warn(
@@ -661,7 +684,6 @@ export function startRealtimeSync(options = {}) {
 
   stopRealtimeSync({ keepListeners: true });
   if (options.snapshot) {applySnapshot(options.snapshot);}
-  if (wsUrl) {connectSocket(wsUrl);}
 
   pollingTimer = window.setInterval(
     () => {
@@ -691,8 +713,14 @@ export function startRealtimeSync(options = {}) {
   pollSnapshot().catch(() => {});
   pollWarningsPreview().catch(() => {});
   pollPersonnel().catch(() => {});
-  // 启动 WS 静默 watchdog（只在准备连 WS 时才有意义）
-  if (wsUrl) {startWsSilenceWatchdog();}
+
+  // 先启动轮询兜底，再连 WebSocket：即使 WS 地址/握手异常，实时数据也不会断
+  if (wsUrl) {
+    connectSocket(wsUrl).catch((err) => {
+      console.warn("[realtimeService] WebSocket 连接失败，仅依赖轮询:", err?.message ?? err);
+    });
+    startWsSilenceWatchdog();
+  }
 }
 
 /**

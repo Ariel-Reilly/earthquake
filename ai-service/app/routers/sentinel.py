@@ -38,6 +38,7 @@ from datetime import datetime, timedelta, timezone
 from enum import Enum
 from pathlib import Path
 from typing import Dict, List, Literal, Optional, Tuple
+from urllib.parse import urlsplit
 
 import aiohttp
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
@@ -80,6 +81,60 @@ def _sentinel_storage_dir() -> str:
     )
     Path(d).mkdir(parents=True, exist_ok=True)
     return d
+
+
+# 外部图像 URL 的 SSRF 白名单（与 detection.py::_validate_image_url 同一思路）。
+#
+# 为什么需要它：/sentinel/diff 允许调用方直接传 beforeUrl/afterUrl，服务端会去下载。
+# 若不限制协议与主机，调用方可传 file:///etc/passwd 之类地址读取容器内任意文件，
+# 或把本服务当作内网探测跳板（CODE_REVIEW_R4 已记录同类风险）。
+#
+# 为什么用「主机白名单」而不是「屏蔽私网段」：正常图片来源就是内网 MinIO
+# （backend 配的是 http://localhost:19000），按私网段拦截会把正常业务一起挡掉。
+# 部署到别的环境时用 SENTINEL_ALLOWED_HOSTS 覆盖（逗号分隔，可带端口）。
+_ALLOWED_HOSTS = {
+    h.strip().lower()
+    for h in os.environ.get(
+        "SENTINEL_ALLOWED_HOSTS",
+        "localhost,127.0.0.1,minio,minio:9000,host.docker.internal",
+    ).split(",")
+    if h.strip()
+}
+
+
+def _validate_remote_image_url(raw: str) -> str:
+    """校验调用方直接传入的图像 URL；只放行白名单内的 http/https。
+
+    安全修复（P0）：file:// 与裸本地路径一律 403（旧实现会直接 Image.open 本地路径）。
+    该函数只用于「调用方提供的 URL」；由 jobId 解析出的服务端自产 URL 走可信分支。
+
+    Raises:
+        HTTPException: 403 协议非法 / 本地路径 / 主机不在白名单内。
+    """
+    if not raw or not raw.strip():
+        raise HTTPException(status_code=403, detail="图像 URL 不能为空")
+    candidate = raw.strip()
+    scheme = candidate.split("://", 1)[0].lower() if "://" in candidate else ""
+    if scheme not in ("http", "https"):
+        # file:// / mock:// / 裸本地路径（如 /etc/passwd、C:\\x.png）一律拒绝
+        raise HTTPException(
+            status_code=403,
+            detail="图像 URL 仅支持 http/https；file://、mock:// 与本地路径已禁用",
+        )
+    try:
+        parsed = urlsplit(candidate)
+    except ValueError as exc:
+        raise HTTPException(status_code=403, detail=f"图像 URL 格式非法: {exc}")
+    if not parsed.hostname:
+        raise HTTPException(status_code=403, detail="图像 URL 缺少主机名")
+    host = parsed.hostname.lower()
+    netloc = parsed.netloc.lower()
+    if host not in _ALLOWED_HOSTS and netloc not in _ALLOWED_HOSTS:
+        raise HTTPException(
+            status_code=403,
+            detail=f"图像 URL 主机不在白名单内: {host}（可用 SENTINEL_ALLOWED_HOSTS 扩展）",
+        )
+    return candidate
 
 
 # 任务状态枚举
@@ -676,13 +731,14 @@ class SentinelDiffRequest(BaseModel):
       A) 复用已有合成任务的 jobId（beforeJobId/afterJobId）
          —— 后端从内部任务存储取出 s2Url/sarUrl，自动选 S2 真彩做差异
       B) 直接给两个图 URL（beforeUrl/afterUrl）
-         —— 支持 HTTP(S):// 或本地路径（演示模式生成的 file://）
+         —— 仅支持 http(s)，且主机必须在 SENTINEL_ALLOWED_HOSTS 白名单内；
+            file://、mock:// 与裸本地路径一律 403（安全修复 P0）
     """
 
     before_job_id: Optional[str] = Field(default=None, description="灾前合成任务 ID")
     after_job_id: Optional[str] = Field(default=None, description="灾后合成任务 ID")
-    before_url: Optional[str] = Field(default=None, description="灾前图 URL（与 beforeJobId 二选一）")
-    after_url: Optional[str] = Field(default=None, description="灾后图 URL（与 afterJobId 二选一）")
+    before_url: Optional[str] = Field(default=None, description="灾前图 URL（仅 http/https + 白名单主机；与 beforeJobId 二选一）")
+    after_url: Optional[str] = Field(default=None, description="灾后图 URL（仅 http/https + 白名单主机；与 afterJobId 二选一）")
     bbox: Optional[List[float]] = Field(
         default=None, min_length=4, max_length=4,
         description="AOI 边界框，用于把差异热点映射回经纬度",
@@ -762,6 +818,21 @@ async def _resolve_input_url(job_or_url: Optional[str], job_kind: str = "compose
     return job_or_url
 
 
+async def _resolve_diff_input(job_id: Optional[str], raw_url: Optional[str]) -> Tuple[Optional[str], bool]:
+    """解析差异计算的一张输入图。
+
+    Returns:
+        (url, trusted)。trusted=True 表示 URL 由服务端自产任务（jobId）解析而来，
+        允许回读本地演示产物；trusted=False 表示调用方直接传 URL，只允许
+        http/https 且主机在白名单内（file:// 与裸本地路径直接 403）。
+    """
+    if job_id:
+        return await _resolve_input_url(job_id, "compose"), True
+    if raw_url:
+        return _validate_remote_image_url(raw_url), False
+    return None, False
+
+
 async def _run_diff(job_id: str, req: SentinelDiffRequest):
     """后台差异计算任务。
 
@@ -778,14 +849,14 @@ async def _run_diff(job_id: str, req: SentinelDiffRequest):
         await _update_diff_job_async(job_id, status=JobStatus.RUNNING.value, progress=10,
                          message="正在解析输入图 URL…")
 
-        before_url = await _resolve_input_url(req.before_job_id, "compose") or req.before_url
-        after_url = await _resolve_input_url(req.after_job_id, "compose") or req.after_url
+        before_url, before_trusted = await _resolve_diff_input(req.before_job_id, req.before_url)
+        after_url, after_trusted = await _resolve_diff_input(req.after_job_id, req.after_url)
         if not before_url or not after_url:
             raise ValueError("必须提供 before/after 任务 ID 或 URL 之一")
 
         await _update_diff_job_async(job_id, progress=25, message="正在加载图像…")
-        before_img, before_size = await _load_image_to_array(before_url)
-        after_img, after_size = await _load_image_to_array(after_url)
+        before_img, before_size = await _load_image_to_array(before_url, trusted=before_trusted)
+        after_img, after_size = await _load_image_to_array(after_url, trusted=after_trusted)
 
         # 大小对齐：以 before 为基准 resize after
         if before_size != after_size:
@@ -846,7 +917,11 @@ async def _run_diff(job_id: str, req: SentinelDiffRequest):
     except asyncio.CancelledError:
         await _update_diff_job_async(job_id, status=JobStatus.CANCELLED.value, message="任务已取消")
         raise
-    except HTTPException:
+    except HTTPException as exc:
+        # 入参/SSRF 校验失败：后台任务也要落到 FAILED，避免前端轮询永远停在 RUNNING
+        await _update_diff_job_async(
+            job_id, status=JobStatus.FAILED.value, message=str(exc.detail), progress=0
+        )
         raise
     except Exception as exc:
         # 记录完整 traceback，仅向 API 返回通用消息，避免泄漏内部细节
@@ -856,8 +931,16 @@ async def _run_diff(job_id: str, req: SentinelDiffRequest):
         raise
 
 
-async def _load_image_to_array(url_or_path: str) -> Tuple[Any, Tuple[int, int]]:
-    """加载 URL 或本地路径的 PNG 到 numpy 数组 + (width, height)。"""
+async def _load_image_to_array(url_or_path: str, *, trusted: bool = False) -> Tuple[Any, Tuple[int, int]]:
+    """加载图像到 numpy 数组 + (width, height)。
+
+    安全修复（P0）：本函数历史上对 file:// 与裸本地路径直接 ``Image.open``，
+    等价于一个任意文件读取点。现在：
+      - 调用方直传的 URL（trusted=False）只允许 http/https 且主机在白名单内；
+      - file:// / mock:// 仅允许 trusted=True（服务端自产任务产物），且 file:// 必须
+        落在 SENTINEL_STORAGE_DIR 之内；
+      - 裸本地路径一律 403。
+    """
     try:
         from PIL import Image
         import numpy as np
@@ -866,9 +949,27 @@ async def _load_image_to_array(url_or_path: str) -> Tuple[Any, Tuple[int, int]]:
 
     img = None
     if url_or_path.startswith("file://"):
+        if not trusted:
+            raise HTTPException(
+                status_code=403,
+                detail="图像 URL 仅支持 http/https；file:// 与本地路径已禁用",
+            )
         local_path = url_or_path[len("file://"):]
-        img = Image.open(local_path)
+        # 可信分支也不能无限读：限制在本服务落盘目录内，防止被 jobId 间接利用
+        storage_root = Path(_sentinel_storage_dir()).resolve()
+        try:
+            resolved = Path(local_path).resolve()
+        except OSError as exc:
+            raise HTTPException(status_code=403, detail=f"本地图像路径不可用: {exc}")
+        if not resolved.is_relative_to(storage_root):
+            raise HTTPException(
+                status_code=403,
+                detail="本地图像路径越界（仅允许读取 SENTINEL_STORAGE_DIR）",
+            )
+        img = Image.open(resolved)
     elif url_or_path.startswith("mock://"):
+        if not trusted:
+            raise HTTPException(status_code=403, detail="mock:// 仅允许服务端自产任务使用")
         # mock://sentinel/s2_truecolor_<jobId>.png —— 在演示模式下没有真实文件，
         # 用同样的随机种子重新生成一张，保证可重复
         # jobId 在文件名末尾（s2_truecolor_<jobId>.png 或 s1_sar_<jobId>.png）
@@ -877,6 +978,9 @@ async def _load_image_to_array(url_or_path: str) -> Tuple[Any, Tuple[int, int]]:
         is_sar = "sar" in url_or_path
         img = _regenerate_mock_image(suffix, is_sar)
     elif url_or_path.startswith("http://") or url_or_path.startswith("https://"):
+        # 双保险：即使调用方绕过入口校验，这里再校验一次协议与主机白名单
+        if not trusted:
+            url_or_path = _validate_remote_image_url(url_or_path)
         # 复用进程级共享 aiohttp ClientSession，避免每个请求重新 TCP/TLS 握手 + 频繁创建连接池
         from app.utils.http_client import HttpClientHolder
         session = await HttpClientHolder.instance().session()
@@ -887,8 +991,11 @@ async def _load_image_to_array(url_or_path: str) -> Tuple[Any, Tuple[int, int]]:
         from io import BytesIO
         img = Image.open(BytesIO(content))
     else:
-        # 当成本地路径
-        img = Image.open(url_or_path)
+        # 裸本地路径：外部入口一律拒绝
+        raise HTTPException(
+            status_code=403,
+            detail="图像 URL 仅支持 http/https；本地路径已禁用",
+        )
 
     if img.mode != "RGB":
         img = img.convert("RGB")
@@ -1143,7 +1250,8 @@ async def submit_diff(req: SentinelDiffRequest, background_tasks: BackgroundTask
 
     **输入：** 提供 before/after 两个合成任务 ID 或直接图像 URL，二者必填其一：
       - beforeJobId/afterJobId：复用已有合成任务（自动取 S2 真彩图）
-      - beforeUrl/afterUrl：直接给图像 URL（HTTP/HTTPS/file/mock）
+      - beforeUrl/afterUrl：直接给图像 URL（仅 http/https，主机需在 SENTINEL_ALLOWED_HOSTS
+        白名单内；file:// 与本地路径返回 403）
 
     **计算内容：**
       1. 像素级 RGB 欧氏距离差异
@@ -1170,6 +1278,13 @@ async def submit_diff(req: SentinelDiffRequest, background_tasks: BackgroundTask
             status_code=400,
             detail="必须提供 before/after 任务 ID 或图像 URL 之一",
         )
+
+    # 安全修复（P0）：调用方直传的 URL 在入口同步校验（403 直接返回给调用方），
+    # 不拖到后台任务里；jobId 分支解析出的 URL 由服务端自产，走可信加载路径。
+    if req.before_url:
+        _validate_remote_image_url(req.before_url)
+    if req.after_url:
+        _validate_remote_image_url(req.after_url)
 
     job_id = str(uuid.uuid4())
     _init_diff_job(job_id)

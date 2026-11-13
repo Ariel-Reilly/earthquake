@@ -1,0 +1,108 @@
+name: Frontend CI
+
+# ─────────────────────────────────────────────────────────────────────
+# 前端交付门禁：lint（0 error）+ 单测 + 构建，三者均为阻断。
+#
+# 与仓库既有 .github/workflows/ci.yml 的关系：
+#   - ci.yml 是「全仓库」CI（前端 lint/format/build/单测 + 后端 + AI + 审计）；
+#   - 本文件是交付阶段新增的「前端专项」门禁，只覆盖 frontend/**。
+#     两者同时运行会有重复，但保证前端改动从任一入口都能被拦。
+#
+# 历史背景（2026-11-12 已清零）：
+#   交付修复阶段修掉了 14 处存量 eslint error：
+#     - src/composables/useAiContext.js       no-console ×2（删除调试日志）
+#     - src/services/_architecture/domain/weatherApi.js curly ×11（eslint --fix）
+#     - src/utils/hazardEventBus.js           curly ×1（eslint --fix）
+#   因此本 workflow 不再使用 continue-on-error，`npx eslint src/` 必须 0 error。
+# ─────────────────────────────────────────────────────────────────────
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend-ci.yml'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend-ci.yml'
+
+concurrency:
+  group: frontend-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: Frontend (lint + test + build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./frontend
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # 需要与 base 分支比较以找出本次改动的 JS 文件，fetch 一定深度即可
+          fetch-depth: 50
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          # 与既有 ci.yml / frontend Dockerfile 保持一致。
+          # package-lock 中 @cesium/* 声明 node >= 22，用 20 可能在 npm ci 阶段失败。
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies (npm ci, fallback npm install)
+        run: |
+          if [ -f package-lock.json ]; then
+            echo "检测到 package-lock.json → npm ci"
+            npm ci
+          else
+            echo "未检测到 package-lock.json → npm install"
+            npm install
+          fi
+
+      # ── 1) ESLint：变更文件严格 0 error（阻断） ─────────────────────
+      - name: Determine changed source files
+        id: changed
+        shell: bash
+        run: |
+          set -uo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git fetch --no-tags --depth=50 origin "${{ github.base_ref }}"
+            BASE="origin/${{ github.base_ref }}"
+          else
+            BASE="${{ github.event.before }}"
+            # 首次 push / 强制推送时 before 可能全 0 或为空：退回首个提交
+            if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
+              BASE="$(git rev-list --max-parents=0 HEAD | tail -n 1)"
+            fi
+          fi
+          echo "diff base = $BASE"
+          FILES="$(git diff --name-only --diff-filter=ACMR "$BASE" HEAD -- 'src/**/*.js' 'src/**/*.mjs' 'src/**/*.cjs' 2>/dev/null | tr '\n' ' ' || true)"
+          echo "changed js files: ${FILES:-<none>}"
+          echo "files=${FILES}" >> "$GITHUB_OUTPUT"
+
+      - name: ESLint (strict — changed files only)
+        if: steps.changed.outputs.files != ''
+        shell: bash
+        run: |
+          echo "对本次改动的 JS 文件严格要求 0 error：${{ steps.changed.outputs.files }}"
+          # shellcheck disable=SC2086
+          npx eslint ${{ steps.changed.outputs.files }}
+
+      # ── 2) ESLint：全量 src/（阻断，0 error 门禁） ─────────────────
+      - name: ESLint (full src/)
+        shell: bash
+        run: npx eslint src/ --format stylish
+
+      # ── 3) 单元测试 ────────────────────────────────────────────────
+      - name: Unit tests (vitest)
+        run: npx vitest run
+
+      # ── 4) 生产构建 ────────────────────────────────────────────────
+      - name: Build (vite)
+        run: npm run build

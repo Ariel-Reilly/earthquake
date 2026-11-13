@@ -8,6 +8,7 @@ import cn.disasterguard.warning.dto.WarningCreateRequest;
 import cn.disasterguard.warning.dto.WarningDto;
 import cn.disasterguard.warning.dto.WarningUpdateRequest;
 import cn.disasterguard.warning.repository.WarningEventRepository;
+import cn.disasterguard.warning.service.WarningAnalysisService;
 import cn.disasterguard.warning.service.WarningService;
 import java.util.List;
 import java.util.Map;
@@ -32,6 +33,7 @@ public class WarningController {
   private static final Logger log = LoggerFactory.getLogger(WarningController.class);
 
   private final WarningService warningService;
+  private final WarningAnalysisService warningAnalysisService;
   private final WarningEventRepository warningRepository;
   private final ExcelExportService excelExportService;
   private final cn.disasterguard.warning.engine.WarningCreateService warningCreateService;
@@ -40,12 +42,14 @@ public class WarningController {
   private final boolean debugEndpointsEnabled;
 
   public WarningController(WarningService warningService,
+                           WarningAnalysisService warningAnalysisService,
                            WarningEventRepository warningRepository,
                            ExcelExportService excelExportService,
                            cn.disasterguard.warning.engine.WarningCreateService warningCreateService,
                            @org.springframework.beans.factory.annotation.Value(
                                "${disasterguard.debug-endpoints:false}") boolean debugEndpointsEnabled) {
     this.warningService = warningService;
+    this.warningAnalysisService = warningAnalysisService;
     this.warningRepository = warningRepository;
     this.excelExportService = excelExportService;
     this.warningCreateService = warningCreateService;
@@ -129,6 +133,18 @@ public class WarningController {
   @PreAuthorize("hasAuthority('warnings:view')")
   public ApiResponse<Map<String, Object>> detail(@PathVariable Long id) {
     return ApiResponse.success(Map.of("item", warningService.getById(id)));
+  }
+
+  /**
+   * 预警「AI 分析详情」：AI 研判结论 + 事发前后关键指标 + 现场影像。
+   *
+   * <p>前端 WarningDetailPage 的「AI 分析详情」Tab 一次拉取，避免并发 4+ 请求；
+   * 数据缺失时返回空数组并标记 fallback，不用假数据填充。
+   */
+  @GetMapping("/{id}/analysis-detail")
+  @PreAuthorize("hasAuthority('warnings:view')")
+  public ApiResponse<Map<String, Object>> analysisDetail(@PathVariable Long id) {
+    return ApiResponse.success(warningAnalysisService.describe(id));
   }
 
   @PutMapping("/{id}")

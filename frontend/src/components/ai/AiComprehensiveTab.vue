@@ -14,12 +14,9 @@ import AiHealthBadge from '../AiHealthBadge.vue'
 import { HazardSelector, createDebouncedHazardSelector } from '../../utils/hazardEventBus'
 import { safeMax } from '../../utils/safeMinMax'
 import { aiApi } from '../../services/aiApi'
-import { dashboardApi } from '../../services/dashboardApi'
+import { dashboardApi, isBackendRuntime } from '../../services/dashboardApi'
 import { getAuthUser } from '../../stores/auth'
-import {
-  getInsight,
-  mockFusionResult,
-} from '../../services/_architecture/domain/multiModalService'
+import { getInsight } from '../../services/_architecture/domain/multiModalService'
 import {
   AlertTriangle,
   Brain,
@@ -50,6 +47,7 @@ const errorMsg = ref('')
 // 多模态融合状态
 const fusionResult = ref(null)
 const fusionLoading = ref(false)
+const fusionError = ref('')
 const fusionExpanded = ref(false)
 const fusionAutoRefresh = ref(true)
 let fusionTimer = null
@@ -215,11 +213,23 @@ watch(() => props.selectedHazardCode, debouncedLoad)
 async function loadFusionResult() {
   if (!props.selectedHazardCode) return
   fusionLoading.value = true
+  fusionError.value = ''
   try {
     const result = await getInsight(props.selectedHazardCode)
+    // 后端返回空对象/无有效结论时同样按"无数据"处理，不补造评分
+    if (!result || (result.fusedScore == null && !result.explanation)) {
+      fusionResult.value = null
+      fusionError.value = '多模态融合服务暂未返回该灾害点的研判结果'
+      return
+    }
     fusionResult.value = result
   } catch (_e) {
-    fusionResult.value = mockFusionResult(props.selectedHazardCode)
+    // 旧实现在失败时调用 mockFusionResult()，把硬编码的 87.5 分 / HIGH 冒充真实结果。
+    // 演示或服务不可用时必须显式报错，绝不展示伪造评分。
+    fusionResult.value = null
+    fusionError.value = isBackendRuntime()
+      ? 'AI 融合服务不可用，暂时无法展示融合研判结果'
+      : '当前为演示模式，多模态融合服务未接入，不展示模拟评分'
   } finally {
     fusionLoading.value = false
   }
@@ -528,6 +538,11 @@ onBeforeUnmount(() => {
           <div v-if="fusionLoading" class="fusion-loading">
             <Loader2 class="spin-icon" size="20" />
             加载中...
+          </div>
+          <!-- AI 融合服务不可用 / 演示模式：显式错误态，不展示任何伪造分数 -->
+          <div v-else-if="fusionError" class="fusion-error">
+            <AlertTriangle :size="16" />
+            <span>{{ fusionError }}</span>
           </div>
           <template v-else-if="fusionResult">
             <div v-if="fusionResult.explanation" class="fusion-explanation">
@@ -933,6 +948,19 @@ onBeforeUnmount(() => {
   justify-content: center;
   color: var(--c-text-2);
   font-size: 13px;
+}
+
+.fusion-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  background: var(--c-surface-2);
+  border: 1px dashed var(--c-warning-strong);
+  border-radius: var(--r-sm);
+  color: var(--c-warning-strong);
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .fusion-explanation {

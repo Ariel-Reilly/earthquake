@@ -50,7 +50,14 @@ public class SignController {
     return ApiResponse.success(signService.listByEvent(eventId));
   }
 
-  /** 会签人确认。 */
+  /**
+   * 会签人确认。
+   *
+   * <p>安全说明：请求体里的 {@code signerId} 只作为「要确认哪一条会签行」的声明，
+   * 不再被信任为身份凭证——{@link SignService#confirm} 会校验它必须属于当前登录用户
+   * （auth.getName()，兼容 username / sys_user.id 两种历史写法），否则返回 403。
+   * 管理员代签需持有显式权限码 {@code sign:proxy}。
+   */
   @PutMapping("/sign/{signId}/confirm")
   @PreAuthorize("hasAuthority('sign:confirm')")
   public ApiResponse<Map<String, Object>> confirm(@PathVariable String eventId,
@@ -62,7 +69,12 @@ public class SignController {
     return ApiResponse.success(signService.confirm(signId, signerId, opinion, auth));
   }
 
-  /** 会签人驳回。 */
+  /**
+   * 会签人驳回。
+   *
+   * <p>安全说明：同 confirm，signerId 必须属于当前登录用户，否则 403；
+   * 管理员代签需 {@code sign:proxy}。
+   */
   @PutMapping("/sign/{signId}/reject")
   @PreAuthorize("hasAuthority('sign:confirm')")
   public ApiResponse<Map<String, Object>> reject(@PathVariable String eventId,

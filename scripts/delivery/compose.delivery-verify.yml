@@ -1,0 +1,92 @@
+# 干净机器部署演练（A3-1 / A3-2 / A3-3）专用隔离编排。
+#
+# 用途：在**不触碰现有开发环境**的前提下，用全新 project name、全新数据卷、
+# 独立宿主机端口，复现「空目录 + compose up → 后端自动建表 → 业务可用」。
+#
+#   docker compose -f scripts/delivery/compose.delivery-verify.yml up -d
+#   docker compose -f scripts/delivery/compose.delivery-verify.yml down -v   # 演练结束清理
+#
+# ⚠ 本文件内的口令仅用于本机隔离演练，禁止用于任何真实/生产环境。
+#    生产密钥按 A4-2 由环境变量注入，不写入仓库。
+
+name: dg-delivery-verify
+
+services:
+  postgres:
+    image: postgis/postgis:15-3.4-alpine
+    container_name: dg-delivery-verify-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-disasterguard}
+      POSTGRES_USER: ${POSTGRES_USER:-disasterguard}
+      POSTGRES_PASSWORD: ${DG_VERIFY_PG_PASSWORD:-verify_only_pg_2026}
+      TZ: Asia/Shanghai
+    ports:
+      - "127.0.0.1:25432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      # 与主编排 docker-compose.yml 保持一致：空卷只跑 001/003，避免 initdb 阶段访问业务表
+      - ../../infra/postgres/init/001_create_extensions.sql:/docker-entrypoint-initdb.d/001_create_extensions.sql:ro
+      - ../../infra/postgres/init/003_archive_operation_log.sql:/docker-entrypoint-initdb.d/003_archive_operation_log.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-disasterguard} -d ${POSTGRES_DB:-disasterguard}"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+
+  redis:
+    image: redis:7-alpine
+    container_name: dg-delivery-verify-redis
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${DG_VERIFY_REDIS_PASSWORD:-verify_only_redis_2026}"]
+    ports:
+      - "127.0.0.1:26379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${DG_VERIFY_REDIS_PASSWORD:-verify_only_redis_2026}", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+
+  minio:
+    image: minio/minio:RELEASE.2024-11-13T11-37-09Z
+    container_name: dg-delivery-verify-minio
+    command: server /data --console-address ':9001'
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-disasterguard}
+      MINIO_ROOT_PASSWORD: ${DG_VERIFY_MINIO_PASSWORD:-verify_only_minio_24chars_2026}
+      TZ: Asia/Shanghai
+    ports:
+      - "127.0.0.1:29000:9000"
+      - "127.0.0.1:29001:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9000/minio/health/live || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+
+  # A3-3：生产构建产物 + nginx 反代。upstream 由演练配置把服务名替换为宿主机，
+  # 因为后端是宿主机直跑的 jar，不在 compose 网络内。
+  # 独立 profile：默认 up 只起基础设施，避免 conf 未生成时挂载失败。
+  # 启用前先生成配置（A3-3），再执行 `docker compose -f <本文件> --profile frontend up -d nginx`：
+  #   mkdir -p output/delivery-verify/nginx
+  #   sed -e 's|http://backend:8080|http://host.docker.internal:28080|g' \
+  #       -e 's|http://ai-service:8001|http://host.docker.internal:28081|g' \
+  #       infra/nginx/frontend.conf > output/delivery-verify/nginx/frontend.conf
+  nginx:
+    profiles: ["frontend"]
+    image: nginx:1.27-alpine
+    container_name: dg-delivery-verify-nginx
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "127.0.0.1:25173:80"
+    volumes:
+      - ../../frontend/dist:/usr/share/nginx/html:ro
+      - ../../output/delivery-verify/nginx/frontend.conf:/etc/nginx/conf.d/default.conf:ro
+
+volumes:
+  pg_data:
+  redis_data:
+  minio_data:

@@ -103,6 +103,11 @@ public class AnalyticsController {
     response.put("stackedBars", stackedBars);
     response.put("modelF1", modelF1);
     response.put("matrix", matrix);
+    // 数据可信标注：本接口当前没有接入真实巡检统计，指标由查询参数确定性生成。
+    // 前端必须据此展示"演示数据"标识，避免把模拟值当成真实运营指标。
+    response.put("synthetic", true);
+    response.put("dataSource", "SIMULATED");
+    response.put("note", "后端当前未接入真实巡检统计，以下指标为按查询参数生成的演示数据");
     return ApiResponse.success(response);
   }
 
@@ -227,6 +232,10 @@ public class AnalyticsController {
     response.put("categories", categories);
     response.put("regions", regions);
     response.put("mode", safeMode);
+    // 与巡检报告一致：时间对比当前同样是按时间窗口生成的演示数据，必须显式标注
+    response.put("synthetic", true);
+    response.put("dataSource", "SIMULATED");
+    response.put("note", "时间对比接口当前未接入真实总量统计，数据为按时间窗口生成的演示数据");
     return ApiResponse.success(response);
   }
 

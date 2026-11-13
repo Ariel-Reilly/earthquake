@@ -27,7 +27,8 @@ export const dashboardMenu = [
   { path: '/dashboard',                      label: '综合态势大屏', icon: 'LayoutDashboard', group: 'monitor', order: 1 },
   { path: '/dashboard/real-time-map',        label: '实时监测地图', icon: 'Map',             group: 'monitor', order: 2 },
   { path: '/dashboard/zone',                 label: '区域专项',     icon: 'Landmark',        group: 'monitor', order: 3 },
-  { path: '/dashboard/satellite-compare',    label: '时相对比',     icon: 'Camera',          group: 'monitor', order: 4, badge: 'NEW' },
+  // 2026-11 移除「时相对比」(/dashboard/satellite-compare)：路由只是 redirect 到实时监测地图，
+  // 没有页面实现，属于「点了等于没点」的假入口。旧地址的 redirect 仍保留，书签不会 404。
   { path: '/dashboard/weather',              label: '气象分析',     icon: 'CloudRain',       group: 'monitor', order: 5 },
 
   // ── 灾害研判 ──────────────────────────────────────────────────

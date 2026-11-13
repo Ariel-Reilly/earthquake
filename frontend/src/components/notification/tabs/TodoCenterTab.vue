@@ -55,11 +55,13 @@ const filteredItems = computed(() => {
   return list
 })
 
+// 徽标文字色：直接用语义色当文字对比不足（--c-warning 2.0:1 / --c-danger 2.4:1），
+// 改用 ink 版（浅底 5:1 以上）
 const priorityColor = (priority) => ({
-  high: 'var(--c-danger)',
-  medium: 'var(--c-warning)',
-  low: 'var(--c-text-3)',
-})[priority] ?? 'var(--c-text-3)'
+  high: 'var(--c-danger-ink)',
+  medium: 'var(--c-warning-ink-deep)',
+  low: 'var(--c-text-3-ink)',
+})[priority] ?? 'var(--c-text-3-ink)'
 
 const priorityLabel = (priority) => ({
   high: '高',
@@ -223,7 +225,7 @@ onBeforeUnmount(() => {
   border: 1px solid var(--c-border);
   border-radius: 6px;
   background: var(--c-surface);
-  color: var(--c-text-3);
+  color: var(--c-text-3-ink);
 }
 
 .search-input {
@@ -236,7 +238,7 @@ onBeforeUnmount(() => {
 }
 
 .search-input::placeholder {
-  color: var(--c-text-3);
+  color: var(--c-text-3-ink);
 }
 
 .priority-tabs {
@@ -256,8 +258,8 @@ onBeforeUnmount(() => {
   border: 1px solid transparent;
   border-radius: 6px;
   background: transparent;
-  color: var(--c-text-3);
-  font-size: 11px;
+  color: var(--c-text-3-ink);
+  font-size: 12px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
@@ -273,14 +275,14 @@ onBeforeUnmount(() => {
 .priority-tab.active {
   border-color: var(--c-brand);
   background: var(--c-brand-light);
-  color: var(--c-brand);
+  color: var(--c-brand-deep);
 }
 
 .unsupported-hint {
   padding: 8px 12px;
   border-bottom: 1px solid var(--c-separator);
-  color: var(--c-text-3);
-  font-size: 11px;
+  color: var(--c-text-3-ink);
+  font-size: 12px;
   line-height: 1.5;
   flex-shrink: 0;
 }
@@ -293,7 +295,7 @@ onBeforeUnmount(() => {
   justify-content: center;
   gap: 8px;
   padding: 40px 20px;
-  color: var(--c-text-3);
+  color: var(--c-text-3-ink);
   text-align: center;
   flex: 1;
 }
@@ -370,7 +372,7 @@ onBeforeUnmount(() => {
 }
 
 .todo-priority {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   flex-shrink: 0;
   white-space: nowrap;
@@ -380,8 +382,8 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 10px;
-  color: var(--c-text-3);
+  font-size: 12px;
+  color: var(--c-text-3-ink);
 }
 
 .due-date {
@@ -390,17 +392,19 @@ onBeforeUnmount(() => {
   background: var(--c-surface);
 }
 
+/* 状态徽章：浅底 + ink 文字（此前 --c-warning-light 未定义 ⇒ 背景透明，
+   --c-warning 当文字用只有 2.0:1，几乎看不清） */
 .status-badge {
   padding: 2px 6px;
   border-radius: 3px;
   background: var(--c-warning-light);
-  color: var(--c-warning);
-  font-weight: 500;
+  color: var(--c-warning-ink-deep);
+  font-weight: 600;
 }
 
 .status-badge.in {
   background: var(--c-success-light);
-  color: var(--c-success);
+  color: var(--c-success-ink);
 }
 
 .todo-actions {
@@ -419,7 +423,7 @@ onBeforeUnmount(() => {
   border-radius: 4px;
   background: var(--c-surface);
   color: var(--c-text-2);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
@@ -434,18 +438,18 @@ onBeforeUnmount(() => {
 
 .action-btn.accept:hover {
   border-color: var(--c-success);
-  color: var(--c-success);
+  color: var(--c-success-ink);
 }
 
 .action-btn.reject:hover {
   border-color: var(--c-danger);
-  color: var(--c-danger);
+  color: var(--c-danger-ink);
 }
 
 .action-btn.complete {
   background: var(--c-success-light);
   border-color: var(--c-success);
-  color: var(--c-success);
+  color: var(--c-success-ink);
 }
 
 .action-btn.complete:hover {

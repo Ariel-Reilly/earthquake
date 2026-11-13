@@ -57,13 +57,15 @@ public class DeviceService {
     };
 
     var result = repository.findAll(spec, pageable);
-    List<DeviceDto> records = result.getContent().stream().map(this::toDto).toList();
+    Map<String, HazardPoint> hazardIndex = loadHazardIndex();
+    List<DeviceDto> records = result.getContent().stream().map(d -> toDto(d, hazardIndex)).toList();
     return new PageResponse<>(records, result.getTotalElements(), page, size, result.getTotalPages());
   }
 
   public List<DeviceDto> listAll() {
+    Map<String, HazardPoint> hazardIndex = loadHazardIndex();
     return repository.findAll().stream()
-        .map(this::toDto)
+        .map(d -> toDto(d, hazardIndex))
         // 优先展示"高 AI 分灾害点下的设备"——按所属灾害点的 AI 分倒序
         .sorted(Comparator.comparing(
             (DeviceDto dto) -> dto.aiScore() == null ? Double.NEGATIVE_INFINITY : dto.aiScore(),
@@ -107,7 +109,7 @@ public class DeviceService {
 
     return candidates.stream()
         .filter(item -> matchesBbox(item, hazardIndex, bbox))
-        .map(this::toDto)
+        .map(d -> toDto(d, hazardIndex))
         .sorted(Comparator.comparing(
             (DeviceDto dto) -> dto.aiScore() == null ? Double.NEGATIVE_INFINITY : dto.aiScore(),
             Comparator.reverseOrder()
@@ -172,9 +174,24 @@ public class DeviceService {
     device.setInstallLocation(request.point());
   }
 
+  /** 单条转换：设备无自身坐标时才按 hazardCode 单次查库补坐标。 */
   private DeviceDto toDto(MonitoringDevice device) {
+    return toDto(device, null);
+  }
+
+  /**
+   * 批量转换：调用方传入一次查询好的灾害点索引，避免逐条查库造成 N+1。
+   *
+   * <p>坐标优先级：设备自身 longitude/latitude → 所属 hazard_point 坐标 → null。
+   * 与前端 realtimeService 的 normalizeDevice 字段（lon/lat）对齐；两者都没有时返回 null，
+   * 前端地图跳过该点（不编造坐标）。
+   */
+  private DeviceDto toDto(MonitoringDevice device, Map<String, HazardPoint> hazardIndex) {
     // 设备的"关注度"以所属灾害点的 AI 综合分为准：高 AI 分灾害点下的设备优先级最高
     AiRiskEnricher.AiRiskBrief ai = device.getHazardCode() == null ? null : aiEnricher.of(device.getHazardCode());
+    HazardPoint hazard = resolveHazard(device.getHazardCode(), hazardIndex);
+    Double lon = device.getLongitude() != null ? device.getLongitude() : (hazard == null ? null : hazard.getLongitude());
+    Double lat = device.getLatitude() != null ? device.getLatitude() : (hazard == null ? null : hazard.getLatitude());
     return new DeviceDto(
         device.getId(),
         device.getDeviceCode(),
@@ -188,11 +205,31 @@ public class DeviceService {
         device.getLastReportAt(),
         relativeTime(device.getLastReportAt()),
         device.getInstallLocation(),
+        lon,
+        lat,
         ai == null ? null : ai.riskLevel(),
         ai == null ? null : ai.levelLabel(),
         ai == null ? null : ai.riskScore(),
         ai == null ? null : ai.analyzedAt()
     );
+  }
+
+  /** 按 hazardCode 取灾害点：传入索引时走内存，否则单条查库；查不到返回 null。 */
+  private HazardPoint resolveHazard(String hazardCode, Map<String, HazardPoint> hazardIndex) {
+    if (hazardCode == null || hazardCode.isBlank()) {
+      return null;
+    }
+    if (hazardIndex != null) {
+      return hazardIndex.get(hazardCode);
+    }
+    return hazardRepository.findByHazardCode(hazardCode);
+  }
+
+  /** 全量灾害点索引（hazardCode → 灾害点），供列表批量补坐标。 */
+  private Map<String, HazardPoint> loadHazardIndex() {
+    return hazardRepository.findAll().stream()
+        .filter(item -> item.getHazardCode() != null && !item.getHazardCode().isBlank())
+        .collect(HashMap::new, (map, hazard) -> map.put(hazard.getHazardCode(), hazard), Map::putAll);
   }
 
   /** 将 OffsetDateTime 转为人类可读的相对时间（刚刚/N分钟前/N小时前/N天前）。 */

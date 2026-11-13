@@ -15,7 +15,7 @@
  * @emits {string} select-group - 点击某个一级大类，参数为大类 ID
  */
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
-import { MountainSnow, Search, Bell, Plus, ChevronDown, Siren } from 'lucide-vue-next'
+import { MountainSnow, Search, Bell, Plus, ChevronDown, Siren, Menu } from 'lucide-vue-next'
 import UserProfileMenu from './UserProfileMenu.vue'
 import GroupTabsNav from './GroupTabsNav.vue'
 import { getAuthRole, hasPermission, canAccessPath } from '../../stores/auth'
@@ -41,9 +41,14 @@ const props = defineProps({
     type: Number,
     default: 0,
   },
+  /** 移动端侧栏抽屉是否展开：仅用于汉堡按钮的 aria-expanded 语义 */
+  sidebarOpen: {
+    type: Boolean,
+    default: false,
+  },
 })
 
-const emit = defineEmits(['navigate', 'select-group', 'open-notification-drawer'])
+const emit = defineEmits(['navigate', 'select-group', 'open-notification-drawer', 'toggle-sidebar'])
 
 const MESSAGE_CENTER_PATH = '/dashboard/message-center'
 const HOME_PATH = '/dashboard'
@@ -219,6 +224,19 @@ onBeforeUnmount(() => {
 <template>
   <header class="top-toolbar">
     <div class="top-toolbar-inner">
+      <!-- 移动端汉堡按钮：≤768px 才显示（样式见 styles.css 的 .mobile-menu-btn），
+           桌面端侧栏常驻，不需要入口。点击由父布局打开侧栏抽屉 -->
+      <button
+        type="button"
+        class="mobile-menu-btn"
+        aria-label="打开导航菜单"
+        aria-controls="app-sidebar"
+        :aria-expanded="sidebarOpen"
+        @click="emit('toggle-sidebar')"
+      >
+        <Menu :size="20" aria-hidden="true" />
+      </button>
+
       <!-- 左侧：Logo + 品牌 -->
       <button type="button" class="toolbar-brand" @click="goHome" aria-label="返回首页">
         <div class="brand-mark">
@@ -400,7 +418,8 @@ onBeforeUnmount(() => {
 }
 
 .brand-version {
-  font-size: 10px;
+  /* 10px 版本号在 1x 屏基本看不清，提到 12px */
+  font-size: 12px;
   color: var(--text-muted, #6B7A73);
 }
 
@@ -452,7 +471,7 @@ onBeforeUnmount(() => {
   top: 50%;
   transform: translateY(-50%);
   font-family: monospace;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-muted, #6B7A73);
   pointer-events: none;
 }
@@ -521,7 +540,7 @@ onBeforeUnmount(() => {
 
 .result-group {
   flex-shrink: 0;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-muted, #6B7A73);
   padding: 2px 8px;
   border-radius: var(--r-sm, 4px);
@@ -564,18 +583,19 @@ onBeforeUnmount(() => {
 
 .notification-badge {
   position: absolute;
-  top: 4px;
-  right: 4px;
-  min-width: 16px;
-  height: 16px;
+  top: 2px;
+  right: 2px;
+  min-width: 18px;
+  height: 18px;
   padding: 0 4px;
   border-radius: var(--r-pill, 9999px);
   background: var(--alert-high, #C48B8B);
   /* 白字在 #C48B8B 上对比度仅 2.83，深字 5.18 */
   color: var(--alert-on, #1F2B25);
-  font-size: 10px;
+  /* 10px 未读数在 1x 屏不可读，提到 12px 并同步放大胶囊 */
+  font-size: 12px;
   font-weight: 700;
-  line-height: 16px;
+  line-height: 18px;
   text-align: center;
   box-shadow: 0 0 0 2px var(--bg-card, #FFFFFF);
 }
@@ -702,6 +722,40 @@ onBeforeUnmount(() => {
 
   .toolbar-search {
     width: 140px;
+  }
+}
+
+/* ── 移动端（≤768px）──
+   侧栏改为抽屉后，顶栏要多放一个汉堡按钮，宽度非常紧张：
+   · 菜单搜索是桌面快捷入口，窄屏隐藏（导航交给抽屉 + 一级 Tab）
+   · 新建按钮只留图标，文案与下拉箭头隐藏
+   · 品牌只留图标（.brand-copy 在 900px 已隐藏） */
+@media (max-width: 768px) {
+  .top-toolbar-inner {
+    padding: 0 var(--sp-8, 8px);
+    gap: var(--sp-8, 8px);
+  }
+
+  .toolbar-search {
+    display: none;
+  }
+
+  .toolbar-actions {
+    gap: var(--sp-8, 8px);
+  }
+
+  .toolbar-brand {
+    padding: var(--sp-8, 8px) var(--sp-4, 4px);
+  }
+
+  .toolbar-create-trigger {
+    padding: 0 var(--sp-8, 8px);
+    gap: 0;
+  }
+
+  .toolbar-create-trigger span,
+  .toolbar-create-trigger .chevron-icon {
+    display: none;
   }
 }
 </style>

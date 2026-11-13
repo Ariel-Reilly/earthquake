@@ -20,8 +20,8 @@
 
 import { gcj02ToWgs84 } from '../../../utils/coordTransform.js'
 
-const amapToken = import.meta.env.VITE_AMAP_TOKEN || ''
-const useAmap = Boolean(amapToken)
+const amapToken = (import.meta.env.VITE_AMAP_TOKEN || '').trim()
+const useAmap = /^[a-f0-9]{32}$/i.test(amapToken.trim())
 
 /**
  * 把一段用户输入解析为经纬度。
@@ -85,21 +85,20 @@ export function parseCoordinate(text) {
   }
 
   // 去掉方向符后再匹配两个数
-  const stripped = normalized.replace(/[EWNS]/gi, ' ').trim()
   // 处理 "lon:108.95 lat:34.27" 这种 key:value 形式
-  const lonMatch = stripped.match(/(?:lon|经度|jingdu|longitude)\s*[:=]?\s*(-?\d+(?:\.\d+)?)/i)
-  const latMatch = stripped.match(/(?:lat|latitude|纬度|weidu)\s*[:=]?\s*(-?\d+(?:\.\d+)?)/i)
+  const lonMatch = normalized.match(/(?:lon|经度|jingdu|longitude)\s*[:=]?\s*(-?\d+(?:\.\d+)?)/i)
+  const latMatch = normalized.match(/(?:lat|latitude|纬度|weidu)\s*[:=]?\s*(-?\d+(?:\.\d+)?)/i)
   if (lonMatch && latMatch) {
     const lon = Number(lonMatch[1])
     const lat = Number(latMatch[1])
     if (isValidLonLat(lon, lat)) {return { lon, lat }}
   }
 
-  // 最后兜底：直接抠两个浮点数
-  const nums = stripped.match(/-?\d+(?:\.\d+)?/g)
-  if (nums && nums.length >= 2) {
-    const a = Number(nums[0])
-    const b = Number(nums[1])
+  // 普通数字对必须匹配整个输入，避免把门牌号和楼栋号当成坐标。
+  const nums = normalized.match(/^(-?\d+(?:\.\d+)?)[,\s]+(-?\d+(?:\.\d+)?)$/)
+  if (nums) {
+    const a = Number(nums[1])
+    const b = Number(nums[2])
     // 第一个通常当 lon，第二个当 lat；如果反过来也合理（lat lon 顺序），给出判定
     if (isValidLonLat(a, b)) {return { lon: a, lat: b }}
     if (isValidLonLat(b, a)) {return { lon: b, lat: a }}
@@ -151,7 +150,7 @@ async function geocodeWithAmap(keyword, { signal } = {}) {
     const resp = await fetch(url, { signal })
     if (!resp.ok) {return null}
     const data = await resp.json()
-    if (data.status !== '1' || !Array.isArray(data.pois)) {return []}
+    if (data.status !== '1' || !Array.isArray(data.pois)) {return null}
     return data.pois.map((p) => {
       const loc = parseAMapLocation(p.location)
       return loc && {
@@ -164,8 +163,8 @@ async function geocodeWithAmap(keyword, { signal } = {}) {
       }
     }).filter(Boolean)
   } catch (err) {
-    if (err.name === 'AbortError') {return null}
-    return []
+    if (signal?.aborted) {throw err}
+    return null
   }
 }
 
@@ -182,7 +181,7 @@ async function geocodeWithOsm(keyword, { signal } = {}) {
         'Accept-Language': 'zh-CN',
       },
     })
-    if (!resp.ok) {return []}
+    if (!resp.ok) {throw new Error('地名搜索服务暂不可用，请稍后重试')}
     const data = await resp.json()
     return (Array.isArray(data) ? data : []).map((p) => ({
       lon: Number(p.lon),
@@ -193,8 +192,8 @@ async function geocodeWithOsm(keyword, { signal } = {}) {
       source: 'osm',
     })).filter((p) => isValidLonLat(p.lon, p.lat))
   } catch (err) {
-    if (err.name === 'AbortError') {return null}
-    return []
+    if (signal?.aborted) {throw err}
+    throw new Error('地名搜索服务暂不可用，请稍后重试')
   }
 }
 
@@ -226,7 +225,7 @@ export async function geocodeAddress(keyword, options = {}) {
   const { signal } = options
   if (useAmap) {
     const amapResults = await geocodeWithAmap(text, { signal })
-    if (amapResults != null) {return amapResults}
+    if (amapResults?.length) {return amapResults}
   }
   return geocodeWithOsm(text, { signal })
 }

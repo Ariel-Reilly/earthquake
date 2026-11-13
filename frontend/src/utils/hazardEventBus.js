@@ -26,7 +26,7 @@ export const createDebouncedHazardSelector = (onSelectCallback, delay = 300) => 
   
   return (newCode, oldCode) => {
     // 清理之前的定时器
-    if (timeoutId) clearTimeout(timeoutId)
+    if (timeoutId) {clearTimeout(timeoutId)}
     
     // 防抖：延迟执行
     timeoutId = setTimeout(() => {

@@ -175,6 +175,12 @@ export const ROLE_PERMISSION_MAP = {
     'route:view','route:plan','route:approve','route:export','sign:view','sign:create','sign:confirm',
     'profile:view','profile:edit',
     'data:catalog:view',
+    // 后端 TaskController / BackupController / PlanController / ReportController 的权限码
+    // （此前只加在后端注册表，重跑 scripts/fix/sync-permission-registry.mjs 会被覆盖丢失）
+    'tasks:view','tasks:create','tasks:edit','tasks:delete','tasks:export',
+    'backup:view','backup:manage',
+    'plans:view','plans:edit','plans:launch',
+    'reports:view','reports:create','reports:delete',
   ],
   attendant: [
     'overview:view','overview:export','map:view','map:edit','zone:view',
@@ -195,6 +201,9 @@ export const ROLE_PERMISSION_MAP = {
     'messages:view','todo:view','settings:view',
     'route:view','route:export','sign:view','sign:create',
     'profile:view','profile:edit',
+    'tasks:view','tasks:create','tasks:edit','tasks:export',
+    'plans:view',
+    'reports:view',
   ],
   expert: [
     'overview:view','zone:view',
@@ -215,6 +224,8 @@ export const ROLE_PERMISSION_MAP = {
     'messages:view','todo:view','settings:view',
     'route:view','sign:view','sign:create','sign:confirm',
     'profile:view','profile:edit',
+    'tasks:view','tasks:create',
+    'plans:view',
   ],
   maintenance: [
     'overview:view','map:view','zone:view',
@@ -228,6 +239,7 @@ export const ROLE_PERMISSION_MAP = {
     'monitor:view',
     'messages:view','todo:view','settings:view',
     'profile:view','profile:edit',
+    'tasks:view',
   ],
   'system-admin': [
     'overview:view','overview:export',
@@ -239,6 +251,9 @@ export const ROLE_PERMISSION_MAP = {
     'settings:view','settings:edit',
     'messages:view','messages:send','todo:view',
     'profile:view','profile:edit',
+    'backup:view','backup:manage',
+    'plans:view',
+    'reports:view','reports:create','reports:delete',
   ],
   'emergency-commander': [
     'overview:view','overview:export','map:view','map:edit','zone:view',
@@ -260,6 +275,9 @@ export const ROLE_PERMISSION_MAP = {
     'approval:view','approval:approve','approval:reject',
     'analytics:view','analytics:export',
     'profile:view','profile:edit',
+    'tasks:view',
+    'plans:view','plans:edit','plans:launch',
+    'reports:view',
   ],
   'ai-engineer': [
     'overview:view','analytics:view',
@@ -275,6 +293,7 @@ export const ROLE_PERMISSION_MAP = {
     'monitor:view',
     'messages:view','todo:view',
     'profile:view','profile:edit',
+    'tasks:view','tasks:create','tasks:edit','tasks:delete',
   ],
 }
 

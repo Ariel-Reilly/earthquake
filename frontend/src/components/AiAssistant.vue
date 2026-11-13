@@ -263,13 +263,13 @@ const knowledgeBase = [
   { keywords: ['灾害', '隐患', 'hazard', '滑坡'], answer: '灾害点管理页面统一管理所有地质灾害隐患点，支持空间可视化展示和全生命周期追踪。', action: '/dashboard' },
   { keywords: ['任务', '巡检', 'task'], answer: '巡检任务页面支持创建、分配和跟踪巡检任务，确保灾害点定期巡查。', action: '/dashboard/tasks' },
   { keywords: ['统计', '分析', '图表', 'analytics'], answer: '数据分析页面提供多维度统计图表，支持数据导出，为应急决策提供数据支撑。', action: '/dashboard/analytics' },
-  { keywords: ['密码', '账号', '登录', 'admin', 'password'], answer: '演示环境默认账号：\n• 管理员 — admin / admin123\n• 值守员 — attendant / admin123\n• 维护员 — maintenance / admin123', action: null },
+  { keywords: ['密码', '账号', '登录', 'admin', 'password'], answer: '账号与初始口令由部署人员线下提供，系统不会在对话中播报任何登录凭据。如忘记密码，请联系系统管理员重置。', action: null },
   { keywords: ['应急', 'emergency'], answer: '应急管理页面用于处置突发事件，支持事件派发和关闭操作。', action: '/dashboard/emergency' },
   { keywords: ['气象', '天气', 'weather'], answer: '气象监测页面接入了国家气象数据中心（风云四号卫星云图、雷达回波、24h 降水、积雪、干旱监测），可在地图上叠加显示。', action: '/dashboard/weather' },
   { keywords: ['AI', '综合分析', '综合', '智能'], answer: 'AI 综合分析在「/dashboard/ai-insight」页面，对每个灾害点从图像现况 / 当地降水量 / 当地地理情况 / 设备位移四个维度综合打分，输出 AI 报告、推理与建议。', action: '/dashboard/ai-insight' },
   { keywords: ['设置', 'settings'], answer: '设置页面可以查看系统配置和用户信息。', action: '/dashboard/settings' },
   { keywords: ['导出', 'export', '下载'], answer: '在概览、灾害点、预警等页面，点击右上角「导出」按钮即可导出 Excel 报表。', action: null },
-  { keywords: ['帮助', 'help', '怎么用'], answer: '你可以点击下方快捷按钮快速了解系统功能，也可以直接输入问题。我支持：\n• 「分析 GS-XXX」 — 单灾害点 AI 综合分析\n• 「哪些灾害点最危险」 — AI 风险排行\n• 应急/紧急\n• 系统功能介绍\n• 预警/设备/灾害点查看\n• 默认账号密码', action: null },
+  { keywords: ['帮助', 'help', '怎么用'], answer: '你可以点击下方快捷按钮快速了解系统功能，也可以直接输入问题。我支持：\n• 「分析 GS-XXX」 — 单灾害点 AI 综合分析\n• 「哪些灾害点最危险」 — AI 风险排行\n• 应急/紧急\n• 系统功能介绍\n• 预警/设备/灾害点查看', action: null },
 ]
 
 function findFallbackAnswer(text) {
@@ -447,7 +447,7 @@ onBeforeUnmount(() => {
               <span><span class="status-dot" /> AI 综合分析 · 在线</span>
             </div>
           </div>
-          <button class="panel-close" @click="isOpen = false"><X :size="18" /></button>
+          <button class="panel-close" type="button" aria-label="关闭 AI 助手" @click="isOpen = false"><X :size="18" /></button>
         </div>
 
         <!-- 消息区域 -->

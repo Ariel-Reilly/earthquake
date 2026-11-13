@@ -451,7 +451,7 @@ export default { components: { ClipboardCheckIcon } }
 </script>
 
 <style scoped>
-.pmp-root { padding: 20px 24px; max-width: 1400px; }
+.pmp-root { padding: 20px 24px; }
 
 /* Header */
 .pmp-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; gap: 12px; }

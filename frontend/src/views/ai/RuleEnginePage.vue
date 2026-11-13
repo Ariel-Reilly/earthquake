@@ -128,11 +128,6 @@ function backToList() {
   font-size: 12px;
 }
 
-.edit-view,
-.test-view {
-  max-width: 900px;
-}
-
 .edit-toolbar {
   margin-bottom: 16px;
 }

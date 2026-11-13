@@ -219,7 +219,8 @@ const loginError = ref("");
 const showPassword = ref(false);
 const remember = ref(true);
 const capsLockOn = ref(false);
-const loginForm = reactive({ username: "admin", password: "admin123", role: "admin" });
+// 安全修复（P0）：不得预填演示口令。默认账号由部署人员线下提供。
+const loginForm = reactive({ username: "", password: "", role: "admin" });
 const REMEMBER_KEY = "disasterguard_remembered_username";
 
 watch(
@@ -1428,7 +1429,7 @@ onBeforeUnmount(() => {
           <button class="btn-primary btn-light" @click="goLogin()">
             登录系统 <ArrowRight :size="16" />
           </button>
-          <small class="cta-hint">默认管理员：admin / admin123（若未连接数据库，内存兜底密码为 123456）</small>
+          <small class="cta-hint">默认账号由部署人员提供</small>
         </div>
       </div>
     </section>

@@ -64,11 +64,12 @@ const statusLabel = (status) => ({
   rejected: '已驳回',
 })[status] ?? status
 
+// 状态文字色：语义色当文字对比不足，改用 ink 版（浅底 5:1 以上）
 const statusColor = (status) => ({
-  pending: 'var(--c-danger)',
-  approved: 'var(--c-success)',
-  rejected: 'var(--c-warning)',
-})[status] ?? 'var(--c-text-3)'
+  pending: 'var(--c-danger-ink)',
+  approved: 'var(--c-success-ink)',
+  rejected: 'var(--c-warning-ink-deep)',
+})[status] ?? 'var(--c-text-3-ink)'
 
 async function loadApprovals() {
   loading.value = true
@@ -235,7 +236,7 @@ onBeforeUnmount(() => {
   border: 1px solid var(--c-border);
   border-radius: 6px;
   background: var(--c-surface);
-  color: var(--c-text-3);
+  color: var(--c-text-3-ink);
 }
 
 .search-input {
@@ -248,7 +249,7 @@ onBeforeUnmount(() => {
 }
 
 .search-input::placeholder {
-  color: var(--c-text-3);
+  color: var(--c-text-3-ink);
 }
 
 .status-tabs {
@@ -268,8 +269,8 @@ onBeforeUnmount(() => {
   border: 1px solid transparent;
   border-radius: 6px;
   background: transparent;
-  color: var(--c-text-3);
-  font-size: 11px;
+  color: var(--c-text-3-ink);
+  font-size: 12px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
@@ -285,7 +286,7 @@ onBeforeUnmount(() => {
 .status-tab.active {
   border-color: var(--c-brand);
   background: var(--c-brand-light);
-  color: var(--c-brand);
+  color: var(--c-brand-deep);
 }
 
 .loading-state,
@@ -296,7 +297,7 @@ onBeforeUnmount(() => {
   justify-content: center;
   gap: 8px;
   padding: 40px 20px;
-  color: var(--c-text-3);
+  color: var(--c-text-3-ink);
   text-align: center;
   flex: 1;
 }
@@ -370,7 +371,7 @@ onBeforeUnmount(() => {
 }
 
 .approval-status {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   flex-shrink: 0;
   white-space: nowrap;
@@ -380,8 +381,8 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 10px;
-  color: var(--c-text-3);
+  font-size: 12px;
+  color: var(--c-text-3-ink);
 }
 
 .dot {
@@ -403,7 +404,7 @@ onBeforeUnmount(() => {
   border: 0;
   border-radius: 4px;
   background: transparent;
-  color: var(--c-text-3);
+  color: var(--c-text-3-ink);
   cursor: pointer;
   transition: all 0.2s;
   flex-shrink: 0;
@@ -414,12 +415,12 @@ onBeforeUnmount(() => {
 }
 
 .action-btn.approve:hover {
-  color: var(--c-success);
+  color: var(--c-success-ink);
   background: var(--c-success-light);
 }
 
 .action-btn.reject:hover {
-  color: var(--c-danger);
+  color: var(--c-danger-ink);
   background: var(--c-danger-light);
 }
 </style>

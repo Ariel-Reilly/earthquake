@@ -1078,7 +1078,7 @@ class DisasterAssessmentModel:
 
     def _build_reasoning_v2(
         self,
-        overall_level: str,
+        factors: Dict[str, Any],
         concern: str,
         remote_sensing: Dict[str, Any],
         meteorology: Dict[str, Any],
@@ -1140,11 +1140,19 @@ class DisasterAssessmentModel:
             items.append("[辅助数据] 区域电力断供（" + f"{sup.get('power_label','断电')}" + "），应急响应能力严重受限")
         if sup.get("road_access_score", 1.0) < 0.3:
             items.append("[辅助数据] 道路可达性" + f"{sup.get('road_access_score',0):.0%}，救援通道受限")
-        if not items and overall_level in ("HIGH", "CRITICAL"):
-            items.append("综合评分" + overall_level + "，多维度评分均偏高，建议结合现场情况复核")
+        for key, label, unit in (
+            ("displacement_rate", "位移速率", "mm/day"),
+            ("crack_width", "裂缝宽度", "mm"),
+        ):
+            value = factors.get(key)
+            if value is not None:
+                items.append(f"[地面传感器] {label} {value:.2f} {unit}")
         if not items:
-            items.append("七维度评分均处于可控范围，整体风险平稳，保持常规监测即可")
-        items.append("综合判定为「" + disaster_type + "」类灾害，需" + concern + "跟进")
+            items.append("本次评估未提取到可列出的风险归因，需结合现场证据复核。")
+        if disaster_type == "待定":
+            items.append("现有证据不足以判定灾害类型。")
+        else:
+            items.append(f"模型判定灾害类型为「{disaster_type}」，关注度为「{concern}」。")
         return items
 
     def _build_actions_v2(
@@ -1306,7 +1314,7 @@ class DisasterAssessmentModel:
 
         # reasoning + actions
         reasoning = self._build_reasoning_v2(
-            overall_level, concern, remote_sensing, meteorology, terrain,
+            factors, concern, remote_sensing, meteorology, terrain,
             sensor_score, sensor_available, historical, social_media, supporting,
             dt["disaster_type"],
         )

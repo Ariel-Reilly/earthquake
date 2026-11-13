@@ -12,7 +12,13 @@ services:
       - "${POSTGRES_HOST_PORT:-127.0.0.1:15432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
+      # 空数据卷只执行「不依赖业务表」的两个脚本：扩展引导 + 审计归档表/函数。
+      # 业务表由后端启动时 spring.sql.init(schema.sql/data.sql) 创建；
+      # 002_geom_triggers.sql / 004_insert_demo_rules.sql 依赖这些表，在 initdb 阶段执行
+      # 必然报 "relation does not exist" 并让容器 Exited(3)（2026-11-13 空库演练实证）。
+      # geom 由应用层 GeometryFactory 维护，演示规则已由 data.sql 的 R001~R006 提供。
+      - ./infra/postgres/init/001_create_extensions.sql:/docker-entrypoint-initdb.d/001_create_extensions.sql:ro
+      - ./infra/postgres/init/003_archive_operation_log.sql:/docker-entrypoint-initdb.d/003_archive_operation_log.sql:ro
     healthcheck:
       test:
         [

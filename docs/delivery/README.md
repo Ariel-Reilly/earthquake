@@ -1,0 +1,50 @@
+# 交付文档索引（DisasterGuard · 御灾智巡）
+
+本目录是交付甲方的验收与运维文档集合，所有结论均以真实运行/构建结果为依据。
+
+## 快速开始
+
+```powershell
+.\start-dev.ps1 -Infra -Up       # Postgres / Redis / MinIO
+.\start-dev.ps1 -All -Wait       # 后端 8080 + 前端 5173 + AI 8001
+# 浏览器打开 http://127.0.0.1:5173 ，admin / admin123
+.\start-dev.ps1 -Stop            # 结束
+```
+
+## 文档地图
+
+| 文档 | 用途 | 适合谁 |
+|---|---|---|
+| [DELIVERY_CHECKLIST.md](DELIVERY_CHECKLIST.md) | 交付检查总表（构建/测试/接口/浏览器/容器/回滚） | 项目负责人、验收人 |
+| [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) | 部署手册（环境变量、Docker、启动、健康检查、常见故障） | 运维 |
+| [DEMO_SCRIPT.md](DEMO_SCRIPT.md) | 现场演示脚本（15–20 分钟流程、触发命令、兜底话术、清理） | 演示人 |
+| [SMOKE_TEST.md](SMOKE_TEST.md) | 冒烟清单与结果（SM-01~SM-18，含真机 CDP 自动化说明） | 测试、验收人 |
+| [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md) | 已知限制与二期能力（诚实边界） | 甲方、项目经理 |
+| [ACCEPTANCE_LOG_20261112.md](ACCEPTANCE_LOG_20261112.md) | 每轮验收记录（问题、修复、证据、排障过程） | 所有人 |
+| [DELIVERY_BACKLOG.md](DELIVERY_BACKLOG.md) | 剩余任务清单（P0 交付前必做 / P1 试运行前 / P2 二期，含验收标准与工时） | 项目经理、开发、甲方 |
+
+## 可执行的验收命令
+
+```powershell
+# 后端编译
+cd backend; mvn -q -DskipTests compile
+
+# 前端静态检查 / 单测 / 生产构建
+cd frontend; npx eslint src/; npx vitest run; npm run build
+
+# 真实浏览器冒烟（37 项，需 Edge/Chrome CDP 9222 + 服务已启动）
+node scripts/delivery/browser-smoke.mjs
+```
+
+浏览器冒烟截图与机器可读汇总输出在 `output/browser-verify/`（含 `summary.json`）。
+
+## 当前状态摘要（以本目录最新记录为准）
+
+- 前端：eslint 0 error、vitest 44 passed、vite build 成功、SFC/令牌完整性通过
+- 后端：`mvn compile` 通过；设置落库、预警分析详情等接口已实测
+- 真实浏览器：37/37 PASS（四档告警、AI 分析详情、确认→派发、设置落库、API 宕机、WS 轮询降级、角色 403 等）
+- 干净机器部署演练（A3，2026-11-13）：空库初始化 / 历史库补丁幂等 / nginx `/api`+`/ws` 101 全通；
+  修复 4 个全新部署阻断缺陷，见 [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) §9
+- 源码提交：`release/delivery` 分支 + tag `v1.8.0-delivery` + 源码包与 SHA256（见交付日志）
+- 已知待现场确认：声音实际外放、WS 断线重连计时、时相对比页面（见 KNOWN_LIMITATIONS）
+- **上线前仍须完成**：A1 现场人工验收、A4 生产安全配置、A5 备份恢复演练、A6 甲方决策项（见 DELIVERY_BACKLOG）

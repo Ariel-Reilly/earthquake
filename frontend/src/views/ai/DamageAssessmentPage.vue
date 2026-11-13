@@ -29,7 +29,8 @@ const statusDict = ref(null)
 
 async function loadHazards() {
   try {
-    const resp = await dashboardApi.getHazards({ pageSize: 200 })
+    // 后端分页参数是 page/size（不认 pageSize），显式取 200 条避免默认 10 条截断列表
+    const resp = await dashboardApi.getHazards({ page: 1, size: 200 })
     hazards.value = resp.list ?? []
     if (hazards.value.length > 0 && !selectedHazardCode.value) {
       selectedHazardCode.value = hazards.value[0].hazardCode ?? hazards.value[0].code ?? ''
@@ -599,7 +600,7 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-.dap-root { padding: 20px 24px; max-width: 1300px; }
+.dap-root { padding: 20px 24px; }
 
 /* Header */
 .dap-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; gap: 12px; }

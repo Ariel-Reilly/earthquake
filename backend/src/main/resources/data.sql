@@ -733,8 +733,12 @@ ON CONFLICT (task_code) DO NOTHING;
 -- =====================================================================
 -- 16. 应急事件 emergency_event（替换旧1条）
 -- =====================================================================
+-- warning_code 用子查询取值：预警种子已停用（见上方 §「预警」注释），全新空库的
+-- warning_event 里没有 WG-001，写死常量会触发外键约束、让后端启动直接失败
+-- （2026-11-13 干净机器部署演练实证）。老库存在该预警时保持原关联；空库降级为 NULL，
+-- 应急响应记录本身仍写入，其它字段与前端展示不受影响。
 INSERT INTO emergency_event (event_code, warning_code, hazard_code, title, status, commander, step_name, result_summary, started_at) VALUES
-('EM-001','WG-001','HZ-003','嘉陵江洪水应急响应','进行中','commander','启动预案','已启动Ⅰ级响应，沿江群众开始撤离',NOW() - INTERVAL '4 hour')
+('EM-001',(SELECT warning_code FROM warning_event WHERE warning_code='WG-001'),'HZ-003','嘉陵江洪水应急响应','进行中','commander','启动预案','已启动Ⅰ级响应，沿江群众开始撤离',NOW() - INTERVAL '4 hour')
 ON CONFLICT (event_code) DO NOTHING;
 
 -- =====================================================================

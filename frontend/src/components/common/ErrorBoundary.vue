@@ -1,4 +1,4 @@
-﻿<script setup>
+<script setup>
 import { ref, onErrorCaptured } from 'vue'
 import { AlertTriangle, RefreshCw, Home, Bug } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
@@ -197,7 +197,8 @@ function clearError() {
 
 .error-detail pre {
   margin: 12px 0 0;
-  font-size: 11px;
+  /* 11px 等宽文本在 1x 屏几乎无法阅读，提到 12px */
+  font-size: 12px;
   line-height: 1.5;
   color: #94A3B8;
   background: rgba(0, 0, 0, 0.4);

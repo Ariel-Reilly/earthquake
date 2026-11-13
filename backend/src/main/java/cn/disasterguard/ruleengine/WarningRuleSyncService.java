@@ -114,11 +114,17 @@ public class WarningRuleSyncService {
             created.setRuleCode(source.getRuleCode());
             created.setVersion(1);
             created.setPriority(0);
-            created.setCreatedBy("SYSTEM");
-            // rule.actions 是 JSON NOT NULL（schema.sql:701）。R10 P2-6 起 data.sql
+            // created_by 有 fk_rule_created_by -> sys_user(username)，而种子用户里没有
+            // 名为 SYSTEM 的账号；写死 "SYSTEM" 会让新库首批 6 条镜像规则全部插入失败、
+            // 规则缓存为 0，预警引擎等于空转（2026-11-13 干净机器部署演练实证）。
+            // 系统自动同步的规则本就没有人工创建者，留 NULL 既满足外键又语义正确。
+            created.setCreatedBy(null);
+            // rule.actions 是 JSONB NOT NULL（schema.sql:701）。R10 P2-6 起 data.sql
             // 不再单独播种 rule 表，新库首启由本服务建行，必须给一个合法占位动作，
             // 否则整批 INSERT 会被 NOT NULL 拦下、规则管理页显示为空。
-            created.setActions("{\"type\":\"CREATE_EVENT\"}");
+            // 必须是【数组】：RuleEngineService.toDto 按 List<RuleDto.RuleAction> 反序列化，
+            // 写成对象会让 6 条规则全部「解析规则失败」（2026-11-13 空库演练实证）。
+            created.setActions("[{\"type\":\"CREATE_EVENT\",\"params\":{}}]");
             return created;
           });
           if (!mirrorInto(source, target)) {

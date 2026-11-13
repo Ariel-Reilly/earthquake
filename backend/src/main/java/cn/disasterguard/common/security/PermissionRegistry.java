@@ -44,7 +44,11 @@ public final class PermissionRegistry {
           "monitor:view", "settings:view", "settings:edit", "messages:view",
           "messages:send", "todo:view", "route:view", "route:plan",
           "route:approve", "route:export", "sign:view", "sign:create",
-          "sign:confirm", "profile:view", "profile:edit", "data:catalog:view"
+          "sign:confirm", "profile:view", "profile:edit", "data:catalog:view",
+          "tasks:view", "tasks:create", "tasks:edit", "tasks:delete",
+          "tasks:export", "backup:view", "backup:manage", "plans:view",
+          "plans:edit", "plans:launch", "reports:view", "reports:create",
+          "reports:delete"
       ),
       "attendant", Set.of(
           "overview:view", "overview:export", "map:view", "map:edit",
@@ -59,7 +63,8 @@ public final class PermissionRegistry {
           "devices:view", "weather:view", "analytics:view", "approval:view",
           "approval:initiate", "messages:view", "todo:view", "settings:view",
           "route:view", "route:export", "sign:view", "sign:create",
-          "profile:view", "profile:edit"
+          "profile:view", "profile:edit", "tasks:view", "tasks:create",
+          "tasks:edit", "tasks:export", "plans:view", "reports:view"
       ),
       "expert", Set.of(
           "overview:view", "zone:view", "hazards:view", "hazards:create",
@@ -71,7 +76,8 @@ public final class PermissionRegistry {
           "warnings:dispatch", "data:catalog:view", "emergency:view", "emergency:dispatch",
           "rules:view", "analytics:view", "messages:view", "todo:view",
           "settings:view", "route:view", "sign:view", "sign:create",
-          "sign:confirm", "profile:view", "profile:edit"
+          "sign:confirm", "profile:view", "profile:edit", "tasks:view",
+          "tasks:create", "plans:view"
       ),
       "maintenance", Set.of(
           "overview:view", "map:view", "zone:view", "hazards:view",
@@ -81,7 +87,7 @@ public final class PermissionRegistry {
           "analytics:view", "emergency:view", "emergency:dispatch", "resource:view",
           "route:view", "inspection:view", "inspection:submit", "personnel:view",
           "personnel:report", "monitor:view", "messages:view", "todo:view",
-          "settings:view", "profile:view", "profile:edit"
+          "settings:view", "profile:view", "profile:edit", "tasks:view"
       ),
       "system_admin", Set.of(
           "overview:view", "overview:export", "analytics:view", "analytics:export",
@@ -89,7 +95,8 @@ public final class PermissionRegistry {
           "roles:view", "roles:edit", "audit:view", "audit:export",
           "monitor:view", "sync:view", "settings:view", "settings:edit",
           "messages:view", "messages:send", "todo:view", "profile:view",
-          "profile:edit"
+          "profile:edit", "backup:view", "backup:manage", "plans:view",
+          "reports:view", "reports:create", "reports:delete"
       ),
       "emergency_commander", Set.of(
           "overview:view", "overview:export", "map:view", "map:edit",
@@ -103,7 +110,9 @@ public final class PermissionRegistry {
           "resource:dispatch", "resource:assign", "resource:create", "resource:edit",
           "route:view", "route:plan", "route:approve", "route:export",
           "devices:view", "approval:view", "approval:approve", "approval:reject",
-          "analytics:view", "analytics:export", "profile:view", "profile:edit"
+          "analytics:view", "analytics:export", "profile:view", "profile:edit",
+          "tasks:view", "plans:view", "plans:edit", "plans:launch",
+          "reports:view"
       ),
       "ai_engineer", Set.of(
           "overview:view", "analytics:view", "ai:task:view", "ai:task:create",
@@ -114,7 +123,8 @@ public final class PermissionRegistry {
           "datasource:view", "datasource:config", "datasource:create", "datasource:edit",
           "datasource:delete", "sync:view", "sync:manage", "data:catalog:view",
           "monitor:view", "messages:view", "todo:view", "profile:view",
-          "profile:edit"
+          "profile:edit", "tasks:view", "tasks:create", "tasks:edit",
+          "tasks:delete"
       )
   );
 

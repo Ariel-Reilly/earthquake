@@ -16,6 +16,7 @@ import {
   ShieldCheck,
   Paperclip,
   Bot,
+  Brain,
   AlertCircle,
   CheckCircle2,
   Send,
@@ -26,6 +27,7 @@ import {
 } from "lucide-vue-next";
 import PermissionButton from "../../components/PermissionButton.vue";
 import WarningDeliveryTab from "../../components/WarningDeliveryTab.vue";
+import WarningAnalysisDetail from "../../components/warning/WarningAnalysisDetail.vue";
 import { dashboardApi } from "../../services/dashboardApi";
 import { aiApi } from "../../services/aiApi";
 import { useAiContext } from "../../composables/useAiContext";
@@ -368,13 +370,13 @@ watch(() => route.query.tab, (newTab) => {
     activeTab.value = "overview";
     return;
   }
-  if (["overview", "delivery", "timeline"].includes(newTab)) {
+  if (["overview", "analysis", "delivery", "timeline"].includes(newTab)) {
     activeTab.value = newTab;
   }
 }, { immediate: true });
 
 watch(() => warning.value, (newWarning) => {
-  if (newWarning && route.query.tab && ["overview", "delivery", "timeline"].includes(route.query.tab)) {
+  if (newWarning && route.query.tab && ["overview", "analysis", "delivery", "timeline"].includes(route.query.tab)) {
     activeTab.value = route.query.tab;
   }
 });
@@ -1072,7 +1074,7 @@ onBeforeUnmount(() => {
     <template v-else-if="warning">
       <div class="content-grid">
         <!-- ═══════════════════════════════════════════════════════════
-             TAB NAVIGATION (新设计: 3个Tab)
+             TAB NAVIGATION (新设计: 4个Tab)
              ═══════════════════════════════════════════════════════════ -->
         <div class="tab-nav" style="grid-column: 1 / -1;">
           <button
@@ -1081,6 +1083,13 @@ onBeforeUnmount(() => {
             @click="activeTab = 'overview'"
           >
             <FileText :size="14" />概览
+          </button>
+          <button
+            class="tab-button"
+            :class="{ active: activeTab === 'analysis' }"
+            @click="activeTab = 'analysis'"
+          >
+            <Brain :size="14" />AI 分析详情
           </button>
           <button
             class="tab-button"
@@ -1395,6 +1404,13 @@ onBeforeUnmount(() => {
             </div>
 
           </div>
+        </template>
+
+        <!-- ═══════════════════════════════════════════════════════════
+             AI 分析详情 TAB（研判结论 + 推理链 + 事发前后指标 + 现场影像）
+             ═══════════════════════════════════════════════════════════ -->
+        <template v-if="activeTab === 'analysis'">
+          <WarningAnalysisDetail :warning-id="route.params.id" />
         </template>
 
         <!-- ═══════════════════════════════════════════════════════════

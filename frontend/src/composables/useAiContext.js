@@ -50,7 +50,6 @@ export function useAiContext() {
       title: context.title || null,
       metadata: context.metadata || {}
     }
-    console.log('[AI Context] 上下文已更新:', aiContext.value)
   }
 
   /**
@@ -63,7 +62,6 @@ export function useAiContext() {
       title: null,
       metadata: {}
     }
-    console.log('[AI Context] 上下文已清空')
   }
 
   /**

@@ -5,22 +5,28 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import java.time.OffsetDateTime;
 
 /**
  * P0-4：会签记录（每个 signer 一行）。
  * 用 sign_id 把同一会签的所有 signer 关联起来。
+ *
+ * <p>注意：sign_id 不是唯一的——一个会签会话会有多行（每个会签人一行），
+ * 因此这里只能建普通索引，不能加 UNIQUE（历史上误加 UNIQUE 导致多人会签插入第二行即 500）。
  */
 @Entity
-@Table(name = "event_sign")
+@Table(
+    name = "event_sign",
+    indexes = {@Index(name = "idx_event_sign_sign", columnList = "sign_id")})
 public class EventSign {
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
 
-  @Column(name = "sign_id", nullable = false, unique = true, length = 64)
+  @Column(name = "sign_id", nullable = false, length = 64)
   private String signId;
 
   @Column(name = "event_id", nullable = false, length = 64)

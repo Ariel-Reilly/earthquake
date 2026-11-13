@@ -29,6 +29,10 @@ public record WarningDto(
     OffsetDateTime confirmedAt,
     OffsetDateTime dispatchedAt,
     OffsetDateTime closedAt,
+    // 关联灾害点 WGS-84 经度；无关联灾害点时为 null（前端地图图层据此打点）
+    Double lon,
+    // 关联灾害点 WGS-84 纬度；无关联灾害点时为 null
+    Double lat,
     String aiLevel,
     String aiLevelLabel,
     Double aiScore,
@@ -41,6 +45,6 @@ public record WarningDto(
       OffsetDateTime confirmedAt, OffsetDateTime dispatchedAt, OffsetDateTime closedAt) {
     this(id, warningCode, level, cssClass, title, desc, time, point, status, hazardCode,
         ruleCode, triggerValue, triggeredAt, closeReason, closedBy, confirmedAt,
-        dispatchedAt, closedAt, null, null, null, null);
+        dispatchedAt, closedAt, null, null, null, null, null, null);
   }
 }

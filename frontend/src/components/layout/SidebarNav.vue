@@ -255,14 +255,16 @@ function navigateTo(path) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 18px;
-  height: 18px;
+  min-width: 20px;
+  height: 20px;
   padding: 0 5px;
   border-radius: var(--r-pill, 9999px);
   background: var(--primary, #5F7A6B);
   color: var(--primary-on, #FFFFFF);
-  font-size: 10px;
+  /* 10px 数字在 1x 屏几乎不可读，统一提到 12px 并同步放大胶囊 */
+  font-size: 12px;
   font-weight: 700;
+  line-height: 1;
   font-variant-numeric: tabular-nums;
 }
 

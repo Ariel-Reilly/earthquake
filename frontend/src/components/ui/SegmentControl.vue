@@ -77,6 +77,7 @@ function isActive(value) {
       v-for="opt in activeOptions"
       :key="opt.value"
       type="button"
+      role="tab"
       :class="['segment-btn', { active: isActive(opt.value), disabled: opt.disabled }]"
       :disabled="opt.disabled || disabled"
       :aria-selected="isActive(opt.value)"
@@ -91,12 +92,12 @@ function isActive(value) {
 <style scoped>
 .segment-control {
   display: inline-flex;
-  gap: var(--space-xs);
-  padding: var(--space-xs);
-  background: var(--color-surface-2);
-  border-radius: var(--radius-full);
-  border: 1px solid var(--color-border);
-  transition: all var(--duration-fast) var(--ease-out);
+  gap: 4px;
+  padding: 4px;
+  background: var(--c-surface-2);
+  border-radius: var(--r-pill);
+  border: 1px solid var(--c-separator);
+  transition: all 0.18s ease-out;
 }
 
 .segment-control.disabled {
@@ -109,34 +110,34 @@ function isActive(value) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-xs);
-  padding: var(--space-sm) var(--space-md);
+  gap: 4px;
+  padding: 8px 12px;
   border: 1px solid transparent;
   background: transparent;
-  color: var(--color-muted-foreground);
-  border-radius: var(--radius-md);
-  font-size: var(--text-sm);
-  font-weight: var(--font-medium);
+  color: var(--c-ink-2);
+  border-radius: var(--r-pill);
+  font-size: 14px;
+  font-weight: 600;
   cursor: pointer;
-  transition: all var(--duration-fast) var(--ease-out);
+  transition: all 0.18s ease-out;
 }
 
 /* 激活状态 */
 .segment-btn.active {
-  background: var(--color-card);
-  color: var(--color-primary);
-  border-color: var(--color-border);
+  background: var(--c-surface);
+  color: var(--c-brand-deeper);
+  border-color: var(--c-separator);
   box-shadow: var(--shadow-xs);
 }
 
 /* 悬停状态 */
 .segment-btn:hover:not(.disabled):not(.active) {
-  color: var(--color-foreground);
+  color: var(--c-text);
   background: rgba(95, 122, 107, 0.04);
 }
 
 .segment-btn:hover.active {
-  border-color: var(--color-border-hover);
+  border-color: var(--c-brand);
 }
 
 /* 禁用状态 */
@@ -148,18 +149,18 @@ function isActive(value) {
 
 /* 尺寸变体 */
 .size-sm .segment-btn {
-  padding: var(--space-xs) var(--space-sm);
-  font-size: var(--text-xs);
+  padding: 4px 8px;
+  font-size: 13px;
 }
 
 .size-lg .segment-btn {
-  padding: var(--space-md) var(--space-lg);
-  font-size: var(--text-base);
+  padding: 12px 16px;
+  font-size: 16px;
 }
 
 /* 焦点环（无障碍） */
 .segment-btn:focus-visible {
   outline: none;
-  box-shadow: var(--shadow-focus);
+  box-shadow: 0 0 0 2px var(--c-brand);
 }
 </style>

@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import { Download, Filter, Loader2, ScrollText, Search, ShieldAlert } from 'lucide-vue-next'
-import { dashboardApi } from '../../services/dashboardApi'
+import { dashboardApi, USE_BACKEND } from '../../services/dashboardApi'
 import { hasPermission, getAuthUser } from '../../stores/auth'
 
 const emit = defineEmits(['notify'])
@@ -11,6 +11,10 @@ const operator = getAuthUser() ?? { name: '李晨曦', role: 'admin' }
 const loading = ref(false)
 const logs = ref({ items: [], total: 0 })
 const filter = ref({ keyword: '', action: '', dateRange: '7' })
+// 分页状态：后端 /api/audit/logs 只认 page/size，缺省 size=20，必须显式传，否则只看得到第一页 20 条
+const page = ref(1)
+const PAGE_SIZE = 20
+const totalPages = computed(() => Math.max(1, Math.ceil((logs.value.total ?? 0) / PAGE_SIZE)))
 
 const actionGroups = [
   { value: '', label: '全部操作', count: 0 },
@@ -35,8 +39,20 @@ const actionColor = {
 
 const filteredItems = computed(() => {
   let list = logs.value.items ?? []
+  // 后端模式：动作分组 / 时间范围 / 关键字均已在服务端按真实字段过滤，前端不再二次过滤，
+  // 否则会把服务端命中但 detail/target 不含关键字的记录误删，出现"总数有、列表空"。
+  if (USE_BACKEND) return list
+  // 演示模式（无后端）：mock 数据没有服务端过滤，这里按同一口径做真实筛选
   if (filter.value.action) {
     list = list.filter((l) => (l.action ?? '').startsWith(filter.value.action))
+  }
+  const rangeHours = { '24h': 24, 7: 24 * 7, 30: 24 * 30 }[filter.value.dateRange]
+  if (rangeHours) {
+    const since = Date.now() - rangeHours * 3600 * 1000
+    list = list.filter((l) => {
+      const ts = Date.parse(l.time ?? '')
+      return Number.isFinite(ts) && ts >= since
+    })
   }
   if (filter.value.keyword.trim()) {
     const k = filter.value.keyword.trim().toLowerCase()
@@ -54,16 +70,30 @@ async function loadLogs() {
   loading.value = true
   try {
     const data = await dashboardApi.getAuditLogs({
+      page: page.value,
+      size: PAGE_SIZE,
       range: filter.value.dateRange || undefined,
       action: filter.value.action || undefined,
       keyword: filter.value.keyword || undefined,
     })
     logs.value = data ?? { items: [], total: 0 }
+    // 筛选后总页数变小时，当前页可能越界：退回最后一页重新查询
+    if (page.value > totalPages.value) {
+      page.value = totalPages.value
+      await loadLogs()
+    }
   } catch (e) {
     emit('notify', e.message ?? '加载日志失败')
   } finally {
     loading.value = false
   }
+}
+
+function changePage(delta) {
+  const next = page.value + delta
+  if (next < 1 || next > totalPages.value) return
+  page.value = next
+  loadLogs()
 }
 
 function exportCsv() {
@@ -93,7 +123,15 @@ function timeText(iso) {
   return new Date(iso).toLocaleString('zh-CN', { hour12: false })
 }
 
-watch(filter, loadLogs, { deep: true })
+watch(
+  filter,
+  () => {
+    // 筛选条件变化后回到第一页，避免停留在越界页码
+    page.value = 1
+    loadLogs()
+  },
+  { deep: true }
+)
 
 onMounted(() => loadLogs())
 </script>
@@ -176,8 +214,12 @@ onMounted(() => loadLogs())
       </table>
 
       <footer class="panel-foot">
-        <span>当前结果 {{ filteredItems.length }} 条 · 总计 {{ logs.total ?? filteredItems.length }} 条</span>
-        <span>涉及敏感操作（删除 / 关闭 / 转派）会标记为红色徽标</span>
+        <span>当前页 {{ filteredItems.length }} 条 · 总计 {{ logs.total ?? filteredItems.length }} 条</span>
+        <span class="foot-pager">
+          第 {{ page }} / {{ totalPages }} 页
+          <button class="op-btn pager-btn" :disabled="page <= 1" @click="changePage(-1)">上一页</button>
+          <button class="op-btn pager-btn" :disabled="page >= totalPages" @click="changePage(1)">下一页</button>
+        </span>
       </footer>
     </section>
 
@@ -266,6 +308,9 @@ onMounted(() => loadLogs())
 }
 code.target { background: var(--c-surface-2); padding: 1px 6px; border-radius: var(--r-xs); }
 .panel-foot { display: flex; justify-content: space-between; padding: 10px 14px; border-top: 1px solid var(--c-brand-mist); font-size: 11px; color: var(--c-text-4); }
+.foot-pager { display: inline-flex; align-items: center; gap: 8px; }
+.pager-btn { padding: 3px 9px; font-size: 11px; }
+.pager-btn:disabled { opacity: .45; cursor: not-allowed; }
 
 .audit-rules {
   background: var(--c-surface); border: 1px dashed var(--c-separator); border-radius: var(--r-md); padding: 14px 18px;

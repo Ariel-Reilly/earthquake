@@ -62,6 +62,12 @@ const layerState = reactive({
 const timeline = ref([])
 const timelineIndex = ref(0)
 const isPlaying = ref(false)
+/**
+ * 历史回放可用性：后端目前没有按时间维度查询地图数据（历史快照/轨迹）的接口，
+ * 因此时间轴只能做"演示刻度"，不能真正回放。这里显式禁用播放与拖动，
+ * 避免把"只弹提示不换数据"的假交互当成功能交付。
+ */
+const timelineAvailable = false
 let playTimer = null
 
 const stats = reactive({ hazards: 0, devices: 0, warnings: 0, ai: 0, total: 0 })
@@ -166,10 +172,14 @@ function buildTimeline() {
 function applyTimeline() {
   const frame = timeline.value[timelineIndex.value]
   if (!frame) return
-  emit("notify", `时间轴已跳转到 ${frame.label}`)
+  emit("notify", `时间轴已跳转到 ${frame.label}（演示刻度，历史回放待后端接口）`)
 }
 
 function togglePlay() {
+  if (!timelineAvailable) {
+    emit("notify", "历史回放暂未开放：后端尚未提供按时间维度的地图数据接口")
+    return
+  }
   if (isPlaying.value) {
     clearInterval(playTimer)
     playTimer = null
@@ -396,7 +406,7 @@ watch([trackFrom, trackTo], () => {
       <aside v-if="showLayers" class="layer-panel">
         <div class="layer-header">
           <Layers :size="14" />图层管理
-          <button class="icon-btn" @click="showLayers = false"><X :size="12" /></button>
+          <button class="icon-btn" type="button" aria-label="关闭图层管理面板" title="关闭图层管理面板" @click="showLayers = false"><X :size="12" /></button>
         </div>
         <ul>
           <li v-for="m in layerMeta" :key="m.key" :class="{ disabled: !layerState[m.key] }">
@@ -413,8 +423,8 @@ watch([trackFrom, trackTo], () => {
           <Target :size="14" />空间工具
         </div>
         <div class="tool-row">
-          <button class="op-btn" @click="zoomIn"><Plus :size="14" /></button>
-          <button class="op-btn" @click="zoomOut"><Minus :size="14" /></button>
+          <button class="op-btn" type="button" aria-label="放大地图" title="放大地图" @click="zoomIn"><Plus :size="14" /></button>
+          <button class="op-btn" type="button" aria-label="缩小地图" title="缩小地图" @click="zoomOut"><Minus :size="14" /></button>
           <button class="op-btn" @click="fitView"><Maximize2 :size="14" />全图</button>
         </div>
 
@@ -540,12 +550,17 @@ watch([trackFrom, trackTo], () => {
       </div>
     </div>
 
-    <!-- 时间轴（仅地图视图时显示） -->
+    <!-- 时间轴（仅地图视图时显示；历史回放接口未接入，故禁用交互并明确标注） -->
     <footer class="timeline-bar" v-if="!trackTabActive">
       <div class="timeline-head">
         <Clock :size="14" />
-        <span class="timeline-title">时间轴：最近 24h</span>
-        <button class="ghost-btn" @click="togglePlay">
+        <span class="timeline-title">时间轴：最近 24h（演示刻度，历史回放待后端接口）</span>
+        <button
+          class="ghost-btn"
+          :disabled="!timelineAvailable"
+          :title="timelineAvailable ? '播放历史回放' : '后端尚未提供历史快照接口，暂不可用'"
+          @click="togglePlay"
+        >
           <span v-if="isPlaying">⏸ 暂停</span>
           <span v-else>▶ 播放</span>
         </button>
@@ -556,6 +571,8 @@ watch([trackFrom, trackTo], () => {
         :max="timeline.length - 1"
         v-model.number="timelineIndex"
         class="timeline-slider"
+        :disabled="!timelineAvailable"
+        :title="timelineAvailable ? '' : '历史回放暂未开放'"
       />
       <div class="timeline-labels">
         <span v-for="(f, i) in timeline" :key="i" :class="{ active: i === timelineIndex }">{{ f.label }}</span>

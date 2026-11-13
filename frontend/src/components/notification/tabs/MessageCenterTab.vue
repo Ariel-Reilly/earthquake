@@ -247,7 +247,7 @@ onBeforeUnmount(() => {
   border: 1px solid var(--c-border);
   border-radius: 6px;
   background: var(--c-surface);
-  color: var(--c-text-3);
+  color: var(--c-text-3-ink);
 }
 
 .search-input {
@@ -260,7 +260,7 @@ onBeforeUnmount(() => {
 }
 
 .search-input::placeholder {
-  color: var(--c-text-3);
+  color: var(--c-text-3-ink);
 }
 
 .mark-all-btn {
@@ -271,7 +271,7 @@ onBeforeUnmount(() => {
   border: 1px solid var(--c-border);
   border-radius: 6px;
   background: var(--c-surface);
-  color: var(--c-text-3);
+  color: var(--c-text-3-ink);
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
@@ -307,8 +307,8 @@ onBeforeUnmount(() => {
   border: 1px solid transparent;
   border-radius: 6px;
   background: transparent;
-  color: var(--c-text-3);
-  font-size: 11px;
+  color: var(--c-text-3-ink);
+  font-size: 12px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
@@ -324,7 +324,7 @@ onBeforeUnmount(() => {
 .type-tab.active {
   border-color: var(--c-brand);
   background: var(--c-brand-light);
-  color: var(--c-brand);
+  color: var(--c-brand-deep);
 }
 
 .loading-state,
@@ -335,7 +335,7 @@ onBeforeUnmount(() => {
   justify-content: center;
   gap: 8px;
   padding: 40px 20px;
-  color: var(--c-text-3);
+  color: var(--c-text-3-ink);
   text-align: center;
   flex: 1;
 }
@@ -420,7 +420,7 @@ onBeforeUnmount(() => {
 }
 
 .msg-snippet {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--c-text-2);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -428,8 +428,8 @@ onBeforeUnmount(() => {
 }
 
 .msg-meta {
-  font-size: 10px;
-  color: var(--c-text-3);
+  font-size: 12px;
+  color: var(--c-text-3-ink);
 }
 
 .mark-read-btn {

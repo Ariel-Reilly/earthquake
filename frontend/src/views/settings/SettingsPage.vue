@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import {
   Bell,
   Building2,
@@ -88,14 +88,67 @@ function saveSettings() {
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...settings }))
 }
 
-const isDirty = ref(false)
-watch(settings, () => { isDirty.value = true }, { deep: true })
+/**
+ * 从后端加载平台设置（settings:view）。
+ * 后端只保存白名单字段，这里与本地 defaults 合并；失败时保留本地设置并提示，
+ * 保证离线 / 服务异常时设置页仍可用。
+ */
+async function loadRemoteSettings() {
+  try {
+    const remote = await dashboardApi.getSystemSettings()
+    if (!remote || typeof remote !== 'object') return
+    suppressDirty = true
+    for (const key of Object.keys(defaults)) {
+      if (remote[key] !== undefined) {
+        settings[key] = remote[key]
+      }
+    }
+    remoteLoaded.value = true
+    await nextTick()
+    isDirty.value = false
+    suppressDirty = false
+  } catch (e) {
+    emit('notify', `服务器设置加载失败，当前使用本地设置：${e?.message ?? '未知错误'}`)
+  }
+}
 
-function persist() {
+const isDirty = ref(false)
+/** 从服务器回填期间抑制 dirty 标记，避免"刚打开设置页就显示未保存" */
+let suppressDirty = false
+/** 保存中状态（防重复提交） */
+const saving = ref(false)
+/** 是否成功从服务器加载过设置 */
+const remoteLoaded = ref(false)
+watch(settings, () => {
+  if (suppressDirty) return
+  isDirty.value = true
+}, { deep: true })
+
+/**
+ * 保存设置：后端优先落库（settings:edit），同时写 localStorage 作为离线兜底；
+ * 后端失败时明确提示"仅本地保存"，不再让用户误以为配置已持久化。
+ *
+ * @param {string} message 成功提示文案
+ */
+async function persist(message = '设置已保存') {
+  if (saving.value) return
+  saving.value = true
   saveSettings()
+  let serverSaved = false
+  try {
+    await dashboardApi.saveSystemSettings({ ...settings })
+    serverSaved = true
+    remoteLoaded.value = true
+  } catch (e) {
+    emit('notify', `服务器保存失败，已暂存到本地：${e?.message ?? '未知错误'}`)
+  } finally {
+    saving.value = false
+  }
   applyPreferences()
   isDirty.value = false
-  emit('notify', '设置已保存')
+  if (serverSaved) {
+    emit('notify', message)
+  }
 }
 
 /**
@@ -136,11 +189,13 @@ function bootstrapPreferences() {
   applyPreferences()
 }
 
-function resetToDefaults() {
+async function resetToDefaults() {
+  suppressDirty = true
   Object.assign(settings, defaults)
-  saveSettings()
-  isDirty.value = false
-  emit('notify', '已恢复默认设置')
+  await nextTick()
+  suppressDirty = false
+  isDirty.value = true
+  await persist('已恢复默认设置')
 }
 
 const timezoneOptions = [
@@ -339,6 +394,7 @@ loadSettings()
 bootstrapPreferences()
 
 onMounted(() => {
+  loadRemoteSettings()
   loadSessions()
   runServiceCheck()
 })
@@ -399,7 +455,7 @@ onMounted(() => {
 
       <div class="settings-foot">
         <button class="secondary-btn" @click="resetToDefaults"><RefreshCcw :size="14" />恢复默认</button>
-        <button class="primary-btn" :disabled="!isDirty" @click="persist"><Save :size="14" />保存设置</button>
+        <button class="primary-btn" :disabled="!isDirty || saving" @click="persist"><Save :size="14" />保存设置</button>
       </div>
     </section>
 
@@ -494,7 +550,7 @@ onMounted(() => {
 
       <div class="settings-foot">
         <button class="secondary-btn" @click="resetToDefaults"><RefreshCcw :size="14" />恢复默认</button>
-        <button class="primary-btn" :disabled="!isDirty" @click="persist"><Save :size="14" />保存设置</button>
+        <button class="primary-btn" :disabled="!isDirty || saving" @click="persist"><Save :size="14" />保存设置</button>
       </div>
     </section>
 
@@ -530,7 +586,7 @@ onMounted(() => {
 
       <div class="settings-foot">
         <button class="secondary-btn" @click="resetToDefaults"><RefreshCcw :size="14" />恢复默认</button>
-        <button class="primary-btn" :disabled="!isDirty" @click="persist"><Save :size="14" />保存设置</button>
+        <button class="primary-btn" :disabled="!isDirty || saving" @click="persist"><Save :size="14" />保存设置</button>
       </div>
     </section>
 
@@ -626,7 +682,7 @@ onMounted(() => {
 
       <div class="settings-foot">
         <button class="secondary-btn" @click="resetToDefaults"><RefreshCcw :size="14" />恢复默认</button>
-        <button class="primary-btn" :disabled="!isDirty" @click="persist"><Save :size="14" />保存设置</button>
+        <button class="primary-btn" :disabled="!isDirty || saving" @click="persist"><Save :size="14" />保存设置</button>
       </div>
     </section>
     </Transition>

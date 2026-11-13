@@ -10,6 +10,12 @@ export default defineConfig({
     host: '127.0.0.1',
     port: 5173,
     strictPort: true,
+    // 忽略编辑器/工具链的原子写临时目录（如 .foo.vue.<pid>.tmpdir）。
+    // 这类目录在 Windows 上可能被短暂独占，chokidar 监听会抛 EBUSY 并直接
+    // 让 Vite dev server 退出；忽略后编辑代码不再需要重启 dev server。
+    watch: {
+      ignored: ['**/.*.tmpdir/**', '**/.*.tmp', '**/.dsh-*'],
+    },
     // ── DEV PROXY ──
     // 把 /api 转发到后端，使浏览器侧请求与页面同源：
     //   · 预览面板走 http://127.0.0.1:5173
@@ -21,6 +27,7 @@ export default defineConfig({
     //   实测：同一请求 带 Origin → 403，不带 Origin → 正常。
     //   因此必须用 configure 钩子把 Origin 改写成白名单内的地址。
     proxy: {
+      // ── HTTP API ──
       '/api': {
         target: 'http://127.0.0.1:8080',
         changeOrigin: true,
@@ -31,6 +38,22 @@ export default defineConfig({
             proxyReq.setHeader('Origin', 'http://localhost:5173')
             proxyReq.setHeader('Referer', 'http://localhost:5173/')
           })
+        },
+      },
+      // ── WebSocket ──
+      // 后端 WebSocketConfig 默认只允许 Origin=http://localhost:5173，
+      // 而 dev 页面跑在 127.0.0.1:5173，不代理 /ws 时握手会 403；
+      // 这里把 /ws 转发到后端并统一改写 Origin，保证实时链路可用。
+      '/ws': {
+        target: 'http://127.0.0.1:8080',
+        changeOrigin: true,
+        ws: true,
+        configure: (proxy) => {
+          const rewriteOrigin = (proxyReq) => {
+            proxyReq.setHeader('Origin', 'http://localhost:5173')
+          }
+          proxy.on('proxyReq', rewriteOrigin)
+          proxy.on('proxyReqWs', rewriteOrigin)
         },
       },
     },

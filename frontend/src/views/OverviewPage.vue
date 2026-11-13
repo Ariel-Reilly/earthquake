@@ -1,7 +1,8 @@
 <script setup>
+import SegmentControl from "../components/ui/SegmentControl.vue";
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
 import { useRouter } from "vue-router";
-import { ArrowDownRight, ArrowUpRight, BarChart3, Calendar, ChevronDown, ChevronRight, CloudRain, Cpu, Crosshair, Database, Download, Gauge, GitCompareArrows, Landmark, Layers, LineChart, ListChecks, Loader2, MapPin, MoreHorizontal, Printer, Radar, Radio, RefreshCw, Route, Search, ShieldAlert, SlidersHorizontal, UsersRound, Waves, X } from "lucide-vue-next";
+import { ArrowDownRight, ArrowUpRight, BarChart3, Calendar, ChevronDown, ChevronRight, CloudRain, Cpu, Crosshair, Database, Download, Gauge, GitCompareArrows, Landmark, Layers, LineChart, ListChecks, Loader2, MapPin, Printer, Radar, Radio, RefreshCw, Route, Search, ShieldAlert, SlidersHorizontal, UsersRound, Waves, X } from "lucide-vue-next";
 import { dashboardApi } from "../services/dashboardApi";
 import {
   getRealtimeWeather,
@@ -106,9 +107,15 @@ const warnings = ref([]);
 const hazards = ref([]);
 const devices = ref([]);
 const personnel = ref([]);
+/** 巡检任务（用于底部"巡检任务进度"面板，数据全部来自 /tasks，不再写死） */
+const tasks = ref([]);
 /** hazardCode -> { riskLevel, riskScore, ... }，来自 /api/ai/comprehensive-analysis/all（5 分钟落库一次） */
 const aiScoreMap = ref(new Map());
 const loading = ref(true);
+/** 首屏加载是否成功过：用于区分"真实 0 条"与"还没加载到数据" */
+const dataLoaded = ref(false);
+/** 加载失败原因：失败时展示错误卡片 + 重试，而不是永久 loading / 0 值 */
+const loadError = ref("");
 const riskFilter = ref("全部");
 const activeWarnings = computed(() =>
   warnings.value.filter(
@@ -154,7 +161,9 @@ const refreshingViewport = ref(false);
 const viewportCache = ref({ bbox: "", zoom: null });
 const viewportState = ref({ hazards: [], devices: [], warnings: [] });
 
-// 搜索面板状态机、防抖、AbortController 已下沉到 composables/useOverviewSearch.js
+const weatherLocation = ref(null);
+
+// 搜索面板状态机、AbortController 已下沉到 composables/useOverviewSearch.js
 const {
   searchTerm,
   searchPanelOpen,
@@ -162,14 +171,35 @@ const {
   searchResults,
   searchError,
   searchMarker,
-  geocoderKind,
   onSearchInput,
   onSearchSubmit,
   selectSearchResult,
   closeSearchPanel,
   clearSearch,
   dispose: disposeSearch,
-} = useOverviewSearch({ mapController, emit });
+} = useOverviewSearch({
+  mapController,
+  hazards,
+  emit,
+  onSelect: (point) => { weatherLocation.value = { ...point, source: "search" }; },
+});
+
+const weatherTarget = computed(() => {
+  const point = weatherLocation.value ?? userLocation.value ?? selectedPoint.value;
+  if (!Number.isFinite(point?.lat) || !Number.isFinite(point?.lon)) return null;
+  return {
+    lat: point.lat,
+    lon: point.lon,
+    accuracy: point.accuracy,
+    location: point.name || "当前位置",
+  };
+});
+
+watch(searchMarker, (point) => {
+  if (!point && weatherLocation.value?.source === "search") {
+    weatherLocation.value = null;
+  }
+});
 
 const filteredPoints = computed(() =>
   hazards.value.filter(
@@ -271,67 +301,70 @@ const dutyTeamStats = computed(() => {
 
 const roleOverview = computed(() => {
   if (props.userRole === "maintenance") {
+    const total = devices.value.length;
+    const online = devices.value.filter((device) => device.state === "在线").length;
+    const offline = Math.max(0, total - online);
     return [
       {
         label: "在线监测设备",
-        value: String(
-          Math.max(1, healthStats.value.length ? 1486 : 0),
-        ).padStart(3, "0"),
+        value: dataLoaded.value ? String(online).padStart(3, "0") : "—",
         suffix: "台",
-        change: "↑ 2.8% 较上月",
+        change: dataLoaded.value ? `共 ${total} 台设备` : "加载中",
         color: "blue",
       },
       {
         label: "离线设备",
-        value: "01",
+        value: dataLoaded.value ? String(offline).padStart(2, "0") : "—",
         suffix: "台",
-        change: "需巡检",
+        change: dataLoaded.value ? (offline > 0 ? "需巡检" : "全部在线") : "加载中",
         color: "orange",
       },
       {
         label: "设备工单",
-        value: "12",
+        value: "—",
         suffix: "单",
-        change: "↑ 3 单 较昨日",
+        change: "接口暂未接入",
         color: "teal",
       },
       {
         label: "今日维护完成率",
-        value: "97.2",
+        value: "—",
         suffix: "%",
-        change: "↑ 1.8% 较昨日",
+        change: "接口暂未接入",
         color: "purple",
       },
     ];
   }
   if (props.userRole === "attendant") {
+    const hazardCount = hazards.value.length;
+    const warningCount = activeWarnings.value.length;
     return [
       {
         label: "监测灾害点",
-        value: String(hazards.value.length || 128).padStart(3, "0"),
+        value: dataLoaded.value ? String(hazardCount).padStart(3, "0") : "—",
         suffix: "处",
-        change: "↑ 4.2% 较上月",
+        change: dataLoaded.value ? `共 ${hazardCount} 处` : "加载中",
         color: "teal",
       },
       {
         label: "当前预警事件",
-        value: String(activeWarnings.value.length || 5).padStart(2, "0"),
+        value: dataLoaded.value ? String(warningCount).padStart(2, "0") : "—",
         suffix: "起",
-        change: "↑ 1 起 较昨日",
+        change: dataLoaded.value ? `共 ${warningCount} 起` : "加载中",
         color: "orange",
       },
       {
         label: "待处理任务",
-        value: "10",
+        value: "—",
         suffix: "项",
-        change: "持续跟进",
+        change: "接口暂未接入",
         color: "blue",
       },
       {
         label: "今日巡检完成率",
-        value: "92.4",
+        value: "—",
         suffix: "%",
-        change: "↑ 6.3% 较昨日",
+        change: "接口暂未接入",
         color: "purple",
       },
     ];
@@ -340,54 +373,71 @@ const roleOverview = computed(() => {
 });
 
 const taskProgress = computed(() => {
-  if (props.userRole === "maintenance") {
-    return {
-      done: 18,
-      total: 22,
-      percent: Math.round((18 / 22) * 100),
-      label: "设备维护已完成",
-      pending: 4,
-    };
-  }
+  const list = tasks.value;
+  const total = list.length;
+  const done = list.filter(
+    (task) => task.status === "已完成" || Number(task.progress) >= 100,
+  ).length;
+  const pending = Math.max(0, total - done);
+  const percent = total > 0 ? Math.round((done / total) * 100) : null;
   return {
-    done: 124,
-    total: 134,
-    percent: Math.round((124 / 134) * 100),
-    label: "任务已完成",
-    pending: 10,
+    done,
+    total,
+    pending,
+    percent,
+    label: "巡检任务已完成",
   };
 });
 
-async function loadWeather() {
-  weatherLoading.value = true;
+/** 底部任务面板的三个分类统计：按任务类型取前 3 类，全部来自真实任务列表 */
+const taskTypeStats = computed(() => {
+  const groups = new Map();
+  for (const task of tasks.value) {
+    const type = task.type || "其他任务";
+    groups.set(type, (groups.get(type) ?? 0) + 1);
+  }
+  return [...groups.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([label, count]) => ({ label, count }));
+});
+
+let weatherRequest;
+let weatherTimer;
+
+async function loadWeather(target = weatherTarget.value) {
+  weatherRequest?.abort();
   weatherError.value = "";
+  weatherLoading.value = Boolean(target);
+  if (!target) return false;
+
+  const controller = new AbortController();
+  weatherRequest = controller;
   try {
-    // 优先使用"我的位置"GPS 坐标；其次落到第一个灾害点；都没有则用默认中心。
-    // 这样"区域环境"面板就能反映用户当前所在区域的环境，而不是只看监管区里第一个点。
-    const fallback = hazards.value[0] ?? {
-      lat: 30.61,
-      lon: 107.21,
-      owner: "龙川县",
-    };
-    const target = userLocation.value
-      ? {
-          lat: userLocation.value.lat,
-          lon: userLocation.value.lon,
-          owner: `当前位置 (±${userLocation.value.accuracy ?? 0}m)`,
-        }
-      : fallback;
-    weather.value = await getRealtimeWeather({
-      lat: target.lat,
-      lon: target.lon,
-      location: target.owner,
+    const result = await getRealtimeWeather({
+      ...target,
+      signal: AbortSignal.any([controller.signal, AbortSignal.timeout(12000)]),
     });
-  } catch (error) {
-    weatherError.value =
-      error instanceof Error ? error.message : "天气加载失败";
+    if (controller.signal.aborted) return false;
+    weather.value = result;
+    return true;
+  } catch {
+    if (!controller.signal.aborted) weatherError.value = "该位置的天气暂时无法获取";
+    return false;
   } finally {
-    weatherLoading.value = false;
+    if (!controller.signal.aborted) weatherLoading.value = false;
   }
 }
+
+watch(
+  () => [weatherTarget.value?.lat, weatherTarget.value?.lon],
+  ([lat, lon], [oldLat, oldLon] = []) => {
+    if (lat === oldLat && lon === oldLon && !weatherLoading.value) return;
+    weather.value = null;
+    loadWeather();
+  },
+  { immediate: true },
+);
 
 function syncMapLayers() {
   if (!mapController.value?.map) return;
@@ -653,7 +703,7 @@ function handleMapClick(event) {
       lon: feature.get("lon"),
       lat: feature.get("lat"),
     };
-    selectedPoint.value = point;
+    selectPoint(point);
     mapController.value.zoomToPoint?.(point.lon, point.lat, 16);
     return;
   }
@@ -674,18 +724,31 @@ function handleMapClick(event) {
 
 async function loadData() {
   loading.value = true;
-  const [overview, hazardData, deviceData, warningData] = await Promise.all([
-    dashboardApi.getOverview(),
-    dashboardApi.getHazards(),
-    dashboardApi.getDevices(),
-    dashboardApi.getWarnings(),
-  ]);
-  overviewStats.value = overview.overviewStats ?? overview;
-  healthStats.value = overview.healthStats ?? [];
-  warnings.value = warningData.list ?? warningData.records ?? [];
-  hazards.value = hazardData.list ?? hazardData.records ?? [];
-  devices.value = deviceData.list ?? deviceData.records ?? [];
-  selectedPoint.value = hazards.value[0] ?? null;
+  loadError.value = "";
+  try {
+    // 分页显式传 size：后端默认 size=10，不传的话首屏地图/预警只能看到前 10 条
+    const [overview, hazardData, deviceData, warningData, taskData] = await Promise.all([
+      dashboardApi.getOverview(),
+      dashboardApi.getHazards({ page: 1, size: 200 }),
+      dashboardApi.getDevices({ page: 1, size: 200 }),
+      dashboardApi.getWarnings({ page: 1, size: 200 }),
+      // 任务接口在部分角色下可能 403（权限修复前）→ 单独降级，不影响整页
+      dashboardApi.getTasks({ page: 1, size: 200 }).catch(() => null),
+    ]);
+    overviewStats.value = overview?.overviewStats ?? overview ?? [];
+    healthStats.value = overview?.healthStats ?? [];
+    warnings.value = warningData.list ?? warningData.records ?? [];
+    hazards.value = hazardData.list ?? hazardData.records ?? [];
+    devices.value = deviceData.list ?? deviceData.records ?? [];
+    tasks.value = taskData?.list ?? taskData?.records ?? [];
+    selectedPoint.value = hazards.value[0] ?? null;
+    dataLoaded.value = true;
+  } catch (err) {
+    console.warn("[OverviewPage] 态势数据加载失败:", err);
+    loadError.value = err instanceof Error ? err.message : "态势数据加载失败";
+    loading.value = false;
+    return;
+  }
   loading.value = false;
   await nextTick();
   createOrResizeMap();
@@ -695,7 +758,6 @@ async function loadData() {
   await forceMapResize();
   // 再等一帧：父级动画 / sidebar 折叠完成后再校准一次，彻底消除 "width or height are 0" 警告
   requestAnimationFrame(() => forceMapResize());
-  await loadWeather();
   await loadAiScores();
 }
 
@@ -718,8 +780,7 @@ async function loadAiScores() {
 }
 
 async function refreshWeather() {
-  await loadWeather();
-  emit("notify", "实时天气已刷新");
+  if (await loadWeather()) emit("notify", "实时天气已刷新");
 }
 
 /**
@@ -819,6 +880,7 @@ function onWeatherOpacity(kind, opacity) {
 
 function selectPoint(point) {
   selectedPoint.value = point;
+  weatherLocation.value = point;
 }
 
 async function refreshMapData() {
@@ -913,6 +975,7 @@ async function locateMe(options = {}) {
       zoom: result.zoom,
     };
     userLocation.value = location;
+    if (!options.silent) weatherLocation.value = null;
     persistUserLocation(location);
     if (!options.silent) {
       // 用精度档位调整文案：>2km 提醒用户当前不是真实 GPS 而是网络定位
@@ -975,7 +1038,7 @@ function clearMyLocation() {
 }
 
 /**
- * 搜索面板的状态机、防抖、AbortController 已下沉到 composables/useOverviewSearch.js。
+ * 搜索面板的状态机、AbortController 已下沉到 composables/useOverviewSearch.js。
  * 这里保留 open3DView 等其他动作。
  */
 function open3DView() {
@@ -1076,6 +1139,9 @@ function bindRealtime() {
 let disposeRealtime = null;
 
 onMounted(async () => {
+  weatherTimer = window.setInterval(() => {
+    if (!document.hidden && !weatherLoading.value) loadWeather();
+  }, 5 * 60 * 1000);
   await loadData();
   disposeRealtime = bindRealtime();
   await requestViewportData();
@@ -1108,20 +1174,15 @@ async function tryAutoLocateOnMount() {
   const isFresh = cached && cached.timestamp && Date.now() - cached.timestamp < CACHE_FRESH_MS;
   if (cached) {
     const applied = applyUserLocation(cached);
-    if (applied && isFresh) {
-      await loadWeather();
-      return;
-    }
+    if (applied && isFresh) return;
   }
   // 缓存过期 / 不存在 → 静默触发一次新定位
-  locateMe({ silent: true }).then((location) => {
-    if (location) {
-      loadWeather();
-    }
-  });
+  await locateMe({ silent: true });
 }
 
 onBeforeUnmount(() => {
+  window.clearInterval(weatherTimer);
+  weatherRequest?.abort();
   if (disposeRealtime) disposeRealtime();
   unbindMapEvents();
   disposeSearch();
@@ -1217,6 +1278,11 @@ async function applyCompare() {
     compareLoading.value = false;
   }
 }
+
+const overviewTabs = [
+  { value: "overview", label: "总览", icon: BarChart3 },
+  { value: "compare", label: "多时相对比", icon: GitCompareArrows },
+];
 
 function setCompareTab(tab) {
   activeCompareTab.value = tab;
@@ -1507,32 +1573,22 @@ function toggleCompareLegend(which) {
     <div v-if="loading" class="panel" style="padding: 24px">
       正在加载态势数据...
     </div>
+    <div v-else-if="loadError" class="panel overview-load-error">
+      <p class="overview-load-error-title">态势数据加载失败</p>
+      <p class="overview-load-error-desc">{{ loadError }}</p>
+      <p class="overview-load-error-desc">请检查后端服务是否可用，切勿据此判断"无预警"。</p>
+      <button type="button" class="text-btn" @click="loadData">重新加载</button>
+    </div>
     <template v-else>
-      <!-- PRD 1.4：多时相对比 Tab 导航（仅追加，原 Tab 与 KPI 卡片不受影响） -->
-      <nav class="overview-tab-bar" role="tablist">
-        <button
-          type="button"
-          class="overview-tab-btn"
-          :class="{ active: activeCompareTab === 'overview' }"
-          role="tab"
-          :aria-selected="activeCompareTab === 'overview'"
-          @click="setCompareTab('overview')"
-        >
-          <BarChart3 :size="14" />
-          <span>总览</span>
-        </button>
-        <button
-          type="button"
-          class="overview-tab-btn"
-          :class="{ active: activeCompareTab === 'compare' }"
-          role="tab"
-          :aria-selected="activeCompareTab === 'compare'"
-          @click="setCompareTab('compare')"
-        >
-          <GitCompareArrows :size="14" />
-          <span>多时相对比</span>
-        </button>
-      </nav>
+      <div class="overview-tab-bar">
+        <SegmentControl
+          :model-value="activeCompareTab"
+          :options="overviewTabs"
+          size="sm"
+          aria-label="态势视图"
+          @update:model-value="setCompareTab"
+        />
+      </div>
 
       <div v-show="activeCompareTab === 'overview'">
         <div class="stats-grid">
@@ -1618,10 +1674,9 @@ function toggleCompareLegend(which) {
                 <Layers :size="14" />
                 <span>刷新卫星影像</span>
               </button>
-              <button class="square-btn" @click="refreshWeather">
+              <button class="square-btn" type="button" aria-label="刷新实时天气" title="刷新实时天气" @click="refreshWeather">
                 <CloudRain :size="17" />
               </button>
-              <button class="square-btn"><MoreHorizontal :size="17" /></button>
             </div>
           </div>
 
@@ -1665,7 +1720,7 @@ function toggleCompareLegend(which) {
                     spellcheck="false"
                     autocomplete="off"
                     @input="onSearchInput"
-                    @keydown.enter.prevent="onSearchSubmit"
+                    @keydown.enter="onSearchSubmit"
                     @keydown.esc="closeSearchPanel"
                     @focus="searchPanelOpen = !!searchTerm.trim()"
                   />
@@ -1690,7 +1745,7 @@ function toggleCompareLegend(which) {
                     <Loader2 :size="13" class="spin" />搜索中…
                   </div>
                   <div v-else-if="searchPanelState === 'empty'" class="search-hint">
-                    未找到匹配结果
+                    {{ searchError || "未找到匹配结果" }}
                     <small>提示：可输入"经度,纬度"直接定位</small>
                   </div>
                   <div v-else-if="searchPanelState === 'results'" class="search-results">
@@ -1711,8 +1766,11 @@ function toggleCompareLegend(which) {
                       <ChevronRight :size="13" class="result-arrow" />
                     </button>
                   </div>
-                  <div class="search-footer">
-                    <span>由 {{ geocoderKind === 'amap' ? '高德地图' : 'OSM Nominatim' }} 提供搜索</span>
+                  <div v-else class="search-hint">按回车或点击箭头搜索</div>
+                  <div v-if="searchPanelState === 'results'" class="search-footer">
+                    <a v-if="searchResults[0]?.source === 'osm'" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap 贡献者</a>
+                    <span v-else-if="searchResults[0]?.source === 'amap'">高德地图</span>
+                    <span v-else-if="searchResults[0]?.source === 'hazard'">项目内灾害点</span>
                   </div>
                 </div>
               </div>
@@ -1816,7 +1874,7 @@ function toggleCompareLegend(which) {
               系统默认采用 OpenLayers 二维地图；3D 视角仅在灾害点详情页按需加载
             </div>
             <div v-if="selectedPoint" class="point-popover real-map-popover">
-              <button class="close-popover" @click="selectedPoint = null">
+              <button class="close-popover" type="button" aria-label="关闭点位详情" title="关闭点位详情" @click="selectedPoint = null">
                 <X :size="15" />
               </button>
               <span class="point-type"
@@ -1892,19 +1950,12 @@ function toggleCompareLegend(which) {
             <div class="panel-header compact">
               <div>
                 <h2>区域环境</h2>
-                <p v-if="userLocation">
-                  已定位 ·
-                  {{ userLocation.lon.toFixed(4) }},
-                  {{ userLocation.lat.toFixed(4) }}
-                  · ±{{ userLocation.accuracy ?? "--" }}m
+                <p v-if="weatherTarget">
+                  {{ weatherTarget.location }} ·
+                  {{ weatherTarget.lon.toFixed(4) }}, {{ weatherTarget.lat.toFixed(4) }}
+                  <template v-if="weatherTarget.accuracy != null"> · ±{{ weatherTarget.accuracy }}m</template>
                 </p>
-                <p v-else>
-                  {{
-                    weather?.location ||
-                    (locating ? "正在定位…" : "龙川县")
-                  }}
-                  · 综合监测
-                </p>
+                <p v-else>暂无定位</p>
               </div>
               <div class="weather-panel-tools">
                 <button
@@ -1963,8 +2014,8 @@ function toggleCompareLegend(which) {
               </div>
             </div>
             <div class="weather-alert" :class="`alert-${weatherAlertLevel}`">
-              <b>实时天气预警等级：{{ weatherAlertLevel }}</b>
-              <button @click="refreshWeather">刷新天气</button>
+              <b>天气风险参考：{{ weatherAlertLevel }}</b>
+              <button :disabled="weatherLoading || !weatherTarget" @click="refreshWeather">刷新天气</button>
             </div>
             <div class="forecast">
               <span
@@ -2001,7 +2052,7 @@ function toggleCompareLegend(which) {
               <h2>巡检任务进度</h2>
               <p>今日任务执行情况</p>
             </div>
-            <button class="text-btn" @click="router.push('/dashboard/tasks')">
+            <button class="text-btn" @click="router.push('/dashboard/ai-tasks')">
               进入任务中心 <ChevronRight :size="14" />
             </button>
           </div>
@@ -2009,46 +2060,27 @@ function toggleCompareLegend(which) {
             <div
               class="progress-ring"
               :style="{
-                background: `conic-gradient(#6f9e7f 0 ${taskProgress.percent}%, #eef2ee ${taskProgress.percent}% 100%)`,
+                background: `conic-gradient(#6f9e7f 0 ${taskProgress.percent ?? 0}%, #eef2ee ${taskProgress.percent ?? 0}% 100%)`,
               }"
             >
-              <span>{{ taskProgress.percent }}<small>%</small></span>
+              <span>{{ taskProgress.percent ?? "—" }}<small v-if="taskProgress.percent !== null">%</small></span>
             </div>
             <div class="task-overview">
               <strong
-                >{{ taskProgress.done }}
-                <small>/ {{ taskProgress.total }}</small></strong
+                >{{ taskProgress.percent === null ? "—" : taskProgress.done }}
+                <small v-if="taskProgress.percent !== null">/ {{ taskProgress.total }}</small></strong
               >
               <span>{{ taskProgress.label }}</span>
               <div class="task-bars">
-                <i :style="{ width: `${taskProgress.percent}%` }"></i>
+                <i :style="{ width: `${taskProgress.percent ?? 0}%` }"></i>
               </div>
               <p>
-                <b>{{ taskProgress.pending }}</b> 项任务待处理
+                <b>{{ taskProgress.percent === null ? "—" : taskProgress.pending }}</b> 项任务待处理
               </p>
             </div>
-            <div class="task-stats">
-              <div>
-                <strong>{{
-                  props.userRole === "maintenance" ? "14" : "86"
-                }}</strong
-                ><span>{{
-                  props.userRole === "maintenance" ? "设备巡检" : "常规巡检"
-                }}</span>
-              </div>
-              <div>
-                <strong>{{
-                  props.userRole === "attendant" ? "18" : "28"
-                }}</strong
-                ><span>{{
-                  props.userRole === "maintenance" ? "故障工单" : "雨后复查"
-                }}</span>
-              </div>
-              <div>
-                <strong>{{ props.userRole === "admin" ? "10" : "6" }}</strong
-                ><span>{{
-                  props.userRole === "maintenance" ? "待处理告警" : "应急巡检"
-                }}</span>
+            <div v-if="taskTypeStats.length" class="task-stats">
+              <div v-for="item in taskTypeStats" :key="item.label">
+                <strong>{{ item.count }}</strong><span>{{ item.label }}</span>
               </div>
             </div>
           </div>
@@ -2628,6 +2660,49 @@ function toggleCompareLegend(which) {
 </template>
 
 <style scoped>
+.overview-page {
+  container-type: inline-size;
+}
+
+/* 首屏加载失败态：明确告知 + 重试，避免"永久正在加载"或误判为无数据 */
+.overview-load-error {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 24px;
+  border: 1px solid var(--c-danger, #c48b8b);
+  background: var(--c-danger-mist, #fdf3f2);
+}
+
+.overview-load-error-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--c-danger-ink, #8c3b3b);
+}
+
+.overview-load-error-desc {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-main, #2c3b34);
+}
+
+@container (max-width: 980px) {
+  .overview-page .content-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .compare-toolbar-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+}
+
+.overview-tab-bar {
+  margin-bottom: var(--sp-4);
+}
+
 /* =====================================================================
  * 多时相对比 Tab 样式 (PRD 1.4)
  * 颜色基调与 .chart-card / .panel 一致,采用 var(--c-brand) / var(--c-brand-hover) 作为强调色
@@ -2643,7 +2718,7 @@ function toggleCompareLegend(which) {
 /* 顶部控制条:继承自 .chart-card,这里只补内部布局 */
 .compare-toolbar-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)) auto;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
   gap: 14px 18px;
   align-items: end;
 }
@@ -2753,7 +2828,7 @@ function toggleCompareLegend(which) {
 /* KPI 矩阵 (并排模式) */
 .compare-kpi-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
   gap: 12px;
 }
 .compare-kpi-card {
@@ -2856,7 +2931,7 @@ function toggleCompareLegend(which) {
 /* 图表区域 (并排 / 叠加 / 差异率) */
 .compare-charts-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr));
   gap: 14px;
 }
 .compare-pie-row {
@@ -2914,7 +2989,7 @@ function toggleCompareLegend(which) {
 /* 区域柱图 */
 .compare-region-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
   gap: 12px;
 }
 .compare-region-col {
@@ -2947,7 +3022,7 @@ function toggleCompareLegend(which) {
 }
 .compare-diff-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
   gap: 12px;
   margin-top: 10px;
 }

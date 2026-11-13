@@ -569,7 +569,6 @@ const stateRows = [
   grid-template-columns: 1fr 300px;
   gap: 20px;
   padding: 20px 24px;
-  max-width: 1200px;
 }
 
 @media (max-width: 900px) {

@@ -71,6 +71,25 @@ public interface DeviceMetricRepository extends JpaRepository<DeviceMetric, Long
   int deleteOlderThan(@Param("cutoff") OffsetDateTime cutoff);
 
   /**
+   * 查询某灾害点下所有设备的指标样本（指定时间窗口，升序）。
+   * 供预警"事发前后关键指标"分析详情页使用。
+   *
+   * @param hazardCode 灾害点编码
+   * @param from       窗口起点（含）
+   * @param to         窗口终点（含）
+   * @return 指标样本（按 recorded_at 升序）
+   */
+  @Query(value = """
+      SELECT * FROM device_metric
+      WHERE hazard_code = :hazardCode
+        AND recorded_at BETWEEN :from AND :to
+      ORDER BY recorded_at ASC
+      """, nativeQuery = true)
+  List<DeviceMetric> findByHazardCodeAndRecordedAtBetween(@Param("hazardCode") String hazardCode,
+                                                          @Param("from") OffsetDateTime from,
+                                                          @Param("to") OffsetDateTime to);
+
+  /**
    * 聚合某设备某指标在指定时间窗口内的累计值（用于 rainfall_24h / rainfall_7d 真实计算）。
    */
   @Query(value = "SELECT SUM(m.value) FROM device_metric m "

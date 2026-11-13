@@ -127,25 +127,40 @@ async function loadQueue() {
   }
 }
 
-async function selectItem(item) {
-  selected.value = item
-  detailLoading.value = true
-  try {
-    // 获取 AI 综合分析详情
-    const analysis = await dashboardApi.getAiComprehensiveCached?.(item.hazardCode).catch(() => null)
-    detailAnalysis.value = analysis
-    // 获取灾害点详情（含坐标、暴露度等）
-    try {
-      const detail = await dashboardApi.getHazardDetail?.(item.hazardCode)
-      detailContent.value = detail
-    } catch {
-      detailContent.value = item
-    }
-  } catch {
-    detailContent.value = item
-  } finally {
-    detailLoading.value = false
+let detailRequestId = 0
+
+/**
+ * 按业务编码取灾害详情：GET /api/hazards/{id} 只接受数字主键，而确认队列项只有
+ * hazardCode（id 是统一事件主键，不能当灾害 id 用）。这里先按编码反查数字 id 再取详情，
+ * 查不到返回 null，由 selectItem 回退到队列项自带字段。
+ */
+async function fetchHazardDetailByCode(code) {
+  if (!code) return null
+  const value = String(code).trim()
+  // 后端 keyword 只匹配名称/类型/负责人/状态，不匹配 hazardCode；先按 keyword 查，
+  // 未命中再拉一页列表按编码精确匹配兜底。
+  let list = (await dashboardApi.getHazards({ keyword: value, page: 1, size: 200 }))?.list ?? []
+  if (!list.some((it) => it.hazardCode === value)) {
+    list = (await dashboardApi.getHazards({ page: 1, size: 200 }))?.list ?? []
   }
+  const hit = list.find((it) => it.hazardCode === value)
+  return hit?.id != null ? dashboardApi.getHazardDetail(hit.id) : null
+}
+
+async function selectItem(item) {
+  const requestId = ++detailRequestId
+  selected.value = item
+  detailContent.value = item
+  detailAnalysis.value = null
+  detailLoading.value = true
+  const [assessment, hazard] = await Promise.allSettled([
+    dashboardApi.getDisasterAssessment(item.hazardCode, { allowMock: false }),
+    fetchHazardDetailByCode(item.hazardCode),
+  ])
+  if (requestId !== detailRequestId || selected.value?.id !== item.id) return
+  detailAnalysis.value = assessment.status === 'fulfilled' ? assessment.value : null
+  detailContent.value = hazard.status === 'fulfilled' ? hazard.value ?? item : item
+  detailLoading.value = false
 }
 
 /**
@@ -276,7 +291,11 @@ function goCreateWarning(item) {
 }
 
 function viewFullDetail(item) {
-  router.push({ path: `/dashboard/hazards/${item.hazardCode}`, query: { from: 'workbench' } })
+  // 队列项的 id 是统一事件主键，不是灾害主键；优先取 hazardId（后端若补充），
+  // 否则传业务编码 hazardCode，由 HazardDetailPage 反查数字 id，避免 400。
+  const target = item?.hazardId ?? item?.hazardCode
+  if (!target) return emit('notify', '缺少灾害点标识，无法查看完整详情')
+  router.push({ path: `/dashboard/hazards/${target}`, query: { from: 'workbench' } })
 }
 
 function relativeTime(iso) {
@@ -402,7 +421,7 @@ onBeforeUnmount(() => {
           <h2><AlertTriangle :size="18" :class="severityColor(selected.level)" />AI 初筛证据链</h2>
           <p>左：基本信息 ｜ 中：证据链可视化 ｜ 右：操作栏</p>
         </div>
-        <button class="text-btn" @click="viewFullDetail">查看完整灾害页<ChevronRight :size="13" /></button>
+        <button class="text-btn" @click="viewFullDetail(selected)">查看完整灾害页<ChevronRight :size="13" /></button>
       </header>
 
       <div class="detail-grid">
@@ -426,10 +445,11 @@ onBeforeUnmount(() => {
 
           <h4 class="mt"><ShieldAlert :size="14" />AI 综合推理</h4>
           <div class="reason-card">
-            <p>{{ selected.reason || 'AI 模型未提供具体推理说明' }}</p>
-            <ul v-if="detailAnalysis?.reasoning?.length" class="reason-list">
+            <p v-if="detailLoading">正在获取该灾害点的最新评估…</p>
+            <ul v-else-if="detailAnalysis?.reasoning?.length" class="reason-list">
               <li v-for="r in detailAnalysis.reasoning" :key="r"><Bot :size="11" />{{ r }}</li>
             </ul>
+            <p v-else>当前没有可用的 AI 推理结果。</p>
           </div>
 
           <h4 class="mt"><History :size="14" />建议措施</h4>

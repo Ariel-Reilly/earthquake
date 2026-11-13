@@ -5,7 +5,7 @@
  *   - AI 综合分析模块跑出 source=AI_AUTO 的预警事件会被自动关联 AI 评分
  *   - v1.7.0+：「活跃 / 已解除归档」双 Tab；关闭操作走原因弹窗；归档项展示关闭原因与时间
  */
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { AlertTriangle, Archive, ArchiveRestore, ArrowRight, Bell, Check, Download, FileText, Layers3, MapPin, MessageSquareText, ShieldCheck, UsersRound, Send, CheckCircle2, RotateCcw, ShieldAlert, Inbox, Zap } from 'lucide-vue-next'
 import PermissionButton from '../../components/PermissionButton.vue'
@@ -13,12 +13,16 @@ import SkeletonList from '../../components/common/SkeletonList.vue'
 import WarningCreateModal from '../../components/WarningCreateModal.vue'
 import { dashboardApi } from '../../services/dashboardApi'
 import { useEscapeClose } from '../../composables/useEscapeClose'
+import { useRealtimeStore } from '../../stores/realtime'
 
 const emit = defineEmits(['notify'])
 const props = defineProps({ userRole: { type: String, default: 'admin' } })
 const router = useRouter()
 const route = useRoute()
+const realtimeStore = useRealtimeStore()
 const warnings = ref([])
+/** 拉取失败原因：失败时显示错误态，绝不能把"取数失败"渲染成"态势平稳" */
+const loadError = ref('')
 const selectedWarningId = ref(null)
 const showAll = ref(false)
 const loading = ref(true)
@@ -237,8 +241,10 @@ function getAiForHazard(hazardCode) {
 
 async function loadData(page = 1) {
   loading.value = true
+  loadError.value = ''
   try {
-    const data = await dashboardApi.getWarnings({ page, size: paging.value.size })
+    // size 显式放大：活跃/归档是前端拆分，默认 10 条会让"归档"页签几乎永远为空
+    const data = await dashboardApi.getWarnings({ page, size: 50 })
     // 拉 AI 综合分
     let aiList = []
     try {
@@ -270,6 +276,9 @@ async function loadData(page = 1) {
     warnings.value = enriched
     paging.value = { page: data.page ?? page, size: data.size ?? paging.value.size, total: data.total ?? enriched.length, pages: data.pages ?? 1 }
     selectedWarningId.value = warnings.value[0]?.id ?? null
+  } catch (error) {
+    console.warn('[WarningsPage] 预警列表加载失败:', error)
+    loadError.value = error instanceof Error ? error.message : '预警列表加载失败'
   } finally {
     loading.value = false
   }
@@ -514,13 +523,79 @@ function translateLevel(level) {
   return level
 }
 
+/* ===================== 实时刷新（其他端/后端变化自动同步） =====================
+ * 预警列表原来只在 onMounted 拉一次，别的值班员确认/关闭后本页不会变。
+ * 这里监听 realtimeService 写入 Pinia 的实时事件（WS 推送或轮询），
+ * 发现 ID 集合变化时防抖重载当前页，避免 10s 轮询导致频繁刷新。 */
+let realtimeRefreshTimer = null
+
+function scheduleRealtimeRefresh() {
+  if (realtimeRefreshTimer !== null) {
+    return
+  }
+  realtimeRefreshTimer = window.setTimeout(() => {
+    realtimeRefreshTimer = null
+    loadData(paging.value.page).catch(() => {})
+  }, 800)
+}
+
+function handleRealtimePayload(payload) {
+  if (!payload || typeof payload !== 'object') {
+    return
+  }
+  const list = Array.isArray(payload.warnings)
+    ? payload.warnings
+    : payload.type === 'warning' && payload.data
+      ? [payload.data]
+      : null
+  if (!Array.isArray(list)) {
+    return
+  }
+  const incomingIds = new Set(list.map((item) => String(item.id ?? '')))
+  const currentIds = new Set(warnings.value.map((item) => String(item.id ?? '')))
+  if (incomingIds.size === currentIds.size) {
+    let changed = false
+    for (const id of incomingIds) {
+      if (!currentIds.has(id)) {
+        changed = true
+        break
+      }
+    }
+    if (!changed) {
+      return
+    }
+  }
+  scheduleRealtimeRefresh()
+}
+
+const stopRealtimeWatch = watch(
+  () => realtimeStore.lastEvent,
+  handleRealtimePayload,
+  { flush: 'post' },
+)
+
 onMounted(loadData)
+
+onBeforeUnmount(() => {
+  stopRealtimeWatch()
+  if (realtimeRefreshTimer !== null) {
+    window.clearTimeout(realtimeRefreshTimer)
+    realtimeRefreshTimer = null
+  }
+})
 </script>
 
 <template>
   <div>
     <div v-if="loading" class="panel loading-container">
       <SkeletonList :count="3" layout="vertical" />
+    </div>
+    <!-- 取数失败必须显式报错，绝不能把"加载失败"渲染成"态势平稳"（安全误导） -->
+    <div v-else-if="loadError" class="panel warning-load-error">
+      <p class="warning-load-error-title">预警列表加载失败</p>
+      <p class="warning-load-error-desc">{{ loadError }}</p>
+      <p class="warning-load-error-desc">当前无法确认是否存在待处理预警，请勿据此判断"态势平稳"。</p>
+      <button type="button" class="text-btn" @click="loadData(paging.page)">重新加载</button>
     </div>
     <template v-else>
       <div class="stats-grid">
@@ -578,7 +653,7 @@ onMounted(loadData)
           </div>
           <div v-if="currentList.length === 0" class="empty-state">
             <Inbox :size="32" />
-            <p>{{ statusTab === 'archived' ? '暂无已归档的预警事件' : '当前没有活跃预警，态势平稳' }}</p>
+            <p>{{ statusTab === 'archived' ? '暂无已归档的预警事件' : '当前没有活跃预警（数据已同步）' }}</p>
           </div>
           <div v-else class="warning-list">
             <article
@@ -840,6 +915,30 @@ onMounted(loadData)
 
 .loading-container {
   padding: var(--space-lg);
+}
+
+/* 加载失败态：明确告知"无法确认预警状态"，避免被误读为无预警 */
+.warning-load-error {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 24px;
+  border: 1px solid var(--c-danger, #c48b8b);
+  background: var(--c-danger-mist, #fdf3f2);
+}
+
+.warning-load-error-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--c-danger-ink, #8c3b3b);
+}
+
+.warning-load-error-desc {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-main, #2c3b34);
 }
 
 /* ═══════════════════════════════════════════════════════════

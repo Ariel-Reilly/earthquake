@@ -93,6 +93,23 @@ const QUEUE_STATE_STATUS = {
 };
 
 /**
+ * operation_log 的 module_name（Controller 所在包）→ 审计页业务分组。
+ * 审计页 tab 值是 WARNING/HAZARD/TASK/...，后端按 module_name 过滤，
+ * 前端列表展示时也统一映射成「分组_动作」形式（如 WARNING_CONFIRM），保证配色与二次筛选可用。
+ */
+const AUDIT_ACTION_GROUP = {
+  warning: "WARNING",
+  hazard: "HAZARD",
+  task: "TASK",
+  inspection: "TASK",
+  device: "DEVICE",
+  ota: "DEVICE",
+  confirmation: "CONFIRMATION",
+  system: "USER",
+  auth: "LOGIN",
+};
+
+/**
  * 会签队列项 → 前端视图模型。
  *
  * 后端 GET /confirmation/queue 返回 hazardName/hazardType/riskLevel/state，
@@ -363,6 +380,11 @@ export const dashboardApi = {
   getWarningDetail: async (id) => {
     requireBackend("预警详情");
     return request(`/warnings/${id}`);
+  },
+  // AI 分析详情：AI 研判 + 事发前后指标 + 现场影像（一次聚合返回）
+  getWarningAnalysisDetail: async (id) => {
+    requireBackend("预警 AI 分析详情");
+    return request(`/warnings/${id}/analysis-detail`);
   },
   updateWarning: async (id, payload) => {
     requireBackend("更新预警");
@@ -1008,14 +1030,52 @@ export const dashboardApi = {
   getAuditLogs: async (params = {}) => {
     if (USE_BACKEND) {
       const data = await request(`/audit/logs${withQuery(params)}`);
-      return normalizePaged(data, { items: [] });
+      const normalized = normalizePaged(data, { items: [] });
+      // operation_log 字段名（createdAt/actionName/requestPath/ipAddress）与审计页视图模型
+      //（time/action/target/detail/ip）不同，这里统一映射；否则页面整表取值都是 undefined。
+      const items = normalized.records.map((log) => {
+        const actionName = String(log.actionName ?? "").toUpperCase();
+        const group = AUDIT_ACTION_GROUP[String(log.moduleName ?? "").toLowerCase()] ?? "OTHER";
+        return {
+          ...log,
+          time: log.createdAt,
+          // 页面按「业务分组_动作」展示与配色，如 WARNING_CONFIRM
+          action: actionName ? `${group}_${actionName}` : group,
+          target: log.requestPath ?? "",
+          detail: [log.resultStatus, log.costMs != null ? `${log.costMs}ms` : ""]
+            .filter(Boolean)
+            .join(" · "),
+          ip: log.ipAddress ?? "",
+        };
+      });
+      return {
+        items,
+        records: items,
+        total: normalized.total,
+        page: normalized.page,
+        size: normalized.size,
+        pages: normalized.pages,
+      };
     }
-    return response(mock.system.getAuditLogsMock());
+    const data = await response(mock.system.getAuditLogsMock());
+    const records = data?.records ?? [];
+    return { ...data, items: records, records, total: data?.total ?? records.length };
   },
 
   getSystemMonitor: async () => {
     if (USE_BACKEND) {return request("/system/monitor");}
     return response(mock.system.getSystemMonitorMock());
+  },
+
+  // 平台级系统设置：从 localStorage 迁到后端持久化（GET 需 settings:view，PUT 需 settings:edit）
+  getSystemSettings: async () => {
+    if (USE_BACKEND) {return request("/settings");}
+    return response({});
+  },
+
+  saveSystemSettings: async (payload = {}) => {
+    if (USE_BACKEND) {return request("/settings", { method: "PUT", body: payload });}
+    return response(payload);
   },
 
   getMessages: async (params = {}) => {
@@ -2293,11 +2353,11 @@ export const dashboardApi = {
    * @param {string} hazardCode
    * @returns {Promise<DisasterAssessmentResponseDto>}
    */
-  getDisasterAssessment: async (hazardCode) => {
+  getDisasterAssessment: async (hazardCode, { allowMock = true } = {}) => {
     if (USE_BACKEND) {
       return request(`/ai/disaster-assessment${withQuery({ hazardCode })}`);
     }
-    return response(mock.ai.getDisasterAssessmentMock(hazardCode));
+    return allowMock ? response(mock.ai.getDisasterAssessmentMock(hazardCode)) : null;
   },
 
   /**

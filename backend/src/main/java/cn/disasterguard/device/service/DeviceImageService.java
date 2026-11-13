@@ -8,14 +8,22 @@ import cn.disasterguard.device.event.DeviceImageUploadedEvent;
 import cn.disasterguard.device.repository.MonitoringDeviceRepository;
 import io.minio.BucketExistsArgs;
 import io.minio.GetPresignedObjectUrlArgs;
+import io.minio.ListObjectsArgs;
 import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
+import io.minio.Result;
 import io.minio.http.Method;
+import io.minio.messages.Item;
 import java.io.InputStream;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -131,6 +139,53 @@ public class DeviceImageService {
         finalLat,
         capturedAt
     );
+  }
+
+  /**
+   * 列出某设备最近上传的影像（扫描 MinIO 前缀 {@code device-image/{deviceCode}/}）。
+   *
+   * <p>用途：预警 / 灾害点"分析详情"页展示现场影像。当前图像事件未落库，
+   * 因此以 MinIO 对象为唯一真实来源；对象缺失时返回空列表，前端显示"暂无影像"。
+   *
+   * @param deviceCode 设备编号
+   * @param limit      最多返回条数
+   * @return [{deviceCode, objectKey, size, capturedAt, url}]（按时间倒序，url 为预签名地址）
+   */
+  public List<Map<String, Object>> listRecent(String deviceCode, int limit) {
+    List<Map<String, Object>> images = new ArrayList<>();
+    if (deviceCode == null || deviceCode.isBlank()) {
+      return images;
+    }
+    String prefix = OBJECT_KEY_PREFIX + deviceCode + "/";
+    try {
+      Iterable<Result<Item>> objects = minioClient.listObjects(
+          ListObjectsArgs.builder()
+              .bucket(minioProperties.bucket())
+              .prefix(prefix)
+              .recursive(true)
+              .build());
+      List<Item> items = new ArrayList<>();
+      for (Result<Item> result : objects) {
+        Item item = result.get();
+        if (item != null && !item.isDir()) {
+          items.add(item);
+        }
+      }
+      items.sort(Comparator.comparing(Item::lastModified,
+          Comparator.nullsLast(Comparator.naturalOrder())).reversed());
+      for (Item item : items.stream().limit(Math.max(limit, 1)).toList()) {
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("deviceCode", deviceCode);
+        row.put("objectKey", item.objectName());
+        row.put("size", item.size());
+        row.put("capturedAt", item.lastModified());
+        row.put("url", presignedUrl(item.objectName()));
+        images.add(row);
+      }
+    } catch (Exception e) {
+      log.warn("列出设备 {} 影像失败: {}", deviceCode, e.getMessage());
+    }
+    return images;
   }
 
   /**

@@ -55,7 +55,8 @@ async function loadHazards() {
   hazardsLoading.value = true
   hazardsError.value = ''
   try {
-    const resp = await dashboardApi.getHazards({ pageSize: 200 })
+    // 后端分页参数是 page/size（不认 pageSize），显式取 200 条避免默认 10 条截断列表
+    const resp = await dashboardApi.getHazards({ page: 1, size: 200 })
     hazards.value = resp.list ?? []
     
     // 如果还未选择灾害点，自动选择第一个

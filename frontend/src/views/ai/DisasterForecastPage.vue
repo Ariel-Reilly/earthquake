@@ -66,7 +66,8 @@ const titleExpanded = computed(() => titleHovered.value || titlePinned.value)
 
 async function loadDevices() {
   try {
-    const resp = await dashboardApi.getDevices({ pageSize: 200 })
+    // 后端分页参数是 page/size（不认 pageSize），显式取 200 条避免默认 10 条截断列表
+    const resp = await dashboardApi.getDevices({ page: 1, size: 200 })
     devices.value = resp.list ?? []
     if (devices.value.length > 0 && !selectedDeviceCode.value) {
       selectedDeviceCode.value = devices.value[0].deviceCode ?? devices.value[0].code ?? ''
@@ -517,7 +518,6 @@ onMounted(async () => {
 <style scoped>
 .dfp-root {
   padding: 20px 24px;
-  max-width: 1200px;
   min-height: 100%;
 }
 

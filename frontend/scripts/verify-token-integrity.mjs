@@ -38,7 +38,10 @@ function walk(dir, exts, out = []) {
   return out
 }
 
+/* 令牌定义已收敛到 design-system/disasterguard/tokens.css（2026-11 双源合并）：
+   它必须一起参与扫描，否则 tokens.css 里定义的 --c-* / --sp-* 等会被判成「未定义引用」。 */
 const files = [
+  path.join(ROOT, 'design-system/disasterguard/tokens.css'),
   path.join(ROOT, 'src/styles.css'),
   ...walk(path.join(ROOT, 'src'), ['.vue']),
 ].filter((f) => {

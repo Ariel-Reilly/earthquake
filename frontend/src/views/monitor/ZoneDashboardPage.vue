@@ -209,7 +209,7 @@ function syncRoute() {
 }
 
 function backToOverview() {
-  router.push("/dashboard/overview");
+  router.push({ name: "overview" });
 }
 
 async function loadAll() {

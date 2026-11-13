@@ -597,7 +597,8 @@ CREATE INDEX IF NOT EXISTS idx_user_pref_user ON user_preference(user_id);
 -- P0-4: 会签（每个会签实例下挂多个 signer 行）
 CREATE TABLE IF NOT EXISTS event_sign (
   id BIGSERIAL PRIMARY KEY,
-  sign_id VARCHAR(64) NOT NULL UNIQUE,
+  -- 一次会签会话 × 一个会签人 = 一行，同一 sign_id 会有多行：只能普通索引，不能 UNIQUE
+  sign_id VARCHAR(64) NOT NULL,
   event_id VARCHAR(64) NOT NULL,
   mode VARCHAR(20) NOT NULL DEFAULT 'PARALLEL',
   timeout_hours INT DEFAULT 24,
@@ -617,6 +618,7 @@ CREATE TABLE IF NOT EXISTS event_sign (
 );
 CREATE INDEX IF NOT EXISTS idx_event_sign_event ON event_sign(event_id);
 CREATE INDEX IF NOT EXISTS idx_event_sign_status ON event_sign(status);
+CREATE INDEX IF NOT EXISTS idx_event_sign_sign ON event_sign(sign_id);
 
 -- P0-4: 事件转派历史
 CREATE TABLE IF NOT EXISTS event_transfer (
@@ -1739,3 +1741,12 @@ CREATE INDEX IF NOT EXISTS idx_application_ip ON sys_user_application(register_i
 -- 同一 username 只允许存在一条「待审核」申请（部分唯一索引）
 CREATE UNIQUE INDEX IF NOT EXISTS idx_application_pending_username
   ON sys_user_application(username) WHERE status = '待审核';
+
+-- 平台级系统设置（设置页落库；单 key = platform，值为 JSON 字符串）。
+-- 此前设置只写浏览器 localStorage，换机/清缓存后平台名称、阈值、通知渠道等配置会丢失。
+CREATE TABLE IF NOT EXISTS system_setting (
+  setting_key VARCHAR(64) PRIMARY KEY,
+  setting_value TEXT,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_by VARCHAR(64)
+);

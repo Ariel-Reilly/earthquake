@@ -1,0 +1,91 @@
+# 交付检查表（DisasterGuard · 御灾智巡）
+
+> 版本：v1.8 · 检查日期：2026-11-12/13 · 检查人：开发交付组
+> 结论：**可进入现场演示 / 试运行**。已知限制与二期能力见 [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md)。
+
+## 一、交付范围与环境
+
+- 前端：Vue 3 + Vite 6 + Pinia；后端：Spring Boot 3.4 / Java 17；AI：FastAPI（8001，真实模型）
+- 基础设施：Docker Compose（Postgres / Redis / MinIO；EMQX、TDengine 默认不启用）
+- 演示入口：`http://127.0.0.1:5173`（admin / admin123；其余角色见 data.sql）
+- 一键启动：`.\start-dev.ps1 -Infra -Up` → `.\start-dev.ps1 -All -Wait`；停止：`.\start-dev.ps1 -Stop`
+
+## 二、构建与静态检查（必须全绿）
+
+| 检查项 | 命令 | 结果 |
+|---|---|---|
+| 前端 lint | `cd frontend; npx eslint src/` | ✅ 0 error |
+| 前端单测 | `npx vitest run` | ✅ **44 passed**（4 个测试文件） |
+| 前端生产构建 | `npm run build` | ✅ 成功（`dist/`） |
+| SFC 完整性 | `node scripts/verify-sfc-integrity.mjs` | ✅ 全部组件解析通过 |
+| 设计令牌完整性 | `node scripts/verify-token-integrity.mjs` | ✅ 无未定义引用/依赖环 |
+| 后端编译 | `cd backend; mvn -q -DskipTests compile` | ✅ 通过 |
+| AI 模型健康 | `GET /api/ai/health` | ✅ UP；模型加载状态可查 |
+
+## 三、接口与运行时验收
+
+| 验收项 | 结果 |
+|---|---|
+| 后端健康 `/api/system/health` | ✅ UP（PostgreSQL OK） |
+| 前端 dev server + `/api` 代理 | ✅ HTTP 200 |
+| 6 角色权限矩阵（菜单/接口 200/403） | ✅ 接口级实测；值班员直达用户管理被 403 |
+| `tasks:*` / `backup:*` / `plans:*` 权限 | ✅ 接口实测通过，前端权限码已同步 PermissionRegistry |
+| 预警生命周期 | ✅ 待确认 → 已确认 → 处理中 → 已关闭；解除链路 200 |
+| 预警/设备坐标字段（地图图层） | ✅ 响应含 lon/lat |
+| WS 直连 + Vite `/ws` 代理握手 | ✅ 直连 Open；代理 101 Switching Protocols |
+| **WS 预警广播** | ✅ 创建预警后收到 `type=warning`（修复 JavaTimeModule 后） |
+| WS 断线降级轮询 | ✅ 阻断 `/ws?*` 后页面仍加载，新建预警经轮询刷新"活跃"计数与列表 |
+| 会签多人 + 冒名防护 | ✅ 2 行同 signId 成功；代签他人 403（需 `sign:proxy`，当前未授予任何角色） |
+| AI 链路 | ✅ 综合评分 9 条、设备健康 16 条；多模态 501（设计边界）；四档颜色与 80/60/35 阈值一致 |
+| 审计日志筛选 | ✅ 全量 1405 条，`action=LOGIN&range=7` 过滤后 68 条，服务端真实过滤 |
+| 报表导出 | ✅ `POST /api/warnings/export`、`/api/devices/export` 200 + xlsx |
+| **系统设置落库** | ✅ `system_setting` 表 + `GET/PUT /api/settings`；浏览器保存→刷新仍存在（SM-16） |
+| **预警 AI 分析详情** | ✅ `GET /api/warnings/{id}/analysis-detail`：AI 结论 / 详细分析 / 事发前后 ±2h 指标 / 现场影像（SM-18） |
+| 对比度/可访问性 | ✅ 审计"确定问题" 5→2（剩余 2 处经核对为脚本跨文件解析误报）；关键纯图标按钮补 aria-label |
+
+## 四、真实浏览器端到端（CDP 自动化）
+
+- 脚本：`node scripts/delivery/browser-smoke.mjs`（Edge/Chrome CDP，无 Playwright/Puppeteer）
+- 结果：**37 / 37 PASS**，截图 23 张在 `output/browser-verify/`，机器汇总 `summary.json`
+- 覆盖：登录、设备页、红色全屏警报（样式/声音兜底/确认/详情跳转）、橙/黄/蓝弹窗、
+  移动端 390px 抽屉与无横向溢出、深色模式、综合态势首页、实时地图 canvas、审计日志筛选、
+  后端不可达错误态（不误报"态势平稳"）、网络恢复、AI 任务页、设置落库、WS 阻断轮询、
+  预警详情确认→派发、AI 分析详情、角色越权 403、登出。
+- 防缓存：脚本已启用 `Network.setCacheDisabled(true)`，避免 Vite dev 样式缓存污染颜色验收。
+
+## 五、安全与数据可信
+
+| 项 | 说明 |
+|---|---|
+| 认证/授权 | JWT + `PermissionRegistry`；前端菜单/路由与后端 `@PreAuthorize` 双向校验 |
+| 会签冒名 | signerId 必须与当前登录用户一致，否则 403 |
+| AI 图像下载 SSRF | ai-service 对图片 URL 做协议/主机白名单校验（file:// 拒绝） |
+| 演示数据标识 | 首页/分析页对 synthetic/降级数据显式标识；空态不伪装成"态势平稳" |
+| 审计 | 操作审计落库可查；告警/处置行为可追溯 |
+| 初始账号 | 演示环境 admin/admin123，生产启用前必须改密 |
+
+## 六、部署与回滚
+
+1. 准备 `.env`（数据库/Redis/MinIO/AI 地址、JWT 密钥、生产域名）。
+2. `docker compose up -d postgres redis minio`（按需启用 emqx/tdengine）。
+3. 后端 `mvn -q -DskipTests package` 后 `java -jar`，或 `.\start-dev.ps1 -Backend`。
+4. 前端 `npm run build` 产物交给 nginx；`/api` 与 `/ws` 反代到 8080。
+5. 健康检查：`/api/system/health`、`/api/ai/health`、首页可登录。
+6. 回滚：保留上一版 jar/dist 与数据库备份；schema 变更为幂等补丁，可直接回退应用版本。
+7. 首次启动会自动建表/补表（`system_setting`、`event_sign` 补丁）；历史库无需手工迁移。
+   > 2026-11-13 已按 [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) §9 用**隔离端口 + 全新数据卷**实跑：空库初始化、
+   > 历史库补丁（含重复启动幂等）、`mvn package` + `npm run build` + nginx `/api`、`/ws`（101）全通。
+   > 演练同时修复 4 个「全新部署」P0 阻断（initdb 脚本依赖、种子外键、规则镜像创建人、actions JSON 结构）。
+
+## 七、仍待现场确认（不阻塞交付）
+
+- 红色警报声音实际外放（headless 无法听声；已提供点击开启兜底与单测）
+- WS 断线重连计时/提示的现场观感
+- 时相对比页面（`satellite-compare` 仍为重定向，见 KNOWN_LIMITATIONS L-05）
+- 影像需真实上传：种子附件 URL 可能失效，页面显示占位而非伪造图片
+
+## 八、验收结论
+
+- 构建/单测/浏览器冒烟全部通过；核心业务闭环（预警发布→确认→派发→关闭→审计）可演示。
+- 建议现场按 [DEMO_SCRIPT.md](DEMO_SCRIPT.md) 走一遍，并在试运行环境改密、配置真实地图/AI 服务地址。
+- 甲方签字：____________________　日期：____________________

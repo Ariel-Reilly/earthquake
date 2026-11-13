@@ -38,6 +38,7 @@ const route = useRoute();
 const router = useRouter();
 const point = ref(null);
 const loading = ref(true);
+const loadError = ref("");
 const editMode = ref(false);
 
 // AI 上下文管理
@@ -263,40 +264,72 @@ async function refreshAiComprehensive() {
   }
 }
 
+/**
+ * 路由参数兼容：/dashboard/hazards/:id 既可能是数字主键，也可能是业务编码 hazardCode
+ * （工作台、历史链接传的是 HZ-xxx）。后端 GET /api/hazards/{id} 只接受 Long，
+ * 直接用编码请求会 400，因此非数字编码需要先反查数字主键再取详情。
+ */
+async function resolveHazardId(raw) {
+  const value = String(raw ?? "").trim();
+  if (!value) throw new Error("缺少灾害点标识，无法加载详情");
+  if (/^\d+$/.test(value)) return value;
+  // 后端 keyword 只匹配名称/类型/负责人/状态，不匹配 hazardCode；先按 keyword 查一次，
+  // 未命中再拉一页列表按编码精确匹配兜底。
+  let list = (await dashboardApi.getHazards({ keyword: value, page: 1, size: 200 }))?.list ?? [];
+  if (!list.some((it) => it.hazardCode === value)) {
+    list = (await dashboardApi.getHazards({ page: 1, size: 200 }))?.list ?? [];
+  }
+  const hit = list.find((it) => it.hazardCode === value);
+  if (!hit || hit.id == null) throw new Error(`未找到编号为 ${value} 的灾害点`);
+  return hit.id;
+}
+
 async function loadData() {
   loading.value = true;
-  const data = await dashboardApi.getHazardDetail(route.params.id);
-  // 后端 detail() 返回 { item, history, attachments, linked } 四元组；前端模板直接用 point.history / point.linked，
-  // 因此把 history / attachments / linked 平铺进 point，避免再开新的 ref 状态。
-  point.value = {
-    ...data.item,
-    history: data.history ?? [],
-    attachments: data.attachments ?? [],
-    linked: data.linked ?? [],
-  };
-  form.value = {
-    name: data.item.name,
-    type: data.item.type,
-    level: data.item.level,
-    owner: data.item.owner,
-    status: data.item.status,
-    lon: data.item.lon,
-    lat: data.item.lat,
-  };
-
-  // 注入 AI 上下文
-  setAiContext({
-    contextType: 'hazard',
-    contextId: data.item.hazardCode || route.params.id,
-    title: data.item.name || `灾害点 ${data.item.hazardCode}`,
-    metadata: {
+  loadError.value = "";
+  try {
+    const hazardId = await resolveHazardId(route.params.id);
+    const data = await dashboardApi.getHazardDetail(hazardId);
+    if (!data?.item) throw new Error("后端未返回该灾害点详情");
+    // 后端 detail() 返回 { item, history, attachments, linked } 四元组；前端模板直接用 point.history / point.linked，
+    // 因此把 history / attachments / linked 平铺进 point，避免再开新的 ref 状态。
+    point.value = {
+      ...data.item,
+      history: data.history ?? [],
+      attachments: data.attachments ?? [],
+      linked: data.linked ?? [],
+    };
+    form.value = {
+      name: data.item.name,
       type: data.item.type,
       level: data.item.level,
+      owner: data.item.owner,
       status: data.item.status,
-    },
-  });
+      lon: data.item.lon,
+      lat: data.item.lat,
+    };
 
-  loading.value = false;
+    // 注入 AI 上下文
+    setAiContext({
+      contextType: 'hazard',
+      contextId: data.item.hazardCode || hazardId,
+      title: data.item.name || `灾害点 ${data.item.hazardCode}`,
+      metadata: {
+        type: data.item.type,
+        level: data.item.level,
+        status: data.item.status,
+      },
+    });
+  } catch (error) {
+    // 任何失败都落到明确错误态，绝不让 loading 永久停留（原实现无 catch）。
+    point.value = null;
+    loadError.value = error instanceof Error && error.message
+      ? error.message
+      : "灾害点详情加载失败，请稍后重试";
+  } finally {
+    loading.value = false;
+  }
+  if (loadError.value || !point.value) return;
   if (isConfirmationMode.value) await resolveEventId();
   loadAiForecast();
   loadAiComprehensive();
@@ -555,6 +588,12 @@ onBeforeUnmount(() => {
         </div>
         <div v-if="loading" class="u-hint-block">
           加载中...
+        </div>
+        <div v-else-if="loadError" class="u-hint-block load-error">
+          <span>{{ loadError }}</span>
+          <button class="text-btn" @click="refreshDetail">
+            <History :size="15" />重试
+          </button>
         </div>
         <template v-else-if="point">
           <div class="system-list">
@@ -1041,6 +1080,14 @@ onBeforeUnmount(() => {
 }
 /* ── 静态内联色收敛后的工具类（等价于原先的 inline style） ── */
 .u-hint-block { padding: 0 20px 18px; color: var(--c-text-2); }
+/* 详情加载失败态：明确展示原因并提供重试，避免停留在"加载中..." */
+.load-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--c-danger-strong);
+}
 .u-hint-box { padding: 12px; color: var(--c-text-2); }
 .u-hint-10 { font-size: 10px; color: var(--c-text-2); }
 .u-hint-9 { font-size: 9px; color: var(--c-text-2); }

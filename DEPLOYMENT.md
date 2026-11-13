@@ -193,8 +193,12 @@ docker compose up -d       # 拉起全部容器
 
 compose 会按 `depends_on: service_healthy` 串行等待：postgres / redis / minio 健康后再启动 backend，backend 健康后再启动 frontend。
 
-> **建表时机**：`infra/postgres/init/` 只创建 PostGIS 扩展、几何触发器、审计归档表与演示规则；
-> **业务表与种子数据由后端首次启动时创建**（开发配置 `spring.sql.init.mode: always`，
+> **建表时机**：`docker-compose.yml` 只把 `infra/postgres/init/001_create_extensions.sql`（PostGIS 扩展）
+> 与 `003_archive_operation_log.sql`（归档表/函数）挂进 `initdb.d`——两者不依赖业务表。
+> `002_geom_triggers.sql`、`004_insert_demo_rules.sql` 依赖应用侧才创建的表，**不再自动执行**
+> （2026-11-13 空库演练实证：挂在 initdb 阶段会让 postgres 容器 `Exited(3)`；详见
+> `docs/delivery/DEPLOYMENT_GUIDE.md` §9）。
+> **业务表与种子数据由后端首次启动时创建**（`spring.sql.init.mode: always`，
 > 执行 `classpath:schema.sql` + `data.sql`）。因此基础设施起来后必须先启动一次后端，再访问前端。
 
 **宿主机直跑**（推荐日常开发，热重载更快）：

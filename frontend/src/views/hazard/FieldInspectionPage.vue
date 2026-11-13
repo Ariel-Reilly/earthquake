@@ -55,7 +55,8 @@ const selectedTaskCode = ref('')
 async function loadTasks() {
   loading.value = true
   try {
-    const resp = await dashboardApi.getTasks({ pageSize: 100 })
+    // 后端分页参数是 page/size（不认 pageSize），巡检任务取 100 条
+    const resp = await dashboardApi.getTasks({ page: 1, size: 100 })
     tasks.value = resp.list ?? []
     if (tasks.value.length > 0 && !selectedTaskCode.value) {
       selectedTaskCode.value = tasks.value[0].taskCode ?? tasks.value[0].code
@@ -721,7 +722,7 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-.fip-root { padding: 20px 24px; max-width: 1300px; }
+.fip-root { padding: 20px 24px; }
 
 /* Header */
 .fip-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; gap: 12px; }

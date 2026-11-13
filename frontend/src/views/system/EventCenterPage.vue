@@ -29,7 +29,7 @@
  *   - 离线 mock 兜底：dashboardApi 内部 mock.workflow 已有种子数据
  */
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
-import { useRoute, useRouter } from "vue-router";
+import { useRoute } from "vue-router";
 import {
   Radar,
   Archive,
@@ -60,7 +60,6 @@ const props = defineProps({
 const emit = defineEmits(["notify"]);
 
 const route = useRoute();
-const router = useRouter();
 
 const STATE_META = {
   DETECTED:         { label: "已发现",      color: "#6f9e7f", icon: Eye,                tone: "blue" },
@@ -93,7 +92,10 @@ const stats = ref({
   CLOSED: 0, REJECTED: 0,
   total: 0, active: 0,
 });
-const graph = ref({ states: [], transitions: [] });
+const graph = dashboardApi.getStateMachineGraph();
+const listError = ref("");
+const detailError = ref("");
+const detailLoading = ref(false);
 const selectedEvent = ref(null);
 const drawerVisible = ref(false);
 
@@ -111,6 +113,8 @@ const SOURCE_OPTIONS = [
 ];
 
 let pollTimer = null;
+let listRequestId = 0;
+let detailRequestId = 0;
 
 const highlightedStates = computed(() =>
   Object.entries(stats.value)
@@ -131,13 +135,15 @@ const sortedItems = computed(() => {
 });
 
 async function loadAll() {
+  const requestId = ++listRequestId;
   loading.value = true;
   try {
-    const [listData, statsData, graphData] = await Promise.all([
+    const [listData, statsData] = await Promise.all([
       dashboardApi.listUnifiedEvents({ state: filter.state || undefined, source: filter.source || undefined, keyword: filter.keyword || undefined }),
       dashboardApi.getUnifiedEventStats(),
-      Promise.resolve(dashboardApi.getStateMachineGraph()),
     ]);
+    if (requestId !== listRequestId) return;
+    listError.value = "";
     items.value = listData.items ?? [];
     total.value = listData.total ?? 0;
     stats.value = {
@@ -148,14 +154,15 @@ async function loadAll() {
       EMERGENCY_ACTIVE: statsData.EMERGENCY_ACTIVE ?? 0,
       CLOSED: statsData.CLOSED ?? 0,
       REJECTED: statsData.REJECTED ?? 0,
-      total: statsData.total ?? 0,
-      active: statsData.active ?? 0,
+      total: 0,
+      active: 0,
     };
-    graph.value = graphData;
+    stats.value.total = Object.keys(STATE_META).reduce((sum, state) => sum + stats.value[state], 0);
+    stats.value.active = stats.value.total - stats.value.CLOSED - stats.value.REJECTED;
   } catch (e) {
-    emit("notify", e?.message ?? "加载事件数据失败");
+    if (requestId === listRequestId) listError.value = e?.message ?? "加载事件数据失败";
   } finally {
-    loading.value = false;
+    if (requestId === listRequestId) loading.value = false;
   }
 }
 
@@ -179,23 +186,37 @@ function clearFilter() {
   filter.keyword = "";
 }
 
-async function onItemClick(item) {
+async function openEventByCode(code, item = null) {
+  const requestId = ++detailRequestId;
+  detailLoading.value = true;
+  detailError.value = "";
   selectedEvent.value = item;
-  drawerVisible.value = true;
-  // 拉最新详情（可能比列表更全）
+  drawerVisible.value = Boolean(item);
   try {
-    const detail = await dashboardApi.getUnifiedEventDetail(item.eventCode);
-    if (detail) selectedEvent.value = detail;
-  } catch (_e) { /* 离线兜底用列表数据 */ }
+    const detail = await dashboardApi.getUnifiedEventDetail(code);
+    if (requestId !== detailRequestId) return;
+    if (!detail) {
+      detailError.value = `未找到事件 ${code}`;
+      return;
+    }
+    selectedEvent.value = detail;
+    drawerVisible.value = true;
+  } catch (error) {
+    if (requestId === detailRequestId) {
+      detailError.value = `事件 ${code} 加载失败：${error?.message || "请稍后重试"}`;
+    }
+  } finally {
+    if (requestId === detailRequestId) detailLoading.value = false;
+  }
 }
 
-function onDrawerClosed() {
-  drawerVisible.value = false;
-  // 触发后重新拉列表（避免本地缓存与后端状态不同步）
-  refresh();
+function onItemClick(item) {
+  openEventByCode(item.eventCode, item);
 }
 
 function closeDrawer() {
+  detailRequestId++;
+  detailLoading.value = false;
   drawerVisible.value = false;
 }
 
@@ -219,36 +240,23 @@ function formatTime(iso) {
   return `${Math.floor(diff / 86_400_000)} 天前`;
 }
 
-function openEventByCode(code) {
-  const target = items.value.find((it) => it.eventCode === code);
-  if (target) onItemClick(target);
-}
+const linkedEventCode = computed(() => route.params.code || route.query.code);
+watch(linkedEventCode, (code) => {
+  if (typeof code === "string" && code) openEventByCode(code);
+  else {
+    closeDrawer();
+    detailError.value = "";
+  }
+}, { immediate: true });
 
-// 监听 URL ?code= 自动打开抽屉
-watch(
-  () => route.query.code,
-  (code) => {
-    if (code) openEventByCode(code);
-  },
-  { immediate: true },
-);
-
-// 当同一组件被 /events 与 /events/:code 两条路由复用时,
-// 路由参数 code 变化不会触发 onMounted,需要主动重拉数据。
-watch(
-  () => route.params.code,
-  () => {
-    if (!route.params.code) return; // 列表路由首次加载交给 onMounted
-    loadAll();
-  },
-);
-
-onMounted(async () => {
-  await loadAll();
+onMounted(() => {
+  loadAll();
   pollTimer = setInterval(refresh, 30_000);
 });
 
 onBeforeUnmount(() => {
+  listRequestId++;
+  detailRequestId++;
   if (pollTimer) clearInterval(pollTimer);
   if (filterTimer) clearTimeout(filterTimer);
 });
@@ -375,7 +383,15 @@ function stateMeta(id) {
           </div>
         </header>
 
-        <div v-if="loading && items.length === 0" class="loading-block">
+        <div v-if="detailLoading && linkedEventCode && !drawerVisible" class="loading-block" role="status">
+          <Loader2 :size="20" class="spin" /> 正在打开事件 {{ linkedEventCode }}…
+        </div>
+        <div v-if="detailError" class="loading-block" role="alert">
+          {{ detailError }}
+          <button v-if="linkedEventCode" class="ec-refresh" @click="openEventByCode(linkedEventCode)">重试详情</button>
+        </div>
+        <div v-if="listError" class="loading-block" role="alert">事件列表加载失败：{{ listError }}</div>
+        <div v-else-if="loading && items.length === 0" class="loading-block">
           <Loader2 :size="20" class="spin" /> 加载事件数据…
         </div>
 

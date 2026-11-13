@@ -23,6 +23,8 @@ import TopToolbar from '../components/layout/TopToolbar.vue'
 import SidebarNav from '../components/layout/SidebarNav.vue'
 import ContentArea from '../components/layout/ContentArea.vue'
 import NotificationDrawer from '../components/notification/NotificationDrawer.vue'
+import GlobalAlarmModal from '../components/alarm/GlobalAlarmModal.vue'
+import { useEscapeClose } from '../composables/useEscapeClose'
 import { getAllowedMenuPaths, getAuthRole } from '../stores/auth'
 import { NAV_GROUPS, dashboardMenu } from '../data/dashboardData'
 import { dashboardApi } from '../services/dashboardApi'
@@ -181,6 +183,40 @@ function handleNavigate(path) {
 /** 全局通知抽屉 */
 const notificationDrawerVisible = ref(false)
 
+/* ── 移动端侧栏抽屉 ─────────────────────────────────────────
+   ≤768px 时侧栏被样式表收起，此前全站没有任何入口，
+   二级页面在手机上完全不可达（只能靠顶栏一级 Tab 跳大类首页）。
+   现在：顶栏汉堡按钮 → 侧栏以抽屉形式滑出；点击遮罩 / 菜单项 /
+   ESC 关闭；路由变化（含浏览器前进后退）自动收起。
+   桌面端（≥769px）行为完全不变，is-mobile-open 不生效。 */
+const mobileSidebarOpen = ref(false)
+
+function closeMobileSidebar() {
+  mobileSidebarOpen.value = false
+}
+
+function toggleMobileSidebar() {
+  mobileSidebarOpen.value = !mobileSidebarOpen.value
+}
+
+/**
+ * 抽屉内的菜单跳转：先收起抽屉再跳，避免遮罩挡住刚打开的目标页。
+ * @param {string} path - 目标路径
+ */
+function handleSidebarNavigate(path) {
+  closeMobileSidebar()
+  handleNavigate(path)
+}
+
+// 路由变化时收起抽屉（浏览器前进/后退同样适用）
+watch(
+  () => route.path,
+  () => closeMobileSidebar()
+)
+
+// ESC 关闭抽屉；与 GlobalAlarmModal 的 ESC 监听互不影响（各自处理自己的状态）
+useEscapeClose(closeMobileSidebar, mobileSidebarOpen)
+
 /**
  * 打开通知抽屉
  */
@@ -273,21 +309,27 @@ onBeforeUnmount(() => {
       :active-group-id="activeGroupId"
       :badges="dynamicBadges"
       :unread-count="unreadCount"
+      :sidebar-open="mobileSidebarOpen"
       @navigate="handleNavigate"
       @select-group="handleGroupSelect"
       @open-notification-drawer="openNotificationDrawer"
+      @toggle-sidebar="toggleMobileSidebar"
     />
 
     <!-- 主体区域：左侧 260px 固定导航 + 右侧 flex:1 内容 -->
     <div class="main-layout-body">
-      <aside class="main-layout-sidebar">
+      <aside
+        id="app-sidebar"
+        class="main-layout-sidebar"
+        :class="{ 'is-mobile-open': mobileSidebarOpen }"
+      >
         <!-- 平铺显示当前大类的子菜单 -->
         <SidebarNav
           :group="activeGroup"
           :allowed-paths="allowedPaths"
           :badges="dynamicBadges"
           :current-path="route.path"
-          @navigate="handleNavigate"
+          @navigate="handleSidebarNavigate"
         />
       </aside>
 
@@ -304,6 +346,16 @@ onBeforeUnmount(() => {
       </main>
     </div>
 
+    <!-- 移动端侧栏遮罩：复用 styles.css 已有的 .sidebar-overlay
+         （桌面端 display:none；≤768px 由 .is-visible 控制淡入淡出与层级 44）。
+         放在 body 之后，保证覆盖层级在侧栏(45)之下、顶栏(40)之上。 -->
+    <div
+      class="sidebar-overlay"
+      :class="{ 'is-visible': mobileSidebarOpen }"
+      aria-hidden="true"
+      @click="closeMobileSidebar"
+    ></div>
+
     <!-- 全局轻提示：复用 styles.css 的 .toast 样式与 .toast-enter 过渡 -->
     <Transition name="toast">
       <div v-if="toast" class="toast main-layout-toast">
@@ -319,6 +371,9 @@ onBeforeUnmount(() => {
       @close="closeNotificationDrawer"
       @badge-refresh="handleBadgeRefresh"
     />
+
+    <!-- 全局紧急警报：挂在布局顶层，任意路由下收到新待确认红/橙/黄/蓝预警都会按档位弹出 -->
+    <GlobalAlarmModal />
   </div>
 </template>
 
@@ -378,12 +433,43 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 768px) {
+  /* ── 侧栏抽屉（修复：<=768px 侧栏 display:none 且全站无入口）──
+     不再 display:none（那样二级页面在手机上彻底不可达），改为
+     「默认移出屏幕、汉堡按钮唤出」。用 transform + visibility 过渡，
+     display 不可过渡，直接切换会「啪」地闪没。 */
   .main-layout-sidebar {
-    display: none;
+    position: fixed;
+    top: 64px;                 /* 顶栏高度：抽屉从顶栏下方滑出，不盖住汉堡按钮 */
+    bottom: 0;
+    left: 0;
+    width: min(280px, 85vw);
+    z-index: var(--z-sidebar, 45);  /* 高于顶栏(40)，低于弹窗(50) */
+    visibility: hidden;
+    transform: translateX(-100%);
+    transition:
+      transform 0.46s var(--ease-ios, cubic-bezier(0.32, 0.72, 0, 1)),
+      visibility 0.46s,
+      box-shadow 0.46s;
+    box-shadow: none;
+    will-change: transform;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .main-layout-sidebar.is-mobile-open {
+    visibility: visible;
+    transform: translateX(0);
+    box-shadow: 8px 0 40px rgba(10, 50, 25, 0.28);
   }
 
   .main-layout-content {
     width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .main-layout-sidebar {
+    transition: none;
   }
 }
 </style>

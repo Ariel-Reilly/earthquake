@@ -1,5 +1,6 @@
 package cn.disasterguard.event.controller;
 
+import cn.disasterguard.common.api.ApiResponse;
 import cn.disasterguard.event.EventState;
 import cn.disasterguard.event.EventTrigger;
 import cn.disasterguard.event.entity.UnifiedEventEntity;
@@ -41,8 +42,8 @@ public class EventStateController {
 
   @GetMapping("/stats")
   @PreAuthorize("hasAuthority('events:view')")
-  public Map<EventState, Long> stats() {
-    return service.countByState();
+  public ApiResponse<Map<EventState, Long>> stats() {
+    return ApiResponse.success(service.countByState());
   }
 
   @GetMapping("/active")
@@ -59,7 +60,7 @@ public class EventStateController {
    */
   @GetMapping("/list")
   @PreAuthorize("hasAuthority('events:view')")
-  public Map<String, Object> list(
+  public ApiResponse<Map<String, Object>> list(
       @RequestParam(required = false) String type,
       @RequestParam(required = false) String keyword,
       @RequestParam(required = false) EventState state,
@@ -79,13 +80,13 @@ public class EventStateController {
     result.put("page", safePage);
     result.put("size", safeSize);
     result.put("pages", pages);
-    return result;
+    return ApiResponse.success(result);
   }
 
   @GetMapping("/{code}")
   @PreAuthorize("hasAuthority('events:view')")
-  public UnifiedEventEntity detail(@PathVariable String code) {
-    return service.findByEventCode(code);
+  public ApiResponse<UnifiedEventEntity> detail(@PathVariable String code) {
+    return ApiResponse.success(service.findByEventCode(code));
   }
 
   /**
@@ -98,16 +99,16 @@ public class EventStateController {
   // R3 P1-16：写操作必须用写权限。修复前与只读端点共用 events:view，
   // 导致"能看事件就能改状态"。events:transition 已在 PermissionRegistry 注册。
   @PreAuthorize("hasAuthority('events:transition')")
-  public Map<String, Object> transition(
+  public ApiResponse<Map<String, Object>> transition(
       @PathVariable String code,
       @RequestBody TransitionRequest body
   ) {
     EventTrigger trigger = EventTrigger.valueOf(body.trigger);
     boolean ok = service.transition(code, trigger, body.operator, body.reason);
-    return Map.of(
-      "ok", ok,
-      "currentState", service.getCurrentState(code)
-    );
+    Map<String, Object> result = new java.util.LinkedHashMap<>();
+    result.put("ok", ok);
+    result.put("currentState", service.getCurrentState(code));
+    return ApiResponse.success(result);
   }
 
   /** 兼容旧用法：通过 query 触发，便于快速调试 */

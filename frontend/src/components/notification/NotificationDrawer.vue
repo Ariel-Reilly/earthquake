@@ -148,12 +148,13 @@ function handleBadgeRefresh() {
 }
 
 .header-badge {
-  padding: 2px 6px;
+  padding: 2px 7px;
   border-radius: 10px;
-  background: var(--c-danger-bg);
-  color: var(--c-danger-strong);
-  font-size: 10px;
+  background: var(--c-danger-light);
+  color: var(--c-danger-ink);
+  font-size: 12px;
   font-weight: 700;
+  line-height: 1.4;
 }
 
 .close-btn {
@@ -165,7 +166,7 @@ function handleBadgeRefresh() {
   border: 0;
   background: transparent;
   cursor: pointer;
-  color: var(--c-text-3);
+  color: var(--c-text-3-ink);
   border-radius: 6px;
   transition: all 0.2s;
 }
@@ -193,7 +194,8 @@ function handleBadgeRefresh() {
   border: 1px solid transparent;
   border-radius: 6px;
   background: transparent;
-  color: var(--c-text-3);
+  /* 三级语义色当文字用对比不足（白底 2.6:1），文字场景统一改用 ink 版（5.3:1） */
+  color: var(--c-text-3-ink);
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
@@ -210,17 +212,19 @@ function handleBadgeRefresh() {
 .tab-btn.active {
   border-color: var(--c-brand);
   background: var(--c-brand-light);
-  color: var(--c-brand);
+  /* --c-brand 在浅绿底上约 4.0:1，加深一档后才达标 */
+  color: var(--c-brand-deep);
 }
 
 .tab-badge {
-  padding: 2px 4px;
-  border-radius: 3px;
-  background: var(--c-danger-bg);
-  color: var(--c-danger-strong);
-  font-size: 10px;
+  padding: 2px 5px;
+  border-radius: 4px;
+  background: var(--c-danger-light);
+  color: var(--c-danger-ink);
+  font-size: 12px;
   font-weight: 700;
-  min-width: 16px;
+  line-height: 1.3;
+  min-width: 18px;
   text-align: center;
 }
 

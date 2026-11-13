@@ -280,8 +280,8 @@ defineExpose({
   height: 24px;
   border: 0;
   border-radius: var(--r-sm);
-  background: #f3f7f5;
-  color: var(--c-ink-2);
+  background: var(--c-surface-2);
+  color: var(--c-text-2);
   cursor: pointer;
 }
 .wx-icon-btn:hover {

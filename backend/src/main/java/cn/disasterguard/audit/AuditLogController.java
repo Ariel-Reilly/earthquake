@@ -20,7 +20,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
  * <p>前端 dashboardApi.js 依赖：{@code GET /api/audit/logs}.
  *
  * <p>数据源：{@code operation_log} 表 via {@link OperationLogRepository}.
- * 支持分页、关键字过滤（搜索 operator / moduleName / actionName / requestPath）。
+ * 支持分页、关键字过滤（搜索 operator / moduleName / actionName / requestPath）、
+ * 时间范围过滤（range=24h/7/30）与动作分组过滤（action=WARNING/HAZARD/...）。
  */
 @RestController
 @RequestMapping("/api/audit")
@@ -32,15 +33,21 @@ public class AuditLogController {
     this.logRepository = logRepository;
   }
 
-  /** 查询操作日志（分页 + 关键字过滤）。 */
+  /** 查询操作日志（分页 + 关键字 + 时间范围 + 动作分组过滤）。 */
   @GetMapping("/logs")
   @PreAuthorize("hasAuthority('audit:view')")
   public ApiResponse<Map<String, Object>> list(
       @RequestParam(defaultValue = "1") int page,
       @RequestParam(defaultValue = "20") int size,
-      @RequestParam(required = false) String keyword) {
+      @RequestParam(required = false) String keyword,
+      @RequestParam(required = false) String range,
+      @RequestParam(required = false) String action) {
+    // range：前端审计页的"最近 24 小时 / 7 天 / 30 天"，空值表示全部
+    OffsetDateTime since = resolveRangeStart(range);
     var all = logRepository.findAll();
     var filtered = all.stream()
+        .filter(log -> since == null || (log.getCreatedAt() != null && !log.getCreatedAt().isBefore(since)))
+        .filter(log -> matchesAction(log, action))
         .filter(log -> keyword == null || keyword.isBlank()
             || contains(log.getOperator(), keyword)
             || contains(log.getModuleName(), keyword)
@@ -74,6 +81,51 @@ public class AuditLogController {
   private boolean contains(String field, String keyword) {
     if (field == null) return false;
     return field.toLowerCase().contains(keyword.toLowerCase());
+  }
+
+  /** 时间范围（24h / 7 / 30，空值=全部）→ 过滤起始时间；无法识别时返回 null（不过滤）。 */
+  private OffsetDateTime resolveRangeStart(String range) {
+    if (range == null || range.isBlank()) {
+      return null;
+    }
+    long hours = switch (range.trim().toLowerCase()) {
+      case "24h" -> 24L;
+      case "7", "7d" -> 24L * 7;
+      case "30", "30d" -> 24L * 30;
+      default -> -1L;
+    };
+    if (hours <= 0) {
+      return null;
+    }
+    return OffsetDateTime.now().minusHours(hours);
+  }
+
+  /**
+   * 动作分组过滤。
+   *
+   * <p>前端审计页的筛选项是业务分组（WARNING / HAZARD / TASK / DEVICE / CONFIRMATION /
+   * USER / LOGIN），而 {@code operation_log.module_name} 记录的是 Controller 所在包名
+   * （warning / hazard / task / device / ...），{@code action_name} 是方法名。因此分组必须
+   * 映射到 module_name 比较，直接按 actionName 等值筛选会永远查不到数据。
+   */
+  private boolean matchesAction(OperationLog log, String action) {
+    if (action == null || action.isBlank()) {
+      return true;
+    }
+    String group = action.trim().toLowerCase();
+    String module = log.getModuleName() == null ? "" : log.getModuleName().toLowerCase();
+    String actionName = log.getActionName() == null ? "" : log.getActionName().toLowerCase();
+    return switch (group) {
+      case "warning" -> "warning".equals(module);
+      case "hazard" -> "hazard".equals(module);
+      case "task" -> "task".equals(module) || "inspection".equals(module);
+      case "device" -> "device".equals(module) || "ota".equals(module);
+      case "confirmation" -> "confirmation".equals(module);
+      case "user" -> "system".equals(module) || "auth".equals(module);
+      case "login" -> "auth".equals(module)
+          && (actionName.contains("login") || actionName.contains("logout"));
+      default -> module.equals(group) || actionName.contains(group);
+    };
   }
 
   private Map<String, Object> toDto(OperationLog log) {

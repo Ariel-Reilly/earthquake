@@ -29,6 +29,8 @@ const inspectionCustomFrom = ref("")
 const inspectionCustomTo = ref("")
 const inspectionReport = ref(null)
 const inspectionLoading = ref(false)
+/** 后端是否明确标注该报告为演示（模拟）数据 */
+const inspectionSynthetic = computed(() => inspectionReport.value?.synthetic === true)
 
 async function loadInspectionReport() {
   inspectionLoading.value = true
@@ -115,19 +117,31 @@ function chartBarWidth(value, max = 100) {
 
 async function loadData() {
   loading.value = true
-  const data = await dashboardApi.getAnalytics()
-  hazardPoints.value = data.hazardPoints
-  overviewStats.value = data.overviewStats
-  charts.value = data.charts
+  try {
+    const data = await dashboardApi.getAnalytics()
+    hazardPoints.value = data.hazardPoints
+    overviewStats.value = data.overviewStats
+    charts.value = data.charts
+  } catch (error) {
+    console.warn("[AnalyticsPage] 统计数据加载失败:", error)
+    hazardPoints.value = []
+    overviewStats.value = []
+    charts.value = {}
+  } finally {
+    loading.value = false
+  }
   try {
     aiList.value = await dashboardApi.getAiComprehensiveAll()
   } catch (_) {
     aiList.value = []
   }
-  loading.value = false
 }
 
-onMounted(loadData)
+onMounted(() => {
+  loadData()
+  // 首页的"巡检完成率"卡片取自巡检报告接口；进入页面即预取，避免先显示占位再跳变
+  loadInspectionReport()
+})
 </script>
 
 <template>
@@ -159,7 +173,16 @@ onMounted(loadData)
             <em class="positive">综合分析 <i>· {{ aiList.length }} 个灾害点</i></em>
           </div>
         </div>
-        <div class="stat-card"><div class="stat-icon blue"><CalendarDays :size="19" /></div><div class="stat-copy"><span>巡检完成率</span><strong>92.4 <small>%</small></strong><em class="positive">↑ 6.3% <i>较昨日</i></em></div></div>
+        <div class="stat-card">
+          <div class="stat-icon blue"><CalendarDays :size="19" /></div>
+          <div class="stat-copy">
+            <span>巡检覆盖率</span>
+            <strong>{{ inspectionReport?.coverage ?? '--' }} <small>%</small></strong>
+            <em :class="inspectionSynthetic ? 'negative' : 'positive'">
+              {{ inspectionSynthetic ? '演示数据 · 待接入真实统计' : 'AI 巡检报告' }}
+            </em>
+          </div>
+        </div>
         <div class="stat-card">
           <div class="stat-icon red"><AlertTriangle :size="19" /></div>
           <div class="stat-copy">
@@ -325,6 +348,10 @@ onMounted(loadData)
     <!-- ========== AI 巡检报告 Tab ========== -->
     <template v-if="inspectionTabActive">
       <div class="inspection-report">
+        <!-- 数据来源标注：后端未接入真实巡检统计时必须明确告知，避免误当真实运营指标 -->
+        <p v-if="inspectionSynthetic" class="data-source-note">
+          当前为演示数据：后端尚未接入真实巡检统计，以下指标按查询参数模拟生成，请勿用于真实考核。
+        </p>
         <!-- KPI 卡片 -->
         <div class="stats-grid inspection-kpi">
           <div class="stat-card">
@@ -509,6 +536,18 @@ onMounted(loadData)
 </template>
 
 <style scoped>
+/* 数据来源标注：后端明确返回 synthetic=true 时才展示，避免把模拟值当真实指标 */
+.data-source-note {
+  padding: 10px 14px;
+  margin: 0 0 14px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--c-warning-ink-deep, #8a4a05);
+  background: var(--c-warning-light, #fdf3e3);
+  border: 1px solid var(--c-warning, #d4b48b);
+  border-radius: 8px;
+}
+
 .ai-rank-bars {
   display: flex;
   flex-direction: column;

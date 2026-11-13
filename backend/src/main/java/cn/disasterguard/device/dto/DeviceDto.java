@@ -23,6 +23,10 @@ public record DeviceDto(
     OffsetDateTime lastReportAt,
     String last,
     String point,
+    // WGS-84 经度：优先设备自身坐标，缺失时回落到所属灾害点；都没有时为 null（前端地图跳过）
+    Double lon,
+    // WGS-84 纬度：优先设备自身坐标，缺失时回落到所属灾害点；都没有时为 null
+    Double lat,
     String aiLevel,
     String aiLevelLabel,
     Double aiScore,
@@ -33,6 +37,6 @@ public record DeviceDto(
       String regionCode, String state, Integer battery, String signal,
       OffsetDateTime lastReportAt, String last, String point) {
     this(id, deviceCode, name, type, hazardCode, regionCode, state, battery, signal,
-        lastReportAt, last, point, null, null, null, null);
+        lastReportAt, last, point, null, null, null, null, null, null);
   }
 }

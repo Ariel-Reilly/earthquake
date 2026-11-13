@@ -40,6 +40,12 @@ public class WarningService {
 
   private static final Logger log = LoggerFactory.getLogger(WarningService.class);
   private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("MM-dd HH:mm");
+  /**
+   * 允许「解除」的前置状态：预警仍在生命周期内（尚未进入终态）即可解除。
+   * 终态（已关闭 / 已忽略 / 已解除）不在集合内，仍会被 409 拒绝。
+   */
+  private static final java.util.Set<String> RESOLVABLE_STATUSES =
+      java.util.Set.of("待确认", "已确认", "处理中", "已发布");
   private final WarningEventRepository warningRepository;
   private final HazardPointRepository hazardRepository;
   private final EmergencyService emergencyService;
@@ -82,20 +88,24 @@ public class WarningService {
     };
 
     var result = warningRepository.findAll(spec, pageable);
-    List<WarningDto> records = result.getContent().stream().map(this::toDto).toList();
+    Map<String, HazardPoint> hazardIndex = loadHazardIndex();
+    List<WarningDto> records = result.getContent().stream().map(w -> toDto(w, hazardIndex)).toList();
     return new PageResponse<>(records, result.getTotalElements(), page, size, result.getTotalPages());
   }
 
   public List<WarningDto> listAll() {
-    return warningRepository.findAll().stream().sorted(Comparator.comparing(WarningEvent::getId)).map(this::toDto).toList();
+    Map<String, HazardPoint> hazardIndex = loadHazardIndex();
+    return warningRepository.findAll().stream().sorted(Comparator.comparing(WarningEvent::getId))
+            .map(w -> toDto(w, hazardIndex)).toList();
   }
 
   /** 活跃预警预览：排除已关闭/已忽略/已解除等终态。 */
   public List<WarningDto> preview() {
+    Map<String, HazardPoint> hazardIndex = loadHazardIndex();
     return warningRepository.findOpenWarningsOrderByTriggeredAtDesc(
                     List.of("已关闭", "已忽略", "已解除"))
             .stream()
-            .map(this::toDto)
+            .map(w -> toDto(w, hazardIndex))
             .toList();
   }
 
@@ -124,14 +134,12 @@ public class WarningService {
   }
 
   public List<WarningDto> listByViewport(String bbox, String keyword, String status) {
-    Map<String, HazardPoint> hazardIndex = hazardRepository.findAll().stream()
-            .filter(item -> item.getHazardCode() != null && !item.getHazardCode().isBlank())
-            .collect(HashMap::new, (map, hazard) -> map.put(hazard.getHazardCode(), hazard), Map::putAll);
+    Map<String, HazardPoint> hazardIndex = loadHazardIndex();
 
     return warningRepository.findAll().stream()
             .filter(item -> matches(item, hazardIndex, bbox, keyword, status))
             .sorted(Comparator.comparing(WarningEvent::getId, Comparator.nullsLast(Long::compareTo)))
-            .map(this::toDto)
+            .map(w -> toDto(w, hazardIndex))
             .toList();
   }
 
@@ -143,8 +151,9 @@ public class WarningService {
     if (hazardCode == null || hazardCode.isBlank()) {
       return List.of();
     }
+    Map<String, HazardPoint> hazardIndex = loadHazardIndex();
     return warningRepository.findByHazardCodeOrderByTriggeredAtDesc(hazardCode).stream()
-            .map(this::toDto)
+            .map(w -> toDto(w, hazardIndex))
             .toList();
   }
 
@@ -259,8 +268,12 @@ public class WarningService {
   @Transactional
   public WarningDto resolve(Long id, String reason, String scope, String scopeArea, String operator) {
     WarningEvent warning = warningRepository.findById(id).orElseThrow(() -> new AppException(404, "未找到预警"));
-    if (!"已发布".equals(warning.getStatus())) {
-      throw new AppException(409, "当前状态不允许解除：" + warning.getStatus());
+    // 旧实现只允许 "已发布"，但系统内没有任何路径会把状态写成"已发布"（create/confirm/dispatch 分别写
+    // 待确认/已确认/处理中，close/dismiss 直接写终态），导致解除接口对所有真实预警都返回 409。
+    // 改为：只要未进入终态（已关闭/已忽略/已解除）就允许解除，终态幂等性仍由 409 保护。
+    String currentStatus = warning.getStatus();
+    if (currentStatus == null || !RESOLVABLE_STATUSES.contains(currentStatus)) {
+      throw new AppException(409, "当前状态不允许解除：" + currentStatus);
     }
     warning.setStatus("已解除");
     warning.setClosedAt(OffsetDateTime.now());
@@ -477,7 +490,19 @@ public class WarningService {
     warningRepository.deleteById(id);
   }
 
+  /** 单条转换：按 hazardCode 单次查库补坐标（用于详情 / 状态流转等单条场景）。 */
   private WarningDto toDto(WarningEvent warning) {
+    return toDto(warning, null);
+  }
+
+  /**
+   * 批量转换：调用方传入一次查询好的灾害点索引，避免逐条查库造成 N+1。
+   *
+   * <p>坐标来自 hazard_point（预警自身不存经纬度），与前端 realtimeService 的
+   * normalizeWarning 字段（lon/lat）对齐；关联不到灾害点时返回 null，前端地图跳过该点。
+   */
+  private WarningDto toDto(WarningEvent warning, Map<String, HazardPoint> hazardIndex) {
+    HazardPoint hazard = resolveHazard(warning.getHazardCode(), hazardIndex);
     return new WarningDto(
             warning.getId(),
             warning.getWarningCode(),
@@ -496,8 +521,37 @@ public class WarningService {
             warning.getClosedBy(),
             warning.getConfirmedAt(),
             warning.getDispatchedAt(),
-            warning.getClosedAt()
+            warning.getClosedAt(),
+            hazard == null ? null : hazard.getLongitude(),
+            hazard == null ? null : hazard.getLatitude(),
+            null,
+            null,
+            null,
+            null
     );
+  }
+
+  /** 按 hazardCode 取灾害点：传入索引时走内存，否则单条查库；查不到返回 null。 */
+  private HazardPoint resolveHazard(String hazardCode, Map<String, HazardPoint> hazardIndex) {
+    if (hazardCode == null || hazardCode.isBlank()) {
+      return null;
+    }
+    if (hazardIndex != null) {
+      return hazardIndex.get(hazardCode);
+    }
+    try {
+      return hazardRepository.findByHazardCode(hazardCode);
+    } catch (Exception e) {
+      log.debug("查询灾害点坐标失败 hazardCode={}: {}", hazardCode, e.getMessage());
+      return null;
+    }
+  }
+
+  /** 全量灾害点索引（hazardCode → 灾害点），供列表批量补坐标。 */
+  private Map<String, HazardPoint> loadHazardIndex() {
+    return hazardRepository.findAll().stream()
+            .filter(item -> item.getHazardCode() != null && !item.getHazardCode().isBlank())
+            .collect(HashMap::new, (map, hazard) -> map.put(hazard.getHazardCode(), hazard), Map::putAll);
   }
 
   /**

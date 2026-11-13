@@ -232,6 +232,7 @@ const router = createRouter({
       children: [
         // 监测与态势
         { path: "", name: "overview", component: OverviewPage },
+        { path: "overview", redirect: { name: "overview" } },
         {
           path: "real-time-map",
           name: "real-time-map",

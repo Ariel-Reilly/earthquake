@@ -1,6 +1,15 @@
 -- =====================================================================
--- 002_geom_triggers.sql
+-- 002_geom_triggers.sql  ⚠ 历史脚本，已【不再】由 docker-entrypoint-initdb.d 自动执行
+--
+-- 原因（2026-11-13 空库部署演练实证）：本脚本引用 hazard_point /
+-- monitoring_device / inspection_record，但这些表由后端启动时 schema.sql 创建，
+-- initdb 阶段表不存在，脚本报 "relation does not exist" 并使 postgres 容器 Exited(3)。
+-- 且 v2.1.0 起 hazard_point 是 unified_event 的视图，不能建 BEFORE ROW 触发器。
+-- 现状：geom 由应用层 GeometryFactory 维护（见 HazardService / MonitoringDevice）。
+-- 本文件保留作历史参考；请勿再把整个 init/ 目录挂载到 initdb.d。
+-- =====================================================================
 -- 为三张含 longitude/latitude + geom 列的表创建 geom 自动同步触发器
+-- （历史设计；当前执行时机必须在后端建表之后，且需先处理视图问题）
 -- 适用表：hazard_point、monitoring_device、inspection_record
 -- 触发场景：INSERT / UPDATE 时，若 longitude/latitude 被修改则自动重算 geom
 -- 前置条件：已启用 postgis 扩展（001_create_extensions.sql）

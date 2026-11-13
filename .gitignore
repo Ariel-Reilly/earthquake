@@ -223,3 +223,19 @@ __pycache__/
 .trae*
 .cursor*
 .npmcache/
+
+# ===== 交付提交排除项（A2-1 · 2026-11-13）=====
+# 验收/演示运行产物：体积大、可重建；CDP profile 内含浏览器缓存，严禁入库
+/output/
+/generated-videos/
+/output/browser-verify/cdp-profile*/
+# 交付源码包、校验和与临时压缩包（由 A2-4 生成，不进入版本库）
+/*.zip
+/*.tar.gz
+/*.tgz
+/*.7z
+/*.sha256
+# 演示/答辩材料：按 A2-2 以「单独交付包」管理，不纳入源码仓库（归属待项目经理确认）
+/*.pptx
+/御灾智巡/
+/御灾智巡_现场演示流程_操作融合稿.md
