@@ -237,10 +237,10 @@ onBeforeUnmount(() => {
   position: absolute;
   inset: 0;
   background-image:
-    linear-gradient(rgba(111, 158, 127, 0.055) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(111, 158, 127, 0.055) 1px, transparent 1px);
+    linear-gradient(rgb(111 158 127 / 5.5%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(111 158 127 / 5.5%) 1px, transparent 1px);
   background-size: 46px 46px;
-  -webkit-mask-image: radial-gradient(circle at 50% 42%, var(--c-overlay-ink) 28%, transparent 76%);
+  mask-image: radial-gradient(circle at 50% 42%, var(--c-overlay-ink) 28%, transparent 76%);
   mask-image: radial-gradient(circle at 50% 42%, var(--c-overlay-ink) 28%, transparent 76%);
 }
 

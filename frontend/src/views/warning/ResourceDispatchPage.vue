@@ -455,7 +455,7 @@ onMounted(() => loadResources())
 
 .resource-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; list-style: none; padding: 0; margin: 0; }
 .resource-grid li { background: var(--c-surface); border: 1px solid var(--c-brand-soft); border-radius: var(--r-md); padding: 14px; transition: box-shadow .15s; }
-.resource-grid li:hover { box-shadow: 0 4px 14px rgba(0,0,0,.05); }
+.resource-grid li:hover { box-shadow: 0 4px 14px rgb(0 0 0 / 5%); }
 .card-head { display: flex; gap: 10px; align-items: center; padding-bottom: 12px; border-bottom: 1px dashed var(--c-brand-soft); margin-bottom: 12px; border-left: 3px solid; padding-left: 8px; }
 .card-head .meta { flex: 1; min-width: 0; }
 .card-head strong { display: block; color: var(--c-text); font-size: 14px; }
@@ -485,6 +485,7 @@ onMounted(() => loadResources())
 .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px; }
 
 .spin { animation: spin 1s linear infinite; }
+
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
 /* 路径规划 Tab */

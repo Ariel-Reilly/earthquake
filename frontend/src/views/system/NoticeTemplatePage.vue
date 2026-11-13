@@ -486,7 +486,7 @@ onMounted(load)
 
 .card-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
 .tpl-card { background: var(--c-surface); border: 1px solid var(--c-brand-soft); border-radius: var(--r-lg); padding: 16px; display: flex; flex-direction: column; gap: 10px; transition: box-shadow .2s, transform .2s; }
-.tpl-card:hover { box-shadow: 0 8px 20px rgba(0,0,0,.05); transform: translateY(-1px); }
+.tpl-card:hover { box-shadow: 0 8px 20px rgb(0 0 0 / 5%); transform: translateY(-1px); }
 .tpl-card.disabled { opacity: .65; background: var(--c-surface-2); }
 .tpl-head { display: flex; gap: 10px; align-items: center; }
 .tpl-head strong { flex: 1; color: var(--c-text); font-size: 15px; }
@@ -508,7 +508,7 @@ onMounted(load)
 .switch input:checked + .slider::before { transform: translateX(16px); }
 
 .drawer-mask { position: fixed; inset: 0; background: var(--c-overlay); display: flex; justify-content: flex-end; z-index: 110; }
-.drawer { width: min(880px, 100%); background: var(--c-surface); height: 100%; display: flex; flex-direction: column; box-shadow: -8px 0 24px rgba(0,0,0,.08); }
+.drawer { width: min(880px, 100%); background: var(--c-surface); height: 100%; display: flex; flex-direction: column; box-shadow: -8px 0 24px rgb(0 0 0 / 8%); }
 .drawer > header { display: flex; align-items: center; justify-content: space-between; padding: 18px 24px; border-bottom: 1px solid var(--c-border-2); }
 .drawer > header h3 { margin: 0; font-size: 15px; color: var(--c-text); }
 .drawer-body { padding: 22px 24px; overflow-y: auto; flex: 1; }
@@ -544,15 +544,17 @@ onMounted(load)
 .drawer-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--c-border-2); }
 
 .spin { animation: spin 1s linear infinite; }
+
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
-@media (max-width: 880px) {
+@media (width <= 880px) {
   .card-grid { grid-template-columns: 1fr; }
   .form-grid { grid-template-columns: 1fr 1fr; }
   .form-grid label.switch { grid-column: 1 / -1; }
   .editor-grid { grid-template-columns: 1fr; }
 }
-@media (max-width: 540px) {
+
+@media (width <= 540px) {
   .tpl-shell { padding: 16px; }
   .form-grid { grid-template-columns: 1fr; }
   .actions { width: 100%; }

@@ -1026,7 +1026,7 @@ onMounted(async () => {
 
 <style scoped>
 /* ---- 页面框架 ---- */
-<style scoped>
+\3c style scoped>
 .model-manage-page {
   /* 日志控制台是「固定深色」的终端面板，不随浅色/深色主题反转；
      这里集中声明其专用色，避免在深色底上套用会反转的浅色令牌。 */
@@ -1039,12 +1039,14 @@ onMounted(async () => {
   --mm-log-msg:    #cfd8d8;
   --mm-log-warn:   #f0d8b3;
   --mm-log-err:    #f1b4ad;
-  --mm-log-thumb:  rgba(255,255,255,.12);
+  --mm-log-thumb:  rgb(255 255 255 / 12%);
+
   padding: 0 30px 40px;
   min-height: 100%;
 }
 .stat-icon { display: grid; place-items: center; width: 42px; height: 42px; border-radius: var(--r-lg); flex: 0 0 auto; }
-/* KPI 图标底色（原为模板内联 style，改为语义 class 以支持暗色主题）*/
+
+/* KPI 图标底色（原为模板内联 style，改为语义 class 以支持暗色主题） */
 .stat-icon--mint { background: var(--c-brand-mist); color: var(--c-brand-hover); }
 .stat-icon--violet { background: var(--sys-purple-soft); color: var(--c-brand); }
 .stat-icon--amber { background: var(--c-warning-bg); color: var(--c-warning); }
@@ -1110,7 +1112,7 @@ code { display: inline-block; padding: 2px 7px; background: var(--c-border-2); b
 .log-line.log-err .log-level { color: var(--c-danger); }
 .log-line.log-err .log-msg { color: var(--mm-log-err); }
 .drawer-overlay { position: fixed; inset: 0; z-index: 40; background: var(--c-overlay); backdrop-filter: blur(2px); display: flex; justify-content: flex-end; }
-.drawer-panel { width: min(480px, 100vw); height: 100%; background: var(--c-surface); display: flex; flex-direction: column; box-shadow: -8px 0 30px rgba(20, 60, 56, .15); }
+.drawer-panel { width: min(480px, 100vw); height: 100%; background: var(--c-surface); display: flex; flex-direction: column; box-shadow: -8px 0 30px rgb(20 60 56 / 15%); }
 .drawer-header { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px; border-bottom: 1px solid var(--c-separator); }
 .drawer-header h3 { margin: 0; color: var(--c-text); font-size: 15px; }
 .drawer-header p { margin: 3px 0 0; color: var(--c-text-3); font-size: 10px; }
@@ -1142,7 +1144,7 @@ code { display: inline-block; padding: 2px 7px; background: var(--c-border-2); b
 .mini-svg { width: 100%; height: 60px; overflow: visible; }
 .drawer-footer { padding: 16px 0 8px; border-top: 1px solid var(--c-border-2); display: flex; justify-content: flex-end; }
 .modal-mask { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; background: var(--c-overlay); backdrop-filter: blur(3px); }
-.modal { width: min(500px, 92vw); border: 1px solid var(--c-separator); border-radius: var(--r-lg); background: var(--c-surface); box-shadow: 0 24px 60px rgba(20, 60, 56, .2); }
+.modal { width: min(500px, 92vw); border: 1px solid var(--c-separator); border-radius: var(--r-lg); background: var(--c-surface); box-shadow: 0 24px 60px rgb(20 60 56 / 20%); }
 .modal-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--c-border-2); }
 .modal-head strong { color: var(--c-text); font-size: 14px; }
 .modal-head p { margin: 3px 0 0; color: var(--c-text-3); font-size: 10px; }
@@ -1153,8 +1155,10 @@ code { display: inline-block; padding: 2px 7px; background: var(--c-border-2); b
 .modal-row input:focus, .modal-row select:focus { border-color: var(--c-brand); }
 .modal-row.three-col { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .modal-foot { display: flex; justify-content: flex-end; gap: 10px; padding: 14px 20px; border-top: 1px solid var(--c-border-2); }
-@media (max-width: 900px) { .eval-grid { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 640px) {
+
+@media (width <= 900px) { .eval-grid { grid-template-columns: repeat(2, 1fr); } }
+
+@media (width <= 640px) {
   .model-manage-page { padding: 0 14px 30px; }
   .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
   .filter-bar { flex-wrap: wrap; }
@@ -1579,7 +1583,7 @@ code { display: inline-block; padding: 2px 7px; background: var(--c-border-2); b
   background: var(--c-bg);
 }
 
-@media (max-width: 900px) {
+@media (width <= 900px) {
   .drift-layout {
     grid-template-columns: 1fr;
   }

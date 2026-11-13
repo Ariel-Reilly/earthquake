@@ -817,34 +817,37 @@ function relativeTime(isoStr) {
      深色底 / 玻璃面板 / 等级强调色统一收敛到这里，避免散落写死。
      这些色属于「有意区分」的大屏视觉体系，不要合并成单一令牌。 */
   --cs-bg:            #060a14;
-  --cs-panel:         rgba(10, 15, 30, .9);
-  --cs-panel-deep:    rgba(10, 15, 30, .95);
-  --cs-elev:          rgba(15, 23, 42, .8);
-  --cs-elev-dim:      rgba(15, 23, 42, .6);
-  --cs-elev-strong:   rgba(15, 23, 42, .9);
-  --cs-tab-bg:        rgba(30, 41, 59, .8);
-  --cs-overlay:       rgba(6, 10, 20, .85);
-  --cs-hairline:      rgba(255, 255, 255, .06);
+  --cs-panel:         rgb(10 15 30 / 90%);
+  --cs-panel-deep:    rgb(10 15 30 / 95%);
+  --cs-elev:          rgb(15 23 42 / 80%);
+  --cs-elev-dim:      rgb(15 23 42 / 60%);
+  --cs-elev-strong:   rgb(15 23 42 / 90%);
+  --cs-tab-bg:        rgb(30 41 59 / 80%);
+  --cs-overlay:       rgb(6 10 20 / 85%);
+  --cs-hairline:      rgb(255 255 255 / 6%);
   --cs-header-grad:   linear-gradient(90deg, #0d1b2a 0%, #1b2a3a 50%, #0d1b2a 100%);
+
   /* 品牌绿叠加：大屏原为蓝色系，已统一改品牌绿，各透明度档位保留区分 */
-  --cs-brand-a06:     rgba(76, 189, 106, .06);
-  --cs-brand-a10:     rgba(76, 189, 106, .1);
-  --cs-brand-a15:     rgba(76, 189, 106, .15);
-  --cs-brand-a20:     rgba(76, 189, 106, .2);
-  --cs-brand-a25:     rgba(76, 189, 106, .25);
-  --cs-brand-a30:     rgba(76, 189, 106, .3);
-  /* 告警强调叠加（红/橙/黄/绿 分级保留辨识度）*/
-  --cs-danger-a20:    rgba(239, 68, 68, .2);
-  --cs-danger-a30:    rgba(239, 68, 68, .3);
-  --cs-warning-a06:   rgba(249, 115, 22, .06);
-  --cs-warning-a10:   rgba(249, 115, 22, .1);
-  --cs-warning-a20:   rgba(249, 115, 22, .2);
-  --cs-warning-a30:   rgba(249, 115, 22, .3);
-  --cs-success-a20:   rgba(34, 197, 94, .2);
-  --cs-success-a30:   rgba(34, 197, 94, .3);
-  --cs-yellow-a15:    rgba(234, 179, 8, .15);
-  --cs-yellow-a20:    rgba(234, 179, 8, .2);
-  /* 等级文字/点缀色（蓝/红/橙/黄/青/紫）*/
+  --cs-brand-a06:     rgb(76 189 106 / 6%);
+  --cs-brand-a10:     rgb(76 189 106 / 10%);
+  --cs-brand-a15:     rgb(76 189 106 / 15%);
+  --cs-brand-a20:     rgb(76 189 106 / 20%);
+  --cs-brand-a25:     rgb(76 189 106 / 25%);
+  --cs-brand-a30:     rgb(76 189 106 / 30%);
+
+  /* 告警强调叠加（红/橙/黄/绿 分级保留辨识度） */
+  --cs-danger-a20:    rgb(239 68 68 / 20%);
+  --cs-danger-a30:    rgb(239 68 68 / 30%);
+  --cs-warning-a06:   rgb(249 115 22 / 6%);
+  --cs-warning-a10:   rgb(249 115 22 / 10%);
+  --cs-warning-a20:   rgb(249 115 22 / 20%);
+  --cs-warning-a30:   rgb(249 115 22 / 30%);
+  --cs-success-a20:   rgb(34 197 94 / 20%);
+  --cs-success-a30:   rgb(34 197 94 / 30%);
+  --cs-yellow-a15:    rgb(234 179 8 / 15%);
+  --cs-yellow-a20:    rgb(234 179 8 / 20%);
+
+  /* 等级文字/点缀色（蓝/红/橙/黄/青/紫） */
   --cs-lvl-blue:      #60a5fa;
   --cs-lvl-red:       #f87171;
   --cs-lvl-orange:    #fb923c;
@@ -852,6 +855,7 @@ function relativeTime(isoStr) {
   --cs-accent-cyan:   #06b6d4;
   --cs-accent-purple: #a855f7;
   --cs-accent-yellow: #eab308;
+
   display: flex;
   flex-direction: column;
   height: 100vh;
@@ -874,12 +878,14 @@ function relativeTime(isoStr) {
   border-bottom: 1px solid var(--cs-brand-a25);
   flex-shrink: 0;
 }
+
 .cs-header-left {
   display: flex;
   align-items: center;
   gap: 10px;
 }
 .cs-logo-icon { color: var(--c-brand-hover); }
+
 .cs-logo-text {
   font-size: 18px;
   font-weight: 700;
@@ -887,6 +893,7 @@ function relativeTime(isoStr) {
   letter-spacing: 1px;
 }
 .cs-divider { color: var(--c-ink-1); }
+
 .cs-subtitle {
   font-size: 12px;
   color: var(--c-text-3);
@@ -902,6 +909,7 @@ function relativeTime(isoStr) {
   padding: 4px;
   border: 1px solid var(--cs-brand-a20);
 }
+
 .cs-tab {
   display: flex;
   align-items: center;
@@ -917,6 +925,7 @@ function relativeTime(isoStr) {
   white-space: nowrap;
 }
 .cs-tab:hover { color: var(--c-brand-soft); background: var(--cs-brand-a15); }
+
 .cs-tab.active {
   background: var(--c-brand-deeper);
   color: var(--c-on-brand);
@@ -929,6 +938,7 @@ function relativeTime(isoStr) {
   align-items: center;
   gap: 14px;
 }
+
 .cs-ws-badge {
   display: flex;
   align-items: center;
@@ -940,6 +950,7 @@ function relativeTime(isoStr) {
 }
 .ws-ok { background: var(--c-success-bg); color: var(--c-success); border: 1px solid var(--cs-success-a30); }
 .ws-off { background: var(--c-danger-bg); color: var(--c-danger); border: 1px solid var(--cs-danger-a30); }
+
 .cs-clock {
   font-size: 14px;
   color: var(--c-text-3);
@@ -953,6 +964,7 @@ function relativeTime(isoStr) {
   overflow: hidden;
   position: relative;
 }
+
 .cs-view {
   width: 100%;
   height: 100%;
@@ -971,6 +983,7 @@ function relativeTime(isoStr) {
   gap: 10px;
   flex-shrink: 0;
 }
+
 .cs-kpi-card {
   display: flex;
   align-items: center;
@@ -983,6 +996,7 @@ function relativeTime(isoStr) {
   overflow: hidden;
   transition: border-color 0.2s;
 }
+
 .cs-kpi-card::before {
   content: '';
   position: absolute;
@@ -1015,6 +1029,7 @@ function relativeTime(isoStr) {
   flex: 1;
   min-height: 0;
 }
+
 .cs-panel {
   background: var(--cs-panel);
   border: 1px solid var(--cs-brand-a15);
@@ -1023,6 +1038,7 @@ function relativeTime(isoStr) {
   flex-direction: column;
   overflow: hidden;
 }
+
 .panel-header {
   display: flex;
   align-items: center;
@@ -1035,6 +1051,7 @@ function relativeTime(isoStr) {
   background: var(--cs-elev-dim);
   flex-shrink: 0;
 }
+
 .panel-count {
   margin-left: auto;
   font-size: 11px;
@@ -1049,6 +1066,7 @@ function relativeTime(isoStr) {
 .cs-hazard-list { flex: 1; overflow-y: auto; padding: 6px 0; }
 .cs-hazard-list::-webkit-scrollbar { width: 4px; }
 .cs-hazard-list::-webkit-scrollbar-thumb { background: var(--sys-indigo-deep); border-radius: var(--r-xs); }
+
 .cs-hazard-item {
   display: flex;
   align-items: center;
@@ -1057,6 +1075,7 @@ function relativeTime(isoStr) {
   transition: background 0.15s;
 }
 .cs-hazard-item:hover { background: var(--cs-brand-a06); }
+
 .hazard-dot {
   width: 8px; height: 8px;
   border-radius: 50%;
@@ -1070,6 +1089,7 @@ function relativeTime(isoStr) {
 .hazard-info { flex: 1; min-width: 0; }
 .hazard-name { font-size: 13px; color: var(--c-brand-tint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hazard-meta { font-size: 11px; color: var(--c-ink-1); margin-top: 2px; }
+
 .hazard-level {
   font-size: 11px;
   padding: 2px 8px;
@@ -1086,6 +1106,7 @@ function relativeTime(isoStr) {
 .cs-warning-list { flex: 1; overflow-y: auto; padding: 6px 0; }
 .cs-warning-list::-webkit-scrollbar { width: 4px; }
 .cs-warning-list::-webkit-scrollbar-thumb { background: var(--sys-indigo-deep); border-radius: var(--r-xs); }
+
 .cs-warning-item {
   display: flex;
   align-items: center;
@@ -1098,6 +1119,7 @@ function relativeTime(isoStr) {
 .w-body { flex: 1; min-width: 0; }
 .w-title { font-size: 13px; color: var(--c-brand-tint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .w-meta { display: flex; align-items: center; gap: 8px; margin-top: 2px; }
+
 .w-level {
   font-size: 11px;
   padding: 1px 6px;
@@ -1109,6 +1131,7 @@ function relativeTime(isoStr) {
 /* ─── 视图 B: 实时地图 ─── */
 .cs-view-map { padding: 0; position: relative; }
 .cs-map-container { width: 100%; height: 100%; }
+
 .cs-map-overlay-stats {
   position: absolute;
   top: 14px;
@@ -1118,6 +1141,7 @@ function relativeTime(isoStr) {
   gap: 6px;
   z-index: 10;
 }
+
 .overlay-stat {
   display: flex;
   align-items: center;
@@ -1142,6 +1166,7 @@ function relativeTime(isoStr) {
   gap: 10px;
   flex-shrink: 0;
 }
+
 .warn-summary-card {
   display: flex;
   align-items: center;
@@ -1166,6 +1191,7 @@ function relativeTime(isoStr) {
   border-radius: var(--r-sm);
   overflow: hidden;
 }
+
 .cs-ticker-label {
   display: flex;
   align-items: center;
@@ -1177,22 +1203,26 @@ function relativeTime(isoStr) {
   background: var(--cs-warning-a10);
   border-bottom: 1px solid var(--c-warning-bg);
 }
+
 .cs-ticker {
   height: 36px;
   overflow: hidden;
   display: flex;
   align-items: center;
 }
+
 .cs-ticker-inner {
   display: flex;
   align-items: center;
   white-space: nowrap;
   animation: ticker-scroll 40s linear infinite;
 }
+
 @keyframes ticker-scroll {
   0%   { transform: translateX(0); }
   100% { transform: translateX(-50%); }
 }
+
 .cs-ticker-item {
   display: inline-flex;
   align-items: center;
@@ -1201,6 +1231,7 @@ function relativeTime(isoStr) {
   font-size: 13px;
   color: var(--c-brand-tint);
 }
+
 .ti-level {
   font-size: 11px;
   padding: 1px 6px;
@@ -1221,6 +1252,7 @@ function relativeTime(isoStr) {
 }
 .cs-warn-detail-grid::-webkit-scrollbar { width: 4px; }
 .cs-warn-detail-grid::-webkit-scrollbar-thumb { background: var(--sys-indigo-deep); border-radius: var(--r-xs); }
+
 .cs-warn-card {
   background: var(--cs-panel);
   border-radius: var(--r-sm);
@@ -1235,12 +1267,14 @@ function relativeTime(isoStr) {
 .card-yellow { border-color: var(--cs-yellow-a20); }
 .card-blue, .card-gray { border-color: var(--cs-brand-a20); }
 .wcard-top { display: flex; align-items: center; gap: 6px; }
+
 .wcard-level {
   font-size: 12px;
   padding: 1px 8px;
   border-radius: var(--r-xs);
   font-weight: 600;
 }
+
 .wcard-status {
   margin-left: auto;
   font-size: 11px;
@@ -1248,6 +1282,7 @@ function relativeTime(isoStr) {
 }
 .wcard-title { font-size: 14px; font-weight: 600; color: var(--c-brand-soft); }
 .wcard-desc { font-size: 12px; color: var(--c-text-3); line-height: 1.4; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+
 .wcard-footer {
   display: flex;
   justify-content: space-between;
@@ -1261,6 +1296,7 @@ function relativeTime(isoStr) {
 /* ─── 视图 D: 设备状态 ─── */
 .cs-view-devices { display: flex; flex-direction: column; gap: 12px; overflow: hidden; }
 .cs-device-top { display: grid; grid-template-columns: 340px 1fr; gap: 12px; flex-shrink: 0; }
+
 .cs-rate-panel {
   background: var(--cs-panel);
   border: 1px solid var(--cs-brand-a15);
@@ -1309,6 +1345,7 @@ function relativeTime(isoStr) {
 }
 .cs-device-list-grid::-webkit-scrollbar { width: 4px; }
 .cs-device-list-grid::-webkit-scrollbar-thumb { background: var(--sys-indigo-deep); border-radius: var(--r-xs); }
+
 .cs-device-card {
   display: flex;
   align-items: center;
@@ -1326,6 +1363,7 @@ function relativeTime(isoStr) {
 .dev-info { flex: 1; min-width: 0; }
 .dev-name { font-size: 13px; color: var(--c-brand-tint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dev-type { font-size: 11px; color: var(--c-ink-1); margin-top: 2px; }
+
 .dev-status-badge {
   display: flex;
   align-items: center;
@@ -1339,6 +1377,7 @@ function relativeTime(isoStr) {
 
 /* ─── 空状态 ─── */
 .cs-empty { padding: 16px; text-align: center; font-size: 12px; color: var(--c-ink-1); }
+
 .cs-empty-large {
   grid-column: 1 / -1;
   display: flex;
@@ -1364,6 +1403,7 @@ function relativeTime(isoStr) {
   color: var(--c-ink-1);
   flex-shrink: 0;
 }
+
 .footer-left, .footer-right {
   display: flex;
   align-items: center;
@@ -1371,6 +1411,7 @@ function relativeTime(isoStr) {
 }
 .footer-sep { color: var(--sys-indigo-deep); }
 .footer-view-indicator { display: flex; gap: 5px; align-items: center; }
+
 .fvi-dot {
   width: 6px; height: 6px;
   border-radius: 50%;

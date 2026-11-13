@@ -84,6 +84,7 @@ function formatBadge(n) {
   align-items: stretch;
   align-self: stretch;
   flex: 1 1 0;
+
   /* flex 子项默认 min-width:auto 会被内容撑开，必须置 0 才能在窄屏下出现横向滚动，
      从而保证右侧操作区不被挤压 */
   min-width: 0;
@@ -140,7 +141,7 @@ function formatBadge(n) {
 
 .group-tab:hover {
   color: var(--text-main, #2C3B34);
-  background: var(--bg-hover, rgba(95, 122, 107, 0.08));
+  background: var(--bg-hover, rgb(95 122 107 / 8%));
 }
 
 /* 文字用 --primary-hover 而非 --primary：主色在白底上对比度仅 4.16，加深一档后约 5.9 */
@@ -167,7 +168,8 @@ function formatBadge(n) {
   padding: 0 5px;
   border-radius: var(--r-pill, 9999px);
   background: var(--primary, #5F7A6B);
-  color: var(--primary-on, #FFFFFF);
+  color: var(--primary-on, #FFF);
+
   /* 10px 数字在 1x 屏几乎不可读，统一提到 12px 并同步放大胶囊 */
   font-size: 12px;
   font-weight: 700;

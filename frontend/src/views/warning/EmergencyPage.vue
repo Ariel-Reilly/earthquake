@@ -503,7 +503,7 @@ onMounted(loadData)
 .incident-drawer-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.35);
+  background: rgb(15 23 42 / 35%);
   backdrop-filter: blur(2px);
   z-index: var(--z-modal);
   display: flex;
@@ -517,7 +517,7 @@ onMounted(loadData)
   background: var(--color-card);
   display: flex;
   flex-direction: column;
-  box-shadow: -16px 0 40px rgba(46, 67, 93, 0.18);
+  box-shadow: -16px 0 40px rgb(46 67 93 / 18%);
 }
 
 .id-header {
@@ -560,7 +560,7 @@ onMounted(loadData)
 }
 
 .id-event-code code {
-  background: rgba(255, 255, 255, 0.18);
+  background: rgb(255 255 255 / 18%);
   padding: var(--space-xs) var(--space-sm);
   border-radius: var(--radius-xs);
   font-size: var(--text-xs);
@@ -574,24 +574,24 @@ onMounted(loadData)
   font-size: var(--text-xs);
   font-weight: var(--font-bold);
   letter-spacing: 0.5px;
-  background: rgba(255, 255, 255, 0.2);
+  background: rgb(255 255 255 / 20%);
   color: var(--color-on-primary);
 }
 
 .level-pill.orange {
-  background: rgba(255, 200, 100, 0.35);
+  background: rgb(255 200 100 / 35%);
 }
 
 .level-pill.yellow {
-  background: rgba(255, 220, 100, 0.35);
+  background: rgb(255 220 100 / 35%);
 }
 
 .level-pill.blue {
-  background: rgba(100, 180, 255, 0.35);
+  background: rgb(100 180 255 / 35%);
 }
 
 .id-close {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgb(255 255 255 / 15%);
   border: none;
   width: 32px;
   height: 32px;
@@ -605,7 +605,7 @@ onMounted(loadData)
 }
 
 .id-close:hover {
-  background: rgba(255, 255, 255, 0.28);
+  background: rgb(255 255 255 / 28%);
 }
 
 .id-body {
@@ -617,7 +617,7 @@ onMounted(loadData)
 .id-section {
   margin-bottom: var(--space-lg);
   padding-bottom: var(--space-md);
-  border-bottom: 1px dashed rgba(125, 145, 165, 0.25);
+  border-bottom: 1px dashed rgb(125 145 165 / 25%);
 }
 
 .id-section:last-child {
@@ -644,8 +644,8 @@ onMounted(loadData)
 }
 
 .id-meta-cell {
-  background: rgba(247, 250, 253, 0.7);
-  border: 1px solid rgba(125, 145, 165, 0.18);
+  background: rgb(247 250 253 / 70%);
+  border: 1px solid rgb(125 145 165 / 18%);
   border-radius: var(--radius-md);
   padding: var(--space-sm);
 }
@@ -705,7 +705,7 @@ onMounted(loadData)
   display: grid;
   place-items: center;
   flex: 0 0 auto;
-  background: rgba(60, 60, 67, 0.08);
+  background: rgb(60 60 67 / 8%);
   color: var(--color-tertiary);
   z-index: 1;
   transition: all var(--duration-fast) var(--ease-out);
@@ -754,7 +754,7 @@ onMounted(loadData)
   top: 42px;
   bottom: -10px;
   width: 2px;
-  background: rgba(60, 60, 67, 0.08);
+  background: rgb(60 60 67 / 8%);
   transition: background var(--duration-fast) var(--ease-out);
 }
 
@@ -766,7 +766,7 @@ onMounted(loadData)
   font-size: var(--text-base);
   color: var(--color-foreground);
   line-height: 1.6;
-  background: rgba(247, 250, 253, 0.7);
+  background: rgb(247 250 253 / 70%);
   padding: var(--space-md);
   border-radius: var(--radius-md);
   border-left: 3px solid var(--color-primary);
@@ -778,7 +778,7 @@ onMounted(loadData)
   align-items: center;
   gap: var(--space-md);
   padding: var(--space-md);
-  background: rgba(247, 250, 253, 0.7);
+  background: rgb(247 250 253 / 70%);
   border-radius: var(--radius-md);
 }
 
@@ -828,14 +828,14 @@ onMounted(loadData)
   text-align: center;
   color: var(--color-tertiary);
   font-size: var(--text-sm);
-  background: rgba(247, 250, 253, 0.5);
+  background: rgb(247 250 253 / 50%);
   border-radius: var(--radius-md);
 }
 
 .id-footer {
   border-top: 1px solid var(--color-border);
   padding: var(--space-md) var(--space-lg);
-  background: rgba(247, 250, 253, 0.6);
+  background: rgb(247 250 253 / 60%);
 }
 
 .id-footer-title {
@@ -870,7 +870,7 @@ onMounted(loadData)
 }
 
 .id-action-btn.tone-red {
-  background: rgba(224, 96, 96, 0.08);
+  background: rgb(224 96 96 / 8%);
   border-color: var(--color-destructive);
   color: var(--color-destructive-strong);
 }
@@ -899,6 +899,7 @@ onMounted(loadData)
   from {
     transform: rotate(0);
   }
+
   to {
     transform: rotate(360deg);
   }
@@ -939,7 +940,7 @@ onMounted(loadData)
   gap: var(--space-lg);
 }
 
-@media (max-width: 1024px) {
+@media (width <= 1024px) {
   .content-grid {
     grid-template-columns: 1fr;
   }

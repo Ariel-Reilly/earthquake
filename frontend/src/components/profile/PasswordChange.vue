@@ -129,11 +129,12 @@ async function submit() {
 .row { display: flex; flex-direction: column; gap: 6px; }
 .row label { font-size: 13px; color: var(--dashboard-muted, var(--c-text-2)); font-weight: 500; }
 .input-with-icon { position: relative; display: flex; align-items: center; }
+
 .input-with-icon input {
   flex: 1; padding: 8px 38px 8px 12px; border: 1px solid var(--dashboard-border, var(--c-brand-soft));
   border-radius: var(--r-sm); font-size: 14px; background: var(--dashboard-input-bg, var(--c-surface));
 }
-.input-with-icon input:focus { outline: none; border-color: var(--c-brand-tint); box-shadow: 0 0 0 3px rgba(99,199,127,0.15); }
+.input-with-icon input:focus { outline: none; border-color: var(--c-brand-tint); box-shadow: 0 0 0 3px rgb(99 199 127 / 15%); }
 .icon { position: absolute; right: 8px; background: none; border: none; cursor: pointer; color: var(--dashboard-muted, var(--c-text-3)); padding: 4px; }
 .icon:hover { color: var(--dashboard-text, var(--c-scrim)); }
 .strength { display: flex; align-items: center; gap: 10px; }
@@ -150,6 +151,7 @@ small { font-size: 12px; color: var(--dashboard-muted, var(--c-text-3)); }
 .msg.err { background: var(--c-danger-bg); color: var(--c-danger-strong); }
 .msg.ok { background: var(--c-brand-mist); color: var(--c-success-strong); }
 .actions { display: flex; justify-content: flex-end; }
+
 .primary {
   background: linear-gradient(135deg, var(--c-brand-tint), var(--c-brand-hover)); color: white;
   border: none; padding: 8px 18px; border-radius: var(--r-sm);
@@ -158,5 +160,6 @@ small { font-size: 12px; color: var(--dashboard-muted, var(--c-text-3)); }
 }
 .primary:disabled { opacity: 0.5; cursor: not-allowed; }
 .spin { animation: rotate 1s linear infinite; }
+
 @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 </style>

@@ -90,8 +90,8 @@ function clearError() {
   max-width: 560px;
   padding: 48px;
   text-align: center;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgb(255 255 255 / 4%);
+  border: 1px solid rgb(255 255 255 / 8%);
   border-radius: 12px;
   backdrop-filter: blur(12px);
 }
@@ -141,8 +141,8 @@ function clearError() {
   align-items: center;
   gap: 8px;
   padding: 10px 20px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgb(255 255 255 / 12%);
+  background: rgb(255 255 255 / 6%);
   border-radius: 8px;
   color: #F8FAFC;
   font-size: 14px;
@@ -152,8 +152,8 @@ function clearError() {
 }
 
 .eb-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.2);
+  background: rgb(255 255 255 / 10%);
+  border-color: rgb(255 255 255 / 20%);
   transform: translateY(-1px);
 }
 
@@ -174,8 +174,8 @@ function clearError() {
 
 .error-detail {
   text-align: left;
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgb(0 0 0 / 30%);
+  border: 1px solid rgb(255 255 255 / 8%);
   border-radius: 8px;
   padding: 16px;
 }
@@ -197,11 +197,12 @@ function clearError() {
 
 .error-detail pre {
   margin: 12px 0 0;
+
   /* 11px 等宽文本在 1x 屏几乎无法阅读，提到 12px */
   font-size: 12px;
   line-height: 1.5;
   color: #94A3B8;
-  background: rgba(0, 0, 0, 0.4);
+  background: rgb(0 0 0 / 40%);
   padding: 12px;
   border-radius: 6px;
   overflow-x: auto;
@@ -214,16 +215,16 @@ function clearError() {
 }
 
 .error-detail pre::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgb(255 255 255 / 4%);
   border-radius: 4px;
 }
 
 .error-detail pre::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.12);
+  background: rgb(255 255 255 / 12%);
   border-radius: 4px;
 }
 
 .error-detail pre::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgb(255 255 255 / 20%);
 }
 </style>

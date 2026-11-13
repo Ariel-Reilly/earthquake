@@ -383,7 +383,7 @@ onMounted(loadData)
 
 .stat-card:hover {
   border-color: var(--c-brand);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2px 10px rgb(0 0 0 / 6%);
 }
 
 .stat-icon {
@@ -584,7 +584,7 @@ onMounted(loadData)
   color: var(--c-text-2);
 }
 
-@media (max-width: 768px) {
+@media (width <= 768px) {
   .workbench-page {
     padding: 16px;
   }

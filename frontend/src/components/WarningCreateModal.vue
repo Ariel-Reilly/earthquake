@@ -373,7 +373,7 @@ defineExpose({ reset })
 .modal-backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgb(0 0 0 / 50%);
 }
 
 .modal-window {
@@ -381,7 +381,7 @@ defineExpose({ reset })
   z-index: 101;
   background: var(--c-surface);
   border-radius: var(--r-lg);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 20px 60px rgb(0 0 0 / 30%);
   width: 90vw;
   max-width: 720px;
   max-height: 85vh;

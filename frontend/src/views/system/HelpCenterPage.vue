@@ -571,7 +571,7 @@ const stateRows = [
   padding: 20px 24px;
 }
 
-@media (max-width: 900px) {
+@media (width <= 900px) {
   .help-body { grid-template-columns: 1fr; }
 }
 

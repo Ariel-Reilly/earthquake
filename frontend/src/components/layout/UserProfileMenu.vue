@@ -197,7 +197,7 @@ onBeforeUnmount(() => {
 }
 
 .user-profile-trigger:hover {
-  background: var(--bg-hover, rgba(95, 122, 107, 0.08));
+  background: var(--bg-hover, rgb(95 122 107 / 8%));
 }
 
 .user-profile-trigger:active {
@@ -205,7 +205,7 @@ onBeforeUnmount(() => {
 }
 
 .user-profile-trigger.is-active {
-  background: var(--bg-hover, rgba(95, 122, 107, 0.08));
+  background: var(--bg-hover, rgb(95 122 107 / 8%));
 }
 
 /* ── 圆形头像 ── */
@@ -218,11 +218,11 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  box-shadow: var(--shadow-card, 0 2px 8px rgba(44, 59, 52, 0.04));
+  box-shadow: var(--shadow-card, 0 2px 8px rgb(44 59 52 / 4%));
 }
 
 .user-initial {
-  color: var(--primary-on, #FFFFFF);
+  color: var(--primary-on, #FFF);
   font-size: 14px;
   font-weight: 650;
   line-height: 1;
@@ -257,9 +257,9 @@ onBeforeUnmount(() => {
   min-width: 200px;
   padding: var(--sp-8, 8px);
   border-radius: var(--r-lg, 12px);
-  background: var(--bg-card, #FFFFFF);
+  background: var(--bg-card, #FFF);
   border: 1px solid var(--border-color, #D1DCD5);
-  box-shadow: var(--shadow-hover, 0 4px 16px rgba(44, 59, 52, 0.08));
+  box-shadow: var(--shadow-hover, 0 4px 16px rgb(44 59 52 / 8%));
   overflow: hidden;
 }
 
@@ -284,7 +284,7 @@ onBeforeUnmount(() => {
 }
 
 .dropdown-item:hover {
-  background: var(--bg-hover, rgba(95, 122, 107, 0.08));
+  background: var(--bg-hover, rgb(95 122 107 / 8%));
   color: var(--primary, #5F7A6B);
 }
 
@@ -304,7 +304,7 @@ onBeforeUnmount(() => {
 }
 
 .dropdown-item-danger:hover {
-  background: var(--alert-high-bg, rgba(196, 139, 139, 0.12));
+  background: var(--alert-high-bg, rgb(196 139 139 / 12%));
   color: var(--alert-high, #C48B8B);
 }
 
@@ -334,7 +334,7 @@ onBeforeUnmount(() => {
 }
 
 /* ── 响应式 ── */
-@media (max-width: 768px) {
+@media (width <= 768px) {
   .user-name {
     display: none;
   }

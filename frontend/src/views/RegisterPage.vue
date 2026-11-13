@@ -821,15 +821,17 @@ onBeforeUnmount(stopCountdown)
   border-radius: var(--r-md);
   font-size: 12px;
 }
+
 .banner.error {
-  background: rgba(199, 85, 59, 0.1);
+  background: rgb(199 85 59 / 10%);
   color: #a83f28;
-  border: 1px solid rgba(199, 85, 59, 0.3);
+  border: 1px solid rgb(199 85 59 / 30%);
 }
+
 .banner.success {
-  background: rgba(111, 158, 127, 0.12);
+  background: rgb(111 158 127 / 12%);
   color: var(--c-brand-hover);
-  border: 1px solid rgba(111, 158, 127, 0.32);
+  border: 1px solid rgb(111 158 127 / 32%);
 }
 
 /* ── 表单 ── */
@@ -842,12 +844,14 @@ onBeforeUnmount(stopCountdown)
 }
 
 .form-intro { margin-bottom: 20px; }
+
 .form-intro h1 {
   margin: 0 0 6px;
   color: var(--c-scrim);
   font-size: 20px;
   font-weight: 600;
 }
+
 .form-intro p {
   margin: 0;
   max-width: 620px;
@@ -863,6 +867,7 @@ onBeforeUnmount(stopCountdown)
   border-radius: var(--r-md);
   background: var(--c-surface-2);
 }
+
 .form-section legend {
   padding: 0 7px;
   color: var(--c-text-2);
@@ -882,14 +887,15 @@ onBeforeUnmount(stopCountdown)
 .form-group { display: flex; flex-direction: column; gap: 6px; }
 
 .form-input.invalid {
-  border-color: rgba(199, 85, 59, 0.6);
-  box-shadow: 0 0 0 3px rgba(199, 85, 59, 0.08);
+  border-color: rgb(199 85 59 / 60%);
+  box-shadow: 0 0 0 3px rgb(199 85 59 / 8%);
 }
 
 textarea.form-input { resize: vertical; min-height: 84px; }
 
 .field-error { color: #b34a30; font-size: 11px; }
 .field-hint { color: var(--c-text-4); font-size: 11px; }
+
 .counter {
   align-self: flex-end;
   color: var(--c-text-4);
@@ -944,6 +950,7 @@ textarea.form-input { resize: vertical; min-height: 84px; }
   gap: 12px;
 }
 .captcha-field { flex: 1; }
+
 .captcha-img {
   position: relative;
   display: grid;
@@ -961,6 +968,7 @@ textarea.form-input { resize: vertical; min-height: 84px; }
 }
 .captcha-img:disabled { opacity: 0.6; cursor: progress; }
 .captcha-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
 .refresh-mark {
   position: absolute;
   right: 4px;
@@ -1000,6 +1008,7 @@ textarea.form-input { resize: vertical; min-height: 84px; }
 
 /* ── 待审核视图 ── */
 .status-panel { text-align: center; padding: 44px 32px; }
+
 .status-icon {
   display: grid;
   place-items: center;
@@ -1008,16 +1017,19 @@ textarea.form-input { resize: vertical; min-height: 84px; }
   margin: 0 auto 16px;
   border-radius: 50%;
 }
+
 .status-icon.pending {
-  background: rgba(74, 140, 194, 0.12);
+  background: rgb(74 140 194 / 12%);
   color: #3d7ca8;
 }
+
 .status-icon.ok {
-  background: rgba(111, 158, 127, 0.14);
+  background: rgb(111 158 127 / 14%);
   color: var(--c-brand-hover);
 }
+
 .status-icon.warn {
-  background: rgba(199, 85, 59, 0.12);
+  background: rgb(199 85 59 / 12%);
   color: #b34a30;
 }
 
@@ -1027,6 +1039,7 @@ textarea.form-input { resize: vertical; min-height: 84px; }
   font-size: 20px;
   font-weight: 600;
 }
+
 .status-sub {
   margin: 0 auto 22px;
   max-width: 460px;
@@ -1046,11 +1059,13 @@ textarea.form-input { resize: vertical; min-height: 84px; }
   border-bottom: 1px solid var(--c-brand-mist);
 }
 .status-detail div { text-align: center; }
+
 .status-detail dt {
   color: var(--c-text-4);
   font-size: 11px;
   margin-bottom: 5px;
 }
+
 .status-detail dd {
   margin: 0;
   color: var(--c-ink-1);
@@ -1063,8 +1078,8 @@ textarea.form-input { resize: vertical; min-height: 84px; }
   padding: 10px 14px;
   max-width: 460px;
   border-radius: var(--r-sm);
-  background: rgba(199, 85, 59, 0.08);
-  border: 1px solid rgba(199, 85, 59, 0.22);
+  background: rgb(199 85 59 / 8%);
+  border: 1px solid rgb(199 85 59 / 22%);
   color: #8f3a24;
   font-size: 12px;
   line-height: 1.6;
@@ -1077,6 +1092,7 @@ textarea.form-input { resize: vertical; min-height: 84px; }
   gap: 10px;
   flex-wrap: wrap;
 }
+
 .primary-btn,
 .ghost-btn {
   display: inline-flex;
@@ -1088,6 +1104,7 @@ textarea.form-input { resize: vertical; min-height: 84px; }
   cursor: pointer;
   transition: opacity 0.18s, background 0.18s;
 }
+
 .primary-btn {
   border: 0;
   background: var(--c-brand);
@@ -1096,6 +1113,7 @@ textarea.form-input { resize: vertical; min-height: 84px; }
 }
 .primary-btn:hover:not(:disabled) { opacity: 0.92; }
 .primary-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
 .ghost-btn {
   border: 1px solid var(--c-brand-tint);
   background: transparent;
@@ -1104,9 +1122,10 @@ textarea.form-input { resize: vertical; min-height: 84px; }
 .ghost-btn:hover { background: var(--c-brand-mist); }
 
 .spin { animation: register-spin 0.9s linear infinite; }
+
 @keyframes register-spin { to { transform: rotate(360deg); } }
 
-@media (max-width: 640px) {
+@media (width <= 640px) {
   .register-form, .status-panel { padding: 20px 16px; }
   .grid-2 { grid-template-columns: 1fr; }
   .status-detail { gap: 20px; }

@@ -999,7 +999,7 @@ onBeforeUnmount(() => {
   background: var(--c-surface);
   border-radius: var(--r-lg);
   padding: 18px 20px 12px;
-  box-shadow: 0 1px 4px rgba(15, 43, 47, 0.04);
+  box-shadow: 0 1px 4px rgb(15 43 47 / 4%);
   border: 1px solid var(--c-brand-soft);
 }
 
@@ -1216,17 +1216,17 @@ onBeforeUnmount(() => {
 }
 
 .warning-title span.orange {
-  background: rgba(232, 125, 91, 0.15);
+  background: rgb(232 125 91 / 15%);
   color: var(--c-danger-strong);
 }
 
 .warning-title span.yellow {
-  background: rgba(215, 165, 70, 0.15);
+  background: rgb(215 165 70 / 15%);
   color: var(--c-warning-ink);
 }
 
 .warning-title span.blue {
-  background: rgba(93, 180, 134, 0.15);
+  background: rgb(93 180 134 / 15%);
   color: var(--c-brand-deep);
 }
 
@@ -1235,7 +1235,7 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 3px;
   padding: 2px 7px;
-  background: rgba(79, 143, 153, 0.12);
+  background: rgb(79 143 153 / 12%);
   color: var(--c-brand);
   border-radius: var(--r-xs);
   font-size: 10px;
@@ -1243,7 +1243,7 @@ onBeforeUnmount(() => {
 }
 
 .source-badge.source-ai {
-  background: rgba(79, 143, 153, 0.12);
+  background: rgb(79 143 153 / 12%);
 }
 
 .ai-tag {
@@ -1259,12 +1259,12 @@ onBeforeUnmount(() => {
 }
 
 .ai-tag-critical {
-  background: rgba(232, 125, 91, 0.15);
+  background: rgb(232 125 91 / 15%);
   color: var(--c-danger-strong);
 }
 
 .ai-tag-high {
-  background: rgba(215, 165, 70, 0.15);
+  background: rgb(215 165 70 / 15%);
   color: var(--c-warning-ink);
 }
 
@@ -1462,7 +1462,7 @@ onBeforeUnmount(() => {
   border-radius: var(--r-lg);
   width: 500px;
   max-width: 95vw;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 10px 40px rgb(0 0 0 / 18%);
 }
 
 .modal-head {
@@ -1520,7 +1520,7 @@ onBeforeUnmount(() => {
   font-weight: 600;
   letter-spacing: 0.3px;
   font-family: ui-monospace, monospace;
-  background: rgba(79, 143, 153, 0.12);
+  background: rgb(79 143 153 / 12%);
   color: var(--c-brand);
 }
 
@@ -1684,22 +1684,22 @@ onBeforeUnmount(() => {
 }
 
 .level-tag.red {
-  background: rgba(232, 125, 91, 0.15);
+  background: rgb(232 125 91 / 15%);
   color: var(--c-danger-strong);
 }
 
 .level-tag.yellow {
-  background: rgba(215, 165, 70, 0.15);
+  background: rgb(215 165 70 / 15%);
   color: var(--c-warning-ink);
 }
 
 .level-tag.blue {
-  background: rgba(47, 143, 82, 0.12);
+  background: rgb(47 143 82 / 12%);
   color: var(--sys-blue-deep);
 }
 
 .level-tag.green {
-  background: rgba(93, 180, 134, 0.15);
+  background: rgb(93 180 134 / 15%);
   color: var(--c-brand-deep);
 }
 
@@ -1813,7 +1813,7 @@ onBeforeUnmount(() => {
   gap: 4px;
   padding: 2px 7px;
   border-radius: var(--r-xs);
-  background: rgba(154, 118, 46, 0.12);
+  background: rgb(154 118 46 / 12%);
   margin-right: 4px;
   font-size: 11px;
 }
@@ -2067,7 +2067,7 @@ onBeforeUnmount(() => {
   border-radius: var(--r-lg);
   width: 460px;
   max-width: 95vw;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 10px 40px rgb(0 0 0 / 18%);
 }
 
 .dialog h3 {
@@ -2160,11 +2160,11 @@ onBeforeUnmount(() => {
   font-weight: 600;
   letter-spacing: 0.3px;
   font-family: ui-monospace, monospace;
-  background: rgba(79, 143, 153, 0.12);
+  background: rgb(79 143 153 / 12%);
   color: var(--c-brand);
 }
 
-@media (max-width: 1300px) {
+@media (width <= 1300px) {
   .content-grid {
     grid-template-columns: 1fr;
   }

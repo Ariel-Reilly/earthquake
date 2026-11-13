@@ -65,24 +65,28 @@ const meta = computed(() => {
   white-space: nowrap;
 }
 .ai-health-badge.inline { font-size: 11px; padding: 3px 8px; }
+
 .sev-ok {
   color: var(--c-success-strong);
-  background: rgba(34,197,94,0.1);
-  border-color: rgba(34,197,94,0.3);
+  background: rgb(34 197 94 / 10%);
+  border-color: rgb(34 197 94 / 30%);
 }
+
 .sev-degraded {
   color: #9a3412;
-  background: rgba(249,115,22,0.1);
-  border-color: rgba(249,115,22,0.35);
+  background: rgb(249 115 22 / 10%);
+  border-color: rgb(249 115 22 / 35%);
 }
+
 .sev-down {
   color: var(--c-danger-strong);
-  background: rgba(239,68,68,0.12);
-  border-color: rgba(239,68,68,0.4);
+  background: rgb(239 68 68 / 12%);
+  border-color: rgb(239 68 68 / 40%);
   animation: pulse-badge 2.4s ease-in-out infinite;
 }
+
 @keyframes pulse-badge {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.0); }
-  50% { box-shadow: 0 0 0 4px rgba(239,68,68,0.18); }
+  0%, 100% { box-shadow: 0 0 0 0 rgb(239 68 68 / 0%); }
+  50% { box-shadow: 0 0 0 4px rgb(239 68 68 / 18%); }
 }
 </style>

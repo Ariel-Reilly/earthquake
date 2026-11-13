@@ -272,7 +272,7 @@ function close() {
 .input-with-unit input {
   flex: 1;
   padding: 6px 8px;
-  border: 1px solid rgba(60,60,67,.10);
+  border: 1px solid rgb(60 60 67 / 10%);
   border-radius: var(--r-xs);
   font-size: 13px;
   background: var(--c-surface-2);
@@ -347,15 +347,15 @@ function close() {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.5);
+  background: rgb(255 255 255 / 50%);
 }
 
 .result-summary.passed .result-icon {
-  background: rgba(56, 161, 105, 0.2);
+  background: rgb(56 161 105 / 20%);
 }
 
 .result-summary.failed .result-icon {
-  background: rgba(199, 85, 59, 0.2);
+  background: rgb(199 85 59 / 20%);
 }
 
 .result-text {

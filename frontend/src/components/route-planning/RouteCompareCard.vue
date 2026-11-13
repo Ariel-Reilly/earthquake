@@ -69,15 +69,17 @@ function modeLabel(m) {
 <style scoped>
 .compare-list { display: flex; flex-direction: column; gap: 10px; }
 .empty { color: var(--dashboard-muted, var(--c-text-3)); font-size: 13px; padding: 24px; text-align: center; }
+
 .card {
   border: 1px solid var(--dashboard-border, var(--c-brand-soft)); border-radius: var(--r-lg);
   padding: 12px 14px; cursor: pointer; background: var(--dashboard-card-bg, var(--c-surface));
   transition: all 0.18s; display: flex; flex-direction: column; gap: 8px;
 }
-.card:hover { border-color: var(--c-brand-tint); box-shadow: 0 4px 12px rgba(99,199,127,0.1); }
+.card:hover { border-color: var(--c-brand-tint); box-shadow: 0 4px 12px rgb(99 199 127 / 10%); }
 .card.active { border-color: var(--c-brand-deep); background: linear-gradient(135deg, var(--sys-blue-soft), var(--sys-blue-soft)); }
 header { display: flex; align-items: center; gap: 8px; }
 header strong { font-size: 14px; color: var(--dashboard-text, var(--c-scrim)); }
+
 .risk {
   display: inline-flex; align-items: center; gap: 4px;
   font-size: 11px; padding: 2px 8px; border-radius: var(--r-pill);
@@ -90,6 +92,7 @@ dl > div { display: flex; align-items: center; gap: 4px; }
 dt { color: var(--dashboard-muted, var(--c-text-2)); }
 dd { margin: 0; color: var(--dashboard-text, var(--c-scrim)); font-weight: 500; }
 footer { display: flex; gap: 6px; justify-content: flex-end; }
+
 .ghost {
   background: transparent; color: var(--dashboard-muted, var(--c-ink-1));
   border: 1px solid var(--dashboard-border, var(--c-brand-tint)); padding: 4px 10px;

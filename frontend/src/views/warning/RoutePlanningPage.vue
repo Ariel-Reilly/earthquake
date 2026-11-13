@@ -354,6 +354,7 @@ onMounted(async () => {
 .head { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1px solid var(--dashboard-border, var(--c-brand-mist)); padding-bottom: 12px; }
 .head h2 { display: inline-flex; align-items: center; gap: 8px; margin: 0; font-size: 20px; }
 .head p { margin: 4px 0 0; color: var(--dashboard-muted, var(--c-text-2)); font-size: 13px; max-width: 600px; }
+
 .toggle {
   display: inline-flex; align-items: center; gap: 6px;
   border: 1px solid var(--dashboard-border, var(--c-brand-tint)); padding: 6px 12px; border-radius: var(--r-pill);
@@ -361,15 +362,18 @@ onMounted(async () => {
 }
 .toggle input { accent-color: var(--c-brand-tint); }
 .grid { display: grid; grid-template-columns: 320px 1fr 320px; gap: 16px; }
-@media (max-width: 1180px) { .grid { grid-template-columns: 1fr; } }
+
+@media (width <= 1180px) { .grid { grid-template-columns: 1fr; } }
+
 .panel {
   background: var(--dashboard-card-bg, var(--c-surface));
   border: 1px solid var(--dashboard-border, var(--c-brand-mist)); border-radius: var(--r-lg);
   padding: 16px 18px; display: flex; flex-direction: column; gap: 10px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 4%);
 }
 .panel h3 { margin: 0; font-size: 16px; }
 .map-panel { padding: 0; overflow: hidden; }
+
 .map-header {
   display: flex; justify-content: space-between; align-items: center;
   padding: 14px 18px; border-bottom: 1px solid var(--c-border);
@@ -382,6 +386,7 @@ onMounted(async () => {
 .map-wrap svg { width: 100%; height: auto; display: block; }
 .route-head { display: flex; justify-content: space-between; align-items: center; }
 .route-actions { display: flex; gap: 6px; }
+
 .ghost {
   background: transparent; color: var(--dashboard-muted, var(--c-ink-1));
   border: 1px solid var(--dashboard-border, var(--c-brand-tint)); padding: 4px 10px;
@@ -392,5 +397,6 @@ onMounted(async () => {
 .ghost:hover:not(:disabled) { border-color: var(--c-brand-tint); color: var(--c-brand-deep); }
 .err { color: var(--c-danger); font-size: 12px; padding: 6px 10px; background: var(--c-danger-bg); border-radius: var(--r-sm); }
 .spin { animation: rotate 1s linear infinite; }
+
 @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 </style>

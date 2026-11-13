@@ -451,6 +451,7 @@ async function toggleTask(taskId, currentStatus) {
   grid-template-columns: repeat(6, 1fr);
   gap: 12px;
 }
+
 .ds-stat-card {
   background: var(--c-surface);
   border: 1px solid var(--c-brand-soft);
@@ -481,6 +482,7 @@ async function toggleTask(taskId, currentStatus) {
   align-items: center;
   gap: 10px;
 }
+
 .ds-search {
   display: flex;
   align-items: center;
@@ -492,6 +494,7 @@ async function toggleTask(taskId, currentStatus) {
   flex: 1;
   color: var(--c-text-3);
 }
+
 .ds-input {
   border: none;
   outline: none;
@@ -501,6 +504,7 @@ async function toggleTask(taskId, currentStatus) {
   color: var(--c-scrim);
 }
 .ds-input::placeholder { color: var(--c-text-3); }
+
 .ds-select {
   padding: 8px 12px;
   border: 1px solid var(--c-brand-soft);
@@ -510,6 +514,7 @@ async function toggleTask(taskId, currentStatus) {
   color: var(--c-scrim);
   cursor: pointer;
 }
+
 .ds-btn {
   display: flex;
   align-items: center;
@@ -544,6 +549,7 @@ async function toggleTask(taskId, currentStatus) {
 /* 表格 */
 .ds-table-wrap { background: var(--c-surface); border-radius: var(--r-md); border: 1px solid var(--c-brand-soft); overflow: auto; }
 .ds-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+
 .ds-table th {
   padding: 10px 14px;
   text-align: left;
@@ -557,6 +563,7 @@ async function toggleTask(taskId, currentStatus) {
   top: 0;
   z-index: 2;
 }
+
 .ds-table td {
   padding: 11px 14px;
   border-bottom: 1px solid var(--c-brand-mist);
@@ -618,8 +625,9 @@ async function toggleTask(taskId, currentStatus) {
   z-index: 200;
   display: flex;
   flex-direction: column;
-  box-shadow: -4px 0 24px rgba(0,0,0,0.08);
+  box-shadow: -4px 0 24px rgb(0 0 0 / 8%);
 }
+
 .drawer-header {
   display: flex;
   align-items: center;
@@ -633,6 +641,7 @@ async function toggleTask(taskId, currentStatus) {
 }
 .drawer-body { flex: 1; overflow-y: auto; padding: 16px 18px; }
 .detail-section { margin-bottom: 24px; }
+
 .detail-section h4 {
   display: flex;
   align-items: center;
@@ -676,6 +685,7 @@ async function toggleTask(taskId, currentStatus) {
 .fade-enter-active, .fade-leave-active { transition: opacity 0.25s; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
 .spin { animation: spin 1s linear infinite; }
+
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 .ml-2 { margin-left: 8px; }
 </style>

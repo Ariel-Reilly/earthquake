@@ -23,7 +23,7 @@ defineProps({
   height: 100%;
   object-fit: contain;
   border-radius: 50%;
-  filter: drop-shadow(0 8px 20px rgba(15, 78, 71, 0.2));
+  filter: drop-shadow(0 8px 20px rgb(15 78 71 / 20%));
 }
 
 .mascot-shadow {
@@ -34,7 +34,7 @@ defineProps({
   width: 60%;
   height: 10px;
   border-radius: 50%;
-  background: radial-gradient(ellipse, rgba(15, 78, 71, 0.15), transparent 70%);
+  background: radial-gradient(ellipse, rgb(15 78 71 / 15%), transparent 70%);
   animation: shadow-pulse 4s ease-in-out infinite;
   z-index: -1;
 }

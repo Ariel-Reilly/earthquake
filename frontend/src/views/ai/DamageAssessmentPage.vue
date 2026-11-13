@@ -626,6 +626,7 @@ onMounted(async () => {
 .dap-refresh-btn:hover { border-color: var(--c-brand); color: var(--c-brand); }
 .dap-error { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: var(--c-danger-bg); border: 1px solid var(--c-danger-soft); border-radius: var(--r-sm); color: var(--c-danger-strong); font-size: 13px; margin-bottom: 16px; }
 .spin { animation: spin 1s linear infinite; }
+
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* Risk Hero */
@@ -643,7 +644,8 @@ onMounted(async () => {
 /* Results Grid */
 .dap-results { display: flex; flex-direction: column; gap: 16px; }
 .dap-results-grid { display: grid; grid-template-columns: 380px 1fr; gap: 16px; }
-@media (max-width: 960px) { .dap-results-grid { grid-template-columns: 1fr; } }
+
+@media (width <= 960px) { .dap-results-grid { grid-template-columns: 1fr; } }
 .dap-card { background: var(--c-surface); border: 1px solid var(--c-brand-soft); border-radius: var(--r-lg); padding: 16px; }
 .dap-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
 .dap-card-header strong { font-size: 13px; color: var(--c-text); display: flex; align-items: center; gap: 6px; }
@@ -681,7 +683,8 @@ onMounted(async () => {
 
 /* Nationwide */
 .dap-nationwide-layout { display: grid; grid-template-columns: 360px 1fr; gap: 16px; }
-@media (max-width: 900px) { .dap-nationwide-layout { grid-template-columns: 1fr; } }
+
+@media (width <= 900px) { .dap-nationwide-layout { grid-template-columns: 1fr; } }
 .dap-nationwide-form { display: flex; flex-direction: column; gap: 12px; }
 .dap-form-grid { display: flex; flex-direction: column; gap: 8px; }
 .dap-form-row { display: flex; flex-direction: column; gap: 3px; }
@@ -705,7 +708,7 @@ onMounted(async () => {
 .dap-nkpi-val { display: block; font-size: 24px; font-weight: 800; color: var(--c-text); }
 .dap-nkpi-label { font-size: 11px; color: var(--c-text-2); }
 .dap-nationwide-table { background: var(--c-surface); border: 1px solid var(--c-brand-soft); border-radius: var(--r-lg); overflow: hidden; }
-.dap-nt-wrap { overflow-x: auto; max-height: 400px; overflow-y: auto; }
+.dap-nt-wrap { overflow: auto; max-height: 400px; }
 .dap-table { width: 100%; border-collapse: collapse; font-size: 12px; }
 .dap-table th { padding: 8px 10px; text-align: left; background: var(--c-brand-mist); color: var(--c-brand-deep); font-weight: 600; border-bottom: 1px solid var(--c-brand-soft); white-space: nowrap; position: sticky; top: 0; }
 .dap-table td { padding: 7px 10px; border-bottom: 1px solid var(--c-brand-mist); color: var(--c-ink-1); }
@@ -717,7 +720,8 @@ onMounted(async () => {
 .dap-row-critical { background: var(--c-danger-bg); }
 .dap-row-high { background: var(--c-warning-bg); }
 .dap-row-medium { background: var(--c-surface-2); }
-/* 评估图标/数值语义色（原为模板内联 style，改为 class 以支持暗色主题）*/
+
+/* 评估图标/数值语义色（原为模板内联 style，改为 class 以支持暗色主题） */
 .dap-arrow { color: var(--c-brand); flex-shrink: 0; }
 .dap-dt-val--brand { color: var(--c-brand); }
 .dap-empty-icon { color: var(--c-text-4); }
@@ -731,7 +735,7 @@ onMounted(async () => {
 .dap-nationwide-empty { display: flex; flex-direction: column; align-items: center; padding: 80px 20px; gap: 12px; text-align: center; }
 .dap-nationwide-empty p { margin: 0; font-size: 14px; color: var(--c-brand-deep); }
 
-@media (max-width: 720px) {
+@media (width <= 720px) {
   .dap-root { padding: 12px; }
   .dap-control-bar { flex-wrap: wrap; }
   .dap-dt-grid { grid-template-columns: 1fr 1fr; }

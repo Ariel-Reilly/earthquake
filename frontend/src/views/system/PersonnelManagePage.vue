@@ -476,7 +476,8 @@ export default { components: { ClipboardCheckIcon } }
 
 /* Layout */
 .pmp-layout { display: grid; grid-template-columns: 1fr 380px; gap: 16px; }
-@media (max-width: 1100px) { .pmp-layout { grid-template-columns: 1fr; } }
+
+@media (width <= 1100px) { .pmp-layout { grid-template-columns: 1fr; } }
 .pmp-side { display: flex; flex-direction: column; gap: 16px; }
 
 /* Card */
@@ -537,13 +538,15 @@ export default { components: { ClipboardCheckIcon } }
 .pmp-empty p { margin: 0; font-size: 13px; color: var(--c-brand-deep); }
 .pmp-empty-sub { font-size: 11px; color: var(--c-text-4); }
 .spin { animation: spin 1s linear infinite; }
+
 @keyframes spin { to { transform: rotate(360deg); } }
 
-@media (max-width: 720px) {
+@media (width <= 720px) {
   .pmp-root { padding: 12px; }
   .pmp-kpis { grid-template-columns: repeat(3, 1fr); }
   .pmp-form-grid { grid-template-columns: 1fr; }
 }
+
 /* 设计令牌收尾：模板静态色内联样式 → 类（2026-10-09） */
 .pmp-empty-ico { color: var(--c-text-4); }
 .pmp-dot-on { background: var(--c-brand); }

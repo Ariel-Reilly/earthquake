@@ -754,12 +754,13 @@ onMounted(async () => {
 .fip-empty p { margin: 0; font-size: 14px; color: var(--c-brand-deep); }
 .fip-empty-sub { font-size: 12px; color: var(--c-text-4); }
 .spin { animation: spin 1s linear infinite; }
+
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* Tasks grid */
 .fip-tasks-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
 .fip-task-card { background: var(--c-surface); border: 1px solid var(--c-brand-soft); border-radius: var(--r-lg); padding: 14px; cursor: pointer; transition: all .15s; }
-.fip-task-card:hover { border-color: var(--c-brand); box-shadow: 0 4px 12px rgba(0,0,0,.05); }
+.fip-task-card:hover { border-color: var(--c-brand); box-shadow: 0 4px 12px rgb(0 0 0 / 5%); }
 .fip-task-card.active { border-color: var(--c-brand); background: var(--c-surface-2); }
 .fip-task-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
 .fip-task-code { font-family: monospace; font-size: 11px; color: var(--c-text-2); }
@@ -841,12 +842,13 @@ onMounted(async () => {
 /* Example */
 .fip-example-desc { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--c-brand-deep); margin-bottom: 12px; }
 .fip-example-desc code { background: var(--c-brand-mist); color: var(--c-brand); padding: 2px 6px; border-radius: var(--r-xs); }
-.fip-code { background: #1a2a2a; color: #c8e6e0; padding: 16px; border-radius: var(--r-sm); font-size: 12px; font-family: 'Cascadia Code', monospace; line-height: 1.5; overflow-x: auto; max-height: 480px; overflow-y: auto; }
+.fip-code { background: #1a2a2a; color: #c8e6e0; padding: 16px; border-radius: var(--r-sm); font-size: 12px; font-family: 'Cascadia Code', monospace; line-height: 1.5; overflow: auto; max-height: 480px; }
 
-@media (max-width: 1024px) {
+@media (width <= 1024px) {
   .fip-fence-layout, .fip-record-layout { grid-template-columns: 1fr; }
 }
-@media (max-width: 720px) {
+
+@media (width <= 720px) {
   .fip-root { padding: 12px; }
   .fip-kpis { grid-template-columns: repeat(2, 1fr); }
   .fip-form-grid { grid-template-columns: 1fr; }

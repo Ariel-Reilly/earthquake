@@ -399,6 +399,7 @@ onBeforeUnmount(() => {
 .ghost-btn { display: flex; gap: 5px; align-items: center; padding: 7px 10px; border: 1px solid var(--c-separator); background: var(--c-surface); border-radius: var(--r-sm); color: var(--c-text); cursor: pointer; font-size: 12px; }
 .ghost-btn:disabled { opacity: .5; cursor: not-allowed; }
 .spin { animation: rotate 1s linear infinite; }
+
 @keyframes rotate { to { transform: rotate(360deg); } }
 .status-head { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--c-text-2); }
 .status-head span { display: flex; gap: 6px; align-items: center; }

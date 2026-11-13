@@ -158,6 +158,7 @@ function handleCreate() {
   flex-direction: column;
   width: 100%;
   height: 100%;
+
   /* 透明以透出 body 的网格背景 */
   background: transparent;
 }
@@ -169,7 +170,8 @@ function handleCreate() {
   justify-content: space-between;
   height: 64px;
   padding: 0 var(--sp-24, 24px);
-  background: var(--bg-card, #FFFFFF);
+  background: var(--bg-card, #FFF);
+
   /* 底部分割线 */
   border-bottom: 1px solid var(--border-color, #D1DCD5);
   flex-shrink: 0;
@@ -229,8 +231,8 @@ function handleCreate() {
 .search-input:focus {
   outline: none;
   border-color: var(--primary, #5F7A6B);
-  background: var(--bg-card, #FFFFFF);
-  box-shadow: var(--focus-ring, 0 0 0 3px rgba(95, 122, 107, 0.16));
+  background: var(--bg-card, #FFF);
+  box-shadow: var(--focus-ring, 0 0 0 3px rgb(95 122 107 / 16%));
 }
 
 /* ── 工具栏按钮 ── */
@@ -264,7 +266,7 @@ function handleCreate() {
 }
 
 .toolbar-btn-secondary:hover {
-  background: var(--bg-hover, rgba(95, 122, 107, 0.08));
+  background: var(--bg-hover, rgb(95 122 107 / 8%));
   border-color: var(--border-hover, #B8C7BE);
   color: var(--primary, #5F7A6B);
 }
@@ -272,21 +274,20 @@ function handleCreate() {
 /* 主按钮 */
 .toolbar-btn-primary {
   background: var(--primary, #5F7A6B);
-  color: var(--primary-on, #FFFFFF);
-  box-shadow: var(--shadow-card, 0 2px 8px rgba(44, 59, 52, 0.04));
+  color: var(--primary-on, #FFF);
+  box-shadow: var(--shadow-card, 0 2px 8px rgb(44 59 52 / 4%));
 }
 
 .toolbar-btn-primary:hover {
   background: var(--primary-hover, #4A6154);
-  box-shadow: var(--shadow-hover, 0 4px 16px rgba(44, 59, 52, 0.08));
+  box-shadow: var(--shadow-hover, 0 4px 16px rgb(44 59 52 / 8%));
 }
 
 /* ── 【维度二·维度四】数据列表区：padding: 24px ── */
 .content-body {
   flex: 1;
   padding: var(--sp-24, 24px);
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden auto;
 }
 
 /* ── 【维度二】空状态：居中显示 ── */
@@ -342,9 +343,9 @@ function handleCreate() {
   display: flex;
   flex-direction: column;
   gap: 0;
-  background: var(--bg-card, #FFFFFF);
+  background: var(--bg-card, #FFF);
   border-radius: var(--r-lg, 12px);
-  box-shadow: var(--shadow-card, 0 2px 8px rgba(44, 59, 52, 0.04));
+  box-shadow: var(--shadow-card, 0 2px 8px rgb(44 59 52 / 4%));
   overflow: hidden;
 }
 
@@ -363,11 +364,11 @@ function handleCreate() {
 }
 
 :deep(.data-list-item:hover) {
-  background: var(--bg-hover, rgba(95, 122, 107, 0.04));
+  background: var(--bg-hover, rgb(95 122 107 / 4%));
 }
 
 /* ── 响应式 ── */
-@media (max-width: 1024px) {
+@media (width <= 1024px) {
   .content-toolbar {
     padding: 0 var(--sp-16, 16px);
   }
@@ -381,7 +382,7 @@ function handleCreate() {
   }
 }
 
-@media (max-width: 768px) {
+@media (width <= 768px) {
   .content-toolbar {
     flex-direction: column;
     height: auto;

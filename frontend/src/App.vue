@@ -63,41 +63,47 @@ onMounted(async () => {
   border-radius: var(--r-pill);
   font-size: 11px;
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "PingFang SC", sans-serif;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 12%);
   transition: transform .15s ease, box-shadow .15s ease;
   cursor: default;
   user-select: none;
-  -webkit-backdrop-filter: blur(14px) saturate(180%);
+  backdrop-filter: blur(14px) saturate(180%);
   backdrop-filter: blur(14px) saturate(180%);
 }
+
 .runtime-mode-badge:hover {
   transform: translateY(-1px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 6px 16px rgb(0 0 0 / 18%);
 }
+
 .mode-dot {
   width: 7px;
   height: 7px;
   border-radius: 50%;
   animation: pulse 2s infinite;
 }
+
 .mode-backend {
-  background: rgba(111, 158, 127, 0.14);
+  background: rgb(111 158 127 / 14%);
   color: #1e7a4e;
-  border: 1px solid rgba(111, 158, 127, 0.28);
+  border: 1px solid rgb(111 158 127 / 28%);
 }
 .mode-backend .mode-dot { background: var(--c-brand); }
+
 .mode-mock {
-  background: rgba(255, 149, 0, 0.16);
+  background: rgb(255 149 0 / 16%);
   color: #b35a00;
-  border: 1px solid rgba(255, 149, 0, 0.36);
+  border: 1px solid rgb(255 149 0 / 36%);
 }
 .mode-mock .mode-dot { background: var(--c-warning); }
+
 .mode-unknown {
-  background: rgba(142, 142, 147, 0.16);
+  background: rgb(142 142 147 / 16%);
   color: #6c6c70;
-  border: 1px solid rgba(142, 142, 147, 0.30);
+  border: 1px solid rgb(142 142 147 / 30%);
 }
 .mode-unknown .mode-dot { background: var(--sys-gray); }
+
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.4; }

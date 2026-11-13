@@ -120,6 +120,7 @@ function requestAccess() {
 
 <style scoped>
 /* Error page styles now shared in styles.css */
+
 /* Local overrides only */
 .error-card {
   border-top: 4px solid var(--c-brand, var(--c-brand));
@@ -137,7 +138,7 @@ function requestAccess() {
 .btn-primary:hover {
   background: var(--c-brand-hover, var(--c-brand-hover));
   transform: translateY(-1px);
-  box-shadow: 0 6px 16px -4px rgba(111, 158, 127, 0.4);
+  box-shadow: 0 6px 16px -4px rgb(111 158 127 / 40%);
 }
 
 .btn-secondary {
@@ -147,7 +148,7 @@ function requestAccess() {
 }
 
 .btn-secondary:hover {
-  background: var(--c-brand-light, rgba(111,158,127,.08));
+  background: var(--c-brand-light, rgb(111 158 127 / 8%));
   border-color: var(--c-brand, var(--c-brand));
 }
 
@@ -162,13 +163,15 @@ function requestAccess() {
   color: var(--c-text, #17333b);
 }
 
-@media (max-width: 520px) {
+@media (width <= 520px) {
   .error-card {
     padding: 36px 24px 24px;
   }
+
   .error-code {
     font-size: 72px;
   }
+
   .error-title {
     font-size: 20px;
   }

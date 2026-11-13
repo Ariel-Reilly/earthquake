@@ -710,7 +710,7 @@ const maxValue = computed(() => {
   font-family: 'JetBrains Mono', monospace;
 }
 
-@media (max-width: 768px) {
+@media (width <= 768px) {
   .chart-data {
     grid-template-columns: 1fr;
   }

@@ -404,9 +404,11 @@ onBeforeUnmount(() => {
   color: var(--color-destructive-strong);
   text-align: center;
 }
+
 .error-block strong { 
   font-size: var(--text-lg); 
 }
+
 .error-block p { 
   margin: 0; 
   color: var(--color-destructive-strong); 
@@ -834,6 +836,7 @@ onBeforeUnmount(() => {
   background: var(--color-card);
   border: 1px solid var(--color-border);
   color: var(--color-muted-foreground);
+
   /* 白色描边环：圆点底色是半透明的，不加这圈会把连接线透出来 */
   box-shadow: 0 0 0 3px var(--color-card);
 }
@@ -905,6 +908,7 @@ onBeforeUnmount(() => {
 .timeline-time {
   font-size: var(--text-xs);
   color: var(--color-muted-foreground);
+
   /* 时间戳等宽，避免数值跳动导致行宽抖动 */
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -988,7 +992,7 @@ onBeforeUnmount(() => {
 /* ═══════════════════════════════════════════════════════════
    RESPONSIVE - MOBILE (补充要求6: 移动端适配)
    ═══════════════════════════════════════════════════════════ */
-@media (max-width: 768px) {
+@media (width <= 768px) {
   /* Grid 变单列 */
   .detail-overview-grid {
     grid-template-columns: 1fr;
@@ -1007,7 +1011,7 @@ onBeforeUnmount(() => {
     right: 0;
     z-index: var(--z-sticky);
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-    box-shadow: 0 -4px 12px rgba(44, 59, 52, 0.15);
+    box-shadow: 0 -4px 12px rgb(44 59 52 / 15%);
     background: var(--color-card);
     padding: var(--space-md);
   }
@@ -1051,7 +1055,7 @@ onBeforeUnmount(() => {
 }
 
 /* 平板适配 */
-@media (min-width: 769px) and (max-width: 1439px) {
+@media (width >= 769px) and (width <= 1439px) {
   .detail-overview-grid {
     grid-template-columns: 1.2fr 1fr; /* 55% / 45% */
   }

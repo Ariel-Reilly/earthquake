@@ -105,7 +105,7 @@ function handleBadgeRefresh() {
 .drawer-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.4);
+  background: rgb(0 0 0 / 40%);
   z-index: 48;
   animation: fade-in 0.2s ease-out;
 }
@@ -121,7 +121,7 @@ function handleBadgeRefresh() {
   z-index: 50;
   display: flex;
   flex-direction: column;
-  box-shadow: -4px 0 12px rgba(0, 0, 0, 0.08);
+  box-shadow: -4px 0 12px rgb(0 0 0 / 8%);
   animation: slide-in-right 0.3s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
@@ -194,6 +194,7 @@ function handleBadgeRefresh() {
   border: 1px solid transparent;
   border-radius: 6px;
   background: transparent;
+
   /* 三级语义色当文字用对比不足（白底 2.6:1），文字场景统一改用 ink 版（5.3:1） */
   color: var(--c-text-3-ink);
   font-size: 12px;
@@ -212,6 +213,7 @@ function handleBadgeRefresh() {
 .tab-btn.active {
   border-color: var(--c-brand);
   background: var(--c-brand-light);
+
   /* --c-brand 在浅绿底上约 4.0:1，加深一档后才达标 */
   color: var(--c-brand-deep);
 }
@@ -230,8 +232,7 @@ function handleBadgeRefresh() {
 
 .drawer-content {
   flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden auto;
 }
 
 /* 动画 */
@@ -281,6 +282,7 @@ function handleBadgeRefresh() {
     transform: translateX(100%);
     opacity: 0;
   }
+
   to {
     transform: translateX(0);
     opacity: 1;
@@ -288,15 +290,12 @@ function handleBadgeRefresh() {
 }
 
 /* 响应式：移动端全屏 */
-@media (max-width: 768px) {
+@media (width <= 768px) {
   .notification-drawer {
     width: 100%;
-    left: 0;
-    right: auto;
+    inset: auto auto 0 0;
     border-left: 0;
     border-top: 1px solid var(--c-separator);
-    top: auto;
-    bottom: 0;
     max-height: 80vh;
     border-radius: 16px 16px 0 0;
   }

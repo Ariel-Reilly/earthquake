@@ -775,3 +775,24 @@ Edge headless CDP 9222 → nginx(dist) 25173（Origin 改写 + Cesium CSP）
 - 演练环境 AI 关闭：AI 洞察页停在加载态、未展示伪造评分，现场按 `start-dev.ps1 -All`
   启动 AI 后须确认完整渲染。
 - **A1 各子项并未整体关闭**；A4 上线日注入、A6-3/A6-4、B3/B4-3/B6/B7-1 与 C 类保持原状态。
+
+---
+
+## 三十六、B4-3 Stylelint 自动修复第一批（2026-11-13）
+
+- 修复前实测：**5,312 条**（新增卫星对比页后重测；原基线 5,264）。
+- 执行：`cd frontend; npx stylelint "src/**/*.{css,scss,vue}" --fix`
+  （只修改可自动修复的格式/颜色规则，不触碰业务逻辑）。
+- 结果：
+  - 剩余 **2,440 条**，消除 **2,872 条**；涉及 **86 个文件**
+    （diff：+2,180 / −855，全部为样式格式）；
+  - 剩余分布：`declaration-block-single-line-max-declarations` 2,320、
+    `no-duplicate-selectors` 72、`declaration-block-no-duplicate-properties` 38、
+    `selector-type-no-unknown` 2、废弃关键字 2、未知属性值 1。
+- 回归证据：
+  - `npx eslint src/` **0 error**；
+  - `npx vitest run` **69 passed / 7 文件**；
+  - `npm run build` 成功（12.01s）；SFC 完整性 **98/98**；
+  - 真实浏览器冒烟 **37/37 PASS**（截图 23 张；橙色弹窗抽查颜色与修复前一致）。
+- 后续：第二批为 2,320 条单行多声明（需格式化器/人工分批），115 条语义项人工处理；
+  清零后再把 CI 的 stylelint 从 advisory 改为阻断。详见 `STYLELINT_BASELINE.md`。

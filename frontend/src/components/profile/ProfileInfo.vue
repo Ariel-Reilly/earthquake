@@ -166,6 +166,7 @@ loadFromApi()
   flex-direction: column;
   gap: 18px;
 }
+
 .card-head {
   display: flex;
   justify-content: space-between;
@@ -177,8 +178,10 @@ loadFromApi()
 .card-head p { margin: 4px 0 0; color: var(--dashboard-muted, var(--c-text-2)); font-size: 13px; }
 .status { font-size: 12px; color: var(--dashboard-muted, var(--c-text-2)); display: inline-flex; align-items: center; gap: 4px; }
 .spin { animation: rotate 1s linear infinite; }
+
 @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 .avatar-row { display: flex; align-items: center; gap: 16px; }
+
 .avatar-preview {
   width: 64px; height: 64px; border-radius: 50%;
   background: linear-gradient(135deg, var(--c-brand-tint), var(--sys-cyan));
@@ -186,6 +189,7 @@ loadFromApi()
   color: white; overflow: hidden;
 }
 .avatar-preview img { width: 100%; height: 100%; object-fit: cover; }
+
 .upload-btn {
   display: inline-flex; align-items: center; gap: 6px;
   border: 1px dashed var(--dashboard-border, var(--c-brand-tint));
@@ -194,12 +198,15 @@ loadFromApi()
 }
 .upload-btn:hover { border-color: var(--c-brand-tint); color: var(--c-brand-tint); }
 .hint { color: var(--dashboard-muted, var(--c-text-2)); font-size: 12px; margin: 0; }
+
 .form-grid {
   display: grid; grid-template-columns: 1fr 1fr; gap: 14px 18px;
 }
-@media (max-width: 720px) { .form-grid { grid-template-columns: 1fr; } }
+
+@media (width <= 720px) { .form-grid { grid-template-columns: 1fr; } }
 .field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
 .field span { color: var(--dashboard-muted, var(--c-text-2)); font-weight: 500; }
+
 .field input {
   padding: 8px 12px; border: 1px solid var(--dashboard-border, var(--c-brand-soft));
   border-radius: var(--r-sm); font-size: 14px;
@@ -207,9 +214,10 @@ loadFromApi()
   color: var(--dashboard-text, var(--c-scrim));
 }
 .field input:disabled { background: var(--dashboard-muted-bg, var(--c-brand-mist)); color: var(--dashboard-muted, var(--c-text-3)); }
-.field input:focus { outline: none; border-color: var(--c-brand-tint); box-shadow: 0 0 0 3px rgba(99,199,127,0.15); }
+.field input:focus { outline: none; border-color: var(--c-brand-tint); box-shadow: 0 0 0 3px rgb(99 199 127 / 15%); }
 .err { color: var(--c-danger); font-size: 12px; }
 .actions { display: flex; justify-content: flex-end; }
+
 .primary {
   background: linear-gradient(135deg, var(--c-brand-tint), var(--c-brand-hover)); color: white;
   border: none; padding: 8px 18px; border-radius: var(--r-sm);

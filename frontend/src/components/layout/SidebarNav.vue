@@ -151,9 +151,8 @@ function navigateTo(path) {
   width: 100%;
   height: 100%;
   padding: var(--sp-12, 12px) var(--sp-8, 8px);
-  background: var(--bg-card, #FFFFFF);
-  overflow-y: auto;
-  overflow-x: hidden;
+  background: var(--bg-card, #FFF);
+  overflow: hidden auto;
 }
 
 /* ── 大类标题 ── */
@@ -223,18 +222,18 @@ function navigateTo(path) {
 
 /* 文字用 --primary-hover 而非 --primary：主色在浅底上对比度仅 4.16，加深一档后约 5.9 */
 .sidebar-item:hover {
-  background: var(--bg-hover, rgba(95, 122, 107, 0.08));
+  background: var(--bg-hover, rgb(95 122 107 / 8%));
   color: var(--primary-hover, #4A6154);
 }
 
 .sidebar-item.is-active {
-  background: var(--bg-active, rgba(95, 122, 107, 0.1));
+  background: var(--bg-active, rgb(95 122 107 / 10%));
   color: var(--primary-hover, #4A6154);
   font-weight: 650;
 }
 
 .sidebar-item.is-active:hover {
-  background: var(--bg-active-hover, rgba(95, 122, 107, 0.14));
+  background: var(--bg-active-hover, rgb(95 122 107 / 14%));
 }
 
 .sidebar-item-icon {
@@ -260,7 +259,8 @@ function navigateTo(path) {
   padding: 0 5px;
   border-radius: var(--r-pill, 9999px);
   background: var(--primary, #5F7A6B);
-  color: var(--primary-on, #FFFFFF);
+  color: var(--primary-on, #FFF);
+
   /* 10px 数字在 1x 屏几乎不可读，统一提到 12px 并同步放大胶囊 */
   font-size: 12px;
   font-weight: 700;
@@ -270,6 +270,7 @@ function navigateTo(path) {
 
 .sidebar-item-badge.badge-danger {
   background: var(--alert-high, #C48B8B);
+
   /* 白字在 #C48B8B 上对比度仅 2.83，深字 5.18 */
   color: var(--alert-on, #1F2B25);
 }

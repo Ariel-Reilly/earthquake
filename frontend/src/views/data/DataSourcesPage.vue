@@ -370,7 +370,7 @@ onMounted(() => loadSources())
 .filter-bar .filter-input { flex: 1; padding: 7px 12px; border: 1px solid var(--c-separator); border-radius: var(--r-sm); background: var(--c-surface-2); }
 .cat-tabs { display: flex; gap: 4px; background: var(--c-bg); padding: 3px; border-radius: var(--r-sm); }
 .cat-tabs button { padding: 5px 10px; border: 0; background: transparent; border-radius: var(--r-sm); cursor: pointer; font-size: 11px; color: var(--c-brand-deep); }
-.cat-tabs button.active { background: var(--c-surface); color: var(--c-text); box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+.cat-tabs button.active { background: var(--c-surface); color: var(--c-text); box-shadow: 0 1px 3px rgb(0 0 0 / 6%); }
 
 .loading-row { padding: 32px; text-align: center; color: var(--c-text-2); }
 
@@ -404,7 +404,9 @@ onMounted(() => loadSources())
 .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px; }
 
 .spin { animation: spin 1s linear infinite; }
+
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
 /* 设计令牌收尾：模板静态色内联样式 → 类（2026-10-09） */
 .ds-kpi-on { color: var(--c-brand-deep); }
 .ds-kpi-ok { color: var(--c-brand); }

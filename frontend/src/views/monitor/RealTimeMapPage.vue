@@ -590,6 +590,7 @@ watch([trackFrom, trackTo], () => {
   border-radius: var(--r-lg);
   overflow: hidden;
 }
+
 .page-header {
   display: flex;
   justify-content: space-between;
@@ -599,17 +600,20 @@ watch([trackFrom, trackTo], () => {
   gap: 16px;
   flex-wrap: wrap;
 }
+
 .header-left {
   display: flex;
   align-items: center;
   gap: 20px;
 }
+
 .page-title {
   margin: 0;
   font-size: 18px;
   font-weight: 600;
   color: var(--c-text);
 }
+
 .inline-tabs {
   display: flex;
   gap: 4px;
@@ -617,6 +621,7 @@ watch([trackFrom, trackTo], () => {
   background: var(--c-bg);
   border-radius: var(--r-md);
 }
+
 .inline-tab {
   padding: 6px 16px;
   border: 0;
@@ -627,6 +632,7 @@ watch([trackFrom, trackTo], () => {
   cursor: pointer;
   transition: background .15s, color .15s;
 }
+
 .inline-tab.active {
   background: var(--c-brand);
   color: var(--c-on-brand);
@@ -635,7 +641,7 @@ watch([trackFrom, trackTo], () => {
 
 .map-style-switch { display: flex; gap: 6px; background: var(--c-bg); padding: 4px; border-radius: var(--r-md); }
 .map-style-switch button { display: flex; gap: 4px; align-items: center; padding: 5px 10px; border: 0; background: transparent; border-radius: var(--r-sm); color: var(--c-brand-deep); font-size: 12px; cursor: pointer; }
-.map-style-switch button.active { background: var(--c-surface); color: var(--c-text); box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+.map-style-switch button.active { background: var(--c-surface); color: var(--c-text); box-shadow: 0 1px 4px rgb(0 0 0 / 6%); }
 
 .op-btn { display: flex; gap: 6px; align-items: center; padding: 7px 12px; border: 1px solid var(--c-separator); background: var(--c-surface); border-radius: var(--r-sm); color: var(--c-text); font-size: 12px; cursor: pointer; }
 .op-btn:hover { background: var(--c-bg); }
@@ -665,6 +671,7 @@ watch([trackFrom, trackTo], () => {
 .map-stage { flex: 1; position: relative; }
 .ol-map { position: absolute; inset: 0; }
 .ol-map.hidden { display: none; }
+
 .map-loading {
   position: absolute;
   inset: 0;
@@ -678,6 +685,7 @@ watch([trackFrom, trackTo], () => {
   z-index: 4;
 }
 .map-loading span { font-size: 13px; }
+
 .map-error {
   position: absolute;
   inset: 0;
@@ -692,6 +700,7 @@ watch([trackFrom, trackTo], () => {
 }
 .map-error strong { font-size: 15px; }
 .map-error p { color: var(--c-danger-strong); font-size: 12px; margin: 0; }
+
 /* 图例圆点：颜色与 JS 图层定义（hazard/device/warning/aiMonitor）对应，
    属「有意区分」的图层标识色，故跟随同一套语义令牌而非合并成单一色。 */
 .dot--hazard { background: var(--c-danger-strong); }
@@ -699,6 +708,7 @@ watch([trackFrom, trackTo], () => {
 .dot--brand { background: var(--c-brand); }
 .dot--ai { background: var(--c-warning-ink); }
 .map-error .op-btn { margin-top: 8px; }
+
 .map-empty {
   position: absolute;
   inset: 0;
@@ -713,11 +723,13 @@ watch([trackFrom, trackTo], () => {
 }
 .map-empty strong { font-size: 15px; color: var(--c-ink-1); }
 .map-empty p { font-size: 12px; margin: 0; }
+
 .map-loading .spin,
 .map-error .spin { animation: spin 1s linear infinite; }
 
-.ai-banner { position: absolute; top: 12px; right: 12px; z-index: 3; display: flex; gap: 8px; align-items: center; padding: 8px 14px; border-radius: var(--r-pill); background: var(--c-surface); color: var(--c-text); font-size: 12px; box-shadow: 0 4px 12px rgba(0,0,0,.06); }
+.ai-banner { position: absolute; top: 12px; right: 12px; z-index: 3; display: flex; gap: 8px; align-items: center; padding: 8px 14px; border-radius: var(--r-pill); background: var(--c-surface); color: var(--c-text); font-size: 12px; box-shadow: 0 4px 12px rgb(0 0 0 / 6%); }
 .ai-banner small { color: var(--c-text-2); }
+
 .ai-banner-empty {
   background: var(--glass-regular);
   color: var(--c-text-2);
@@ -728,6 +740,7 @@ watch([trackFrom, trackTo], () => {
   border-top: 1px solid var(--c-brand-soft);
   background: var(--c-surface-2);
 }
+
 .timeline-head {
   display: flex;
   gap: 8px;
@@ -736,6 +749,7 @@ watch([trackFrom, trackTo], () => {
   color: var(--c-text);
   margin-bottom: 6px;
 }
+
 .timeline-title {
   flex-shrink: 0;
   max-width: 120px;
@@ -743,6 +757,7 @@ watch([trackFrom, trackTo], () => {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
 .timeline-head .ghost-btn {
   margin-left: auto;
   padding: 4px 10px;
@@ -752,29 +767,35 @@ watch([trackFrom, trackTo], () => {
   cursor: pointer;
   font-size: 11px;
 }
+
 .timeline-slider {
   width: 100%;
 }
+
 .timeline-labels {
   display: flex;
   justify-content: space-between;
   font-size: 10px;
   color: var(--c-text-2);
   margin-top: 2px;
+
   /* 限制最多显示 9 个标签，每 3 小时一个 */
   max-width: 400px;
   margin-left: auto;
   margin-right: 0;
 }
+
 .timeline-labels span {
   flex: 1;
   text-align: center;
   min-width: 32px;
 }
-.timeline-labels span:nth-child(odd):not(:first-child):not(:last-child) {
+
+.timeline-labels span:nth-child(odd):not(:first-child, :last-child) {
   /* 每 3 小时显示一个主要标签 */
   display: none;
 }
+
 .timeline-labels span:first-child,
 .timeline-labels span:nth-child(7),
 .timeline-labels span:nth-child(13),
@@ -782,12 +803,14 @@ watch([trackFrom, trackTo], () => {
 .timeline-labels span:last-child {
   display: block;
 }
+
 .timeline-labels .active {
   color: var(--c-brand);
   font-weight: 600;
 }
 
 .spin { animation: spin 1s linear infinite; }
+
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
 /* 设备轨迹回放视图 */
@@ -797,6 +820,7 @@ watch([trackFrom, trackTo], () => {
   flex-direction: column;
   min-height: 0;
 }
+
 .track-toolbar {
   display: flex;
   align-items: center;
@@ -806,6 +830,7 @@ watch([trackFrom, trackTo], () => {
   background: var(--c-surface-2);
   flex-wrap: wrap;
 }
+
 .track-label {
   display: flex;
   align-items: center;
@@ -813,6 +838,7 @@ watch([trackFrom, trackTo], () => {
   font-size: 12px;
   color: var(--c-text);
 }
+
 .track-label select,
 .track-label input {
   padding: 5px 8px;
@@ -822,16 +848,19 @@ watch([trackFrom, trackTo], () => {
   font-size: 12px;
   color: var(--c-text);
 }
+
 .track-map-wrap {
   flex: 1;
   position: relative;
   min-height: 0;
 }
+
 .track-ol-map {
   position: absolute;
   inset: 0;
 }
 .track-ol-map.hidden { display: none; }
+
 .track-map-status {
   position: absolute;
   inset: 0;
@@ -842,11 +871,13 @@ watch([trackFrom, trackTo], () => {
   justify-content: center;
   z-index: 3;
 }
+
 .track-loading {
   background: var(--c-surface);
   color: var(--c-brand-deep);
 }
 .track-loading span { font-size: 13px; }
+
 .track-empty {
   background: var(--c-surface);
   color: var(--c-text-2);
@@ -854,6 +885,7 @@ watch([trackFrom, trackTo], () => {
 .track-empty strong { font-size: 14px; color: var(--c-ink-1); }
 .track-empty p { font-size: 12px; margin: 0; }
 .track-empty .op-btn { margin-top: 8px; }
+
 .track-timeline {
   position: absolute;
   bottom: 0;
@@ -863,9 +895,11 @@ watch([trackFrom, trackTo], () => {
   background: var(--c-surface-3);
   border-top: 1px solid var(--c-brand-soft);
 }
+
 .track-scrubber {
   width: 100%;
 }
+
 .track-timeline-labels {
   display: flex;
   justify-content: space-between;
@@ -874,6 +908,7 @@ watch([trackFrom, trackTo], () => {
   color: var(--c-text-2);
   margin-bottom: 8px;
 }
+
 .track-progress-text {
   color: var(--c-brand);
   font-weight: 600;

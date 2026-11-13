@@ -226,20 +226,23 @@ defineExpose({
   display: flex;
   flex-direction: column;
   color: var(--c-text);
-  background: rgba(255, 255, 255, 0.96);
+  background: rgb(255 255 255 / 96%);
   border: 1px solid var(--c-separator);
   border-radius: var(--r-lg);
-  box-shadow: 0 14px 36px rgba(31, 75, 69, 0.16);
+  box-shadow: 0 14px 36px rgb(31 75 69 / 16%);
   backdrop-filter: blur(12px);
   overflow: hidden;
   transition: width 0.3s cubic-bezier(.3,.8,.3,1);
 }
+
 .wx-overlay-panel.collapsed {
   width: 156px;
 }
+
 .wx-overlay-panel.collapsed .wx-overlay-hint {
   display: none;
 }
+
 .wx-overlay-head {
   display: flex;
   align-items: center;
@@ -251,9 +254,11 @@ defineExpose({
   cursor: pointer;
   user-select: none;
 }
+
 .wx-overlay-panel.collapsed .wx-overlay-head {
   border-bottom: 0;
 }
+
 .wx-overlay-title {
   display: flex;
   align-items: center;
@@ -261,9 +266,11 @@ defineExpose({
   font-size: 13px;
   font-weight: 700;
 }
+
 .wx-overlay-title svg {
   color: var(--c-brand);
 }
+
 .wx-overlay-hint {
   margin-left: 6px;
   padding: 2px 7px;
@@ -273,6 +280,7 @@ defineExpose({
   font-size: 10px;
   font-weight: 500;
 }
+
 .wx-icon-btn {
   display: grid;
   place-items: center;
@@ -284,15 +292,18 @@ defineExpose({
   color: var(--c-text-2);
   cursor: pointer;
 }
+
 .wx-icon-btn:hover {
   background: var(--c-brand-mist);
   color: var(--c-brand);
 }
+
 .wx-overlay-body {
   display: flex;
   flex-direction: column;
   min-height: 0;
 }
+
 .wx-overlay-list {
   list-style: none;
   margin: 0;
@@ -300,14 +311,17 @@ defineExpose({
   overflow-y: auto;
   flex: 1;
 }
+
 .wx-overlay-list li {
   border-radius: var(--r-md);
   margin: 3px 0;
   transition: background 0.18s;
 }
+
 .wx-overlay-list li.active {
   background: #f4f9f7;
 }
+
 .wx-overlay-row {
   display: grid;
   grid-template-columns: 30px 1fr auto;
@@ -315,6 +329,7 @@ defineExpose({
   gap: 10px;
   padding: 6px 4px;
 }
+
 .wx-overlay-icon {
   display: grid;
   place-items: center;
@@ -327,19 +342,23 @@ defineExpose({
   cursor: pointer;
   transition: all 0.18s;
 }
+
 .wx-overlay-icon:hover {
   border-color: var(--c-brand);
   color: var(--c-brand);
 }
+
 .wx-overlay-icon.is-on {
   border-color: var(--c-brand);
-  background: rgba(111,158,127,.08);
+  background: rgb(111 158 127 / 8%);
   color: var(--c-brand-hover);
-  box-shadow: inset 0 0 0 1px rgba(111,158,127,.32);
+  box-shadow: inset 0 0 0 1px rgb(111 158 127 / 32%);
 }
+
 .wx-overlay-icon .spin {
   animation: spin 1.1s linear infinite;
 }
+
 .wx-overlay-meta {
   display: flex;
   flex-direction: column;
@@ -347,20 +366,24 @@ defineExpose({
   min-width: 0;
   cursor: pointer;
 }
+
 .wx-overlay-meta strong {
   color: var(--c-text);
   font-size: 12px;
   font-weight: 600;
 }
+
 .wx-overlay-meta small {
   color: var(--c-text-3);
   font-size: 10px;
 }
+
 .wx-overlay-state {
   display: flex;
   align-items: center;
   gap: 4px;
 }
+
 .badge {
   display: inline-flex;
   align-items: center;
@@ -371,18 +394,22 @@ defineExpose({
   font-weight: 600;
   letter-spacing: 0.02em;
 }
+
 .badge.ok {
   color: var(--c-brand-ink);
   background: var(--c-success-bg);
 }
+
 .badge.loading {
   color: #6c4ad6;
   background: #efe9fb;
 }
+
 .badge.error {
   color: var(--c-danger-strong);
   background: var(--c-warning-bg);
 }
+
 .wx-mini-btn {
   display: grid;
   place-items: center;
@@ -395,10 +422,12 @@ defineExpose({
   color: var(--c-text-2);
   cursor: pointer;
 }
+
 .wx-mini-btn:hover {
   background: var(--c-brand-mist);
   color: var(--c-brand);
 }
+
 .wx-overlay-legend {
   margin: 0 6px 6px;
   padding: 8px 10px 10px;
@@ -406,6 +435,7 @@ defineExpose({
   border: 1px solid var(--c-brand-mist);
   border-radius: var(--r-md);
 }
+
 .wx-legend-title {
   display: flex;
   justify-content: space-between;
@@ -415,6 +445,7 @@ defineExpose({
   font-weight: 700;
   margin-bottom: 6px;
 }
+
 .wx-legend-grades {
   list-style: none;
   margin: 0;
@@ -423,6 +454,7 @@ defineExpose({
   flex-direction: column;
   gap: 3px;
 }
+
 .wx-legend-grades li {
   display: flex;
   align-items: center;
@@ -430,13 +462,15 @@ defineExpose({
   color: var(--c-ink-2);
   font-size: 10px;
 }
+
 .wx-legend-grades i {
   width: 12px;
   height: 12px;
   display: inline-block;
-  border: 1px solid rgba(0,0,0,0.08);
+  border: 1px solid rgb(0 0 0 / 8%);
   border-radius: 3px;
 }
+
 .wx-opacity-row {
   display: grid;
   grid-template-columns: auto 1fr auto;
@@ -446,19 +480,23 @@ defineExpose({
   color: var(--c-text-3);
   font-size: 10px;
 }
+
 .wx-opacity-row label {
   color: var(--c-ink-2);
   font-weight: 600;
 }
+
 .wx-opacity-row input[type="range"] {
   width: 100%;
   accent-color: var(--c-brand);
 }
+
 .wx-opacity-row em {
   font-style: normal;
   font-variant-numeric: tabular-nums;
   color: var(--c-ink-1);
 }
+
 .wx-overlay-foot {
   display: flex;
   justify-content: space-between;
@@ -468,6 +506,7 @@ defineExpose({
   color: var(--c-text-3);
   font-size: 10px;
 }
+
 .wx-refresh-all {
   display: inline-flex;
   align-items: center;
@@ -481,39 +520,48 @@ defineExpose({
   cursor: pointer;
   transition: all 0.18s;
 }
+
 .wx-refresh-all:hover:not(:disabled) {
   border-color: var(--c-brand);
   color: var(--c-brand);
-  background: rgba(111,158,127,.08);
+  background: rgb(111 158 127 / 8%);
 }
+
 .wx-refresh-all:disabled {
   cursor: not-allowed;
   opacity: 0.6;
 }
+
 .wx-refresh-all .spin {
   animation: spin 1.1s linear infinite;
 }
+
 .spin {
   animation: spin 1.1s linear infinite;
 }
+
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
 .wx-legend-enter-active, .wx-legend-leave-active {
   transition: opacity 0.18s ease, max-height 0.24s ease, padding 0.24s ease;
   overflow: hidden;
 }
+
 .wx-legend-enter-from, .wx-legend-leave-to {
   opacity: 0;
   max-height: 0;
   padding-top: 0;
   padding-bottom: 0;
 }
+
 .wx-legend-enter-to, .wx-legend-leave-from {
   opacity: 1;
   max-height: 240px;
 }
-@media (max-width: 720px) {
+
+@media (width <= 720px) {
   .wx-overlay-panel { width: calc(100% - 24px); right: 12px; top: 12px; }
   .wx-overlay-panel.collapsed { width: 152px; }
 }

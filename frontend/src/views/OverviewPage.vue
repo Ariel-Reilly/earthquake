@@ -2722,24 +2722,28 @@ function toggleCompareLegend(which) {
   gap: 14px 18px;
   align-items: end;
 }
+
 .compare-toolbar-group {
   display: flex;
   flex-direction: column;
   gap: 6px;
   min-width: 0;
 }
+
 .compare-toolbar-label {
   font-size: 12px;
   color: var(--c-ink-2);
   font-weight: 600;
   letter-spacing: 0.02em;
 }
+
 .compare-toolbar-row {
   display: flex;
   gap: 6px;
   align-items: center;
   flex-wrap: wrap;
 }
+
 .compare-toolbar-actions {
   display: flex;
   gap: 8px;
@@ -2747,6 +2751,7 @@ function toggleCompareLegend(which) {
   justify-content: flex-end;
   flex-wrap: wrap;
 }
+
 .compare-select,
 .compare-input {
   border: 1px solid var(--c-separator);
@@ -2758,16 +2763,19 @@ function toggleCompareLegend(which) {
   min-width: 120px;
   transition: border-color 0.18s ease, box-shadow 0.18s ease;
 }
+
 .compare-select:focus,
 .compare-input:focus {
   outline: none;
   border-color: var(--c-brand);
-  box-shadow: 0 0 0 3px rgba(111, 158, 127, 0.15);
+  box-shadow: 0 0 0 3px rgb(111 158 127 / 15%);
 }
+
 .compare-input-sep {
   color: var(--c-text-3);
   font-size: 12px;
 }
+
 .compare-btn {
   display: inline-flex;
   align-items: center;
@@ -2781,21 +2789,25 @@ function toggleCompareLegend(which) {
   cursor: pointer;
   transition: all 0.18s ease;
 }
+
 .compare-btn:hover:not(:disabled) {
   border-color: var(--c-brand);
   color: var(--c-brand);
   background: color-mix(in srgb, var(--c-brand) 8%, transparent);
 }
+
 .compare-btn:disabled {
   opacity: 0.55;
   cursor: not-allowed;
 }
+
 .compare-btn-primary {
   background: linear-gradient(135deg, var(--c-brand), var(--c-brand-tint));
   color: var(--c-on-brand);
   border-color: transparent;
   font-weight: 600;
 }
+
 .compare-btn-primary:hover:not(:disabled) {
   background: linear-gradient(135deg, var(--c-brand-hover), var(--c-brand-hover));
   color: var(--c-on-brand);
@@ -2831,31 +2843,36 @@ function toggleCompareLegend(which) {
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
   gap: 12px;
 }
+
 .compare-kpi-card {
   border: 1px solid var(--c-separator);
   background: var(--c-surface);
   border-radius: var(--r-lg);
   padding: 14px 16px;
-  box-shadow: 0 5px 18px rgba(0, 0, 0, 0.025);
+  box-shadow: 0 5px 18px rgb(0 0 0 / 2.5%);
   display: flex;
   flex-direction: column;
   gap: 8px;
   transition: box-shadow 0.28s ease, transform 0.28s cubic-bezier(0.25, 0.9, 0.35, 1);
 }
+
 .compare-kpi-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 10px 24px rgb(0 0 0 / 8%);
 }
+
 .compare-kpi-head {
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
+
 .compare-kpi-label {
   font-size: 12px;
   color: var(--c-ink-2);
   font-weight: 600;
 }
+
 .compare-kpi-unit {
   font-size: 10px;
   color: var(--c-text-3);
@@ -2863,17 +2880,20 @@ function toggleCompareLegend(which) {
   padding: 1px 6px;
   border-radius: var(--r-pill);
 }
+
 .compare-kpi-body {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
 }
+
 .compare-kpi-base,
 .compare-kpi-compare {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
+
 .compare-kpi-base strong,
 .compare-kpi-compare strong {
   font-size: 20px;
@@ -2881,31 +2901,37 @@ function toggleCompareLegend(which) {
   font-weight: 700;
   line-height: 1.1;
 }
+
 .compare-kpi-base em,
 .compare-kpi-compare em {
   font-style: normal;
   font-size: 11px;
   color: var(--c-text-3);
 }
+
 .compare-kpi-compare-line {
   display: flex;
   align-items: center;
   gap: 4px;
 }
+
 .compare-kpi-flat {
   color: var(--c-text-3);
   font-size: 14px;
 }
+
 .compare-kpi-spark {
   display: flex;
   flex-direction: column;
   gap: 4px;
   margin-top: 4px;
 }
+
 .compare-kpi-spark-line {
   width: 100%;
   height: 28px;
 }
+
 .compare-kpi-spark-legend {
   display: flex;
   gap: 12px;
@@ -2913,6 +2939,7 @@ function toggleCompareLegend(which) {
   color: var(--c-text-3);
   align-items: center;
 }
+
 .compare-kpi-spark-legend .dot {
   width: 8px;
   height: 8px;
@@ -2921,9 +2948,11 @@ function toggleCompareLegend(which) {
   margin-right: 3px;
   vertical-align: middle;
 }
+
 .compare-kpi-spark-legend .dot-base {
   background: var(--c-brand);
 }
+
 .compare-kpi-spark-legend .dot-compare {
   background: var(--c-danger-strong);
 }
@@ -2934,21 +2963,25 @@ function toggleCompareLegend(which) {
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr));
   gap: 14px;
 }
+
 .compare-pie-row {
   display: flex;
   flex-wrap: wrap;
   gap: 14px;
 }
+
 .compare-pie-block {
   flex: 1 1 240px;
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
+
 .compare-pie {
   width: 100%;
   height: 220px;
 }
+
 .compare-pie-legend {
   display: flex;
   flex-direction: column;
@@ -2956,14 +2989,17 @@ function toggleCompareLegend(which) {
   font-size: 12px;
   color: var(--c-ink-2);
 }
+
 .compare-trend-chart {
   width: 100%;
   height: 240px;
 }
+
 .compare-trend-axis {
   stroke: var(--c-separator);
   stroke-width: 1;
 }
+
 .compare-chart-legend {
   display: flex;
   gap: 12px;
@@ -2972,6 +3008,7 @@ function toggleCompareLegend(which) {
   align-items: center;
   flex-wrap: wrap;
 }
+
 .compare-legend-btn {
   background: transparent;
   border: 1px dashed var(--c-brand-tint);
@@ -2981,6 +3018,7 @@ function toggleCompareLegend(which) {
   font-size: 11px;
   color: var(--c-ink-1);
 }
+
 .compare-legend-btn:hover {
   border-color: var(--c-brand);
   color: var(--c-brand);
@@ -2992,22 +3030,26 @@ function toggleCompareLegend(which) {
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
   gap: 12px;
 }
+
 .compare-region-col {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
+
 .compare-region-bars {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
+
 .compare-region-label {
   font-size: 12px;
   color: var(--c-ink-2);
   display: flex;
   justify-content: space-between;
 }
+
 .compare-region-track {
   height: 8px;
   background: var(--c-brand-mist);
@@ -3020,12 +3062,14 @@ function toggleCompareLegend(which) {
 .compare-diff-section {
   /* 复用 .panel / .chart-card 的卡片外观 */
 }
+
 .compare-diff-cards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
   gap: 12px;
   margin-top: 10px;
 }
+
 .compare-diff-card {
   border: 1px solid var(--c-separator);
   background: var(--c-surface);
@@ -3034,23 +3078,27 @@ function toggleCompareLegend(which) {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.025);
+  box-shadow: 0 4px 14px rgb(0 0 0 / 2.5%);
 }
+
 .compare-diff-card header {
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
+
 .compare-diff-card header strong {
   color: var(--c-text);
   font-size: 13px;
   font-weight: 600;
 }
+
 .compare-diff-card header em {
   font-style: normal;
   font-size: 12px;
   font-weight: 600;
 }
+
 .compare-diff-numbers {
   display: flex;
   align-items: center;
@@ -3059,15 +3107,18 @@ function toggleCompareLegend(which) {
   color: var(--c-ink-2);
   margin: 0;
 }
+
 .compare-diff-numbers .arrow {
   color: var(--c-brand);
   font-weight: 700;
 }
+
 .compare-diff-sentence {
   font-size: 12px;
   color: var(--c-text-3);
   margin: 0;
 }
+
 .compare-diff-link {
   background: transparent;
   border: 0;
@@ -3080,6 +3131,7 @@ function toggleCompareLegend(which) {
   gap: 4px;
   align-self: flex-start;
 }
+
 .compare-diff-link:hover {
   color: var(--c-brand-hover);
   text-decoration: underline;
@@ -3094,6 +3146,7 @@ function toggleCompareLegend(which) {
   flex-direction: column;
   gap: 4px;
 }
+
 .compare-diff-list li {
   display: flex;
   flex-direction: column;
@@ -3101,13 +3154,16 @@ function toggleCompareLegend(which) {
   padding: 8px 0;
   border-bottom: 1px dashed var(--c-brand-mist);
 }
+
 .compare-diff-list li:last-child {
   border-bottom: 0;
 }
+
 .compare-diff-label {
   font-size: 12px;
   color: var(--c-ink-2);
 }
+
 .compare-diff-track {
   height: 6px;
   background: var(--c-brand-mist);

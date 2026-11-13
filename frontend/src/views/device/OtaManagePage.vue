@@ -649,7 +649,7 @@ onMounted(loadAll)
 
 .tab-bar { display: flex; gap: 4px; background: var(--c-bg); padding: 4px; border-radius: var(--r-sm); margin-bottom: 14px; width: max-content; }
 .tab-bar button { display: inline-flex; gap: 6px; align-items: center; padding: 8px 16px; border: 0; background: transparent; border-radius: var(--r-sm); cursor: pointer; font-size: 13px; color: var(--c-brand-deep); }
-.tab-bar button.active { background: var(--c-surface); color: var(--c-text); box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+.tab-bar button.active { background: var(--c-surface); color: var(--c-text); box-shadow: 0 1px 4px rgb(0 0 0 / 6%); }
 
 .panel-card { background: var(--c-surface); border: 1px solid var(--c-brand-soft); border-radius: var(--r-md); padding: 16px; }
 .filter-row { display: flex; gap: 6px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
@@ -706,7 +706,7 @@ onMounted(loadAll)
 .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 4px; }
 
 .drawer-mask { position: fixed; inset: 0; background: var(--c-overlay); display: flex; justify-content: flex-end; z-index: 110; }
-.drawer { width: min(440px, 92vw); background: var(--c-surface); height: 100%; display: flex; flex-direction: column; box-shadow: -8px 0 24px rgba(0,0,0,.08); }
+.drawer { width: min(440px, 92vw); background: var(--c-surface); height: 100%; display: flex; flex-direction: column; box-shadow: -8px 0 24px rgb(0 0 0 / 8%); }
 .drawer > header { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px; border-bottom: 1px solid var(--c-border-2); }
 .drawer > header h3 { margin: 0; font-size: 15px; color: var(--c-text); }
 .drawer-body { padding: 20px; overflow-y: auto; }
@@ -726,19 +726,21 @@ onMounted(loadAll)
 .step-body { flex: 1; }
 .step-body strong { display: block; color: var(--c-text); font-size: 13px; }
 .step-body small { color: var(--c-text-2); font-size: 11px; }
-.step-tag { font-size: 11px; color: var(--c-brand-deep); background: rgba(109,191,165,.16); padding: 2px 8px; border-radius: var(--r-xs); }
+.step-tag { font-size: 11px; color: var(--c-brand-deep); background: rgb(109 191 165 / 16%); padding: 2px 8px; border-radius: var(--r-xs); }
 
 .error-section { margin-top: 18px; }
 .error-section pre { background: var(--c-danger-bg); color: var(--c-danger-strong); padding: 12px; border-radius: var(--r-sm); font-size: 12px; white-space: pre-wrap; word-break: break-all; margin: 0; }
 
 .spin { animation: spin 1s linear infinite; }
+
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
-@media (max-width: 880px) {
+@media (width <= 880px) {
   .kpi-grid { grid-template-columns: repeat(2, 1fr); }
   .page-header h2 { font-size: 16px; }
 }
-@media (max-width: 540px) {
+
+@media (width <= 540px) {
   .ota-shell { padding: 16px; }
   .kpi-grid { gap: 10px; }
   .actions { width: 100%; }

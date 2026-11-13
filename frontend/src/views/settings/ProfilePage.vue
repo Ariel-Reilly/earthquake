@@ -353,8 +353,9 @@ onMounted(runServiceCheck)
   color: white;
   padding: 18px 22px;
   border-radius: var(--r-lg);
-  box-shadow: 0 8px 24px rgba(79, 143, 153, 0.18);
+  box-shadow: 0 8px 24px rgb(79 143 153 / 18%);
 }
+
 .profile-header .header-left h2 {
   display: inline-flex;
   align-items: center;
@@ -362,15 +363,17 @@ onMounted(runServiceCheck)
   margin: 0;
   font-size: 20px;
 }
+
 .profile-header .header-left p {
   margin: 6px 0 0;
   font-size: 13px;
   opacity: 0.85;
 }
+
 .logout-btn {
-  background: rgba(255, 255, 255, 0.18);
+  background: rgb(255 255 255 / 18%);
   color: white;
-  border: 1px solid rgba(255, 255, 255, 0.4);
+  border: 1px solid rgb(255 255 255 / 40%);
   padding: 6px 14px;
   border-radius: var(--r-pill);
   cursor: pointer;
@@ -380,8 +383,9 @@ onMounted(runServiceCheck)
   font-size: 13px;
   transition: background 0.2s;
 }
+
 .logout-btn:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: rgb(255 255 255 / 30%);
 }
 
 /* 主体布局 */
@@ -413,10 +417,11 @@ onMounted(runServiceCheck)
   align-items: center;
   gap: 10px;
   padding: 18px 12px 16px;
-  background: linear-gradient(180deg, rgba(79, 143, 153, 0.08) 0%, transparent 100%);
+  background: linear-gradient(180deg, rgb(79 143 153 / 8%) 0%, transparent 100%);
   border-radius: var(--r-md);
   border-bottom: 1px solid var(--dashboard-border, var(--c-brand-mist));
 }
+
 .user-avatar {
   width: 56px;
   height: 56px;
@@ -427,8 +432,9 @@ onMounted(runServiceCheck)
   place-items: center;
   font-size: 22px;
   font-weight: 700;
-  box-shadow: 0 4px 14px rgba(79, 143, 153, 0.28);
+  box-shadow: 0 4px 14px rgb(79 143 153 / 28%);
 }
+
 .user-info {
   display: flex;
   flex-direction: column;
@@ -436,20 +442,23 @@ onMounted(runServiceCheck)
   gap: 2px;
   text-align: center;
 }
+
 .user-name {
   color: var(--dashboard-text, var(--c-scrim));
   font-size: 15px;
   font-weight: 600;
 }
+
 .user-role {
   font-size: 11px;
   padding: 2px 8px;
   border-radius: var(--r-pill);
-  background: rgba(79, 143, 153, 0.12);
+  background: rgb(79 143 153 / 12%);
   color: var(--c-brand);
   font-weight: 600;
   letter-spacing: 0.03em;
 }
+
 .user-email {
   font-size: 11px;
   color: var(--dashboard-muted, var(--c-text-4));
@@ -462,6 +471,7 @@ onMounted(runServiceCheck)
   gap: 4px;
   flex: 1;
 }
+
 .nav-item {
   display: flex;
   align-items: center;
@@ -477,15 +487,18 @@ onMounted(runServiceCheck)
   transition: all 0.2s;
   position: relative;
 }
+
 .nav-item:hover {
   background: var(--dashboard-muted-bg, var(--c-brand-mist));
   color: var(--dashboard-text, var(--c-scrim));
 }
+
 .nav-item.active {
-  background: linear-gradient(135deg, rgba(79, 143, 153, 0.12), rgba(109, 191, 165, 0.12));
+  background: linear-gradient(135deg, rgb(79 143 153 / 12%), rgb(109 191 165 / 12%));
   color: var(--c-brand-ink);
   font-weight: 600;
 }
+
 .nav-item.active::before {
   content: '';
   position: absolute;
@@ -497,9 +510,11 @@ onMounted(runServiceCheck)
   background: var(--c-brand);
   border-radius: 0 3px 3px 0;
 }
+
 .nav-label {
   flex: 1;
 }
+
 .nav-desc {
   display: none;
 }
@@ -533,6 +548,7 @@ onMounted(runServiceCheck)
   flex-direction: column;
   gap: 18px;
 }
+
 .section-head {
   display: flex;
   justify-content: space-between;
@@ -540,6 +556,7 @@ onMounted(runServiceCheck)
   border-bottom: 1px solid var(--dashboard-border, var(--c-brand-mist));
   padding-bottom: 14px;
 }
+
 .section-head h3 {
   display: inline-flex;
   align-items: center;
@@ -548,11 +565,13 @@ onMounted(runServiceCheck)
   font-size: 18px;
   color: var(--dashboard-text, var(--c-scrim));
 }
+
 .section-head p {
   margin: 4px 0 0;
   color: var(--dashboard-muted, var(--c-text-2));
   font-size: 13px;
 }
+
 .refresh-btn {
   display: inline-flex;
   align-items: center;
@@ -566,9 +585,11 @@ onMounted(runServiceCheck)
   color: var(--c-ink-1);
   transition: background 0.2s;
 }
+
 .refresh-btn:hover {
   background: var(--c-brand-mist);
 }
+
 .refresh-btn:disabled {
   opacity: 0.55;
   cursor: not-allowed;
@@ -580,6 +601,7 @@ onMounted(runServiceCheck)
   grid-template-columns: repeat(3, 1fr);
   gap: 16px;
 }
+
 .help-card {
   background: var(--dashboard-muted-bg, var(--c-surface-2));
   border: 1px solid var(--dashboard-border, var(--c-separator));
@@ -589,6 +611,7 @@ onMounted(runServiceCheck)
   flex-direction: column;
   gap: 12px;
 }
+
 .help-card-head {
   display: flex;
   align-items: center;
@@ -598,17 +621,20 @@ onMounted(runServiceCheck)
   padding-bottom: 8px;
   border-bottom: 1px dashed var(--dashboard-border, var(--c-separator));
 }
+
 .help-desc {
   margin: 0;
   font-size: 12px;
   color: var(--dashboard-muted, var(--c-text-2));
   line-height: 1.55;
 }
+
 .version-info {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
+
 .version-row {
   display: flex;
   justify-content: space-between;
@@ -616,6 +642,7 @@ onMounted(runServiceCheck)
   font-size: 12px;
   color: var(--dashboard-muted, var(--c-text-2));
 }
+
 .version-row code {
   background: var(--c-surface);
   padding: 2px 8px;
@@ -624,6 +651,7 @@ onMounted(runServiceCheck)
   color: var(--dashboard-text, var(--c-scrim));
   border: 1px solid var(--dashboard-border, var(--c-separator));
 }
+
 .help-links {
   list-style: none;
   padding: 0;
@@ -632,6 +660,7 @@ onMounted(runServiceCheck)
   flex-direction: column;
   gap: 6px;
 }
+
 .help-links li {
   font-size: 12px;
   color: var(--dashboard-text, var(--c-ink-1));
@@ -642,10 +671,12 @@ onMounted(runServiceCheck)
   cursor: pointer;
   transition: all 0.2s;
 }
+
 .help-links li:hover {
   border-color: var(--c-brand);
   color: var(--c-brand);
 }
+
 .help-btn {
   padding: 7px 14px;
   border: 1px solid var(--dashboard-border, var(--c-brand-tint));
@@ -656,22 +687,27 @@ onMounted(runServiceCheck)
   color: var(--c-ink-1);
   transition: all 0.2s;
 }
+
 .help-btn:hover {
   background: var(--c-brand-mist);
 }
+
 .help-btn.primary {
   background: var(--c-brand);
   color: var(--c-on-brand);
   border-color: var(--c-brand);
 }
+
 .help-btn.primary:hover {
   background: var(--sys-blue-deep);
 }
+
 .feedback-channels {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
+
 .feedback-item {
   display: flex;
   flex-direction: column;
@@ -681,10 +717,12 @@ onMounted(runServiceCheck)
   border-radius: var(--r-sm);
   border: 1px solid var(--dashboard-border, var(--c-separator));
 }
+
 .fb-label {
   font-size: 11px;
   color: var(--dashboard-muted, var(--c-text-4));
 }
+
 .feedback-item code {
   font-size: 12px;
   color: var(--dashboard-text, var(--c-scrim));
@@ -696,6 +734,7 @@ onMounted(runServiceCheck)
   flex-direction: column;
   gap: 10px;
 }
+
 .service-item {
   display: flex;
   align-items: center;
@@ -706,9 +745,11 @@ onMounted(runServiceCheck)
   border-radius: var(--r-md);
   transition: all 0.2s;
 }
+
 .service-item:hover {
   border-color: var(--c-brand-tint);
 }
+
 .service-icon {
   width: 40px;
   height: 40px;
@@ -720,6 +761,7 @@ onMounted(runServiceCheck)
   color: var(--c-brand);
   flex-shrink: 0;
 }
+
 .service-meta {
   flex: 1;
   display: flex;
@@ -727,14 +769,17 @@ onMounted(runServiceCheck)
   gap: 3px;
   min-width: 0;
 }
+
 .service-meta strong {
   font-size: 14px;
   color: var(--dashboard-text, var(--c-scrim));
 }
+
 .service-meta small {
   font-size: 12px;
   color: var(--dashboard-muted, var(--c-text-2));
 }
+
 .service-state {
   font-style: normal;
   font-size: 12px;
@@ -744,14 +789,17 @@ onMounted(runServiceCheck)
   letter-spacing: 0.03em;
   flex-shrink: 0;
 }
+
 .service-state.ok {
-  background: rgba(42, 129, 84, 0.12);
+  background: rgb(42 129 84 / 12%);
   color: var(--c-brand-deep);
 }
+
 .service-state.checking {
-  background: rgba(224, 160, 80, 0.15);
+  background: rgb(224 160 80 / 15%);
   color: var(--c-warning);
 }
+
 .service-foot-note {
   display: flex;
   align-items: center;
@@ -763,27 +811,31 @@ onMounted(runServiceCheck)
 }
 
 /* 响应式 */
-@media (max-width: 960px) {
+@media (width <= 960px) {
   .help-grid {
     grid-template-columns: 1fr;
   }
 }
-@media (max-width: 768px) {
+
+@media (width <= 768px) {
   .profile-layout {
     flex-direction: column;
   }
+
   .profile-sidebar {
     width: 100%;
   }
+
   .profile-nav {
-    flex-direction: row;
-    flex-wrap: wrap;
+    flex-flow: row wrap;
   }
+
   .nav-item {
     flex: 1;
     min-width: calc(50% - 4px);
     justify-content: center;
   }
+
   .nav-item.active::before {
     display: none;
   }

@@ -137,15 +137,17 @@ function confirm() {
   z-index: 60;
   display: flex;
   padding: 16px;
-  background: rgba(0, 0, 0, .42);
-  -webkit-backdrop-filter: blur(8px);
+  background: rgb(0 0 0 / 42%);
+  backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
 }
+
 .form-modal-mask.is-sheet {
   align-items: flex-end;
   justify-content: center;
   padding: 0;
 }
+
 .form-modal-mask.is-alert {
   align-items: center;
   justify-content: center;
@@ -157,19 +159,21 @@ function confirm() {
   display: flex;
   flex-direction: column;
   max-height: calc(100vh - 24px);
-  background: var(--glass-thick, rgba(255, 255, 255, .92));
-  -webkit-backdrop-filter: blur(40px) saturate(200%);
+  background: var(--glass-thick, rgb(255 255 255 / 92%));
+  backdrop-filter: blur(40px) saturate(200%);
   backdrop-filter: blur(40px) saturate(200%);
   border: .5px solid var(--ios-hairline);
   box-shadow: var(--shadow-glass);
   color: var(--c-text);
 }
+
 .form-modal-panel.is-sheet {
   width: min(560px, 100%);
   margin: 0 8px 8px;
   border-radius: var(--r-2xl);
   overflow: hidden;
 }
+
 .form-modal-panel.is-alert {
   width: min(440px, 100%);
   border-radius: var(--r-xl);
@@ -185,6 +189,7 @@ function confirm() {
   justify-content: center;
   padding: 8px 0 2px;
 }
+
 .form-modal-grabber span {
   display: block;
   width: 36px;
@@ -204,13 +209,13 @@ function confirm() {
   place-items: center;
   border: 0;
   border-radius: 50%;
-  background: rgba(120, 120, 127, .16);
+  background: rgb(120 120 127 / 16%);
   color: var(--c-text-2);
   cursor: pointer;
   transition: background .15s ease, color .15s ease, transform .12s ease;
   z-index: 2;
 }
-.form-modal-close:hover { background: rgba(120, 120, 127, .28); color: var(--c-text); }
+.form-modal-close:hover { background: rgb(120 120 127 / 28%); color: var(--c-text); }
 .form-modal-close:active { transform: scale(.94); }
 
 /* 头部 */
@@ -219,6 +224,7 @@ function confirm() {
   text-align: center;
   border-bottom: .5px solid var(--c-separator);
 }
+
 .form-modal-eyebrow {
   display: block;
   color: var(--c-text-3);
@@ -228,6 +234,7 @@ function confirm() {
   text-transform: uppercase;
   margin-bottom: 6px;
 }
+
 .form-modal-title {
   margin: 0;
   color: var(--c-text);
@@ -235,6 +242,7 @@ function confirm() {
   font-weight: 600;
   letter-spacing: -0.012em;
 }
+
 .form-modal-subtitle {
   margin: 4px 0 0;
   color: var(--c-text-2);
@@ -249,6 +257,7 @@ function confirm() {
   padding: 18px 22px 4px;
 }
 .form-modal-body :deep(.form-group) { gap: 6px; margin-bottom: 14px; }
+
 .form-modal-body :deep(.form-label) {
   color: var(--c-text-2);
   font-size: 12px;
@@ -256,6 +265,7 @@ function confirm() {
   text-transform: uppercase;
   letter-spacing: .04em;
 }
+
 .form-modal-body :deep(.form-input) {
   width: 100%;
   padding: 10px 14px;
@@ -267,17 +277,20 @@ function confirm() {
   transition: border-color .18s, box-shadow .18s;
   outline: none;
 }
+
 .form-modal-body :deep(.form-input:focus) {
   border-color: var(--c-brand);
   box-shadow: 0 0 0 3px var(--c-brand-muted);
 }
 .form-modal-body :deep(label) { display: block; margin-bottom: 12px; }
+
 .form-modal-body :deep(label > input),
 .form-modal-body :deep(label > select) {
   display: block;
   margin-top: 6px;
   width: 100%;
 }
+
 .form-modal-body :deep(.modal-row) {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -294,27 +307,30 @@ function confirm() {
   background: transparent;
 }
 .form-modal-foot .ios-btn { min-width: 88px; }
-.form-modal-foot .ios-btn.ghost { background: rgba(120, 120, 127, .16); }
-.form-modal-foot .ios-btn.ghost:hover { background: rgba(120, 120, 127, .24); }
+.form-modal-foot .ios-btn.ghost { background: rgb(120 120 127 / 16%); }
+.form-modal-foot .ios-btn.ghost:hover { background: rgb(120 120 127 / 24%); }
 
 .ios-btn-spin {
   display: inline-block;
   width: 14px;
   height: 14px;
-  border: 2px solid rgba(255, 255, 255, .35);
+  border: 2px solid rgb(255 255 255 / 35%);
   border-top-color: var(--c-surface);
   border-radius: 50%;
   margin-right: 6px;
   vertical-align: -2px;
   animation: ios-btn-spin-anim .8s linear infinite;
 }
+
 @keyframes ios-btn-spin-anim { to { transform: rotate(360deg); } }
 
 /* ── 过渡动画 ── */
 .ios-form-modal-sheet-enter-active { transition: opacity .22s ease; }
 .ios-form-modal-sheet-leave-active { transition: opacity .22s ease; }
+
 .ios-form-modal-sheet-enter-from,
 .ios-form-modal-sheet-leave-to { opacity: 0; }
+
 .ios-form-modal-sheet-enter-active .form-modal-panel,
 .ios-form-modal-sheet-leave-active .form-modal-panel {
   transition: transform .36s cubic-bezier(.32, .72, 0, 1), opacity .22s ease;
@@ -324,8 +340,10 @@ function confirm() {
 
 .ios-form-modal-alert-enter-active { transition: opacity .22s ease; }
 .ios-form-modal-alert-leave-active { transition: opacity .22s ease; }
+
 .ios-form-modal-alert-enter-from,
 .ios-form-modal-alert-leave-to { opacity: 0; }
+
 .ios-form-modal-alert-enter-active .form-modal-panel,
 .ios-form-modal-alert-leave-active .form-modal-panel {
   transition: transform .26s cubic-bezier(.32, .72, 0, 1), opacity .22s ease;
@@ -333,7 +351,7 @@ function confirm() {
 .ios-form-modal-alert-enter-from .form-modal-panel { transform: scale(.92); opacity: 0; }
 .ios-form-modal-alert-leave-to .form-modal-panel { transform: scale(.96); opacity: 0; }
 
-@media (max-width: 540px) {
+@media (width <= 540px) {
   .form-modal-panel.is-wide,
   .form-modal-panel.is-lg { width: 100%; }
   .form-modal-mask { padding: 0; }

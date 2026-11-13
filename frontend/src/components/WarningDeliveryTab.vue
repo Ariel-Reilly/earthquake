@@ -911,6 +911,7 @@ watch(() => props.warningId, () => loadData());
 }
 
 .spin { animation: spin 1s linear infinite; }
+
 @keyframes spin {
   from { transform: rotate(0); }
   to { transform: rotate(360deg); }
@@ -1200,12 +1201,12 @@ watch(() => props.warningId, () => loadData());
 /* ═══════════════════════════════════════════════════════════
    9. 响应式
    ═══════════════════════════════════════════════════════════ */
-@media (max-width: 1180px) {
+@media (width <= 1180px) {
   .delivery-metrics { grid-template-columns: 1fr 1fr; }
   .skeleton-grid { grid-template-columns: 1fr 1fr; }
 }
 
-@media (max-width: 760px) {
+@media (width <= 760px) {
   .delivery-metrics { grid-template-columns: 1fr; }
   .skeleton-grid { grid-template-columns: 1fr; }
   .segment-item { flex: 0 0 auto; }

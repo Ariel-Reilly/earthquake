@@ -353,22 +353,23 @@ onMounted(loadData)
   padding: 24px;
 }
 
-.modal-mask { position: fixed; inset: 0; background: rgba(15, 32, 38, .45); display: grid; place-items: center; z-index: 100; }
-.modal-card { width: min(480px, 92vw); background: var(--c-surface); border-radius: var(--r-lg); padding: 22px; box-shadow: 0 24px 60px rgba(0, 0, 0, .24); }
+.modal-mask { position: fixed; inset: 0; background: rgb(15 32 38 / 45%); display: grid; place-items: center; z-index: 100; }
+.modal-card { width: min(480px, 92vw); background: var(--c-surface); border-radius: var(--r-lg); padding: 22px; box-shadow: 0 24px 60px rgb(0 0 0 / 24%); }
 .modal-card h3 { margin: 0 0 16px; color: var(--c-text); display: flex; gap: 6px; align-items: center; font-size: 16px; }
 .modal-card label { display: block; margin-bottom: 14px; color: var(--c-brand-deep); font-size: 12px; font-weight: 600; }
-.modal-card input, .modal-card select { display: block; width: 100%; margin-top: 6px; padding: 8px 10px; border: 1px solid rgba(60,60,67,.10); border-radius: var(--r-sm); background: var(--c-surface-2); color: var(--c-ink-1); font-size: 12px; outline: none; transition: border-color .2s; box-sizing: border-box; }
+.modal-card input, .modal-card select { display: block; width: 100%; margin-top: 6px; padding: 8px 10px; border: 1px solid rgb(60 60 67 / 10%); border-radius: var(--r-sm); background: var(--c-surface-2); color: var(--c-ink-1); font-size: 12px; outline: none; transition: border-color .2s; box-sizing: border-box; }
 .modal-card input:focus, .modal-card select:focus { border-color: var(--c-brand); }
 .modal-card .required { color: var(--c-danger-strong); }
 .modal-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .modal-row label { margin-bottom: 14px; }
 .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px; }
-.ghost-btn { display: inline-flex; gap: 4px; align-items: center; padding: 6px 14px; border: 1px solid rgba(60,60,67,.10); background: var(--c-surface); color: var(--c-brand-deep); border-radius: var(--r-sm); cursor: pointer; font-size: 12px; transition: background .2s; }
+.ghost-btn { display: inline-flex; gap: 4px; align-items: center; padding: 6px 14px; border: 1px solid rgb(60 60 67 / 10%); background: var(--c-surface); color: var(--c-brand-deep); border-radius: var(--r-sm); cursor: pointer; font-size: 12px; transition: background .2s; }
 .ghost-btn:hover { background: var(--c-bg); }
 .ghost-btn:disabled { opacity: .5; cursor: not-allowed; }
 .primary-btn { display: inline-flex; gap: 4px; align-items: center; padding: 6px 14px; border: 0; background: var(--c-brand); color: var(--c-on-brand); border-radius: var(--r-sm); cursor: pointer; font-size: 12px; transition: background .2s; }
 .primary-btn:hover { background: #256b6c; }
 .primary-btn:disabled { opacity: .5; cursor: not-allowed; }
-.btn-spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid rgba(255, 255, 255, .3); border-top-color: var(--c-surface); border-radius: 50%; animation: spin .7s linear infinite; }
+.btn-spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid rgb(255 255 255 / 30%); border-top-color: var(--c-surface); border-radius: 50%; animation: spin .7s linear infinite; }
+
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 </style>

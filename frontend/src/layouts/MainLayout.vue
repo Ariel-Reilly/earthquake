@@ -401,7 +401,7 @@ onBeforeUnmount(() => {
 .main-layout-sidebar {
   width: 260px;
   flex-shrink: 0;
-  background: var(--bg-card, #FFFFFF);
+  background: var(--bg-card, #FFF);
   border-right: 1px solid var(--border-color, #D1DCD5);
   overflow: hidden;
 }
@@ -410,8 +410,7 @@ onBeforeUnmount(() => {
 .main-layout-content {
   flex: 1;
   min-width: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden auto;
 }
 
 /* ── 全局轻提示 ──
@@ -426,13 +425,13 @@ onBeforeUnmount(() => {
   background: var(--c-brand-deeper, #245b5d);
 }
 
-@media (max-width: 1024px) {
+@media (width <= 1024px) {
   .main-layout-sidebar {
     width: 220px;
   }
 }
 
-@media (max-width: 768px) {
+@media (width <= 768px) {
   /* ── 侧栏抽屉（修复：<=768px 侧栏 display:none 且全站无入口）──
      不再 display:none（那样二级页面在手机上彻底不可达），改为
      「默认移出屏幕、汉堡按钮唤出」。用 transform + visibility 过渡，
@@ -459,7 +458,7 @@ onBeforeUnmount(() => {
   .main-layout-sidebar.is-mobile-open {
     visibility: visible;
     transform: translateX(0);
-    box-shadow: 8px 0 40px rgba(10, 50, 25, 0.28);
+    box-shadow: 8px 0 40px rgb(10 50 25 / 28%);
   }
 
   .main-layout-content {

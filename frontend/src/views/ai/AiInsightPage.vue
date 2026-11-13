@@ -553,13 +553,13 @@ function fmtTime(iso) {
 }
 
 /* 响应式 */
-@media (max-width: 1024px) {
+@media (width <= 1024px) {
   .ai-layout {
     grid-template-columns: 200px 1fr;
   }
 }
 
-@media (max-width: 768px) {
+@media (width <= 768px) {
   .ai-layout {
     grid-template-columns: 1fr;
   }

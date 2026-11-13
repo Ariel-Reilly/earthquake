@@ -924,7 +924,7 @@ const channelColor = (type) => {
   transition: box-shadow 0.15s;
 }
 
-.channel-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+.channel-card:hover { box-shadow: 0 2px 8px rgb(0 0 0 / 6%); }
 .channel-card.disabled { opacity: 0.6; }
 
 .card-header {
@@ -991,7 +991,7 @@ const channelColor = (type) => {
   border-radius: 50%;
   background: var(--c-surface);
   transition: transform 0.2s;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 20%);
 }
 
 .toggle-btn.on .toggle-thumb { transform: translateX(18px); }
@@ -1075,6 +1075,7 @@ const channelColor = (type) => {
 
 .btn-test:hover:not(:disabled) { background: var(--sys-blue-soft); border-color: var(--c-brand-hover); color: var(--c-brand-deeper); }
 .btn-edit:hover { background: var(--c-brand-mist); }
+
 .btn-delete {
   width: 32px;
   height: 32px;
@@ -1184,7 +1185,7 @@ const channelColor = (type) => {
   height: 100%;
   display: flex;
   flex-direction: column;
-  box-shadow: -4px 0 20px rgba(0,0,0,0.1);
+  box-shadow: -4px 0 20px rgb(0 0 0 / 10%);
 }
 
 .drawer-header {

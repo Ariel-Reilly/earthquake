@@ -52,7 +52,7 @@ const props = defineProps({
 
 .skeleton-list-grid {
   display: grid;
-  grid-template-columns: repeat(v-bind(gridColumns), 1fr);
+  grid-template-columns: repeat(v-bind(gridcolumns), 1fr);
   gap: 16px;
 }
 
@@ -71,13 +71,13 @@ const props = defineProps({
 }
 
 /* 响应式调整 */
-@media (max-width: 1200px) {
+@media (width <= 1200px) {
   .skeleton-list-grid {
     grid-template-columns: repeat(2, 1fr);
   }
 }
 
-@media (max-width: 768px) {
+@media (width <= 768px) {
   .skeleton-list-grid {
     grid-template-columns: 1fr;
   }

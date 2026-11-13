@@ -344,7 +344,7 @@ defineExpose({ load })
 }
 
 .rule-table th {
-  background: rgba(60,60,67,.04);
+  background: rgb(60 60 67 / 4%);
   color: var(--c-text-3);
   font-size: 12px;
   font-weight: 600;

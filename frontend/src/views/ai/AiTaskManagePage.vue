@@ -370,12 +370,13 @@ onMounted(() => loadTasks())
 .ghost-btn { display: inline-flex; gap: 4px; align-items: center; padding: 6px 10px; border: 1px solid var(--c-separator); background: var(--c-surface); border-radius: var(--r-sm); color: var(--c-text); font-size: 12px; cursor: pointer; }
 .ghost-btn:hover { background: var(--c-bg); }
 .ghost-btn.danger { color: var(--c-danger-strong); border-color: var(--c-danger-bg); }
-/* 空值占位（原为模板内联 style）*/
+
+/* 空值占位（原为模板内联 style） */
 .empty-dash { color: var(--c-text-4); }
 
 .trigger-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 22px; }
 .trigger-card { padding: 18px; border-left: 4px solid; border-top: 1px solid var(--c-brand-soft); border-right: 1px solid var(--c-brand-soft); border-bottom: 1px solid var(--c-brand-soft); border-radius: var(--r-md); background: var(--c-surface); cursor: pointer; transition: transform .15s, box-shadow .15s; }
-.trigger-card:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,.06); }
+.trigger-card:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgb(0 0 0 / 6%); }
 .trigger-card strong { display: block; margin: 8px 0 4px; color: var(--c-text); font-size: 14px; }
 .trigger-card p { margin: 0; color: var(--c-text-2); font-size: 12px; line-height: 1.6; }
 
@@ -411,5 +412,6 @@ onMounted(() => loadTasks())
 .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px; }
 
 .spin { animation: spin 1s linear infinite; }
+
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 </style>

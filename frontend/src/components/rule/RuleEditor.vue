@@ -493,7 +493,7 @@ watch(() => props.rule, initForm)
 
 .unit-label {
   font-size: 12px;
-  color: rgba(60,60,67,.52);
+  color: rgb(60 60 67 / 52%);
   min-width: 30px;
 }
 
@@ -514,7 +514,7 @@ watch(() => props.rule, initForm)
 }
 
 .dsl-preview {
-  background: rgba(60,60,67,.04);
+  background: rgb(60 60 67 / 4%);
   padding: 14px;
   border-radius: var(--r-sm);
 }

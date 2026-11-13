@@ -920,6 +920,7 @@ onBeforeUnmount(() => {
   margin-bottom: 12px;
   font-size: 13px;
 }
+
 .confirmation-ops-left {
   display: flex;
   align-items: center;
@@ -950,6 +951,7 @@ onBeforeUnmount(() => {
   gap: 8px;
   flex-wrap: wrap;
 }
+
 .ops-btn {
   display: inline-flex;
   align-items: center;
@@ -980,15 +982,17 @@ onBeforeUnmount(() => {
   display: flex; align-items: center; justify-content: center;
   z-index: 9999;
 }
+
 .modal {
   background: var(--c-surface);
   border-radius: var(--r-lg);
   padding: 24px;
   width: min(480px, 92vw);
-  box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+  box-shadow: 0 20px 60px rgb(0 0 0 / 20%);
 }
 .modal h3 { margin: 0 0 8px; font-size: 16px; color: var(--c-ink-1); }
 .modal-hint { font-size: 12.5px; color: var(--c-text-2); margin-bottom: 12px; }
+
 .modal label {
   display: block;
   font-size: 12.5px;
@@ -996,6 +1000,7 @@ onBeforeUnmount(() => {
   font-weight: 500;
   margin-bottom: 10px;
 }
+
 .modal label textarea, .modal label input {
   width: 100%;
   margin-top: 4px;
@@ -1005,6 +1010,7 @@ onBeforeUnmount(() => {
   font-size: 13px;
   box-sizing: border-box;
 }
+
 .modal-actions {
   display: flex; gap: 8px; justify-content: flex-end;
   margin-top: 16px;
@@ -1018,50 +1024,55 @@ onBeforeUnmount(() => {
   margin: 12px 0 0;
   padding: 10px 16px;
   border-radius: var(--r-md);
-  background: linear-gradient(135deg, rgba(79, 143, 153, 0.08), rgba(99, 143, 194, 0.05));
-  border: 1px solid rgba(79, 143, 153, 0.25);
+  background: linear-gradient(135deg, rgb(79 143 153 / 8%), rgb(99 143 194 / 5%));
+  border: 1px solid rgb(79 143 153 / 25%);
   gap: 12px;
   flex-wrap: wrap;
 }
+
 .event-overview-left {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
 }
+
 .event-overview-label {
   font-size: 12px;
   color: var(--c-ink-2);
   font-weight: 600;
 }
+
 .event-overview-code {
   font-family: ui-monospace, monospace;
-  background: rgba(111, 158, 127, 0.1);
+  background: rgb(111 158 127 / 10%);
   color: var(--c-brand);
   padding: 3px 8px;
   border-radius: var(--r-xs);
   font-size: 12px;
   font-weight: 700;
 }
+
 .event-overview-state {
   font-size: 11px;
   font-weight: 600;
   padding: 2px 8px;
   border-radius: var(--r-pill);
-  background: rgba(155, 174, 173, 0.18);
+  background: rgb(155 174 173 / 18%);
   color: var(--c-ink-2);
   letter-spacing: 0.3px;
 }
-.event-overview-state[data-state="DETECTED"]          { background: rgba(79, 143, 153, 0.18); color: var(--c-brand); }
-.event-overview-state[data-state="CONFIRMING"]        { background: rgba(224, 160, 80, 0.20); color: var(--c-warning-ink); }
-.event-overview-state[data-state="CONFIRMED"]         { background: rgba(99, 143, 194, 0.18); color: var(--c-brand); }
-.event-overview-state[data-state="WARNING_ISSUED"]    { background: rgba(216, 133, 97, 0.20); color: var(--c-danger-strong); }
-.event-overview-state[data-state="EMERGENCY_ACTIVE"]  { background: rgba(224, 96, 96, 0.18); color: var(--c-danger); }
-.event-overview-state[data-state="CLOSED"]            { background: rgba(155, 174, 173, 0.25); color: var(--c-ink-2); }
-.event-overview-state[data-state="REJECTED"]          { background: rgba(122, 141, 137, 0.22); color: var(--c-text-2); }
+.event-overview-state[data-state="DETECTED"]          { background: rgb(79 143 153 / 18%); color: var(--c-brand); }
+.event-overview-state[data-state="CONFIRMING"]        { background: rgb(224 160 80 / 20%); color: var(--c-warning-ink); }
+.event-overview-state[data-state="CONFIRMED"]         { background: rgb(99 143 194 / 18%); color: var(--c-brand); }
+.event-overview-state[data-state="WARNING_ISSUED"]    { background: rgb(216 133 97 / 20%); color: var(--c-danger-strong); }
+.event-overview-state[data-state="EMERGENCY_ACTIVE"]  { background: rgb(224 96 96 / 18%); color: var(--c-danger); }
+.event-overview-state[data-state="CLOSED"]            { background: rgb(155 174 173 / 25%); color: var(--c-ink-2); }
+.event-overview-state[data-state="REJECTED"]          { background: rgb(122 141 137 / 22%); color: var(--c-text-2); }
+
 .event-overview-btn {
   background: var(--c-surface);
-  border: 1px solid rgba(111, 158, 127, 0.4);
+  border: 1px solid rgb(111 158 127 / 40%);
   color: var(--c-brand);
   padding: 6px 14px;
   border-radius: var(--r-sm);
@@ -1073,13 +1084,16 @@ onBeforeUnmount(() => {
   gap: 4px;
   transition: all 0.15s;
 }
+
 .event-overview-btn:hover {
   background: var(--c-brand);
   color: var(--c-on-brand);
   border-color: var(--c-brand);
 }
+
 /* ── 静态内联色收敛后的工具类（等价于原先的 inline style） ── */
 .u-hint-block { padding: 0 20px 18px; color: var(--c-text-2); }
+
 /* 详情加载失败态：明确展示原因并提供重试，避免停留在"加载中..." */
 .load-error {
   display: flex;

@@ -360,7 +360,7 @@ onBeforeUnmount(() => {
   z-index: var(--z-top, 40);
   width: 100%;
   height: 64px;
-  background: var(--bg-card, #FFFFFF);
+  background: var(--bg-card, #FFF);
   border-bottom: 1px solid var(--border-color, #D1DCD5);
   flex-shrink: 0;
   box-sizing: border-box;
@@ -389,7 +389,7 @@ onBeforeUnmount(() => {
 }
 
 .toolbar-brand:hover {
-  background: var(--bg-hover, rgba(95, 122, 107, 0.08));
+  background: var(--bg-hover, rgb(95 122 107 / 8%));
 }
 
 .brand-mark {
@@ -400,7 +400,7 @@ onBeforeUnmount(() => {
   justify-content: center;
   border-radius: var(--r-md, 8px);
   background: linear-gradient(150deg, var(--primary, #5F7A6B), var(--primary-hover, #4A6154));
-  color: var(--primary-on, #FFFFFF);
+  color: var(--primary-on, #FFF);
   flex-shrink: 0;
 }
 
@@ -464,6 +464,7 @@ onBeforeUnmount(() => {
   color: var(--text-muted, #5F6F68);
   opacity: 1;
 }
+
 /* ── 快捷键提示 ── */
 .search-shortcut {
   position: absolute;
@@ -479,8 +480,8 @@ onBeforeUnmount(() => {
 .search-input:focus {
   outline: none;
   border-color: var(--primary, #5F7A6B);
-  background: var(--bg-card, #FFFFFF);
-  box-shadow: var(--focus-ring, 0 0 0 3px rgba(95, 122, 107, 0.16));
+  background: var(--bg-card, #FFF);
+  box-shadow: var(--focus-ring, 0 0 0 3px rgb(95 122 107 / 16%));
 }
 
 /* ── 搜索下拉：右对齐，不超出 Header 边界 ── */
@@ -494,11 +495,10 @@ onBeforeUnmount(() => {
   max-height: 400px;
   padding: var(--sp-8, 8px);
   border-radius: var(--r-lg, 12px);
-  background: var(--bg-card, #FFFFFF);
+  background: var(--bg-card, #FFF);
   border: 1px solid var(--border-color, #D1DCD5);
-  box-shadow: var(--shadow-hover, 0 4px 16px rgba(44, 59, 52, 0.08));
-  overflow-y: auto;
-  overflow-x: hidden;
+  box-shadow: var(--shadow-hover, 0 4px 16px rgb(44 59 52 / 8%));
+  overflow: hidden auto;
 }
 
 .search-empty {
@@ -525,7 +525,7 @@ onBeforeUnmount(() => {
 
 .search-result-item:hover,
 .search-result-item.is-active {
-  background: var(--bg-hover, rgba(95, 122, 107, 0.08));
+  background: var(--bg-hover, rgb(95 122 107 / 8%));
 }
 
 .result-label {
@@ -574,7 +574,7 @@ onBeforeUnmount(() => {
 }
 
 .toolbar-icon-btn:hover {
-  background: var(--bg-hover, rgba(95, 122, 107, 0.08));
+  background: var(--bg-hover, rgb(95 122 107 / 8%));
 }
 
 .toolbar-icon-btn:active {
@@ -590,14 +590,16 @@ onBeforeUnmount(() => {
   padding: 0 4px;
   border-radius: var(--r-pill, 9999px);
   background: var(--alert-high, #C48B8B);
+
   /* 白字在 #C48B8B 上对比度仅 2.83，深字 5.18 */
   color: var(--alert-on, #1F2B25);
+
   /* 10px 未读数在 1x 屏不可读，提到 12px 并同步放大胶囊 */
   font-size: 12px;
   font-weight: 700;
   line-height: 18px;
   text-align: center;
-  box-shadow: 0 0 0 2px var(--bg-card, #FFFFFF);
+  box-shadow: 0 0 0 2px var(--bg-card, #FFF);
 }
 
 /* ── 新建按钮 ── */
@@ -614,19 +616,19 @@ onBeforeUnmount(() => {
   border: 0;
   border-radius: var(--r-lg, 12px);
   background: var(--primary, #5F7A6B);
-  color: var(--primary-on, #FFFFFF);
+  color: var(--primary-on, #FFF);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   transition:
     background 0.2s cubic-bezier(0.32, 0.72, 0, 1),
     transform 0.12s cubic-bezier(0.32, 0.72, 0, 1);
-  box-shadow: var(--shadow-card, 0 2px 8px rgba(44, 59, 52, 0.04));
+  box-shadow: var(--shadow-card, 0 2px 8px rgb(44 59 52 / 4%));
 }
 
 .toolbar-create-trigger:hover {
   background: var(--primary-hover, #4A6154);
-  box-shadow: var(--shadow-hover, 0 4px 16px rgba(44, 59, 52, 0.08));
+  box-shadow: var(--shadow-hover, 0 4px 16px rgb(44 59 52 / 8%));
 }
 
 .toolbar-create-trigger:active {
@@ -653,9 +655,9 @@ onBeforeUnmount(() => {
   min-width: 180px;
   padding: var(--sp-8, 8px);
   border-radius: var(--r-lg, 12px);
-  background: var(--bg-card, #FFFFFF);
+  background: var(--bg-card, #FFF);
   border: 1px solid var(--border-color, #D1DCD5);
-  box-shadow: var(--shadow-hover, 0 4px 16px rgba(44, 59, 52, 0.08));
+  box-shadow: var(--shadow-hover, 0 4px 16px rgb(44 59 52 / 8%));
   overflow: hidden;
 }
 
@@ -677,7 +679,7 @@ onBeforeUnmount(() => {
 }
 
 .create-dropdown-item:hover {
-  background: var(--bg-hover, rgba(95, 122, 107, 0.08));
+  background: var(--bg-hover, rgb(95 122 107 / 8%));
   color: var(--primary, #5F7A6B);
 }
 
@@ -700,7 +702,7 @@ onBeforeUnmount(() => {
 }
 
 /* ── 响应式：优先保证右侧操作区不被挤压，空间不足时中部一级导航自行横向滚动 ── */
-@media (max-width: 1180px) {
+@media (width <= 1180px) {
   .brand-version,
   .search-shortcut {
     display: none;
@@ -715,7 +717,7 @@ onBeforeUnmount(() => {
   }
 }
 
-@media (max-width: 900px) {
+@media (width <= 900px) {
   .brand-copy {
     display: none;
   }
@@ -730,7 +732,7 @@ onBeforeUnmount(() => {
    · 菜单搜索是桌面快捷入口，窄屏隐藏（导航交给抽屉 + 一级 Tab）
    · 新建按钮只留图标，文案与下拉箭头隐藏
    · 品牌只留图标（.brand-copy 在 900px 已隐藏） */
-@media (max-width: 768px) {
+@media (width <= 768px) {
   .top-toolbar-inner {
     padding: 0 var(--sp-8, 8px);
     gap: var(--sp-8, 8px);

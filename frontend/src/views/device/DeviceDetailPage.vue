@@ -175,7 +175,7 @@ onBeforeUnmount(() => {
               <span v-for="(a, i) in aiHealth.suggestedActions.slice(0, 3)" :key="i" class="ai-action-pill">{{ a }}</span>
             </div>
             <div class="heading-actions" style="padding: 8px 0 0; justify-content: flex-end; gap: 6px;">
-              <span v-if="aiHealth?.model" style="font-size: 10px; color: rgba(60,60,67,.52);">模型：{{ aiHealth.model }} · 置信度 {{ ((aiHealth.confidence ?? 0) * 100).toFixed(0) }}%</span>
+              <span v-if="aiHealth?.model" style="font-size: 10px; color: rgb(60 60 67 / 52%);">模型：{{ aiHealth.model }} · 置信度 {{ ((aiHealth.confidence ?? 0) * 100).toFixed(0) }}%</span>
               <PermissionButton permission="ai:insight:refresh" :icon="Stethoscope" @click="async ({ allowed, reason }) => {
                 if (!allowed) return
                 await refreshAi()

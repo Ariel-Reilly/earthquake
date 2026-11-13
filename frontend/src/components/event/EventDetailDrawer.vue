@@ -411,6 +411,7 @@ const onTabClick = (tab) => {
   display: flex;
   justify-content: flex-end;
 }
+
 .event-drawer {
   width: 580px;
   max-width: 92vw;
@@ -418,8 +419,9 @@ const onTabClick = (tab) => {
   background: var(--c-surface);
   display: flex;
   flex-direction: column;
-  box-shadow: -16px 0 40px rgba(46, 67, 93, 0.18);
+  box-shadow: -16px 0 40px rgb(46 67 93 / 18%);
 }
+
 .ed-header {
   display: flex;
   justify-content: space-between;
@@ -429,12 +431,14 @@ const onTabClick = (tab) => {
   position: relative;
 }
 .ed-header-meta { flex: 1; min-width: 0; }
+
 .ed-header .eyebrow {
   font-size: 10.5px;
   letter-spacing: 1.5px;
   opacity: 0.85;
   font-weight: 600;
 }
+
 .ed-header h2 {
   margin: 4px 0 8px;
   font-size: 18px;
@@ -445,20 +449,23 @@ const onTabClick = (tab) => {
   color: var(--c-on-brand);
   line-height: 1.3;
 }
+
 .ed-event-code {
   display: flex;
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
 }
+
 .ed-event-code code {
-  background: rgba(255, 255, 255, 0.18);
+  background: rgb(255 255 255 / 18%);
   padding: 3px 8px;
   border-radius: var(--r-xs);
   font-size: 11px;
   font-family: ui-monospace, monospace;
   letter-spacing: 0.5px;
 }
+
 .state-pill {
   padding: 3px 8px;
   border-radius: var(--r-pill);
@@ -466,23 +473,26 @@ const onTabClick = (tab) => {
   font-weight: 700;
   letter-spacing: 0.5px;
 }
+
 .source-tag {
   font-size: 11px;
   display: inline-flex;
   align-items: center;
   gap: 4px;
   color: var(--c-on-brand);
-  background: rgba(255, 255, 255, 0.18);
+  background: rgb(255 255 255 / 18%);
   padding: 3px 8px;
   border-radius: var(--r-pill);
 }
+
 .source-tag .dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
 }
+
 .ed-close {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgb(255 255 255 / 15%);
   border: none;
   width: 32px;
   height: 32px;
@@ -493,19 +503,21 @@ const onTabClick = (tab) => {
   align-items: center;
   justify-content: center;
 }
-.ed-close:hover { background: rgba(255, 255, 255, 0.28); }
+.ed-close:hover { background: rgb(255 255 255 / 28%); }
 
 .ed-body {
   flex: 1;
   overflow-y: auto;
   padding: 18px 22px;
 }
+
 .ed-section {
   margin-bottom: 22px;
   padding-bottom: 16px;
   border-bottom: 1px dashed var(--c-border);
 }
 .ed-section:last-child { border-bottom: none; padding-bottom: 0; }
+
 .ed-section-title {
   font-size: 12px;
   font-weight: 700;
@@ -517,40 +529,46 @@ const onTabClick = (tab) => {
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
+
 .meta-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 10px;
 }
+
 .meta-cell {
   background: color-mix(in srgb, var(--c-surface-2) 70%, transparent);
   border: 1px solid var(--c-border);
   border-radius: var(--r-sm);
   padding: 8px 10px;
 }
+
 .meta-cell .k {
   display: block;
   font-size: 10.5px;
   color: var(--c-text-2);
   margin-bottom: 2px;
 }
+
 .meta-cell .v {
   font-size: 13px;
   color: var(--c-ink-1);
 }
+
 .meta-cell .v.code {
   font-family: ui-monospace, monospace;
   font-size: 12px;
   color: var(--c-brand);
 }
+
 .state-desc {
   margin: 10px 0 0;
   font-size: 12px;
   color: var(--c-ink-2);
-  background: rgba(79, 143, 153, 0.06);
+  background: rgb(79 143 153 / 6%);
   padding: 8px 10px;
   border-radius: var(--r-sm);
-  border-left: 3px solid rgba(79, 143, 153, 0.4);
+  border-left: 3px solid rgb(79 143 153 / 40%);
 }
 
 .tabs {
@@ -559,6 +577,7 @@ const onTabClick = (tab) => {
   border-bottom: 1px solid var(--c-border);
   margin-bottom: 12px;
 }
+
 .tabs button {
   background: transparent;
   border: none;
@@ -573,15 +592,18 @@ const onTabClick = (tab) => {
   gap: 4px;
 }
 .tabs button:hover:not(:disabled) { color: var(--c-brand); }
+
 .tabs button.active {
   color: var(--c-brand);
   border-bottom-color: var(--c-brand);
   font-weight: 600;
 }
+
 .tabs button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
 .tabs small {
   font-size: 10.5px;
   color: var(--c-text-3);
@@ -591,6 +613,7 @@ const onTabClick = (tab) => {
 .tabs button.active small { color: var(--sys-blue); }
 
 .tab-content { padding: 4px 0; }
+
 .kv-row {
   display: flex;
   justify-content: space-between;
@@ -600,6 +623,7 @@ const onTabClick = (tab) => {
 }
 .kv-row .k { color: var(--c-text-2); }
 .kv-row strong { color: var(--c-ink-1); }
+
 .link-btn {
   margin-top: 12px;
   background: transparent;
@@ -615,8 +639,10 @@ const onTabClick = (tab) => {
   gap: 4px;
   transition: all 0.15s;
 }
+
 .link-btn:hover { background: color-mix(in srgb, var(--c-brand) 8%, transparent)
     /* = rgba 111,158,127/.08 */; }
+
 .empty {
   padding: 18px 0;
   text-align: center;
@@ -631,6 +657,7 @@ const onTabClick = (tab) => {
   flex-wrap: wrap;
   padding: 4px 0;
 }
+
 .lineage-node {
   display: flex;
   flex-direction: column;
@@ -643,33 +670,40 @@ const onTabClick = (tab) => {
   text-align: center;
   transition: all 0.15s;
 }
+
 .lineage-node.clickable {
   cursor: pointer;
 }
+
 .lineage-node.clickable:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(46, 67, 93, 0.1);
+  box-shadow: 0 4px 8px rgb(46 67 93 / 10%);
 }
 .lineage-node.dim { opacity: 0.45; }
+
 .lineage-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
 }
+
 .lineage-label {
   font-size: 11px;
   font-weight: 700;
   color: var(--c-ink-1);
 }
+
 .lineage-code {
   font-size: 9.5px;
   font-family: ui-monospace, monospace;
   color: var(--c-text-2);
 }
+
 .lineage-arrow {
   color: var(--c-border);
   flex-shrink: 0;
 }
+
 .hint {
   font-size: 11px;
   color: var(--c-text-3);
@@ -683,12 +717,13 @@ const onTabClick = (tab) => {
   padding-left: 10px;
   border-radius: var(--r-xs);
 }
+
 .close-reason {
   font-size: 13px;
   color: var(--c-ink-1);
   margin: 0 0 10px;
   line-height: 1.5;
-  background: rgba(255, 255, 255, 0.7);
+  background: rgb(255 255 255 / 70%);
   padding: 8px 10px;
   border-radius: var(--r-xs);
 }
@@ -698,17 +733,20 @@ const onTabClick = (tab) => {
   padding: 14px 22px 16px;
   background: color-mix(in srgb, var(--c-surface-2) 60%, transparent);
 }
+
 .ed-footer-title {
   font-size: 11px;
   color: var(--c-text-2);
   margin-bottom: 8px;
   font-weight: 600;
 }
+
 .ed-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
 }
+
 .action-btn {
   border: 1px solid;
   padding: 6px 14px;
@@ -726,9 +764,9 @@ const onTabClick = (tab) => {
 .action-btn.tone-green:hover:not(:disabled) { background: var(--c-brand-hover); color: var(--c-on-brand); }
 .action-btn.tone-red { background: var(--c-danger-bg); border-color: var(--c-danger); color: var(--c-danger-strong); }
 .action-btn.tone-red:hover:not(:disabled) { background: var(--c-danger); color: var(--c-on-brand); }
-.action-btn.tone-orange { background: rgba(224, 160, 80, 0.1); border-color: var(--c-warning); color: var(--c-warning-ink); }
+.action-btn.tone-orange { background: rgb(224 160 80 / 10%); border-color: var(--c-warning); color: var(--c-warning-ink); }
 .action-btn.tone-orange:hover:not(:disabled) { background: var(--c-warning); color: var(--c-on-brand); }
-.action-btn.tone-blue { background: rgba(99, 143, 194, 0.1); border-color: var(--sys-blue); color: var(--c-brand); }
+.action-btn.tone-blue { background: rgb(99 143 194 / 10%); border-color: var(--sys-blue); color: var(--c-brand); }
 .action-btn.tone-blue:hover:not(:disabled) { background: var(--sys-blue); color: var(--c-on-brand); }
 .action-btn.tone-gray { background: var(--c-brand-mist); border-color: var(--c-border); color: var(--c-ink-2); }
 .action-btn.tone-gray:hover:not(:disabled) { background: var(--c-border); color: var(--c-ink-1); }
@@ -744,13 +782,15 @@ const onTabClick = (tab) => {
   align-items: center;
   justify-content: center;
 }
+
 .reason-modal {
   background: var(--c-surface);
   width: 420px;
   border-radius: var(--r-md);
   overflow: hidden;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 20px 50px rgb(0 0 0 / 25%);
 }
+
 .reason-modal header {
   padding: 14px 18px;
   border-bottom: 1px solid var(--c-brand-soft);
@@ -758,26 +798,31 @@ const onTabClick = (tab) => {
   justify-content: space-between;
   align-items: center;
 }
+
 .reason-modal header h3 {
   margin: 0;
   font-size: 15px;
   font-weight: 700;
 }
+
 .reason-modal header button {
   background: transparent;
   border: none;
   cursor: pointer;
   color: var(--c-text-2);
 }
+
 .reason-body {
   padding: 16px 18px;
 }
+
 .reason-body label {
   display: block;
   font-size: 12px;
   color: var(--c-ink-2);
   margin-bottom: 6px;
 }
+
 .reason-body textarea {
   width: 100%;
   border: 1px solid var(--c-border);
@@ -787,17 +832,20 @@ const onTabClick = (tab) => {
   font-size: 13px;
   resize: vertical;
 }
+
 .reason-body textarea:focus {
   outline: none;
   border-color: var(--c-brand);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--c-brand) 10%, transparent)
     /* = rgba 111,158,127/.1 */;
 }
+
 .reason-body .error {
   margin: 6px 0 0;
   color: var(--c-danger-strong);
   font-size: 12px;
 }
+
 .reason-modal footer {
   padding: 12px 18px;
   display: flex;
@@ -806,6 +854,7 @@ const onTabClick = (tab) => {
   border-top: 1px solid var(--c-brand-soft);
   background: color-mix(in srgb, var(--c-surface-2) 60%, transparent);
 }
+
 .reason-modal footer button {
   border: 1px solid;
   padding: 6px 14px;
@@ -814,12 +863,14 @@ const onTabClick = (tab) => {
   font-size: 12px;
   font-weight: 600;
 }
+
 .reason-modal footer button.ghost {
   background: transparent;
   border-color: var(--c-border);
   color: var(--c-ink-2);
 }
-.reason-modal footer button.ghost:hover { background: rgba(203, 213, 224, 0.2); }
+.reason-modal footer button.ghost:hover { background: rgb(203 213 224 / 20%); }
+
 .reason-modal footer button.primary {
   background: var(--c-brand);
   border-color: var(--c-brand);
@@ -832,11 +883,13 @@ const onTabClick = (tab) => {
 .reason-modal footer button.primary:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .spin { animation: spin 1s linear infinite; }
+
 @keyframes spin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
 
 .drawer-enter-active, .drawer-leave-active {
   transition: opacity 0.18s ease;
 }
+
 .drawer-enter-active .event-drawer, .drawer-leave-active .event-drawer {
   transition: transform 0.24s cubic-bezier(0.22, 0.61, 0.36, 1);
 }

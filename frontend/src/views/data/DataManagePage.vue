@@ -81,12 +81,14 @@ function onNotify(msg) {
   justify-content: space-between;
   padding: 0 4px;
 }
+
 .dm-title h2 {
   margin: 0;
   font-size: 20px;
   font-weight: 700;
   color: var(--c-scrim);
 }
+
 .dm-title p {
   margin: 4px 0 0;
   font-size: 13px;
@@ -103,6 +105,7 @@ function onNotify(msg) {
   padding: 4px;
   width: fit-content;
 }
+
 .dm-tab-btn {
   display: inline-flex;
   align-items: center;
@@ -117,10 +120,12 @@ function onNotify(msg) {
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
 }
+
 .dm-tab-btn:hover {
   background: var(--c-surface-2);
   color: var(--c-scrim);
 }
+
 .dm-tab-btn.active {
   background: var(--c-scrim);
   color: var(--c-on-brand);
@@ -132,6 +137,7 @@ function onNotify(msg) {
   min-height: 0;
   overflow: auto;
 }
+
 .dm-tab-panel {
   height: 100%;
 }
@@ -141,26 +147,30 @@ function onNotify(msg) {
 .fade-slide-leave-active {
   transition: opacity 0.2s ease, transform 0.2s ease;
 }
+
 .fade-slide-enter-from {
   opacity: 0;
   transform: translateY(4px);
 }
+
 .fade-slide-leave-to {
   opacity: 0;
   transform: translateY(-4px);
 }
 
-@media (max-width: 720px) {
+@media (width <= 720px) {
   .dm-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 8px;
   }
+
   .dm-tab-bar {
     width: 100%;
     overflow-x: auto;
     flex-wrap: nowrap;
   }
+
   .dm-tab-btn {
     flex: 1;
     justify-content: center;

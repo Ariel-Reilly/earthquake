@@ -343,6 +343,7 @@ onMounted(loadApplications)
   border: 1px solid var(--c-brand-soft);
   border-radius: var(--r-md);
 }
+
 .page-header h2 {
   display: flex;
   align-items: center;
@@ -379,6 +380,7 @@ onMounted(loadApplications)
   border: 1px solid var(--c-brand-soft);
   border-radius: var(--r-md);
 }
+
 .select-wrap {
   display: flex;
   align-items: center;
@@ -386,6 +388,7 @@ onMounted(loadApplications)
   color: var(--c-text-2);
   font-size: 12px;
 }
+
 .select-wrap select {
   padding: 7px 9px;
   border: 1px solid var(--c-brand-tint);
@@ -406,6 +409,7 @@ onMounted(loadApplications)
   border-radius: var(--r-sm);
   background: var(--c-surface-2);
 }
+
 .search-input input {
   width: 100%;
   padding: 7px 0;
@@ -424,6 +428,7 @@ onMounted(loadApplications)
   border-radius: var(--r-md);
 }
 .data-table { width: 100%; font-size: 12px; }
+
 .data-table td.cell-email {
   max-width: 190px;
   overflow: hidden;
@@ -446,23 +451,27 @@ onMounted(loadApplications)
   font-weight: 500;
   white-space: nowrap;
 }
+
 .status-chip.pending {
-  background: rgba(74, 140, 194, 0.12);
+  background: rgb(74 140 194 / 12%);
   color: #3d7ca8;
-  border: 1px solid rgba(74, 140, 194, 0.3);
+  border: 1px solid rgb(74 140 194 / 30%);
 }
+
 .status-chip.approved {
-  background: rgba(111, 158, 127, 0.12);
+  background: rgb(111 158 127 / 12%);
   color: var(--c-brand-hover);
-  border: 1px solid rgba(111, 158, 127, 0.32);
+  border: 1px solid rgb(111 158 127 / 32%);
 }
+
 .status-chip.rejected {
-  background: rgba(199, 85, 59, 0.1);
+  background: rgb(199 85 59 / 10%);
   color: #b34a30;
-  border: 1px solid rgba(199, 85, 59, 0.28);
+  border: 1px solid rgb(199 85 59 / 28%);
 }
 
 .row-actions { display: flex; gap: 6px; }
+
 .mini-btn {
   display: inline-flex;
   align-items: center;
@@ -474,18 +483,20 @@ onMounted(loadApplications)
   transition: background 0.18s, opacity 0.18s;
 }
 .mini-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
 .mini-btn.approve {
-  border: 1px solid rgba(111, 158, 127, 0.4);
-  background: rgba(111, 158, 127, 0.1);
+  border: 1px solid rgb(111 158 127 / 40%);
+  background: rgb(111 158 127 / 10%);
   color: var(--c-brand-hover);
 }
-.mini-btn.approve:hover:not(:disabled) { background: rgba(111, 158, 127, 0.2); }
+.mini-btn.approve:hover:not(:disabled) { background: rgb(111 158 127 / 20%); }
+
 .mini-btn.reject {
-  border: 1px solid rgba(199, 85, 59, 0.36);
-  background: rgba(199, 85, 59, 0.08);
+  border: 1px solid rgb(199 85 59 / 36%);
+  background: rgb(199 85 59 / 8%);
   color: #b34a30;
 }
-.mini-btn.reject:hover:not(:disabled) { background: rgba(199, 85, 59, 0.16); }
+.mini-btn.reject:hover:not(:disabled) { background: rgb(199 85 59 / 16%); }
 
 .cell-sub { color: var(--c-text-4); font-size: 10px; }
 
@@ -503,6 +514,7 @@ onMounted(loadApplications)
 /* 拒绝弹窗 */
 .form-label i { color: var(--c-danger, #c7553b); font-style: normal; }
 textarea.form-input { resize: vertical; min-height: 88px; }
+
 .modal-counter {
   margin: 6px 0 4px;
   text-align: right;
@@ -514,19 +526,21 @@ textarea.form-input { resize: vertical; min-height: 88px; }
   height: 14px;
   max-width: 78%;
   border-radius: 4px;
-  background: linear-gradient(90deg, rgba(248, 250, 252, 0.05) 25%, rgba(248, 250, 252, 0.1) 50%, rgba(248, 250, 252, 0.05) 75%);
+  background: linear-gradient(90deg, rgb(248 250 252 / 5%) 25%, rgb(248 250 252 / 10%) 50%, rgb(248 250 252 / 5%) 75%);
   background-size: 200% 100%;
   animation: skeleton-loading 1.5s ease-in-out infinite;
 }
+
 @keyframes skeleton-loading {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
 
 .spin { animation: app-spin 0.9s linear infinite; }
+
 @keyframes app-spin { to { transform: rotate(360deg); } }
 
-@media (max-width: 900px) {
+@media (width <= 900px) {
   .filter-bar { flex-wrap: wrap; }
   .search-input { width: 100%; }
   .result-count { margin-left: 0; }

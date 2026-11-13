@@ -238,7 +238,7 @@ onMounted(() => loadLogs())
 <style scoped>
 .skeleton-bar {
   height: 16px;
-  background: linear-gradient(90deg, rgba(248, 250, 252, 0.05) 25%, rgba(248, 250, 252, 0.1) 50%, rgba(248, 250, 252, 0.05) 75%);
+  background: linear-gradient(90deg, rgb(248 250 252 / 5%) 25%, rgb(248 250 252 / 10%) 50%, rgb(248 250 252 / 5%) 75%);
   background-size: 200% 100%;
   animation: skeleton-loading 1.5s ease-in-out infinite;
   border-radius: 4px;
@@ -260,10 +260,12 @@ onMounted(() => loadLogs())
 .page-header p { margin: 0; font-size: 12px; color: var(--c-text-2); line-height: 1.55; }
 .page-header code { background: var(--c-brand-mist); padding: 1px 5px; border-radius: var(--r-xs); font-size: 11px; }
 .actions { display: flex; gap: 8px; }
+
 .actions select {
   border: 1px solid var(--c-brand-tint); border-radius: var(--r-sm); padding: 7px 9px;
   font-size: 12px; outline: none; background: var(--c-surface);
 }
+
 .op-btn {
   border: 1px solid var(--c-brand-tint); background: var(--c-surface); padding: 7px 12px;
   border-radius: var(--r-sm); font-size: 12px; cursor: pointer;
@@ -276,12 +278,14 @@ onMounted(() => loadLogs())
   padding: 10px 14px; display: flex; gap: 12px; align-items: center;
 }
 .action-pills { display: flex; gap: 5px; flex-wrap: wrap; flex: 1; }
+
 .pill {
   border: 1px solid transparent; background: transparent; padding: 5px 10px;
   border-radius: var(--r-sm); font-size: 12px; cursor: pointer; color: var(--c-ink-1);
 }
 .pill:hover { background: var(--c-surface-2); }
 .pill.active { background: var(--c-scrim); color: var(--c-on-brand); }
+
 .search-input {
   display: flex; align-items: center; gap: 4px; padding: 0 9px;
   border: 1px solid var(--c-brand-tint); border-radius: var(--r-sm); background: var(--c-surface-2);
@@ -291,17 +295,20 @@ onMounted(() => loadLogs())
 
 .log-panel { background: var(--c-surface); border: 1px solid var(--c-brand-soft); border-radius: var(--r-md); overflow: hidden; }
 .log-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+
 .log-table th, .log-table td {
   text-align: left; padding: 9px 14px; border-bottom: 1px solid var(--c-brand-mist);
 }
 .log-table th { color: var(--c-text-2); font-weight: 600; background: var(--c-surface-2); font-size: 11px; letter-spacing: .04em; text-transform: uppercase; }
 .log-table tr:hover td { background: var(--c-surface-2); }
 .loading-state, .empty-state { text-align: center; color: var(--c-text-4); padding: 30px 0; }
+
 .avatar {
   width: 22px; height: 22px; border-radius: var(--r-sm);
   background: var(--c-brand); color: var(--c-on-brand); display: inline-grid; place-items: center;
   font-size: 11px; font-weight: 700; margin-right: 6px; vertical-align: -4px;
 }
+
 .action-chip {
   font-size: 10px; padding: 2px 7px; border-radius: var(--r-xs); font-weight: 700;
   letter-spacing: .03em; font-family: 'JetBrains Mono', monospace;
@@ -321,5 +328,6 @@ code.target { background: var(--c-surface-2); padding: 1px 6px; border-radius: v
 .audit-rules code { background: var(--c-brand-mist); padding: 1px 5px; border-radius: var(--r-xs); font-size: 11px; }
 
 .spin { animation: spin 1.2s linear infinite; }
+
 @keyframes spin { to { transform: rotate(360deg); } }
 </style>

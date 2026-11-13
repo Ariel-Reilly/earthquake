@@ -160,6 +160,7 @@ const langDesc = computed(() => LANGS.find((l) => l.value === choice.language)?.
 .head { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid var(--dashboard-border, var(--c-brand-mist)); padding-bottom: 14px; }
 .head h3 { display: inline-flex; align-items: center; gap: 6px; margin: 0; font-size: 18px; }
 .head p { margin: 4px 0 0; color: var(--dashboard-muted, var(--c-text-2)); font-size: 13px; }
+
 .primary {
   background: linear-gradient(135deg, var(--c-brand-tint), var(--c-brand-hover)); color: white;
   border: none; padding: 6px 14px; border-radius: var(--r-sm);
@@ -171,7 +172,9 @@ const langDesc = computed(() => LANGS.find((l) => l.value === choice.language)?.
 .block h4 { margin: 0; font-size: 14px; }
 .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .cards .wide { grid-column: span 1; }
-@media (max-width: 720px) { .cards { grid-template-columns: 1fr 1fr; } }
+
+@media (width <= 720px) { .cards { grid-template-columns: 1fr 1fr; } }
+
 .card {
   display: flex; gap: 10px; align-items: center;
   background: var(--dashboard-muted-bg, var(--c-brand-mist));

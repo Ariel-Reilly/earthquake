@@ -795,6 +795,7 @@ onBeforeUnmount(() => {
 .dm-btn-sm { padding: 3px 8px; font-size: 11px; }
 
 .spin { animation: spin 1s linear infinite; }
+
 @keyframes spin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
 
 /* ===== Stats ===== */
@@ -803,6 +804,7 @@ onBeforeUnmount(() => {
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 10px;
 }
+
 .dm-stat {
   background: var(--c-surface);
   border-radius: var(--r-md);
@@ -812,6 +814,7 @@ onBeforeUnmount(() => {
   gap: 12px;
   box-shadow: var(--shadow-xs);
 }
+
 .dm-stat-icon {
   width: 36px; height: 36px;
   border-radius: var(--r-sm);
@@ -831,10 +834,12 @@ onBeforeUnmount(() => {
   flex: 1;
   min-height: 0;
 }
-@media (max-width: 1280px) {
+
+@media (width <= 1280px) {
   .dm-main { grid-template-columns: 280px minmax(0, 1fr) 300px; }
 }
-@media (max-width: 1024px) {
+
+@media (width <= 1024px) {
   .dm-main { grid-template-columns: 1fr; grid-template-rows: auto 400px auto; }
 }
 
@@ -847,10 +852,12 @@ onBeforeUnmount(() => {
   overflow: hidden;
   box-shadow: var(--shadow-xs);
 }
+
 .dm-list-header {
   padding: 12px 14px;
   border-bottom: 1px solid var(--c-brand-mist);
 }
+
 .dm-list-header h2 {
   font-size: 13px;
   font-weight: 600;
@@ -860,6 +867,7 @@ onBeforeUnmount(() => {
   gap: 6px;
   margin: 0 0 8px;
 }
+
 .dm-pill {
   margin-left: auto;
   background: var(--c-brand-deep);
@@ -868,6 +876,7 @@ onBeforeUnmount(() => {
   padding: 2px 8px;
   border-radius: var(--r-md);
 }
+
 .dm-search {
   display: flex;
   align-items: center;
@@ -880,6 +889,7 @@ onBeforeUnmount(() => {
 }
 .dm-search input { background: transparent; border: none; outline: none; font-size: 12px; flex: 1; }
 .dm-filter-row { display: flex; gap: 6px; }
+
 .dm-select {
   flex: 1;
   padding: 4px 6px;
@@ -897,6 +907,7 @@ onBeforeUnmount(() => {
   overflow-y: auto;
   flex: 1;
 }
+
 .dm-device-item {
   display: grid;
   grid-template-columns: 10px 1fr auto;
@@ -908,15 +919,18 @@ onBeforeUnmount(() => {
   transition: background 0.15s;
 }
 .dm-device-item:hover { background: var(--c-brand-mist); }
+
 .dm-device-item.active {
   background: var(--sys-blue-soft);
   border-left: 3px solid var(--c-brand-deep);
 }
+
 .dm-device-dot {
   width: 10px; height: 10px;
   border-radius: 50%;
   box-shadow: 0 0 0 2px var(--c-surface);
 }
+
 .dm-device-name {
   font-size: 12px;
   font-weight: 600;
@@ -925,6 +939,7 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 6px;
 }
+
 .dm-device-meta {
   font-size: 10px;
   color: var(--c-text-3);
@@ -933,6 +948,7 @@ onBeforeUnmount(() => {
   gap: 4px;
   margin-top: 2px;
 }
+
 .dm-device-meta code {
   background: var(--c-brand-soft);
   color: var(--c-scrim);
@@ -940,6 +956,7 @@ onBeforeUnmount(() => {
   border-radius: 3px;
   font-size: 10px;
 }
+
 .dm-device-tail {
   display: flex;
   align-items: center;
@@ -969,6 +986,7 @@ onBeforeUnmount(() => {
   min-height: 480px;
 }
 .dm-map { position: absolute; inset: 0; }
+
 .dm-map-legend {
   position: absolute;
   bottom: 12px;
@@ -982,20 +1000,23 @@ onBeforeUnmount(() => {
   flex-wrap: wrap;
   gap: 10px;
   z-index: 1;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 8%);
 }
 .dm-map-legend > div { display: inline-flex; align-items: center; gap: 4px; }
+
 .dm-dot {
   width: 10px; height: 10px;
   border-radius: 50%;
   display: inline-block;
 }
+
 .dm-dash {
   display: inline-block;
   width: 18px; height: 2px;
   background: linear-gradient(to right, var(--c-warning-strong) 50%, transparent 50%);
   background-size: 6px 100%;
 }
+
 .dm-trajectory-meta {
   position: absolute;
   top: 12px;
@@ -1009,8 +1030,9 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 8px;
   z-index: 1;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 8%);
 }
+
 .dm-mock-tag {
   background: var(--c-warning-strong);
   color: var(--c-on-brand);
@@ -1028,12 +1050,14 @@ onBeforeUnmount(() => {
   overflow-y: auto;
   max-height: 100%;
 }
+
 .dm-card {
   background: var(--c-surface);
   border-radius: var(--r-lg);
   padding: 12px 14px;
   box-shadow: var(--shadow-xs);
 }
+
 .dm-card-header {
   display: flex;
   align-items: center;
@@ -1042,6 +1066,7 @@ onBeforeUnmount(() => {
   color: var(--c-scrim);
 }
 .dm-card-header h3 { font-size: 13px; font-weight: 600; margin: 0; }
+
 .dm-status-chip {
   margin-left: auto;
   padding: 2px 8px;
@@ -1056,6 +1081,7 @@ onBeforeUnmount(() => {
   grid-template-columns: 1fr 1fr;
   gap: 6px 12px;
 }
+
 .dm-detail-grid > div {
   display: flex;
   flex-direction: column;
@@ -1063,6 +1089,7 @@ onBeforeUnmount(() => {
   color: var(--c-text-3);
 }
 .dm-detail-grid > div span { font-size: 10px; }
+
 .dm-detail-grid > div strong {
   color: var(--c-scrim);
   font-size: 12px;
@@ -1070,6 +1097,7 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 3px;
 }
+
 .dm-detail-grid > div code {
   background: var(--c-brand-mist);
   padding: 1px 4px;
@@ -1089,24 +1117,27 @@ onBeforeUnmount(() => {
 }
 
 .dm-progress-wrap { margin: 12px 0; }
+
 .dm-progress {
   width: 100%;
   height: 6px;
   appearance: none;
-  -webkit-appearance: none;
+  appearance: none;
   background: var(--c-brand-mist);
   border-radius: 3px;
   outline: none;
 }
+
 .dm-progress::-webkit-slider-thumb {
   appearance: none;
-  -webkit-appearance: none;
+  appearance: none;
   width: 14px;
   height: 14px;
   border-radius: 50%;
   background: var(--c-warning-strong);
   cursor: pointer;
 }
+
 .dm-progress-labels {
   display: flex;
   justify-content: space-between;
@@ -1121,6 +1152,7 @@ onBeforeUnmount(() => {
   gap: 8px;
   margin-bottom: 10px;
 }
+
 .dm-speed {
   margin-left: auto;
   display: inline-flex;
@@ -1135,18 +1167,21 @@ onBeforeUnmount(() => {
   padding: 8px 10px;
   margin-top: 8px;
 }
+
 .dm-current-point h4 {
   font-size: 11px;
   color: var(--c-warning-ink);
   margin: 0 0 6px;
   font-weight: 700;
 }
+
 .dm-current-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 4px 12px;
   font-size: 11px;
 }
+
 .dm-current-grid > div {
   display: flex;
   flex-direction: column;
@@ -1155,7 +1190,8 @@ onBeforeUnmount(() => {
 .dm-current-grid > div span { font-size: 10px; }
 .dm-current-grid > div strong { color: var(--c-scrim); font-size: 11px; }
 .dm-current-grid code { background: var(--c-border-2); padding: 1px 3px; border-radius: 3px; font-size: 10px; }
-/* 地图图例圆点：与设备状态/当前位置语义一一对应（原为模板内联 style）*/
+
+/* 地图图例圆点：与设备状态/当前位置语义一一对应（原为模板内联 style） */
 .dm-dot--online { background: var(--c-success); }
 .dm-dot--offline { background: var(--c-text-3); }
 .dm-dot--fault { background: var(--c-danger-strong); }
@@ -1169,6 +1205,7 @@ onBeforeUnmount(() => {
   flex-direction: column;
   gap: 6px;
 }
+
 .dm-tips li {
   display: flex;
   align-items: flex-start;

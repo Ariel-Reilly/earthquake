@@ -262,7 +262,7 @@ const levelColor = {
 .svc-head { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; color: var(--c-text); }
 .svc-head strong { flex: 1; font-size: 12px; }
 .state-dot { width: 8px; height: 8px; border-radius: 50%; }
-.state-dot.up { background: var(--c-brand); box-shadow: 0 0 4px rgba(93,180,134,.5); }
+.state-dot.up { background: var(--c-brand); box-shadow: 0 0 4px rgb(93 180 134 / 50%); }
 .state-dot.down { background: var(--c-danger-strong); }
 .state-dot.disabled { background: var(--c-brand-tint); }
 .service-card.disabled { border-color: var(--c-border); background: var(--c-border-2); }
@@ -308,7 +308,7 @@ const levelColor = {
 .alerts-section h3 { margin: 0; display: flex; gap: 6px; align-items: center; font-size: 14px; color: var(--c-text); }
 .alert-tabs { margin-left: auto; display: flex; gap: 4px; background: var(--c-bg); padding: 3px; border-radius: var(--r-sm); }
 .alert-tabs button { padding: 5px 10px; border: 0; background: transparent; border-radius: var(--r-sm); cursor: pointer; font-size: 11px; color: var(--c-brand-deep); }
-.alert-tabs button.active { background: var(--c-surface); color: var(--c-text); box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+.alert-tabs button.active { background: var(--c-surface); color: var(--c-text); box-shadow: 0 1px 3px rgb(0 0 0 / 6%); }
 
 .alert-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .alert-list li { display: flex; gap: 10px; align-items: center; padding: 10px 12px; border-radius: var(--r-sm); background: var(--c-surface-2); }
@@ -325,5 +325,6 @@ const levelColor = {
 .resolved-tag { display: inline-flex; gap: 4px; align-items: center; padding: 2px 8px; background: var(--c-success-bg); color: var(--c-brand-deep); border-radius: var(--r-xs); font-size: 11px; }
 
 .spin { animation: spin 1s linear infinite; }
+
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 </style>

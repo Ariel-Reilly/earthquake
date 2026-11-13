@@ -621,6 +621,7 @@ onMounted(() => {
   padding: 4px;
   width: fit-content;
 }
+
 .analytics-tab-btn {
   padding: 8px 18px;
   border: 0;
@@ -631,29 +632,34 @@ onMounted(() => {
   cursor: pointer;
   transition: background .15s, color .15s;
 }
+
 .analytics-tab-btn.active {
   background: var(--c-brand);
   color: var(--c-on-brand);
 }
 .inspection-kpi { margin-bottom: 14px; }
+
 .inspection-body {
   display: grid;
   grid-template-columns: 220px 1fr;
   gap: 14px;
   margin-bottom: 14px;
 }
+
 .inspection-filter {
   background: var(--c-surface);
   border: 1px solid var(--c-brand-soft);
   border-radius: var(--r-lg);
   padding: 16px;
 }
+
 .inspection-filter h3 {
   color: var(--c-text);
   font-size: 13px;
   margin: 0 0 12px;
 }
 .filter-days-btns { display: flex; flex-direction: column; gap: 6px; }
+
 .filter-days-btn {
   padding: 8px 12px;
   border: 1px solid var(--c-separator);
@@ -665,12 +671,14 @@ onMounted(() => {
   text-align: left;
   transition: background .15s, border-color .15s, color .15s;
 }
+
 .filter-days-btn.active {
   border-color: var(--c-brand);
   background: var(--c-brand-mist);
   color: var(--c-brand);
   font-weight: 600;
 }
+
 .date-range-label {
   display: flex;
   flex-direction: column;
@@ -680,6 +688,7 @@ onMounted(() => {
   color: var(--c-brand-deep);
   font-weight: 600;
 }
+
 .date-range-label input {
   padding: 7px 10px;
   border: 1px solid var(--c-separator);
@@ -688,17 +697,20 @@ onMounted(() => {
   font-size: 12px;
 }
 .inspection-charts { min-width: 0; }
+
 .inspection-chart-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 14px;
 }
+
 .insp-chart-card {
   background: var(--c-surface);
   border: 1px solid var(--c-brand-soft);
   border-radius: var(--r-lg);
   padding: 16px;
 }
+
 .insp-chart-header {
   display: flex;
   justify-content: space-between;
@@ -712,23 +724,26 @@ onMounted(() => {
 /* 折线图占位 */
 .line-chart-placeholder { padding: 16px; }
 .insp-line-rail { position: relative; height: 130px; }
+
 .insp-line-path {
   position: absolute; inset: 12px 0 28px;
   border-bottom: 2px solid var(--c-brand-tint);
   border-left: 2px solid transparent;
   border-right: 2px solid transparent;
 }
+
 .insp-line-node {
   position: absolute;
   transform: translateX(-50%);
   display: grid;
   justify-items: center;
 }
+
 .insp-line-node b {
   width: 8px; height: 8px;
   border-radius: 50%;
   background: var(--c-brand);
-  box-shadow: 0 0 0 3px rgba(111,158,127,.15);
+  box-shadow: 0 0 0 3px rgb(111 158 127 / 15%);
 }
 
 /* 堆叠柱图占位 */
@@ -743,19 +758,21 @@ onMounted(() => {
 .multi-line-placeholder { padding: 16px; position: relative; }
 .insp-multi-lines { position: relative; height: 110px; }
 .insp-series-line { position: absolute; inset: 0; }
+
 .insp-dot {
   position: absolute;
   width: 7px; height: 7px;
   border-radius: 50%;
   background: var(--series-color);
   transform: translate(-50%, 50%);
-  box-shadow: 0 0 0 2px rgba(0,0,0,.08);
+  box-shadow: 0 0 0 2px rgb(0 0 0 / 8%);
 }
 
 /* 混淆矩阵占位 */
 .matrix-placeholder { padding: 16px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
 .insp-matrix { display: flex; flex-direction: column; gap: 4px; }
 .insp-matrix-row { display: flex; gap: 4px; }
+
 .insp-matrix-cell {
   width: 54px; height: 36px;
   display: grid; place-items: center;
@@ -764,6 +781,7 @@ onMounted(() => {
   font-weight: 600;
   transition: background .3s;
 }
+
 .insp-matrix-labels {
   display: flex;
   gap: 4px;
@@ -794,10 +812,12 @@ onMounted(() => {
   border: 1px solid var(--c-brand-soft);
   border-radius: var(--r-lg);
 }
+
 .export-hint {
   display: flex; gap: 5px; align-items: center;
   font-size: 11px; color: var(--c-text-2);
 }
+
 /* 设计令牌收尾：模板静态色内联样式 → 类（2026-10-09） */
 .leg-dot--warn { background: var(--c-warning-strong); }
 .leg-dot--danger { background: var(--c-danger); }

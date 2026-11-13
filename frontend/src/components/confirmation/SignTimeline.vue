@@ -70,6 +70,7 @@ function chip(status) {
 .empty { color: var(--dashboard-muted, var(--c-text-3)); font-size: 13px; }
 ul { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; position: relative; }
 li { display: flex; align-items: flex-start; gap: 12px; position: relative; padding: 4px 0; }
+
 .dot {
   width: 24px; height: 24px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
@@ -79,6 +80,7 @@ li { display: flex; align-items: flex-start; gap: 12px; position: relative; padd
 .row1 { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .row1 strong { font-size: 14px; color: var(--dashboard-text, var(--c-scrim)); }
 .role { font-size: 11px; color: var(--dashboard-muted, var(--c-text-3)); background: var(--c-brand-mist); padding: 1px 8px; border-radius: var(--r-pill); }
+
 .state {
   margin-left: auto; font-size: 12px; padding: 2px 8px; border-radius: var(--r-pill);
   background: var(--dashboard-muted-bg, var(--c-brand-mist)); color: var(--dashboard-muted, var(--c-ink-1));

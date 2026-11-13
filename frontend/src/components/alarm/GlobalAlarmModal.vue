@@ -418,7 +418,7 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: rgba(255, 0, 0, 0.85);
+  background: rgb(255 0 0 / 85%);
   font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
   backdrop-filter: blur(2px);
   animation:
@@ -435,11 +435,11 @@ onBeforeUnmount(() => {
   color: #fff;
   text-align: center;
   background: linear-gradient(160deg, #b31212 0%, #870808 55%, #560202 100%);
-  border: 2px solid rgba(255, 92, 92, 0.75);
+  border: 2px solid rgb(255 92 92 / 75%);
   border-radius: 20px;
   box-shadow:
-    0 24px 60px rgba(0, 0, 0, 0.45),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+    0 24px 60px rgb(0 0 0 / 45%),
+    inset 0 0 0 1px rgb(255 255 255 / 12%);
   animation: alarm-card-in 0.34s cubic-bezier(0.2, 0.9, 0.3, 1.25) both;
 }
 
@@ -450,10 +450,11 @@ onBeforeUnmount(() => {
   width: 72px;
   height: 72px;
   margin-bottom: 14px;
+
   /* 红色预警整卡使用纯红色系：图标/徽标不再复用橙色警示黄，避免红橙混色 */
   color: #fff;
-  background: rgba(0, 0, 0, 0.24);
-  border: 1px solid rgba(255, 255, 255, 0.55);
+  background: rgb(0 0 0 / 24%);
+  border: 1px solid rgb(255 255 255 / 55%);
   border-radius: 50%;
   animation: alarm-icon-blink 1s ease-in-out infinite;
 }
@@ -473,6 +474,7 @@ onBeforeUnmount(() => {
   font-size: 13px;
   font-weight: 800;
   letter-spacing: 0.04em;
+
   /* 白底深红字：红色预警的等级徽标 */
   color: #8a0a0a;
   background: #fff;
@@ -486,7 +488,7 @@ onBeforeUnmount(() => {
   font-size: 12px;
   font-weight: 600;
   color: #ffdede;
-  background: rgba(0, 0, 0, 0.28);
+  background: rgb(0 0 0 / 28%);
   border-radius: 999px;
 }
 
@@ -503,7 +505,7 @@ onBeforeUnmount(() => {
   margin: 10px 0 0;
   font-size: 14px;
   line-height: 1.65;
-  color: rgba(255, 255, 255, 0.88);
+  color: rgb(255 255 255 / 88%);
   overflow-wrap: anywhere;
 }
 
@@ -516,7 +518,7 @@ onBeforeUnmount(() => {
   padding: 0;
   margin: 16px 0 0;
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.82);
+  color: rgb(255 255 255 / 82%);
   list-style: none;
 }
 
@@ -531,10 +533,11 @@ onBeforeUnmount(() => {
   margin: 16px 0 0;
   font-size: 12px;
   line-height: 1.5;
+
   /* 红色警报的提示行同样保持红白体系，不混入橙色 */
   color: #ffe3e3;
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px dashed rgba(255, 227, 227, 0.55);
+  background: rgb(0 0 0 / 30%);
+  border: 1px dashed rgb(255 227 227 / 55%);
   border-radius: 10px;
   animation: alarm-hint-flash 1.4s ease-in-out infinite;
 }
@@ -561,7 +564,7 @@ onBeforeUnmount(() => {
 }
 
 .alarm-sound-enable:focus-visible {
-  outline: 3px solid rgba(255, 255, 255, 0.9);
+  outline: 3px solid rgb(255 255 255 / 90%);
   outline-offset: 2px;
 }
 
@@ -587,7 +590,7 @@ onBeforeUnmount(() => {
 
 .alarm-btn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28);
+  box-shadow: 0 8px 20px rgb(0 0 0 / 28%);
 }
 
 .alarm-btn:active {
@@ -595,7 +598,7 @@ onBeforeUnmount(() => {
 }
 
 .alarm-btn:focus-visible {
-  outline: 3px solid rgba(255, 255, 255, 0.9);
+  outline: 3px solid rgb(255 255 255 / 90%);
   outline-offset: 2px;
 }
 
@@ -607,8 +610,8 @@ onBeforeUnmount(() => {
 
 .alarm-btn-ghost {
   color: #fff;
-  background: rgba(0, 0, 0, 0.18);
-  border: 1px solid rgba(255, 255, 255, 0.65);
+  background: rgb(0 0 0 / 18%);
+  border: 1px solid rgb(255 255 255 / 65%);
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -622,7 +625,7 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: rgba(15, 23, 20, 0.45);
+  background: rgb(15 23 20 / 45%);
   font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
   backdrop-filter: blur(2px);
   animation: alarm-overlay-in 0.18s ease-out both;
@@ -636,13 +639,14 @@ onBeforeUnmount(() => {
   --warn-tint-ink: #8a4a05;
   --warn-hint-ink: #b5620a;
   --warn-progress-track: #f3e7d6;
+
   width: min(430px, 100%);
   padding: 22px 24px 20px;
   color: #2c3b34;
   background: #fff;
   border-top: 4px solid var(--warn-accent);
   border-radius: 16px;
-  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 18px 46px rgb(0 0 0 / 30%);
   animation: alarm-card-in 0.28s cubic-bezier(0.2, 0.9, 0.3, 1.25) both;
 }
 
@@ -782,7 +786,7 @@ onBeforeUnmount(() => {
 
 .warn-btn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.16);
+  box-shadow: 0 6px 16px rgb(0 0 0 / 16%);
 }
 
 .warn-btn:active {
@@ -822,11 +826,11 @@ onBeforeUnmount(() => {
 @keyframes alarm-overlay-flash {
   0%,
   100% {
-    background-color: rgba(255, 0, 0, 0.85);
+    background-color: rgb(255 0 0 / 85%);
   }
 
   50% {
-    background-color: rgba(255, 0, 0, 0.95);
+    background-color: rgb(255 0 0 / 95%);
   }
 }
 
@@ -846,12 +850,12 @@ onBeforeUnmount(() => {
   0%,
   100% {
     transform: scale(1);
-    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.55);
+    box-shadow: 0 0 0 0 rgb(255 255 255 / 55%);
   }
 
   50% {
     transform: scale(1.1);
-    box-shadow: 0 0 24px 6px rgba(255, 120, 120, 0.45);
+    box-shadow: 0 0 24px 6px rgb(255 120 120 / 45%);
   }
 }
 
@@ -877,7 +881,7 @@ onBeforeUnmount(() => {
 }
 
 /* ── 窄屏适配 ── */
-@media (max-width: 640px) {
+@media (width <= 640px) {
   .alarm-overlay,
   .warn-overlay {
     padding: 16px;

@@ -46,6 +46,7 @@ function handleClick(event) {
 
 <style scoped>
 .ios-btn { transition: background .15s ease, transform .1s ease, opacity .15s ease; }
+
 .ios-btn.is-denied {
   opacity: .42;
   cursor: not-allowed;
@@ -53,8 +54,8 @@ function handleClick(event) {
 }
 .ios-btn.is-denied:hover { background: inherit; }
 .ios-btn.primary.is-denied { background: var(--c-brand); }
-.ios-btn.secondary.is-denied { background: rgba(111, 158, 127, .14); color: var(--c-brand); }
+.ios-btn.secondary.is-denied { background: rgb(111 158 127 / 14%); color: var(--c-brand); }
 .ios-btn.ghost.is-denied { background: transparent; color: var(--c-brand); }
 .ios-btn.destructive.is-denied { background: var(--ios-red); }
-.ios-btn.tinted.is-denied { background: rgba(120, 120, 127, .16); color: var(--c-text); }
+.ios-btn.tinted.is-denied { background: rgb(120 120 127 / 16%); color: var(--c-text); }
 </style>

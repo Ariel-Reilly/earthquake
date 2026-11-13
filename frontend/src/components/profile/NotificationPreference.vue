@@ -146,6 +146,7 @@ load()
 .head { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid var(--dashboard-border, var(--c-brand-mist)); padding-bottom: 14px; }
 .head h3 { margin: 0; font-size: 18px; }
 .head p { margin: 4px 0 0; color: var(--dashboard-muted, var(--c-text-2)); font-size: 13px; }
+
 .primary {
   background: linear-gradient(135deg, var(--c-brand-tint), var(--c-brand-hover)); color: white;
   border: none; padding: 6px 14px; border-radius: var(--r-sm);
@@ -154,11 +155,13 @@ load()
 }
 .primary:disabled { opacity: 0.5; cursor: not-allowed; }
 .spin { animation: rotate 1s linear infinite; }
+
 @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 .block { display: flex; flex-direction: column; gap: 8px; }
 .block h4 { display: inline-flex; align-items: center; gap: 4px; margin: 0; font-size: 14px; color: var(--dashboard-text, var(--c-scrim)); }
 .desc { margin: 0; font-size: 12px; color: var(--dashboard-muted, var(--c-text-2)); }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+
 .chip {
   display: inline-flex; align-items: center; gap: 4px;
   background: var(--dashboard-muted-bg, var(--c-brand-mist));
@@ -171,6 +174,7 @@ load()
 .chip.sm { padding: 3px 10px; font-size: 12px; }
 .chip:disabled { opacity: 0.4; cursor: not-allowed; }
 .matrix { display: flex; flex-direction: column; gap: 10px; }
+
 .level-row {
   display: grid; grid-template-columns: 96px 1fr; align-items: center;
   border: 1px solid var(--dashboard-border, var(--c-brand-mist));

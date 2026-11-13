@@ -168,6 +168,7 @@ onBeforeUnmount(() => {
 
 <style scoped>
 /* Error page styles now shared in styles.css */
+
 /* Local overrides only */
 .error-card {
   border-top: 4px solid var(--c-warning, #b57c18);
@@ -185,7 +186,7 @@ onBeforeUnmount(() => {
 .btn-primary:hover {
   background: var(--c-warning-ink);
   transform: translateY(-1px);
-  box-shadow: 0 6px 16px -4px rgba(181, 124, 24, 0.4);
+  box-shadow: 0 6px 16px -4px rgb(181 124 24 / 40%);
 }
 
 .btn-secondary {
@@ -195,7 +196,7 @@ onBeforeUnmount(() => {
 }
 
 .btn-secondary:hover {
-  background: var(--c-info-bg, rgba(29, 107, 154, 0.08));
+  background: var(--c-info-bg, rgb(29 107 154 / 8%));
   border-color: var(--c-info, #27805a);
 }
 
@@ -216,13 +217,15 @@ onBeforeUnmount(() => {
   color: #718096;
 }
 
-@media (max-width: 520px) {
+@media (width <= 520px) {
   .error-card {
     padding: 36px 24px 24px;
   }
+
   .error-code {
     font-size: 72px;
   }
+
   .error-title {
     font-size: 20px;
   }

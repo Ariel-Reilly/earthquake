@@ -759,7 +759,7 @@ watch(() => props.warningId, load)
   }
 }
 
-@media (max-width: 900px) {
+@media (width <= 900px) {
   .conclusion-body {
     flex-direction: column;
   }

@@ -131,9 +131,9 @@ function isActive(value) {
 }
 
 /* 悬停状态 */
-.segment-btn:hover:not(.disabled):not(.active) {
+.segment-btn:hover:not(.disabled, .active) {
   color: var(--c-text);
-  background: rgba(95, 122, 107, 0.04);
+  background: rgb(95 122 107 / 4%);
 }
 
 .segment-btn:hover.active {
