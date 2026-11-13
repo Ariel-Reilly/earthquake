@@ -20,6 +20,7 @@
 | [DEMO_SCRIPT.md](DEMO_SCRIPT.md) | 现场演示脚本（15–20 分钟流程、触发命令、兜底话术、清理） | 演示人 |
 | [SMOKE_TEST.md](SMOKE_TEST.md) | 冒烟清单与结果（SM-01~SM-19，含真机 CDP 自动化说明） | 测试、验收人 |
 | [ONSITE_ACCEPTANCE_CHECKLIST.md](ONSITE_ACCEPTANCE_CHECKLIST.md) | 现场人工验收记录表（听声/真机/彩排/真实影像，含已完成的自动化预检） | 测试、项目经理 |
+| [A1_PREFLIGHT_REPORT.md](A1_PREFLIGHT_REPORT.md) | A1 现场项自动化预检报告（4 脚本 / 34 项判定、现场剩余人工项、复现命令） | 测试、项目经理 |
 | [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md) | 已知限制与二期能力（诚实边界） | 甲方、项目经理 |
 | [ACCEPTANCE_LOG_20261112.md](ACCEPTANCE_LOG_20261112.md) | 每轮验收记录（问题、修复、证据、排障过程） | 所有人 |
 | [DELIVERY_BACKLOG.md](DELIVERY_BACKLOG.md) | 剩余任务清单（P0 交付前必做 / P1 试运行前 / P2 二期，含验收标准与工时） | 项目经理、开发、甲方 |
@@ -67,16 +68,21 @@ node scripts/delivery/browser-smoke.mjs
   页面/按钮巡检 15 路由 / 442 按钮无空白页与 JS 异常；现场人工表见 [ONSITE_ACCEPTANCE_CHECKLIST.md](ONSITE_ACCEPTANCE_CHECKLIST.md)
 - **B5 测试覆盖补强已关闭**（2026-11-13）：状态机单测 11 例（并修复 3 个真实状态机缺陷）、
   组件测试 12 例、ai-service pytest 102 例；详见 `ACCEPTANCE_LOG` §三十四、`DELIVERY_BACKLOG.md` §L
+- **A1 剩余项再压缩**（2026-11-13）：新增 4 个脚本 / **34 项判定全通过** — 移动端响应式 8/8、
+  警报音频链路 10/10、演示流程预演 5/5、有副作用按钮隔离库实跑 11/11；详见 [A1_PREFLIGHT_REPORT.md](A1_PREFLIGHT_REPORT.md)。
+  现场只剩人耳听声、真机触摸/网络、送达口径核对、完整彩排计时与真实影像凭证。
 - 干净机器部署演练（A3，2026-11-13）：空库初始化 / 历史库补丁幂等 / nginx `/api`+`/ws` 101 全通；
   修复 4 个全新部署阻断缺陷，见 [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) §9
 - 决策已定（2026-11-13）：**跟随浏览器时区** / **演示材料单独成包** / **允许管理员代签（仅 admin）** / **时相对比必做**；
   详见 [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md) 〇节与 [DELIVERY_BACKLOG.md](DELIVERY_BACKLOG.md) §I
 - 演示材料包：`output/delivery-materials/DisasterGuard-演示材料包-v1.0.zip`（19 PPTX + 脚本/文档 + MANIFEST + SHA256，UTF-8 条目名，不入库）
 - 值班员一页纸：[OPERATOR_CARD.md](OPERATOR_CARD.md)；时相对比部署配置见 [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) §10
-- 源码提交：`release/delivery` 分支；交付快照 tag **`v1.8.3-delivery`**（B5 测试覆盖补强轮次）；
-  源码包 `output/delivery-verify/DisasterGuard-v1.8.3-delivery.zip` + 同名 `.sha256`；
-  `v1.8.2-delivery` / `v1.8.1-delivery` / `v1.8.0-delivery` 保留为历史快照，不强制移动
+- 源码提交：`release/delivery` 分支；交付快照 tag **`v1.8.4-delivery`**（A1 剩余项再压缩轮次）；
+  源码包 `output/delivery-verify/DisasterGuard-v1.8.4-delivery.zip` + 同名 `.sha256`；
+  `v1.8.3-delivery` / `v1.8.2-delivery` / `v1.8.1-delivery` / `v1.8.0-delivery` 保留为历史快照，不强制移动
 - 现场人工验收记录表：[ONSITE_ACCEPTANCE_CHECKLIST.md](ONSITE_ACCEPTANCE_CHECKLIST.md)（已纳入演示材料包）
-- 已知待现场确认：真实听声、真机移动端、有副作用按钮点检、演示彩排、时相对比真实影像凭证
-  （见现场验收表）。两条后端 500 已于 2026-11-13 重启后端实测 `code=0` 关闭，不再占用现场时间。
+- 已知待现场确认：人耳真实听声、真机移动端触摸/网络、通知送达口径人工核对、
+  按 `DEMO_SCRIPT.md` 完整彩排 2 遍计时 ≤20 分钟、时相对比真实影像凭证、AI 开启后 AI 洞察页完整渲染
+  （详见 `ONSITE_ACCEPTANCE_CHECKLIST.md` + `A1_PREFLIGHT_REPORT.md`）。
+  两条后端 500 已于 2026-11-13 重启后端实测 `code=0` 关闭，不再占用现场时间。
 - **上线前仍须完成**：A1 现场人工验收（真机/听声/彩排）、A4 上线日注入（域名证书/改密/强密钥/审计留存）、A6-3/A6-4 决策（见 DELIVERY_BACKLOG）

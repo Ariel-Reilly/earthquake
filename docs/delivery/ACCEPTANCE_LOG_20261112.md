@@ -719,3 +719,59 @@ cd ai-service && python -m pytest tests -q --tb=short
 - 组件测试只覆盖 2 个关键组件；地图 / Cesium / 真实影像仍靠端到端脚本与现场人工清单。
 - 全量 `mvn test` 的 12 个 `@SpringBootTest` 环境凭据缺口保持不变（§31.4）。
 - A1 纯人工项、A4 上线日注入、A6-3/A6-4、B3/B4-3/B6/B7-1 与 C 类保持原状态。
+
+---
+
+## 三十五、A1 剩余项自动化再压缩（2026-11-13）
+
+### 35.1 起点与隔离环境
+
+清单与 `4d0f670` 逐字一致、工作区干净、无新提交；全仓 / `output/` / D 盘副本均无本轮新增改动。
+用户选定「D 节第 4 项 · A1 剩余项再压缩」，目标是把现场清单里能在本机判定的部分提前跑掉。
+
+```
+Edge headless CDP 9222 → nginx(dist) 25173（Origin 改写 + Cesium CSP）
+  → 后端 28083（最新 fat jar，AI_ENABLED=false）→ 隔离 pg 25432 / redis 26379 / minio 29000
+  → ai-service 28081（仅时相对比链路）
+```
+
+开发库 `pg_dump` 恢复到隔离库：7 用户 / 46 预警 / 9 统一事件 / 1795 审计。
+恢复日志有一条 `cannot drop extension postgis because other objects depend on it`（`--clean` 清理告警，
+数据完整）。所有写操作落在隔离库，演练结束 `down -v` 清空；口令只用
+`compose.delivery-verify.yml` 内标注「仅本机隔离演练」的值，未读取 `.env`。
+
+### 35.2 四个脚本的实测证据
+
+| 脚本 | 判定 | 关键证据 |
+|---|---|---|
+| `verify-mobile-responsive.mjs` | **8/8 PASS** | iPhone13 390×844 / Android 360×800 / 平板 768×1024 / 桌面 1440×900 共 4 视口 × 5 路由 = 20 组：`scrollWidth - innerWidth` 全为 0，无空白页 / 5xx / 未捕获异常 / 控制台错误；红色弹窗在 360×800 下遮罩与按钮全部位于视口内；9 张 `mobile-*.png` |
+| `verify-alarm-audio.mjs` | **10/10 PASS** | 创建红色预警后 500 ms 弹窗出现、徽标「红色警报」；headless 自动播放拦截 → 「开启警报声」按钮出现；CDP `Input.dispatchMouseEvent`（isTrusted=true）点击后 `createOscillator +1 / start +1`；点「确认收到」后 `stop +1 / close +1`、弹窗关闭；0 异常 / 0 5xx / 0 控制台错误 |
+| `verify-demo-walkthrough.mjs` | **5/5 PASS** | 按 `DEMO_SCRIPT.md` 走 13 步（首页 / 预警中心 / 详情 / AI 分析 / 时间轴 / 送达 Tab / 实时地图 / 设备 / 审计 / 时相对比 / 会签 / AI 洞察 / 收尾），3 个 Tab 全部找到并点击；纯页面加载累计 **15.7 s** |
+| `verify-side-effect-buttons.mjs` | **11/11 PASS** | 不填原因点「确认关闭」→「请输入关闭原因」且弹窗不关；填原因后 DB `status=已解除`、`close_reason` 一致、页面回显；`POST /api/warnings/export` → 200 / 6,808 B / ZIP 魔数 `504b`；`EVT-HZ-001` 发起 2 人会签 200、admin 持 `sign:proxy` 代签 200/`code=0`、`event_sign` 落库且 ≥1 人 CONFIRMED；送达 Tab 可开；「发布预警」4 步向导（基本信息→发布范围→渠道与内容→确认发布） |
+
+明细：`output/delivery-verify/{mobile-responsive,alarm-audio,demo-walkthrough,side-effect-buttons}.json`
+与各脚本同名 `.log`、9 张移动端截图。汇总见 `docs/delivery/A1_PREFLIGHT_REPORT.md`。
+
+### 35.3 过程中修正的判定与稳定性问题
+
+- 移动端脚本首版固定等待 1.5 s：隔离库数据增多后部分页面仍是骨架屏 → 误判空白页；
+  且新预警可能落在 WS 连接建立前 → 红色弹窗不出现。改为
+  `waitReady` + `waitContent`（轮询等内容渲染）+ WS 稳定后创建 + 最多 3 次重试创建，复跑稳定 8/8。
+- 彩排预演首版把 `503 /api/ai/fusion-risk/auto` 判为失败：根因是演练后端
+  `AI_ENABLED=false`（后端日志 `AI 服务已关闭（ai.enabled=false）`），页面「加载失败 + 重试」
+  正是 `DEMO_SCRIPT.md` 要求的诚实降级。新增显式 `EXPECT_AI_DISABLED=1` 开关，
+  只把这类 503 单独归类；**默认（真实/现场环境）仍严格按 5xx 判失败**。
+- 副作用脚本首版把「AI 发布向导」误指到 `/dashboard/ai-insight`（Tab 容器，AI 关闭时停在
+  「正在分析 / 后端连接中」加载态）。改指真实入口 `WarningCreateModal.vue`
+  （预警中心「发布预警」按钮 → 4 步向导），并把 AI 洞察页改为「可达且未展示伪造评分」的记录项。
+
+### 35.4 诚实边界与现场剩余项
+
+- headless **没有人耳**：2.1 真实外放、2.3 真人点击后确实出声仍须现场录屏确认；
+  脚本只验证调用链与拦截提示。
+- CDP **不是真机**：4.1 手机访问、4.4 地图真机手势仍须现场截图。
+- 5.2 送达口径（`MOCK_SENT` / `BLOCKED` 不得说成「已送达」）、8.1~8.4 完整彩排 2 遍
+  计时 ≤20 分钟与兜底话术，脚本不能替代。
+- 演练环境 AI 关闭：AI 洞察页停在加载态、未展示伪造评分，现场按 `start-dev.ps1 -All`
+  启动 AI 后须确认完整渲染。
+- **A1 各子项并未整体关闭**；A4 上线日注入、A6-3/A6-4、B3/B4-3/B6/B7-1 与 C 类保持原状态。

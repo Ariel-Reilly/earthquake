@@ -23,6 +23,7 @@
 | 设计令牌完整性 | `node scripts/verify-token-integrity.mjs` | ✅ 无未定义引用/依赖环 |
 | 后端编译 | `cd backend; mvn -q -DskipTests compile` | ✅ 通过 |
 | AI 模型健康 | `GET /api/ai/health` | ✅ UP；模型加载状态可查 |
+| A1 现场项自动化预检 | 见 [A1_PREFLIGHT_REPORT.md](A1_PREFLIGHT_REPORT.md) | ✅ 隔离环境 4 脚本 / **34 项判定全通过**（移动端 8/8、音频链路 10/10、演示预演 5/5、有副作用按钮 11/11）；纯人工项仍见 `ONSITE_ACCEPTANCE_CHECKLIST.md` |
 
 ## 三、接口与运行时验收
 
