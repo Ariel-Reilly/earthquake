@@ -796,3 +796,17 @@ Edge headless CDP 9222 → nginx(dist) 25173（Origin 改写 + Cesium CSP）
   - 真实浏览器冒烟 **37/37 PASS**（截图 23 张；橙色弹窗抽查颜色与修复前一致）。
 - 后续：第二批为 2,320 条单行多声明（需格式化器/人工分批），115 条语义项人工处理；
   清零后再把 CI 的 stylelint 从 advisory 改为阻断。详见 `STYLELINT_BASELINE.md`。
+
+---
+
+## 三十七、B2-2 双人真实会签验证（2026-11-13）
+
+- 脚本：新增 `scripts/delivery/verify-multi-signer.mjs`（真实 API + PostgreSQL 校验 + 自动清理）。
+- 流程：admin 在 `EVT-HZ-001` 发起 2 人并行会签 → expert、commander 两个账号**各自确认自己的 signerId**
+  （不是 admin 代签）→ 查签名列表与 `event_sign`。
+- 结果（`output/delivery-verify/multi-signer-20261113.json`）：
+  - 发起 HTTP 200 / code 0，`signId=sign-9830bcd1`；
+  - expert 确认 HTTP 200 / code 0；commander 确认 HTTP 200 / code 0；
+  - DB `event_sign` 2 行均 `CONFIRMED`（signer 3=commander、5=expert，意见分别为本人确认）；
+  - 清理后 `signRowsLeft=0`、事件状态还原为 `CONFIRMING`。
+- 结论：**B2-2 ✅ 关闭**。边界：在开发库执行并已清理测试会签行；审计日志保留属正常操作记录。

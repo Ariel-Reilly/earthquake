@@ -100,7 +100,7 @@
 | ID | 任务 | 验收标准 | 状态 |
 |---|---|---|---|
 | B2-1 ✅ | 统一 `signerId` 语义 | 前端发起与确认统一传 `sys_user.id`（或 username），后端兼容期结束 | 已改为从会签记录中取当前用户的真实 `signerId`（`currentSignerId()`），不再传 username；后端兼容保留 |
-| B2-2 | 多人会签真机验证 | PostgreSQL 实测 ≥2 人会签完整流程，状态/审计正确 | ⬜ 待现场 |
+| B2-2 ✅ | 多人会签真机验证 | PostgreSQL 实测 ≥2 人会签完整流程，状态/审计正确 | **已实跑**：admin 发起 2 人会签 → expert/commander **各自本人确认** → `event_sign` 2/2 `CONFIRMED`；测试数据已清理（`verify-multi-signer.mjs`） |
 | B2-3 ✅ | 代签决策落地 | 若开启 `sign:proxy`：改 PermissionRegistry + 审计 warn 日志验证 | **已按 A6-1 开启**：权限码写入 data.sql + 前端映射 + 重新生成注册表（仅 admin）；`SignProxyPermissionTest` 反射执行真实校验逻辑，admin 放行 / expert 403；warn 日志格式见 SM-15 |
 
 ### B3 深色模式硬编码清理
@@ -398,3 +398,20 @@
   `output/delivery-verify/DisasterGuard-v1.8.4-delivery.zip` + `.sha256`；
   演示材料包纳入 `A1_PREFLIGHT_REPORT.md` 并刷新 6 份文档快照后重新打包、重算 SHA256。
 - **下一步不变**：D 节第 4 项剩余纯人工项 → 第 5 项（A6-3/A6-4 + A4 上线日注入）。
+
+---
+
+## N. 本轮执行记录（2026-11-13，B2-2 双人真实会签）
+
+- **脚本**：新增 `scripts/delivery/verify-multi-signer.mjs`（真实 API + PostgreSQL 校验 + 自动清理）。
+- **流程**：admin 在 `EVT-HZ-001` 上发起 2 人并行会签 →
+  **expert 用 expert token、commander 用 commander token 各自确认自己的 signerId** →
+  `GET /api/events/{eventId}/sign` 与 `event_sign` 表校验。
+- **证据**（`output/delivery-verify/multi-signer-20261113.json`）：
+  - 发起：HTTP 200 / code 0，`signId=sign-9830bcd1`；
+  - expert 确认：HTTP 200 / code 0；commander 确认：HTTP 200 / code 0；
+  - DB：`event_sign` 2 行，signer 3(commander)、5(expert) 均 `CONFIRMED`，意见分别为"commander/expert 本人确认"；
+  - 清理：删除 signId 行后 `signRowsLeft=0`，事件状态还原为原始 `CONFIRMING`。
+- **结论**：B2-2 ✅ 关闭（不是仅有建行，而是两个不同账号分别完成本人确认）。
+- **边界**：本验证在开发库执行并已清理测试会签行；审计日志保留属正常操作记录。
+  admin 代签（`sign:proxy`）已由 A1 预检脚本覆盖。
