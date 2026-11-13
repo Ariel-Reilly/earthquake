@@ -26,7 +26,7 @@
 | SM-16 | 系统设置落库（保存 → 刷新仍存在） | ✅ **真实浏览器通过**：设置页保存平台名 → 刷新页面仍从后端读回；后端 `system_setting` 表 + `GET/PUT /api/settings`；截图 `18-settings-persisted.png` |
 | SM-17 | 预警详情页「确认 → 派发」闭环 | ✅ **真实浏览器通过**：详情页点「确认预警」→ 状态"已确认"；点「派发资源」→ 状态"处理中/已发布"；截图 `20-warning-confirm-dispatch.png` |
 | SM-18 | 预警「AI 分析详情」 | ✅ **真实浏览器通过**：4 个区块（AI 研判结论 / 详细分析 / 事发前后指标 / 现场影像）、2 个真实指标序列、3 个影像位（2 张设备 MinIO 影像实际加载）；截图 `21-warning-analysis-detail.png` |
-| SM-19 | 时相对比页面（B1 必做） | ✅ AI 端点链路实测、Java 网关 4 用例、前端 12 用例、**真实浏览器 10/10 PASS**（页面渲染/表单/空态/降级文案/点击后可读错误态/无异常，截图 `satellite-compare-*.png`）；真实影像凭证下的三栏结果仍需现场确认，见下方 SM-19 小节 |
+| SM-19 | 时相对比页面（B1 必做） | ✅ 分段验证全部通过，并已补做**生产形态端到端**：nginx(dist) → 新网关 → ai-service 真实浏览器 **15/15 PASS**、网关 API **14/14 PASS**；修复「无场景硬失败」后页面进入诚实降级态、不展示假图；真实影像凭证下的三栏结果仍需现场确认（见下方 SM-19 小节 / `ONSITE_ACCEPTANCE_CHECKLIST.md`） |
 
 > **自动化执行**：`node scripts/delivery/browser-smoke.mjs`（需先以 `--remote-debugging-port=9222` 启动 Edge/Chrome，
 > 且后端 8080、前端 5173 已运行）。脚本会自动登录、触发红色/橙色/黄色/蓝色预警、保存并回读系统设置、
@@ -308,8 +308,18 @@
   2026-11-13 实跑 **10/10 PASS**：路由停留正确、标题渲染、灾害点下拉 10 项、4 个日期控件、
   空态与诚实降级/时区文案可见、点击「开始对比」后给出可读错误态而非白屏、无未捕获异常与业务控制台错误；
   截图 `output/delivery-verify/satellite-compare-initial.png`、`satellite-compare-after-submit.png`。
-  > 当次 dev 后端为旧 jar（无本轮网关），因此点击后是「时相对比未完成」错误态——正好验证错误路径；
-  > 部署新 jar 后应由网关返回 `dataSource=mock` 并走降级提示，该场景见下条现场清单。
+  > 当次 dev 后端为旧 jar（无本轮网关），因此点击后是「时相对比未完成」错误态——该错误路径已保留为回归用例。
+- **生产形态端到端（2026-11-13 后续轮次，§31.4 缺口关闭）**：隔离 nginx(dist) 25173 → 已部署新网关的
+  后端 28083 → ai-service 28081，浏览器直连 dist 产物实跑：
+  - `node scripts/delivery/verify-sentinel-e2e.mjs` → **14/14 PASS**（登录/JWT、maintenance 越权 403、
+    非法 bbox 400、路径穿越 400、compose×2、同源图片代理 PNG、diff、热力图、URL 重写）；
+  - `node scripts/delivery/verify-sentinel-browser-e2e.mjs` → **15/15 PASS**（页面渲染、灾害点 10 项、
+    4 个日期控件、空态/时区/降级文案、点击后进入「未取得真实卫星影像」并显示具体原因、
+    0 张 blob 假图、浏览器带 JWT 取图 PNG、无未捕获异常/控制台异常）；
+    截图 `output/delivery-verify/sentinel-e2e-initial.png`、`sentinel-e2e-degraded.png`。
+  > 该轮同时修复 ai-service「找不到 S2 场景即硬失败」缺陷，才使 B1-4 诚实降级路径真正可达。
+- **A1 自动化预检**：`verify-realtime-reconnect.mjs` **6/6 PASS**（阻断 WS 32s、轮询持续、重连 2013 ms）；
+  `verify-button-sweep.mjs` 15 路由 / 442 按钮无空白页与 JS 异常（发现并修复 2 个后端 500，见现场清单第 6 节）。
 
 **现场人工清单（真实浏览器，需录屏/截图）**
 

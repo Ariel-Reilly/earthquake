@@ -521,9 +521,10 @@ B/C 类 P1/P2 项未纳入本轮。**演示可用 ≠ 试运行上线条件已�
 
 ### 31.4 边界（诚实说明）
 
-- 本轮**未启动完整新后端实例做「浏览器 → 新网关 → AI」端到端联调**：启动验证实例时环境凭据审批被拦，
-  未绕过；改为「真实浏览器页面渲染（旧后端，错误态路径）+ 网关单测真实调用 ai-service + AI 端点脚本实测
-  + 前端纯函数单测」四段覆盖。SM-19 已列出剩余现场清单（真实影像/越权/取消），仍需部署新 jar 后执行。
+- ~~本轮未启动完整新后端实例做「浏览器 → 新网关 → AI」端到端联调~~ → **2026-11-13 后续轮次已补做并关闭**：
+  用隔离 nginx(dist) 25173 → 已部署新网关的后端 28083 → ai-service 28081 真实跑通，
+  `verify-sentinel-e2e.mjs` 14/14、`verify-sentinel-browser-e2e.mjs` 15/15 全 PASS（见 §三十三）。
+  当时保留的「真实影像/越权/取消」清单中，越权已自动化覆盖，真实影像与取消仍留现场。
 - **全量 `mvn test` 的既有环境依赖**：130 用例中 12 个 `@SpringBootTest` 上下文用例因测试环境没有
   数据库凭据报错（`PSQLException: password authentication failed for user "disasterguard"`），
   与本轮改动无关（本轮新增 6 用例及全部纯 Mockito 单测均通过）；交付构建门禁按既有口径使用
@@ -565,5 +566,69 @@ B/C 类 P1/P2 项未纳入本轮。**演示可用 ≠ 试运行上线条件已�
 
 ### 32.3 边界不变
 
-- 仍未做「浏览器 → 新 jar 网关 → ai-service → 真实影像」端到端联调（§31.4）；
+- ~~仍未做「浏览器 → 新 jar 网关 → ai-service → 真实影像」端到端联调~~ → **已在 §三十三补做**；真实影像凭证仍待现场；
 - A1 现场人工验收、A4 上线日注入、A6-3 / A6-4、B/C 类保持原状态（backlog D 节第 4、5 项）。
+
+---
+
+## 三十三、D-4 验收闭环 / 端到端缺口关闭（2026-11-13）
+
+### 33.1 验证环境与链路
+
+| 层 | 实例 | 说明 |
+|---|---|---|
+| 浏览器 | Edge headless CDP 9222 | 真实页面，加载 `frontend/dist` 生产构建产物 |
+| 反代 | nginx `127.0.0.1:25173` | `infra/nginx/frontend.conf` 派生，`/api`→28083、`/ws`→28083、`/ai-service/`→28081；演练配置把 `Origin` 改写为后端白名单内的 `http://localhost:5173`（与 Vite dev proxy 一致） |
+| 后端 | `127.0.0.1:28083` | 已部署含 `SentinelCompareController` 的 jar；DB/Redis/MinIO 指向隔离实例 |
+| AI | `127.0.0.1:28081` | `app.main:app`，加载本轮修复后的 `sentinel.py` |
+| 数据 | 隔离 postgres 25432 | 从开发库 `pg_dump` 恢复，凭据走容器内部，不读取 `.env` |
+
+> 首次浏览器实测发现 `/api/ai/sentinel/compose` 返回 403 `Invalid CORS request`：演练 nginx 未改写 Origin，
+> 而后端白名单只含 `http://localhost:5173`。补齐 Origin/Referer 改写后，带 JWT 的 compose 200、`/ws` 握手 101。
+> 该项属**验证环境配置**，不是产品缺陷；生产环境 A4-4 仍须按真实域名配置 CORS/CSP。
+
+### 33.2 端到端实测结果
+
+- `node scripts/delivery/verify-sentinel-e2e.mjs` → **14/14 PASS**：
+  admin 登录 261 字符 JWT；未带 JWT 403；`maintenance` 越权 403；`attendant`（有 `satellite:view`）200；
+  非法 bbox 400 + 中文提示；路径穿越 400；compose×2 succeeded（`dataSource=mock`）；
+  `s2Url` 已重写为 `/api/ai/sentinel/image/...`；灾前图 781,412 B PNG；diff `changePercent=89.47%` / 3 热点；
+  热力图 135,963 B PNG；响应未泄漏 8001/28081/`file://`。
+- `node scripts/delivery/verify-sentinel-browser-e2e.mjs` → **15/15 PASS**：
+  经 nginx 登录、页面路由/标题、灾害点 10 项、4 个日期控件、空态、时区与降级文案、
+  点击「开始对比」后进入 **「未取得真实卫星影像」** 并显示
+  `在 [2026-10-14–2026-11-13] 范围内未找到 S2 L2A 有效场景（AOI=[106.41, 29.55, 106.45, 29.59]）`、
+  0 张 blob 假图、浏览器带 JWT 取图 781,261 B PNG、无未捕获异常与控制台业务错误。
+  截图 `output/delivery-verify/sentinel-e2e-initial.png` / `sentinel-e2e-degraded.png`。
+
+### 33.3 实测发现并修复的缺陷
+
+| # | 现象 | 根因 | 修复 |
+|---|---|---|---|
+| 1 | 页面点击后是「时相对比未完成 / 影像合成未完成」 | ai-service `_run_compose` 在 `provider=auto` 找不到 S2 场景时抛 `RuntimeError`，任务判 failed；B1-4 的 `dataSource=mock` 降级路径不可达 | `ai-service/app/routers/sentinel.py`：改为降级用 `_mock_s2_scene()`，结果新增 `fallbackReason`；`SatelliteComparePage.vue` 展示具体原因 |
+| 2 | 控制台 `EvalError` / `CompileError`（Cesium） | nginx CSP `script-src 'self' 'unsafe-inline'` 缺 `unsafe-eval` / `wasm-unsafe-eval`，WASM 实例化与 worker 被拦 | `infra/nginx/frontend.conf` 补两项 + `worker-src 'self' blob:`；修复后浏览器 0 未捕获异常 |
+| 3 | `GET /api/notice-templates` 500 `column t.updatedat does not exist` | 原生查询已 `ORDER BY t.updated_at DESC`，`PageRequest` 又传 `Sort("updatedAt")`，Spring Data 原样追加驼峰列 | `NoticeTemplateController` 去掉 Sort |
+| 4 | `GET /api/notification/records` 500 `function lower(bytea) does not exist` | JPQL `CONCAT('%', :keyword, '%')` 在空关键词时把 null 参数绑成 `bytea` | `MessageController` / `NotificationService` 空关键词改传 `""`（`%%` 模式） |
+
+> 缺陷 1、2 已通过重新构建 dist / 重启 ai-service / 重载 nginx 后**真实浏览器复测通过**。
+> 缺陷 3、4 已编译进 fat jar（127,440,951 B，class 时间 14:41）并用 SQL 直连校验
+> （`notice_template_order=5`、`notification_keyword_empty=5`）；因验证实例在打包时停止，
+> **HTTP 200 复核留待重新部署新 jar 后执行**，未复核前不计入通过项。
+
+### 33.4 A1 自动化预检
+
+- `verify-realtime-reconnect.mjs` → **6/6 PASS**：包装全局 `WebSocket` 捕获实例，阻断窗口 32s 内
+  强制关闭 22 轮（模拟只断 WS、HTTP 仍可用），期间 5 个 `/api` 轮询响应持续、5 次重新握手尝试，
+  解除阻断后 **2013 ms** 重连成功，页面未白屏、无未捕获异常。结果 `output/delivery-verify/realtime-reconnect.json`。
+  > 说明：全量 `offline` 模拟不会关闭已建立的 WS 且会一并阻断 HTTP，不适合测「只断 WS」场景，故改用强制 close 方案。
+- `verify-button-sweep.mjs`：15 个路由 / **442** 个可点击按钮，无跳登录、无空白页、无 JS 异常；
+  仅「刷新/查询」类无副作用按钮自动点击。结果 `output/delivery-verify/button-sweep.json`；
+  发现的 2 个 500 见 33.3。
+- 门禁：eslint 0 error / vitest **57 passed** / SFC 98/98 / 令牌 0 问题 / `vite build` 9.48s；
+  `mvn -q -DskipTests package` 通过。
+
+### 33.5 边界与下一步
+
+- 真实卫星影像仍依赖 CDSE/GEE 凭证或可访问的公开 STAC 源；本轮跑通的是 `dataSource=mock` 的**降级路径**，
+  不是真实影像能力。真实三栏影像、取消任务、听声、真机、彩排见 `ONSITE_ACCEPTANCE_CHECKLIST.md`。
+- A1 纯人工项、A4 上线日注入、A6-3/A6-4、B/C 类保持不变；全量 `mvn test` 既有环境缺口不变。

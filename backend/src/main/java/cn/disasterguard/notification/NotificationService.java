@@ -76,7 +76,8 @@ public class NotificationService {
     Boolean effectiveRead = statusFilter == null ? readFilter : null;
 
     Page<NotificationRecord> result = recordRepository.findByFilters(
-        bizType, disasterType, level, effectiveRead, null, statusFilter,
+        // 与 MessageController 保持一致：空关键词传空串，避免 JPQL CONCAT 绑定 null 为 bytea。
+        bizType, disasterType, level, effectiveRead, "", statusFilter,
         PageRequest.of(page - 1, size, Sort.by(Sort.Direction.DESC, "createdAt")));
 
     List<NotificationRecordDto> records = result.getContent().stream()

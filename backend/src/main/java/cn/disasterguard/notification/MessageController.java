@@ -84,7 +84,11 @@ public class MessageController {
         org.springframework.data.domain.Sort.by(
             org.springframework.data.domain.Sort.Direction.DESC, "createdAt"));
 
-    String kw = (keyword == null || keyword.isBlank()) ? null : keyword.trim();
+    // keyword 为空时传空串而不是 null：JPQL 的 CONCAT('%', :keyword, '%') 在参数为
+    // null 时会被 Hibernate 绑定成 VARBINARY(bytea)，PostgreSQL 报
+    // "function lower(bytea) does not exist" → HTTP 500（A1-4 页面巡检发现）。
+    // 空串产生 '%%' 模式，等价于不过滤（当前数据无 title/content/createdBy 空值）。
+    String kw = (keyword == null || keyword.isBlank()) ? "" : keyword.trim();
 
     // keyword 已下推到 DB 层（findByFilters 的 LIKE 匹配 title/content/createdBy），
     // 分页与总数均由数据库计算，不再做内存二次过滤，total 始终为全局匹配数。

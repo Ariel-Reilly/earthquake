@@ -258,6 +258,8 @@ class SentinelJobResponse(BaseModel):
 async def _run_compose(job_id: str, req: SentinelComposeRequest):
     """后台任务：执行 Sentinel-1+2 合成管线。"""
     try:
+        # B1-4：记录本任务为何拿不到真实影像，随结果回传给前端做「诚实降级」说明。
+        fallback_reason = ""
         await _update_job_async(job_id, status=JobStatus.RUNNING.value, progress=5, message="正在认证数据源…")
 
         # provider 参数决定 STAC 搜索策略
@@ -287,7 +289,17 @@ async def _run_compose(job_id: str, req: SentinelComposeRequest):
             if s2_scene is None or (
                 isinstance(s2_scene, dict) and not s2_scene.get("id")
             ):
-                raise RuntimeError(f"在 [{req.start}–{req.end}] 范围内未找到 S2 L2A 有效场景（AOI={req.bbox}）")
+                # B1-4（2026-11-13 端到端实测修复）：该时间窗 / AOI 找不到真实 S2 场景，
+                # 在缺 CDSE/GEE 凭证、公开 STAC 源不可达或该时段无覆盖时属于**预期情况**，
+                # 不应把任务判为 failed——否则前端只能显示泛化的「时相对比未完成」，
+                # 甲方无法判断是缺凭证还是真故障。
+                # 改为降级返回 dataSource=mock + fallbackReason，前端据此只提示、不展示假图。
+                fallback_reason = (
+                    f"在 [{req.start}–{req.end}] 范围内未找到 S2 L2A 有效场景"
+                    f"（AOI={req.bbox}）；已按 dataSource=mock 降级"
+                )
+                LOG.warning("S2 场景搜索无结果，降级为 mock: %s", fallback_reason)
+                s2_scene = _mock_s2_scene(req)
 
             s1_scene = None
             if req.sar_overlay and len(results) > 1:
@@ -298,12 +310,17 @@ async def _run_compose(job_id: str, req: SentinelComposeRequest):
 
             await _update_job_async(
                 job_id, progress=45,
-                message=f"S2 搜索完成 {s2_scene.get('id', '')},"
-                        + ("S1 搜索完成" if s1_scene else "无 S1 场景")
+                message=(f"S2 搜索完成 {s2_scene.get('id', '')},"
+                         + ("S1 搜索完成" if s1_scene else "无 S1 场景"))
+                        + ("；未找到真实场景，已降级" if fallback_reason else "")
             )
 
         # Step 2: 下载 S2 B4/B3/B2 波段 → 合成真彩 PNG（同时返回是否真实影像）
         s2_url, s2_real = await _compose_s2_truecolor(s2_scene, req.bbox, job_id)
+        if not s2_real and not fallback_reason:
+            fallback_reason = (
+                "真实卫星影像下载失败（无 CDSE/GEE 凭证或公开 STAC 源不可达），已按 dataSource=mock 降级"
+            )
 
         sar_url = None
         if req.sar_overlay and s1_scene:
@@ -317,6 +334,7 @@ async def _run_compose(job_id: str, req: SentinelComposeRequest):
         result = _build_result_urls(
             s2_url, sar_url, req, job_id,
             s2_real=s2_real, scene_id=str(s2_scene.get("id", "")),
+            fallback_reason=fallback_reason,
         )
 
         await _update_job_async(job_id, progress=100, status=JobStatus.SUCCEEDED.value, message="合成完成", result=result)
@@ -720,6 +738,7 @@ def _build_result_urls(
     *,
     s2_real: bool = False,
     scene_id: str = "",
+    fallback_reason: str = "",
 ) -> Dict:
     # B1-4 诚实降级：把"这张图到底是不是真实卫星影像"显式返回给调用方。
     # 旧实现只给 URL，前端无法区分真实 thumbnail 与 PIL 随机噪声生成的演示图，
@@ -730,6 +749,7 @@ def _build_result_urls(
         "provider": req.provider,
         "dataSource": "real" if s2_real else "mock",
         "sceneId": scene_id,
+        "fallbackReason": fallback_reason,
         "bbox": req.bbox,
         "expiresAt": (datetime.now(timezone.utc) + timedelta(hours=24)).isoformat(),
         "meta": {

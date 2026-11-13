@@ -94,7 +94,12 @@ public class NoticeTemplateController {
     int safeSize = Math.min(Math.max(size, 1), 200);
     int safePage = Math.max(page, 1);
 
-    var pageable = PageRequest.of(safePage - 1, safeSize, Sort.by(Sort.Direction.DESC, "updatedAt"));
+    // findByFilters 是 nativeQuery，SQL 内已写 ORDER BY t.updated_at DESC。
+    // 若再传 Sort.by("updatedAt")，Spring Data 会把驼峰属性原样追加成
+    // "ORDER BY t.updated_at DESC, t.updatedAt desc" → PostgreSQL 报
+    // "column t.updatedat does not exist" → HTTP 500（A1-4 页面巡检发现）。
+    // 故此处不带 Sort，排序完全交给原生 SQL。
+    var pageable = PageRequest.of(safePage - 1, safeSize);
 
     var result = repository.findByFilters(
         emptyToNull(hazardType),

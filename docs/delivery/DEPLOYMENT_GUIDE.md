@@ -326,6 +326,15 @@ cd frontend && npx vitest run tests/satelliteCompare.spec.js
 node scripts/delivery/verify-satellite-page.mjs
 ```
 
-浏览器现场清单见 `SMOKE_TEST.md` 的 SM-19 小节（含空态、降级、越权、取消）。
-④ 在 2026-11-13 实跑 10/10 PASS；若后端仍是未部署本轮网关的旧 jar，点击「开始对比」会显示
-「时相对比未完成」错误态（预期），部署新 jar 后应走 `dataSource=mock` 的降级提示。
+浏览器现场清单见 `SMOKE_TEST.md` 的 SM-19 小节与 `ONSITE_ACCEPTANCE_CHECKLIST.md`。
+④ 在 2026-11-13 实跑 10/10 PASS（旧 dev 后端，验证错误路径）；随后已补做**生产形态端到端**：
+`verify-sentinel-e2e.mjs` 14/14 + `verify-sentinel-browser-e2e.mjs` 15/15 PASS
+（nginx dist → 新网关 → ai-service），详见 `ACCEPTANCE_LOG` §三十三。
+
+> **演练环境两个易踩点**（非产品缺陷）：
+> 1. 后端 `CorsConfig` / `WebSocketConfig` 白名单只含 `http://localhost:5173`，而演练 nginx 的
+>    浏览器 Origin 是 `http://127.0.0.1:25173`，不改写会被 `Invalid CORS request` 403、
+>    `/ws` 也握不上手；Vite dev proxy 已用 `configure` 改写 Origin，演练 nginx 需同样补
+>    `proxy_set_header Origin http://localhost:5173;`。生产按真实域名配置白名单。
+> 2. 生产 nginx 的 CSP 需允许 Cesium 的 eval / WASM（见 `PRODUCTION_HARDENING.md` §五），
+>    否则三维地图起不来并产生未捕获异常。

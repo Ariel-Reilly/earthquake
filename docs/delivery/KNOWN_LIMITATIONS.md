@@ -46,6 +46,21 @@
 > 时相对比仍受外部影像源约束：**没有 CDSE/GEE 凭证或可访问的公开 STAC 源时，页面只显示降级提示**，
 > 这不是功能未完成，而是刻意的诚实边界（对应 C3 / L-04）。
 
+### 2026-11-13 D-4 验收闭环补修（真实浏览器端到端实测发现）
+
+| 问题 | 处理结果 | 证据 |
+|---|---|---|
+| 「浏览器 → 新网关 → AI」端到端未联调 | **已关闭**：nginx(dist)→新网关→ai-service 真实链路，网关 14/14 + 浏览器 15/15 PASS | `ACCEPTANCE_LOG` §三十三；`verify-sentinel-e2e.mjs` / `verify-sentinel-browser-e2e.mjs` |
+| `provider=auto` 找不到 S2 场景时任务硬失败，页面只能显示泛化错误 | ai-service 改为降级返回 `dataSource=mock` + `fallbackReason`；页面展示日期窗/AOI 具体原因，仍不展示假图 | `ai-service/app/routers/sentinel.py`；`SatelliteComparePage.vue` |
+| nginx CSP 拦截 Cesium 的 eval / WebAssembly | `script-src` 补 `'unsafe-eval' 'wasm-unsafe-eval'`，补 `worker-src 'self' blob:`；修复后浏览器 0 未捕获异常 | `infra/nginx/frontend.conf`；`ACCEPTANCE_LOG` §33.3 |
+| `GET /api/notice-templates` 500（驼峰排序追加到原生 SQL） | 去掉 `PageRequest` 的 Sort，排序交给 SQL | `NoticeTemplateController.java` |
+| `GET /api/notification/records` 500（`lower(bytea)`） | 空关键词改传 `""`，避免 JPQL CONCAT 把 null 绑成 bytea | `MessageController.java` / `NotificationService.java` |
+
+> **待重新部署复核**：后两条 500 的代码修复已编译 + SQL 直连校验，但本机验证实例在打包时停止，
+> HTTP 200 需在重新部署新 jar 后确认，见 `ONSITE_ACCEPTANCE_CHECKLIST.md` 第 6 节；未复核前不宣称已通过。
+> **CSP 取舍**：为让 Cesium 可用放开了 `unsafe-eval` / `wasm-unsafe-eval`，属明确的可用性取舍；
+> A4-4 上线加固须结合真实域名重新评估（优先改用无 eval 的 Cesium build 或 Trusted Types 再收紧）。
+
 ---
 
 ## 一、AI 能力边界

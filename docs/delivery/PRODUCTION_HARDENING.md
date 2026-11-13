@@ -75,3 +75,10 @@ node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"  # M
 - [ ] 备份定时任务（每日 pg_dump + MinIO 同步）与恢复演练（见 `ACCEPTANCE_LOG` A5 节）
 - [ ] 审计日志留存周期与 SIEM/日志采集（如有）
 - [ ] 甲方等保/密评要求逐条核对（如有）
+- [ ] **CSP 收紧复核（2026-11-13 新增）**：`infra/nginx/frontend.conf` 为让 Cesium 三维地图可用，
+  在 `script-src` 放开了 `'unsafe-eval' 'wasm-unsafe-eval'` 并补 `worker-src 'self' blob:`
+  （真实浏览器验收发现不放开时 WASM/eval 被拦、控制台报 EvalError/CompileError）。
+  这是明确的可用性取舍：上线时应结合真实域名重新评估，优先改用不含 eval 的 Cesium 构建或
+  Trusted Types，再移除这两项。见 `KNOWN_LIMITATIONS.md` 〇节、`ACCEPTANCE_LOG` §33.3。
+- [ ] **CORS 白名单按真实域名核对**：演练环境靠 nginx 把 `Origin` 改写为 `http://localhost:5173` 才通过
+  后端校验；生产必须把真实前端 Origin 配进白名单，禁止 `*` 与 localhost 残留。

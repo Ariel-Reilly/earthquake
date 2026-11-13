@@ -42,7 +42,7 @@
 | **系统设置落库** | ✅ `system_setting` 表 + `GET/PUT /api/settings`；浏览器保存→刷新仍存在（SM-16） |
 | **预警 AI 分析详情** | ✅ `GET /api/warnings/{id}/analysis-detail`：AI 结论 / 详细分析 / 事发前后 ±2h 指标 / 现场影像（SM-18） |
 | 对比度/可访问性 | ✅ 审计"确定问题" 5→2（剩余 2 处经核对为脚本跨文件解析误报）；关键纯图标按钮补 aria-label |
-| **时相对比页面（B1，必做）** | ✅ 独立页面 + Java 网关 + 菜单/路由/权限；ai-service compose×2 / diff / 图片实测通过；**真实浏览器 10/10 PASS**；无真实影像时只提示降级、不展示假图（SM-19） |
+| **时相对比页面（B1，必做）** | ✅ 独立页面 + Java 网关 + 菜单/路由/权限；**生产形态端到端实测**：网关 API 14/14 + 真实浏览器 15/15 PASS（nginx→新网关→ai-service）；无真实影像时只提示降级并给出具体原因（日期窗/AOI），不展示假图（SM-19） |
 | **管理员代签（A6-1）** | ✅ `sign:proxy` 仅 admin；`SignProxyPermissionTest` 覆盖 admin 放行与 expert 403；每次代签写 warn 审计 |
 | **演示材料归属（A2-2）** | ✅ 单独材料包（19 PPTX + 5 文档 + MANIFEST + SHA256，UTF-8 条目名），不入库 |
 | **时间显示口径（A6-5）** | ✅ 决策跟随浏览器本地时区，无需改码；已写入 L-15 与 `OPERATOR_CARD.md` |
@@ -99,11 +99,14 @@
 
 - 红色警报声音实际外放（headless 无法听声；已提供点击开启兜底与单测）
 - WS 断线重连计时/提示的现场观感
-- 时相对比页面：独立页面已实现（B1）；待现场补的是**真实卫星影像凭证**（CDSE / GEE / 公开 STAC）、越权与取消路径、部署新 jar 后的端到端联调（见 SM-19 / KNOWN_LIMITATIONS L-05）
+- 时相对比页面：端到端联调与越权路径已自动化通过；待现场补的是**真实卫星影像凭证**（CDSE / GEE / 公开 STAC）下的三栏真实结果与「取消任务」路径（见 SM-19 / [ONSITE_ACCEPTANCE_CHECKLIST.md](ONSITE_ACCEPTANCE_CHECKLIST.md)）
 - 影像需真实上传：种子附件 URL 可能失效，页面显示占位而非伪造图片
 
 ## 九、验收结论
 
 - 构建/单测/浏览器冒烟全部通过；核心业务闭环（预警发布→确认→派发→关闭→审计）可演示。
+- 时相对比**生产形态端到端**已补做：网关 API 14/14 + 真实浏览器 15/15 PASS（见 `ACCEPTANCE_LOG` §三十三）。
+- A1 可自动化项已预检完成；纯人工项及两条 500 的重新部署复核见
+  [ONSITE_ACCEPTANCE_CHECKLIST.md](ONSITE_ACCEPTANCE_CHECKLIST.md)。
 - 建议现场按 [DEMO_SCRIPT.md](DEMO_SCRIPT.md) 走一遍，并在试运行环境改密、配置真实地图/AI 服务地址。
 - 甲方签字：____________________　日期：____________________

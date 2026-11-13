@@ -167,7 +167,7 @@
 1. ~~**A2 代码提交 + A3 部署演练**~~ ✅ 已完成（见 §F）。
 2. ~~**A4/A5 生产安全与备份恢复**~~ ✅ 已完成代码/工具与真实备份恢复演练（见 §G）；仅剩上线日真实注入。
 3. ~~**4 项甲方决策 + B1 时相对比**~~ ✅ **2026-11-13 本轮完成**（A2-2 / A6-1 / A6-2 / A6-5 / B1 / B2-3 / B7-2 / B7-3，见 §I）。
-4. **A1 现场人工验收 + SM-19 真实浏览器清单**（0.5 天）：声音外放、WS 重连计时、真机移动端、按钮全量点检、演示彩排、时相对比真实影像凭证 — **当前建议下一步**。
+4. **A1 现场人工验收 + SM-19 真实浏览器清单**（0.5 天）：✅ **自动化预检已完成**（端到端 14/14+15/15、WS 重连 6/6、15 路由/442 按钮巡检）；剩余**纯人工项**：真实听声、真机移动端、有副作用按钮点检、演示彩排、真实影像凭证 — 按 `ONSITE_ACCEPTANCE_CHECKLIST.md` 执行 — **当前建议下一步**。
 5. **A6-3 / A6-4 + A4 上线日注入**（0.5 天）：演示数据水印/清空、国内底图 Key 与资质、域名证书、改初始密码、强密钥、审计留存。
 6. **B3/B4-3/B5/B6/B7-1**：进入试运行后按优先级持续迭代；**C 类**二期立项，不在本次交付承诺内。
 
@@ -261,8 +261,9 @@
 - **既有环境缺口**：全量 `mvn test` 中 12 个 `@SpringBootTest` 上下文用例因无测试库凭据失败（与本轮无关），
   交付门禁沿用 `mvn -DskipTests package` + 指定单测；详见验收日志 §31.4。
 - **诚实边界**：
-  - 未启动完整后端实例做浏览器端到端联调（启动验证实例时环境凭据审批被拦，未绕过）；
-    改为「网关单测真实调用 AI + AI 端点实跑 + 前端纯函数单测」三段覆盖，SM-19 留真实浏览器现场清单。
+  - ~~未启动完整后端实例做浏览器端到端联调~~ **已补做并关闭**（同日后续轮次）：隔离 nginx(dist) →
+    已部署新网关的后端 → ai-service 真跑，浏览器 15/15 + 网关 14/14 PASS（见 §K / `ACCEPTANCE_LOG` §三十三）。
+    真实影像凭证仍待现场，SM-19 现场清单保留。
   - 真实卫星影像仍需 CDSE/GEE 凭证或公开 STAC 源；无凭证时页面只提示降级，不展示假差异图。
   - A1 现场项、A4 上线日注入、A6-3 / A6-4、B3/B4-3/B5/B6/B7-1 与 C 类保持不变。
 - **下一步**：见 D 节第 4、5 项（A1 现场验收 + SM-19；A6-3/A6-4 + A4 上线日注入）。
@@ -282,3 +283,39 @@
   `DEPLOYMENT_GUIDE.md` §6「代签未授予任何角色」→「仅 admin 持有」；§F / §28 的 A2-2 历史记录加注后续决策指针。
 - **下一步不变**：D 节第 4、5 项（A1 现场验收 + SM-19；A6-3 / A6-4 + A4 上线日注入）。
   证据详见 `ACCEPTANCE_LOG_20261112.md` §三十二。
+
+---
+
+## K. 本轮执行记录（2026-11-13，D-4 验收闭环）
+
+- **范围**：按本轮选定「D 节第 4 项」推进——关闭 §31.4 端到端缺口、自动化 A1 可自动部分、
+  产出 `ONSITE_ACCEPTANCE_CHECKLIST.md`；并修复实测发现的 4 个真实缺陷。
+- **验证环境（隔离，未触碰开发库）**：`compose.delivery-verify.yml` 拉起 25432/26379/29000，
+  从开发库 `pg_dump` 恢复到隔离库；复用已在运行的 28083（含新网关 jar）与 28081 ai-service，
+  nginx(dist) 25173 反代。全程未读取 `.env`、未用真实凭据启动新后端实例。
+- **端到端联调（§31.4 缺口关闭）**：
+  | 脚本 | 结果 | 覆盖 |
+  |---|---|---|
+  | `scripts/delivery/verify-sentinel-e2e.mjs` | **14/14 PASS** | 登录/JWT、越权 403、非法 bbox 400、路径穿越 400、compose×2、图片代理 PNG、diff、热力图、URL 重写 |
+  | `scripts/delivery/verify-sentinel-browser-e2e.mjs` | **15/15 PASS** | nginx→网关→AI 真实浏览器；空态/表单/时区/降级文案、点击后降级、无假图、浏览器带 JWT 取 blob、无异常 |
+- **实测发现并修复的 4 个缺陷**：
+  | 缺陷 | 根因 | 修复 |
+  |---|---|---|
+  | 页面点「开始对比」进「时相对比未完成」错误态 | ai-service `provider=auto` 找不到 S2 场景时**硬抛 RuntimeError**，任务判 failed，B1-4 诚实降级走不到 | `sentinel.py` 降级返回 `dataSource=mock` + `fallbackReason`；前端展示具体原因（日期窗/AOI） |
+  | nginx 下 Cesium 报 EvalError / CompileError | CSP `script-src` 缺 `'unsafe-eval' 'wasm-unsafe-eval'`，WASM 与 worker 被拦 | `infra/nginx/frontend.conf` 补两项 + `worker-src 'self' blob:`，注明上线加固取舍 |
+  | `GET /api/notice-templates` 500 | 原生 SQL 已 ORDER BY，`PageRequest` 又传驼峰 `Sort("updatedAt")`，被追加成 `t.updatedAt` | `NoticeTemplateController` 去掉 Sort |
+  | `GET /api/notification/records` 500 | JPQL `CONCAT('%', :keyword, '%')` 空关键词把 null 绑成 bytea → `lower(bytea)` | `MessageController` / `NotificationService` 空关键词改传 `""` |
+- **A1 自动化预检**：
+  - `verify-realtime-reconnect.mjs`：强制关闭 WS 32s（22 轮），期间轮询兜底 5 个 `/api` 响应持续，
+    解除后 **2013 ms** 重连成功，**6/6 PASS**；
+  - `verify-button-sweep.mjs`：15 个路由 / 442 个可点击按钮，无跳登录、无空白页、无 JS 异常；
+    发现的 2 个 500 已定位并修复（见上表）。
+- **门禁复核**：eslint 0 / vitest 57 / SFC 98 / 令牌 0 / `vite build` 9.48s；
+  后端 `mvn -q -DskipTests package` 通过（fat jar 127,440,951 B，含新 class）。
+- **诚实边界**：
+  - 两条 500 的代码修复已编译 + SQL 直连校验（`notice_template_order=5` / `notification_keyword_empty=5`），
+    但本机验证实例在打包时已停止，**HTTP 200 复核需重新部署新 jar 后执行**；未复核前不宣称通过。
+  - 真实卫星影像仍依赖 CDSE/GEE/公开 STAC；本轮实测为 `dataSource=mock` 的**降级路径**，
+    真实三栏影像、取消任务、听声、真机、彩排仍在 `ONSITE_ACCEPTANCE_CHECKLIST.md`。
+  - 全量 `mvn test` 的 12 个 `@SpringBootTest` 环境凭据缺口保持不变（§31.4）。
+- **下一步**：D 节第 4 项剩余纯人工项 → 第 5 项（A6-3/A6-4 + A4 上线日注入）。

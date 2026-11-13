@@ -175,6 +175,7 @@ async function runCompare() {
       const mock = [before, after].find((j) => !isRealImageJob(j))
       degradeReason.value = `当前没有可用的真实卫星影像（数据源：${mock.result?.dataSource || "unknown"}` +
         `${mock.result?.sceneId ? `，场景 ${mock.result.sceneId}` : ""}）。` +
+        `${mock.result?.fallbackReason ? `原因：${mock.result.fallbackReason}。` : ""}` +
         "按交付口径不展示演示噪声图或由其计算出的假差异图。请按 docs/CDSE_SETUP.md 配置 CDSE / GEE 凭证，" +
         "或确认 ai-service 可访问公开 STAC 影像源后重试。"
       phase.value = "degraded"
