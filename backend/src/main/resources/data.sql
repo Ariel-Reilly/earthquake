@@ -149,6 +149,9 @@ INSERT INTO sys_permission (code, name, type, route_path, sort_order) VALUES
 ('sign:view',          '查看会签',              'ROUTE', '/dashboard/confirmation-sign',  90),
 ('sign:create',        '发起会签',              'OP',    '/dashboard/confirmation-sign',  91),
 ('sign:confirm',       '会签确认',              'OP',    '/dashboard/confirmation-sign',  92),
+-- A6-1 决策（2026-11-13）：允许管理员代签。admin 角色通过下方「超管全量」关联自动获得；
+-- 其余角色不授予，代签时 SignService 会写 warn 审计日志。
+('sign:proxy',         '管理员代签',            'OP',    '/dashboard/confirmation-sign',  93),
 
 -- 预警 & 应急 & 资源
 ('warnings:view',       '查看预警',              'ROUTE', '/dashboard/warnings',    100),

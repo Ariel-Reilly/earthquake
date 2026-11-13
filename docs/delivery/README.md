@@ -49,11 +49,16 @@ node scripts/delivery/browser-smoke.mjs
 
 ## 当前状态摘要（以本目录最新记录为准）
 
-- 前端：eslint 0 error、vitest 44 passed、vite build 成功、SFC/令牌完整性通过
-- 后端：`mvn compile` 通过；设置落库、预警分析详情等接口已实测
-- 真实浏览器：37/37 PASS（四档告警、AI 分析详情、确认→派发、设置落库、API 宕机、WS 轮询降级、角色 403 等）
+- 前端：eslint 0 error、vitest **57 passed**（含时相对比 12 例、权限回归 1 例）、vite build 成功、SFC/令牌完整性通过
+- 后端：`mvn compile` 通过；新增 `SignProxyPermissionTest`（2）+ `SentinelCompareControllerTest`（4）全通过
+- 真实浏览器：37/37 PASS（四档告警、AI 分析详情、确认→派发、设置落库、API 宕机、WS 轮询降级、角色 403 等）；
+  时相对比新增页面 `scripts/delivery/verify-satellite-page.mjs` **10/10 PASS**（见 SM-19）
 - 干净机器部署演练（A3，2026-11-13）：空库初始化 / 历史库补丁幂等 / nginx `/api`+`/ws` 101 全通；
   修复 4 个全新部署阻断缺陷，见 [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) §9
-- 源码提交：`release/delivery` 分支 + tag `v1.8.0-delivery` + 源码包与 SHA256（见交付日志）
-- 已知待现场确认：声音实际外放、WS 断线重连计时、时相对比页面（见 KNOWN_LIMITATIONS）
-- **上线前仍须完成**：A1 现场人工验收、A4 生产安全配置、A5 备份恢复演练、A6 甲方决策项（见 DELIVERY_BACKLOG）
+- 决策已定（2026-11-13）：**跟随浏览器时区** / **演示材料单独成包** / **允许管理员代签（仅 admin）** / **时相对比必做**；
+  详见 [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md) 〇节与 [DELIVERY_BACKLOG.md](DELIVERY_BACKLOG.md) §I
+- 演示材料包：`output/delivery-materials/DisasterGuard-演示材料包-v1.0.zip`（19 PPTX + 脚本/文档 + MANIFEST + SHA256，UTF-8 条目名，不入库）
+- 值班员一页纸：[OPERATOR_CARD.md](OPERATOR_CARD.md)；时相对比部署配置见 [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) §10
+- 源码提交：`release/delivery` 分支 + tag（见交付日志）；源码包与 SHA256 见 `output/delivery-verify/`
+- 已知待现场确认：声音实际外放、WS 断线重连计时、真机移动端、时相对比真实影像凭证（见 KNOWN_LIMITATIONS / SM-19）
+- **上线前仍须完成**：A1 现场人工验收（真机/听声/彩排）、A4 上线日注入（域名证书/改密/强密钥/审计留存）、A6-3/A6-4 决策（见 DELIVERY_BACKLOG）

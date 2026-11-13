@@ -22,10 +22,11 @@
 | SM-12 | WS 断线自动降级为轮询 | ✅ **真实浏览器通过**（CDP 只阻断 `/ws?*` 端点）：阻断后页面正常加载，创建新预警后经轮询把"活跃"计数刷新并显示新预警标题；截图 `16-ws-blocked-polling.png`（重连计时仍建议现场观察） |
 | SM-13 | 报表导出 | ✅ **接口级通过**：`POST /api/warnings/export`、`/api/devices/export` 均 200 + xlsx（6.3KB / 5.2KB）；页面下载按钮未自动化 |
 | SM-14 | 登出 | ✅ **真实浏览器通过**：用户菜单→退出登录→回到 `/` 且 `disasterguard_token` 清空；截图 `11-after-logout.png` |
-| SM-15 | 会签冒名防护（安全回归，本轮新增） | ✅ 接口级已实测：管理员代签他人 signerId → HTTP 403；多会签人创建成功（2 行同 signId） |
+| SM-15 | 会签冒名防护 + 管理员代签（安全回归） | ✅ 接口级实测：无权限角色冒名 403、多会签人创建成功（2 行同 signId）；**A6-1 决策后** admin 代签放行并写 warn 日志（`SignProxyPermissionTest` 2 用例覆盖 admin 放行 / expert 403） |
 | SM-16 | 系统设置落库（保存 → 刷新仍存在） | ✅ **真实浏览器通过**：设置页保存平台名 → 刷新页面仍从后端读回；后端 `system_setting` 表 + `GET/PUT /api/settings`；截图 `18-settings-persisted.png` |
 | SM-17 | 预警详情页「确认 → 派发」闭环 | ✅ **真实浏览器通过**：详情页点「确认预警」→ 状态"已确认"；点「派发资源」→ 状态"处理中/已发布"；截图 `20-warning-confirm-dispatch.png` |
 | SM-18 | 预警「AI 分析详情」 | ✅ **真实浏览器通过**：4 个区块（AI 研判结论 / 详细分析 / 事发前后指标 / 现场影像）、2 个真实指标序列、3 个影像位（2 张设备 MinIO 影像实际加载）；截图 `21-warning-analysis-detail.png` |
+| SM-19 | 时相对比页面（B1 必做） | ✅ AI 端点链路实测、Java 网关 4 用例、前端 12 用例、**真实浏览器 10/10 PASS**（页面渲染/表单/空态/降级文案/点击后可读错误态/无异常，截图 `satellite-compare-*.png`）；真实影像凭证下的三栏结果仍需现场确认，见下方 SM-19 小节 |
 
 > **自动化执行**：`node scripts/delivery/browser-smoke.mjs`（需先以 `--remote-debugging-port=9222` 启动 Edge/Chrome，
 > 且后端 8080、前端 5173 已运行）。脚本会自动登录、触发红色/橙色/黄色/蓝色预警、保存并回读系统设置、
@@ -272,15 +273,56 @@
    ```
 4. 用 B 的 token 正常确认自己的会签。
 5. 校验数据库中该会签行的 `signer_status`（应为 B 的 CONFIRMED，而不是 A 冒名写入）。
-6. 用 admin token 重复步骤 3（admin 当前未授予 `sign:proxy`）。
+6. 用 admin token 重复步骤 3（**A6-1 决策后 admin 已持有 `sign:proxy`**）。
+7. 用 attendant / expert token 重复步骤 3（未授予 `sign:proxy`）。
 
 **预期**
-- 步骤 3 返回 **HTTP 403**，错误信息「无权操作他人会签：signerId 与当前登录用户不匹配」（`backend/.../event/service/SignService.java:158-174`、`SignController.java:56-69,75-86`）。
+- 步骤 3 / 步骤 7 返回 **HTTP 403**，错误信息「无权操作他人会签：signerId 与当前登录用户不匹配」（`backend/.../event/service/SignService.java:144-174`、`SignController.java:56-86`）。
 - 步骤 4 返回 200；兼容前端「确认时传 username、记录里存 sys_user.id」的历史差异（`SignService.java:176-200`）。
-- 步骤 6 返回 403：管理员代签需显式权限码 `sign:proxy`，当前 `PermissionRegistry` 未授予任何角色，代签默认禁用（`SignService.java:153-157,167-173`）。
+- 步骤 6 返回 **HTTP 200**：管理员代签生效，应用日志出现
+  `管理员代签 signId=… signerId=… operator=admin（持有 sign:proxy）` 的 **warn** 记录。
 - 审计/日志出现 `无权操作他人会签` 的 403 业务异常记录（`GlobalExceptionHandler.handleAppException`）。
 
-**兼容性风险**：若生产环境存在「管理员代签」实际业务，需要权限表 owner 在 `PermissionRegistry` 中为对应角色增加 `sign:proxy` 后再验收；本次未修改该文件（跨工作流 scope）。
+**决策记录（A6-1，2026-11-13）**：按甲方口径「允许管理员代签」，`sign:proxy` 已写入
+`data.sql` 权限种子、前端 `ROLE_PERMISSION_MAP` 与生成的 `PermissionRegistry`，**仅 admin 持有**；
+其余 6 个角色不变。回收时只需从角色权限矩阵移除该码，无需改代码。
+回归单测：`backend/src/test/java/cn/disasterguard/event/service/SignProxyPermissionTest.java`。
+
+---
+
+### SM-19 时相对比（灾前 / 灾后）— B1 必做（2026-11-13 新增）
+
+**入口**：监测与态势 → 时相对比（`/dashboard/satellite-compare`），需 `satellite:view`
+（admin / attendant / emergency-commander 可见；maintenance / system_admin 应被路由守卫拦到 403）。
+
+**自动化已覆盖**
+
+- ai-service 端点链路：`SENTINEL_VERIFY_BASE=http://127.0.0.1:28081/api/ai node scripts/delivery/verify-sentinel-chain.mjs`
+  → compose×2、轮询、diff、三张图片 HTTP 200；实测 `dataSource=mock`、`changePercent=89.41%`、3 个热点。
+- Java 网关：`cd backend && mvn -q "-Dtest=SentinelCompareControllerTest" test`（4 用例：完整链路 +
+  图片 URL 重写 + 二进制代理、非法 bbox 400、上游不可达 502 中文提示、路径穿越 400；AI 未启动自动跳过）。
+- 前端纯函数：`cd frontend && npx vitest run tests/satelliteCompare.spec.js`（12 用例：bbox 脏数据、
+  诚实降级判定、轮询终态/取消/超时）。
+- 代签权限：`mvn -q "-Dtest=SignProxyPermissionTest" test`（2 用例）。
+- **真实浏览器页面**：`node scripts/delivery/verify-satellite-page.mjs`（需 5173 / 8080 / CDP 9222）→
+  2026-11-13 实跑 **10/10 PASS**：路由停留正确、标题渲染、灾害点下拉 10 项、4 个日期控件、
+  空态与诚实降级/时区文案可见、点击「开始对比」后给出可读错误态而非白屏、无未捕获异常与业务控制台错误；
+  截图 `output/delivery-verify/satellite-compare-initial.png`、`satellite-compare-after-submit.png`。
+  > 当次 dev 后端为旧 jar（无本轮网关），因此点击后是「时相对比未完成」错误态——正好验证错误路径；
+  > 部署新 jar 后应由网关返回 `dataSource=mock` 并走降级提示，该场景见下条现场清单。
+
+**现场人工清单（真实浏览器，需录屏/截图）**
+
+1. 进入页面：灾害点下拉有带坐标的数据、AOI 显示正确、空态提示可见。
+2. **未配置真实影像凭证**时点「开始对比」：出现「未取得真实卫星影像」降级说明，
+   **不出现任何演示噪声图或由其计算的假差异图**；控制台无未捕获异常。
+3. 配置 CDSE/GEE 凭证或可访问公开 STAC 后重试：灾前图 / 灾后图 / 差异热力图三栏加载，
+   变化率与 Top 热点列表有值，图片走同源 `/api/ai/sentinel/image/**`（网络面板确认不直连 8001）。
+4. 角色越权：非授权角色直接输旧书签地址 → 403 页；admin 正常进入。
+5. 任务进行中点「取消」：回到空态且无残留轮询请求。
+
+> 口径：没有真实卫星影像属于外部数据源边界（C3 / L-04），不是功能未完成；
+> 演示时按 `DEMO_SCRIPT.md` 兜底话术说明，不得用 mock 图冒充真实对比结果。
 
 ---
 

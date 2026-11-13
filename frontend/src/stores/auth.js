@@ -73,7 +73,7 @@ export const ROLE_MENU_MAP = {
     '/admin/applications',
   ],
   attendant: [
-    '/dashboard', '/dashboard/real-time-map',
+    '/dashboard', '/dashboard/real-time-map', '/dashboard/satellite-compare',
     '/dashboard/ai-tasks', '/dashboard/ai-insight', '/dashboard/ai-results',
     '/dashboard/hazards', '/dashboard/confirmation-workbench', '/dashboard/confirmation-sign',
     '/dashboard/field-inspection', '/dashboard/personnel',
@@ -120,7 +120,7 @@ export const ROLE_MENU_MAP = {
     '/dashboard/todo', '/dashboard/workbench', '/dashboard/help',
   ],
   'emergency-commander': [
-    '/dashboard', '/dashboard/real-time-map',
+    '/dashboard', '/dashboard/real-time-map', '/dashboard/satellite-compare',
     '/dashboard/ai-tasks', '/dashboard/ai-results',
     '/dashboard/disaster-forecast', '/dashboard/damage-assessment',
     '/dashboard/hazards', '/dashboard/confirmation-workbench', '/dashboard/confirmation-sign',
@@ -181,6 +181,12 @@ export const ROLE_PERMISSION_MAP = {
     'backup:view','backup:manage',
     'plans:view','plans:edit','plans:launch',
     'reports:view','reports:create','reports:delete',
+    // A6-1 决策（2026-11-13）：允许管理员代签。SignService 只对持有此码的角色放行他人会签，
+    // 且每次代签都会写 warn 审计日志；其余角色一律保持默认拒绝。
+    'sign:proxy',
+    // B1 时相对比页面（恢复路由 /dashboard/satellite-compare）专用权限码，
+    // data.sql 中已存在定义，这里补进运行时权限表，避免页面被方法级鉴权挡住。
+    'satellite:view',
   ],
   attendant: [
     'overview:view','overview:export','map:view','map:edit','zone:view',
@@ -204,6 +210,7 @@ export const ROLE_PERMISSION_MAP = {
     'tasks:view','tasks:create','tasks:edit','tasks:export',
     'plans:view',
     'reports:view',
+    'satellite:view',
   ],
   expert: [
     'overview:view','zone:view',
@@ -278,6 +285,7 @@ export const ROLE_PERMISSION_MAP = {
     'tasks:view',
     'plans:view','plans:edit','plans:launch',
     'reports:view',
+    'satellite:view',
   ],
   'ai-engineer': [
     'overview:view','analytics:view',
@@ -319,9 +327,10 @@ const FRAMEWORK_PATHS = [
 // 它们从来不属于角色菜单；收紧 /dashboard 根节点的前缀放行后，旧书签/旧链接
 // 会被守卫判成「无权限」跳 403，而不是按路由表 redirect 到新页面（R8 回归）。
 // 放行别名本身不扩大权限：redirect 落地后的目标页面会再过一次同样的守卫判断。
+// B1（2026-11-13）：satellite-compare 已是真实页面，从别名表移除，
+// 改由 ROLE_MENU_MAP 按角色放行，避免未授权角色绕过菜单直达页面。
 const LEGACY_REDIRECT_PATHS = [
   '/dashboard/history-hazards',
-  '/dashboard/satellite-compare',
   '/dashboard/warning-config',
   '/dashboard/reports',
   '/dashboard/backup-recovery',

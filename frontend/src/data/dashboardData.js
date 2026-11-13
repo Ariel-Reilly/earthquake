@@ -27,8 +27,9 @@ export const dashboardMenu = [
   { path: '/dashboard',                      label: '综合态势大屏', icon: 'LayoutDashboard', group: 'monitor', order: 1 },
   { path: '/dashboard/real-time-map',        label: '实时监测地图', icon: 'Map',             group: 'monitor', order: 2 },
   { path: '/dashboard/zone',                 label: '区域专项',     icon: 'Landmark',        group: 'monitor', order: 3 },
-  // 2026-11 移除「时相对比」(/dashboard/satellite-compare)：路由只是 redirect 到实时监测地图，
-  // 没有页面实现，属于「点了等于没点」的假入口。旧地址的 redirect 仍保留，书签不会 404。
+  // B1（2026-11-13）：时相对比已实现独立页面，菜单恢复真实入口；
+  // 可见性由 stores/auth.js 的 ROLE_MENU_MAP + satellite:view 权限码共同控制。
+  { path: '/dashboard/satellite-compare',    label: '时相对比',     icon: 'Satellite',       group: 'monitor', order: 4, badge: 'NEW' },
   { path: '/dashboard/weather',              label: '气象分析',     icon: 'CloudRain',       group: 'monitor', order: 5 },
 
   // ── 灾害研判 ──────────────────────────────────────────────────
@@ -92,6 +93,7 @@ export const dashboardMenu = [
 export const moduleMeta = {
   '/dashboard':                        { title: '综合态势大屏' },
   '/dashboard/real-time-map':          { title: '实时监测地图' },
+  '/dashboard/satellite-compare':      { title: '时相对比（灾前 / 灾后）' },
   '/dashboard/ai-tasks':               { title: 'AI 巡检任务' },
   '/dashboard/ai-results':             { title: 'AI 推理结果' },
   '/dashboard/ai-insight':             { title: 'AI 综合研判' },

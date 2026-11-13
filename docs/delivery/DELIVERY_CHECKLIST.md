@@ -35,13 +35,17 @@
 | WS 直连 + Vite `/ws` 代理握手 | ✅ 直连 Open；代理 101 Switching Protocols |
 | **WS 预警广播** | ✅ 创建预警后收到 `type=warning`（修复 JavaTimeModule 后） |
 | WS 断线降级轮询 | ✅ 阻断 `/ws?*` 后页面仍加载，新建预警经轮询刷新"活跃"计数与列表 |
-| 会签多人 + 冒名防护 | ✅ 2 行同 signId 成功；代签他人 403（需 `sign:proxy`，当前未授予任何角色） |
+| 会签多人 + 冒名防护 | ✅ 2 行同 signId 成功；**A6-1 决策后**：admin 持有 `sign:proxy` 可代签并写 warn 审计日志，其余角色代签仍 403（`SignProxyPermissionTest`） |
 | AI 链路 | ✅ 综合评分 9 条、设备健康 16 条；多模态 501（设计边界）；四档颜色与 80/60/35 阈值一致 |
 | 审计日志筛选 | ✅ 全量 1405 条，`action=LOGIN&range=7` 过滤后 68 条，服务端真实过滤 |
 | 报表导出 | ✅ `POST /api/warnings/export`、`/api/devices/export` 200 + xlsx |
 | **系统设置落库** | ✅ `system_setting` 表 + `GET/PUT /api/settings`；浏览器保存→刷新仍存在（SM-16） |
 | **预警 AI 分析详情** | ✅ `GET /api/warnings/{id}/analysis-detail`：AI 结论 / 详细分析 / 事发前后 ±2h 指标 / 现场影像（SM-18） |
 | 对比度/可访问性 | ✅ 审计"确定问题" 5→2（剩余 2 处经核对为脚本跨文件解析误报）；关键纯图标按钮补 aria-label |
+| **时相对比页面（B1，必做）** | ✅ 独立页面 + Java 网关 + 菜单/路由/权限；ai-service compose×2 / diff / 图片实测通过；**真实浏览器 10/10 PASS**；无真实影像时只提示降级、不展示假图（SM-19） |
+| **管理员代签（A6-1）** | ✅ `sign:proxy` 仅 admin；`SignProxyPermissionTest` 覆盖 admin 放行与 expert 403；每次代签写 warn 审计 |
+| **演示材料归属（A2-2）** | ✅ 单独材料包（19 PPTX + 5 文档 + MANIFEST + SHA256，UTF-8 条目名），不入库 |
+| **时间显示口径（A6-5）** | ✅ 决策跟随浏览器本地时区，无需改码；已写入 L-15 与 `OPERATOR_CARD.md` |
 
 ## 四、真实浏览器端到端（CDP 自动化）
 

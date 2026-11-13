@@ -48,7 +48,7 @@ public final class PermissionRegistry {
           "tasks:view", "tasks:create", "tasks:edit", "tasks:delete",
           "tasks:export", "backup:view", "backup:manage", "plans:view",
           "plans:edit", "plans:launch", "reports:view", "reports:create",
-          "reports:delete"
+          "reports:delete", "sign:proxy", "satellite:view"
       ),
       "attendant", Set.of(
           "overview:view", "overview:export", "map:view", "map:edit",
@@ -64,7 +64,8 @@ public final class PermissionRegistry {
           "approval:initiate", "messages:view", "todo:view", "settings:view",
           "route:view", "route:export", "sign:view", "sign:create",
           "profile:view", "profile:edit", "tasks:view", "tasks:create",
-          "tasks:edit", "tasks:export", "plans:view", "reports:view"
+          "tasks:edit", "tasks:export", "plans:view", "reports:view",
+          "satellite:view"
       ),
       "expert", Set.of(
           "overview:view", "zone:view", "hazards:view", "hazards:create",
@@ -112,7 +113,7 @@ public final class PermissionRegistry {
           "devices:view", "approval:view", "approval:approve", "approval:reject",
           "analytics:view", "analytics:export", "profile:view", "profile:edit",
           "tasks:view", "plans:view", "plans:edit", "plans:launch",
-          "reports:view"
+          "reports:view", "satellite:view"
       ),
       "ai_engineer", Set.of(
           "overview:view", "analytics:view", "ai:task:view", "ai:task:create",

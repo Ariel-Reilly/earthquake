@@ -40,6 +40,9 @@ const SettingsPage = () =>
   import(/* webpackChunkName: "settings" */ "../views/settings/SettingsPage.vue");
 const AiInsightPage = () =>
   import(/* webpackChunkName: "ai" */ "../views/ai/AiInsightPage.vue");
+// B1（2026-11-13）：时相对比恢复为独立页面，不再 redirect 到实时地图。
+const SatelliteComparePage = () =>
+  import(/* webpackChunkName: "ai" */ "../views/ai/SatelliteComparePage.vue");
 const RealTimeMapPage = () =>
   import(/* webpackChunkName: "monitor" */ "../views/monitor/RealTimeMapPage.vue");
 const AiTaskManagePage = () =>
@@ -349,7 +352,8 @@ const router = createRouter({
         { path: "analytics", name: "analytics", component: AnalyticsPage },
         // 以下路由已废弃，重定向到新地址
         { path: "history-hazards", redirect: "/dashboard/analytics" },
-        { path: "satellite-compare", redirect: "/dashboard/real-time-map" },
+        // B1：时相对比页面已实现（见 views/ai/SatelliteComparePage.vue），旧地址直达真实页面。
+        { path: "satellite-compare", name: "satellite-compare", component: SatelliteComparePage },
         { path: "warning-config", redirect: "/dashboard/warnings" },
         // R7：社交媒体舆情页从未实现；菜单已撤下，旧 redirect 会把人带到无关的隐患列表，一并移除。
         { path: "reports", redirect: "/dashboard/analytics" },

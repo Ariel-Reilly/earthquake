@@ -118,11 +118,11 @@ describe('角色判断', () => {
   })
 
   it('历史重定向别名对所有角色可达（R8 回归），但不放大目标页面权限', () => {
-    // router/index.js 里 6 个 /dashboard/<alias> -> 真实页面的 redirect 不属于任何角色菜单。
+    // router/index.js 里 5 个 /dashboard/<alias> -> 真实页面的 redirect 不属于任何角色菜单。
     // 收紧 /dashboard 根节点后，若不显式放行，旧链接会 403 而不是 redirect。
+    // B1（2026-11-13）：satellite-compare 已恢复为真实页面，不再是别名，见下一条用例。
     const aliases = [
       '/dashboard/history-hazards',
-      '/dashboard/satellite-compare',
       '/dashboard/warning-config',
       '/dashboard/reports',
       '/dashboard/backup-recovery',
@@ -134,5 +134,15 @@ describe('角色判断', () => {
     })
     // 别名只是 redirect 入口；redirect 落地后的目标页仍按各自菜单判断
     expect(canAccessPath('maintenance', '/dashboard/user-management')).toBe(false)
+  })
+
+  it('时相对比页面按角色菜单放行（B1 权限回归）', () => {
+    // 真实页面不能沿用「历史别名对所有角色放行」的宽松规则，
+    // 否则未授权角色可从旧书签绕过菜单直达页面。
+    expect(canAccessPath('admin', '/dashboard/satellite-compare')).toBe(true)
+    expect(canAccessPath('attendant', '/dashboard/satellite-compare')).toBe(true)
+    expect(canAccessPath('emergency_commander', '/dashboard/satellite-compare')).toBe(true)
+    expect(canAccessPath('maintenance', '/dashboard/satellite-compare')).toBe(false)
+    expect(canAccessPath('system_admin', '/dashboard/satellite-compare')).toBe(false)
   })
 })

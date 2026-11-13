@@ -16,7 +16,7 @@ import {
   CloudRain, Cpu, Database, FileBarChart, FileText, FileWarning, Flame,
   GitBranch, HardDrive, HardHat, HelpCircle, History, Inbox, Landmark, Layers,
   LayoutDashboard, LayoutList, ListChecks, Map as MapIcon, MapPin, MessageCircle,
-  MountainSnow, Package, Radar, Radio, Route, ScrollText, Settings, ShieldAlert,
+  MountainSnow, Package, Radar, Radio, Route, Satellite, ScrollText, Settings, ShieldAlert,
   ShieldCheck, Siren, Sparkles, UserCheck, UserCircle, Users,
 } from 'lucide-vue-next'
 
@@ -50,7 +50,7 @@ const iconMap = {
   CloudRain, Cpu, Database, FileBarChart, FileText, FileWarning, Flame,
   GitBranch, HardDrive, HardHat, HelpCircle, History, Inbox, Landmark, Layers,
   LayoutDashboard, LayoutList, ListChecks, Map: MapIcon, MapPin, MessageCircle,
-  MountainSnow, Package, Radar, Radio, Route, ScrollText, Settings, ShieldAlert,
+  MountainSnow, Package, Radar, Radio, Route, Satellite, ScrollText, Settings, ShieldAlert,
   ShieldCheck, Siren, Sparkles, UserCheck, UserCircle, Users,
 }
 

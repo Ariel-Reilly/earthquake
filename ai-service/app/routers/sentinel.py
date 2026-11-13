@@ -302,8 +302,8 @@ async def _run_compose(job_id: str, req: SentinelComposeRequest):
                         + ("S1 搜索完成" if s1_scene else "无 S1 场景")
             )
 
-        # Step 2: 下载 S2 B4/B3/B2 波段 → 合成真彩 PNG
-        s2_url = await _compose_s2_truecolor(s2_scene, req.bbox, job_id)
+        # Step 2: 下载 S2 B4/B3/B2 波段 → 合成真彩 PNG（同时返回是否真实影像）
+        s2_url, s2_real = await _compose_s2_truecolor(s2_scene, req.bbox, job_id)
 
         sar_url = None
         if req.sar_overlay and s1_scene:
@@ -314,7 +314,10 @@ async def _run_compose(job_id: str, req: SentinelComposeRequest):
 
         # Step 4: 上传结果到 CDN / 存储，返回 URL
         await _update_job_async(job_id, progress=85, message="正在生成合成结果 URL…")
-        result = _build_result_urls(s2_url, sar_url, req, job_id)
+        result = _build_result_urls(
+            s2_url, sar_url, req, job_id,
+            s2_real=s2_real, scene_id=str(s2_scene.get("id", "")),
+        )
 
         await _update_job_async(job_id, progress=100, status=JobStatus.SUCCEEDED.value, message="合成完成", result=result)
 
@@ -563,7 +566,7 @@ async def _try_download_real_asset(
 
 
 # S2 真彩合成
-async def _compose_s2_truecolor(s2_scene: Dict, bbox: List[float], job_id: str) -> str:
+async def _compose_s2_truecolor(s2_scene: Dict, bbox: List[float], job_id: str) -> Tuple[str, bool]:
     """
     真彩合成实现(v1.9.2 重写):
       - mock scene / 无 assets  → PIL 随机噪声(原行为)
@@ -581,6 +584,10 @@ async def _compose_s2_truecolor(s2_scene: Dict, bbox: List[float], job_id: str) 
       - Earth Search AWS / USGS 等公开 STAC 源无需任何凭证
       - 仅 CDSE scene (id 含 dataspace.copernicus.eu) 才需要 Bearer
       - 因此"未配置 CDSE 凭证"**不应该**降级到 mock,只要 scene 是真的就尝试下载
+
+    Returns:
+        (图片 URL, 是否来自真实卫星 scene 的下载数据)。第二个值用于
+        B1 时相对比页的"诚实降级"：拿不到真实影像时 UI 只提示，不展示假差异图。
     """
     assets = s2_scene.get("assets", {})
     is_mock_scene = (
@@ -588,7 +595,7 @@ async def _compose_s2_truecolor(s2_scene: Dict, bbox: List[float], job_id: str) 
     ).startswith("MOCK:") or not assets
 
     if is_mock_scene:
-        return await _generate_mock_s2_image(bbox, job_id)
+        return await _generate_mock_s2_image(bbox, job_id), False
 
     real_url = await _try_download_real_asset(
         s2_scene,
@@ -597,13 +604,13 @@ async def _compose_s2_truecolor(s2_scene: Dict, bbox: List[float], job_id: str) 
         kind="s2_truecolor",
     )
     if real_url:
-        return real_url
+        return real_url, True
 
     LOG.warning(
         "S2 scene %s 所有可下载 asset 均失败,降级 mock(可能是 CDSE 鉴权或网络问题)",
         s2_scene.get("id", "?"),
     )
-    return await _generate_mock_s2_image(bbox, job_id)
+    return await _generate_mock_s2_image(bbox, job_id), False
 
 
 async def _generate_mock_s2_image(bbox: List[float], job_id: str) -> str:
@@ -705,11 +712,24 @@ async def _generate_mock_sar_image(bbox: List[float], job_id: str) -> Optional[s
 
 
 # 结果 URL 构建
-def _build_result_urls(s2_url: Optional[str], sar_url: Optional[str], req: SentinelComposeRequest, job_id: str) -> Dict:
+def _build_result_urls(
+    s2_url: Optional[str],
+    sar_url: Optional[str],
+    req: SentinelComposeRequest,
+    job_id: str,
+    *,
+    s2_real: bool = False,
+    scene_id: str = "",
+) -> Dict:
+    # B1-4 诚实降级：把"这张图到底是不是真实卫星影像"显式返回给调用方。
+    # 旧实现只给 URL，前端无法区分真实 thumbnail 与 PIL 随机噪声生成的演示图，
+    # 时相对比页据此决定是否展示差异热力图（mock 一律不展示假差异）。
     return {
         "s2Url": s2_url,
         "sarUrl": sar_url,
         "provider": req.provider,
+        "dataSource": "real" if s2_real else "mock",
+        "sceneId": scene_id,
         "bbox": req.bbox,
         "expiresAt": (datetime.now(timezone.utc) + timedelta(hours=24)).isoformat(),
         "meta": {

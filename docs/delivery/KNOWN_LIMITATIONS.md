@@ -33,6 +33,19 @@
 
 > 修复后空库首启 0 ERROR、`rule` 表 6 条、`WarningCreateService` 按真实指标自动产出预警。
 
+### 2026-11-13 决策落地补修（A2-2 / A6-1 / A6-2 / A6-5 / B1 / B7）
+
+| 原问题 / 决策 | 处理结果 | 证据 |
+|---|---|---|
+| A6-1 管理员代签默认禁用 | 决策「允许管理员代签」：`sign:proxy` 仅授予 admin，其余角色仍 403；每次代签写 warn 审计日志 | `data.sql` 权限码 93；`frontend/src/stores/auth.js`；`PermissionRegistry.java`；`SignProxyPermissionTest` |
+| A6-2 / B1 时相对比页面缺失（原 L-05） | 决策「必做」：新增独立页面、Java 网关代理、菜单/路由/权限；无真实影像时只提示降级、不展示假图 | `SatelliteComparePage.vue`、`SentinelCompareController.java`、`satelliteCompareApi.js`；`ACCEPTANCE_LOG` §三十 |
+| A6-5 时间显示口径 | 决策「跟随浏览器时区」，不做代码改动；服务端 `TZ=Asia/Shanghai` 仅用于日志/调度 | 本文件 L-15；`OPERATOR_CARD.md` §1 |
+| A2-2 演示材料归属 | 决策「单独材料包」：19 个 PPTX + 演示脚本 + 交付文档单独打包，**不入库** | `output/delivery-materials/…zip`（含 `MANIFEST.md` + SHA256） |
+| B7-3 值班员操作材料 | 新增一页纸操作卡（登录/预警处置/分析详情/代签/时相对比/时区） | `docs/delivery/OPERATOR_CARD.md` |
+
+> 时相对比仍受外部影像源约束：**没有 CDSE/GEE 凭证或可访问的公开 STAC 源时，页面只显示降级提示**，
+> 这不是功能未完成，而是刻意的诚实边界（对应 C3 / L-04）。
+
 ---
 
 ## 一、AI 能力边界
@@ -70,12 +83,12 @@
 
 ## 二、功能完整性边界
 
-### L-05 时相对比（灾前/灾后）没有独立页面
+### L-05 时相对比（灾前/灾后）— 本轮已实现，剩余外部数据源边界
 
-- **现状**：`/dashboard/satellite-compare` 路由直接重定向到实时地图，仓库中**没有**独立的时相对比页面组件；对比能力只存在于 ai-service 的 `/api/ai/sentinel/compose`、`/api/ai/sentinel/diff` 接口与一个手工测试脚本。
-- **证据**：`frontend/src/router/index.js:352`（`{ path: "satellite-compare", redirect: "/dashboard/real-time-map" }`）；`frontend/src/views` 下无卫星对比页；`frontend/tests/test_satellite_diff.py`。
-- **影响**：甲方无法在 UI 上完成"选两期影像 → 计算差异 → 查看热点"的完整操作；只能通过 API/脚本演示。
-- **待确认**：是否列为交付必做项（如需，UI 工作量约 2-3 人日）。
+- **决策**：A6-2「时相对比必做」（2026-11-13），B1 已关闭；不再是 redirect 占位。
+- **现状**：`/dashboard/satellite-compare` 指向 `SatelliteComparePage.vue`（选灾害点/手填 AOI → 两期合成 → 差异热力图 + 变化率 + Top 热点）；前端统一走 Java 网关 `/api/ai/sentinel/**`（JWT + `satellite:view`），不再直连 ai-service 8001；图片由网关代理为同源地址。
+- **证据**：`frontend/src/views/ai/SatelliteComparePage.vue`、`frontend/src/services/satelliteCompareApi.js`、`backend/.../ai/SentinelCompareController.java`、`frontend/src/router/index.js`、`frontend/src/data/dashboardData.js`；`SentinelCompareControllerTest`、`scripts/delivery/verify-sentinel-chain.mjs`。
+- **剩余边界（非缺陷）**：真实卫星影像仍需 CDSE/GEE 凭证或可访问的公开 STAC 源（见 C3 / L-04）。无真实影像时 ai-service 明确返回 `dataSource=mock`，页面**只显示降级原因、不提交差异任务、不展示假图**（B1-4）。
 
 ### L-06「我的工作台」曾为占位页（本轮已修复）
 
@@ -144,12 +157,12 @@
    - 确认按钮传的却是 `operator.name`（username，`ConfirmationSignPage.vue:356-361`）。
    - **缓解**：本次后端已兼容两种写法（`SignService.java:144-200`），但建议前端统一为 userId，避免歧义（前端页面属其他工作流 scope，本次未改）。
 
-### L-12 会签管理员代签默认禁用（安全收紧的有意结果）
+### L-12 会签管理员代签 — 本轮按决策开启（仅 admin）
 
-- **现状**：确认/驳回必须 `signerId` 属于当前登录用户，管理员代签需权限码 `sign:proxy`；`PermissionRegistry` 当前未给任何角色授予该码，因此代签不可用。
-- **证据**：`backend/src/main/java/cn/disasterguard/event/service/SignService.java:144-174`、`backend/src/main/java/cn/disasterguard/event/SignController.java:56-69,75-86`、`backend/src/main/java/cn/disasterguard/common/security/PermissionRegistry.java`（无 `sign:proxy`）。
-- **影响**：若甲方现场存在"管理员替专家确认"的既有流程，会得到 403。
-- **待确认**：是否需要为指定角色开启 `sign:proxy`（需改 `PermissionRegistry`，属跨工作流 scope；开启后每一次代签都会写 warn 日志）。
+- **决策**：A6-1「允许管理员代签」（2026-11-13）。`sign:proxy` 已写入权限种子并由生成脚本同步到 `PermissionRegistry`，**只授予 admin**；其余 6 个角色仍默认拒绝。
+- **证据**：`backend/src/main/resources/data.sql`（权限码 93）、`frontend/src/stores/auth.js`、`backend/.../common/security/PermissionRegistry.java`、`backend/src/test/java/.../SignProxyPermissionTest.java`（2 用例：admin 放行 / expert 仍 403）。
+- **审计**：`SignService.assertCanActOn` 在每次代签时写 `warn` 日志（含 signId / signerId / operator），冒名防护对无权限角色未削弱。
+- **运维提示**：该权限可在角色权限矩阵中回收；回收后所有代签立即回到 403，无需改代码。
 
 ### L-13 前端 lint 存量（本轮已清零）
 
@@ -171,7 +184,8 @@
 ### L-15 时区/编码约定
 
 - 服务默认 `TZ=Asia/Shanghai`（根 `.env.example`、`docker-compose.yml`）；时间字段后端用 `OffsetDateTime`（UTC+偏移）落库，前端按本地时区展示（如 `frontend/src/views/system/AuditLogPage.vue:123`、`frontend/src/views/monitor/WeatherPage.vue:216` 的 `toLocaleString('zh-CN', { hour12: false })`）。
-- **待确认**：若甲方要求固定显示北京时间（而非浏览器本地时区），需统一格式化工具。
+- **决策已定（A6-5，2026-11-13）：跟随浏览器本地时区**，不再统一固定北京时间，**不做代码改动**（B7-2 因条件不满足而关闭）。服务端 `TZ=Asia/Shanghai` 继续用于日志与调度，与前端展示口径互不冲突。
+- **现场提示**：演示/值班前确认浏览器所在机器的时区与系统时间；见 `OPERATOR_CARD.md` §1、§6。
 
 ### L-16 地图/外部服务合规
 

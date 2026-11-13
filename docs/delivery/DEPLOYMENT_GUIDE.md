@@ -271,3 +271,61 @@ docker compose -f scripts/delivery/compose.delivery-verify.yml --profile fronten
 - 演练关闭了 AI（8001）与 EMQX；HTTPS、域名、CSP、真实密钥未纳入，属 A4 生产配置，仍待现场执行。
 - nginx 反代用 HTTP 请求实测，未跑真实浏览器页面；页面级 37 项浏览器冒烟结果另见 `SMOKE_TEST.md`。
 - 演练用临时命名卷，结束后 `down -v` 清理，不影响开发库。
+
+---
+
+## 10. 时相对比（B1）部署与配置（2026-11-13 新增）
+
+### 10.1 链路与端口
+
+```
+浏览器 → /api/ai/sentinel/**（同源，带 JWT）
+       → nginx location /api/ → backend:8080
+       → Java 网关 SentinelCompareController（satellite:view 权限）
+       → ai-service:8001 /api/ai/sentinel/*（仅内网，不暴露公网）
+图片   → /api/ai/sentinel/image/{filename} → 后端代理 ai-service /sentinel_files/{filename}
+```
+
+- **不要**给该页面复用 nginx 的 `/ai-service/api/ai/` 前缀：那条链路无 JWT 校验（见 C5），
+  且合成图 URL 是 `http://localhost:8001/sentinel_files/...` 或 `file://...`，生产不可达（C3）。
+  新页面整条链路走 `/api/`，nginx 无需新增 location。
+- 前端**不用** `<img src>` 直接取图：浏览器不会自动带 Authorization 头，会被 401。
+  页面用带 JWT 的 `fetch` 取 blob 再转 object URL（`fetchImageObjectUrl`），CSP 允许 `blob:`。
+
+### 10.2 环境变量
+
+| 变量 | 服务 | 说明 |
+|---|---|---|
+| `AI_SERVICE_BASE_URL` | backend | 默认 `http://localhost:8001/api/ai`；prod compose 注入 `http://ai-service:8001/api/ai`。网关同时用它推导图片 origin |
+| `SENTINEL_CDN_BASE` | ai-service | 合成图 URL 前缀；未设置时 main.py 设 `http://localhost:8001/sentinel_files`（网关会重写成同源地址） |
+| `SENTINEL_STORAGE_DIR` | ai-service | 合成图落盘目录，需持久化或挂 volume，否则重启后历史任务图片 404 |
+| `SENTINEL_ALLOWED_HOSTS` | ai-service | diff 直传图片 URL 的主机白名单，默认仅本机/MinIO |
+| CDSE / GEE 凭证 | ai-service | 真实卫星影像必需，配置见 `docs/CDSE_SETUP.md` |
+
+### 10.3 权限与降级口径
+
+- `satellite:view` 已在权限种子与运行时注册表注册，授予 admin / attendant / emergency_commander；
+  其余角色菜单不可见、接口被 `@PreAuthorize` 拒绝。改角色权限矩阵即可调整，无需改代码。
+- **没有真实影像凭证时页面只显示降级原因**（`dataSource=mock`），不提交差异任务、不展示演示噪声图或假热力图。
+  这是刻意边界，不能通过"强制 mock 模式出图"绕过。
+
+### 10.4 部署后自检
+
+```bash
+# ① ai-service 端点链路（把地址换成实际 ai-service）
+SENTINEL_VERIFY_BASE=http://127.0.0.1:8001/api/ai \
+  node scripts/delivery/verify-sentinel-chain.mjs
+
+# ② Java 网关（需 ai-service 可达；不可达时自动跳过）
+cd backend && mvn -q "-Dtest=SentinelCompareControllerTest" test
+
+# ③ 前端纯函数
+cd frontend && npx vitest run tests/satelliteCompare.spec.js
+
+# ④ 真实浏览器页面（需 5173 / 8080 / Edge CDP 9222）
+node scripts/delivery/verify-satellite-page.mjs
+```
+
+浏览器现场清单见 `SMOKE_TEST.md` 的 SM-19 小节（含空态、降级、越权、取消）。
+④ 在 2026-11-13 实跑 10/10 PASS；若后端仍是未部署本轮网关的旧 jar，点击「开始对比」会显示
+「时相对比未完成」错误态（预期），部署新 jar 后应走 `dataSource=mock` 的降级提示。

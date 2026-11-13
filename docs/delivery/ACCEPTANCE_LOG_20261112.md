@@ -468,3 +468,64 @@ B/C 类 P1/P2 项未纳入本轮。**演示可用 ≠ 试运行上线条件已�
 
 - 前端：eslint 0 / vitest 44 / build 成功；后端：`mvn compile` 通过、新增单测通过；
 - 设置接口运行时复验：GET/PUT/回读 code=0，18 个白名单字段返回正常。
+
+---
+
+## 三十、A2-2 / A6 / B1 / B7 决策落地（2026-11-13）
+
+### 30.1 甲方/项目经理口径（本轮输入）
+
+| 决策 | 结论 | 动作 |
+|---|---|---|
+| A6-5 / B7-2 时间显示 | **跟随浏览器时区** | 不改代码；写入 L-15、操作卡 §1/§6；B7-2 因条件不满足关闭 |
+| A2-2 演示材料归属 | **单独材料包** | 19 PPTX + 演示脚本 + 5 份文档打包，不入库 |
+| A6-1 / B2-3 管理员代签 | **允许** | `sign:proxy` 仅授予 admin，其余角色不变 |
+| A6-2 / B1 时相对比 | **必做** | 完整实现页面 + 网关 + 菜单/路由/权限 + 诚实降级 |
+
+### 30.2 代码/脚本变更
+
+| 文件 | 变更 |
+|---|---|
+| `frontend/src/stores/auth.js` | admin 加 `sign:proxy`；admin/attendant/emergency-commander 加 `satellite:view`；attendant/emergency-commander 菜单加时相对比；从 LEGACY_REDIRECT_PATHS 移除该路径（不再对所有角色放行） |
+| `backend/.../PermissionRegistry.java` | 由 `scripts/fix/sync-permission-registry.mjs` 从前端重新生成（7 角色，admin 123 项） |
+| `backend/src/main/resources/data.sql` | 新增权限码 93 `sign:proxy`（admin 全量关联自动获得） |
+| `backend/.../ai/SentinelCompareController.java`（新增） | 网关代理 compose / jobs / cancel / diff / diff-jobs / image；URL 重写、可读错误码、文件名白名单 |
+| `ai-service/app/routers/sentinel.py` | compose result 新增 `dataSource` / `sceneId`；真实 thumbnail 与 PIL 演示图显式区分（B1-4） |
+| `frontend/src/services/satelliteCompareApi.js` + `satelliteCompareUtils.js`（新增） | 带 JWT 的 API 客户端、轮询、blob 取图；纯函数拆出便于单测 |
+| `frontend/src/views/ai/SatelliteComparePage.vue`（新增） | 选灾害点/手填 AOI、两期时间窗、进度、三栏影像、变化率/热点、降级/错误/空态、取消 |
+| `frontend/src/router/index.js` / `data/dashboardData.js` / `components/layout/SidebarNav.vue` | 恢复真实路由、菜单、moduleMeta、Satellite 图标 |
+| `scripts/delivery/verify-sentinel-chain.mjs`、`pack-demo-materials.py`（新增） | 可复现的 AI 链路验收与 UTF-8 材料包打包脚本 |
+| 测试 | `SignProxyPermissionTest`（2）、`SentinelCompareControllerTest`（4）、`frontend/tests/satelliteCompare.spec.js`（12）、`auth.spec.js` 新增权限回归（1） |
+
+### 30.3 实测证据
+
+- **前端**：`npx vitest run` → **57 passed / 5 files**；新增 12 例覆盖 bbox 脏数据、`isRealImageJob` 诚实降级、轮询终态/取消/超时；`auth.spec.js` 新增时相对比角色放行断言。
+- **后端**：`mvn -q "-Dtest=SignProxyPermissionTest,SentinelCompareControllerTest" test` → **6/6 通过**（surefire 报告 0 failure / 0 error）。
+  `SignProxyPermissionTest` 反射调用 `SignService.assertCanActOn` 真实执行判定：admin 代签放行、expert 仍 403；
+  `SentinelCompareControllerTest` 通过 standalone MockMvc **真实调用** 28081 ai-service，验证 URL 重写、图片代理（image/png >1000 B）、非法 bbox 400、上游 502 中文提示、路径穿越 400。
+- **AI 链路**：`scripts/delivery/verify-sentinel-chain.mjs` 实跑 → compose×2 succeeded、`dataSource=mock`、
+  灾前/灾后影像 HTTP 200（781,225 / 781,322 B）、diff succeeded、`changePercent=89.41%`、3 个热点、热力图 135,500 B。
+- **真实浏览器页面**：`node scripts/delivery/verify-satellite-page.mjs`（Edge headless CDP）→
+  **10/10 PASS**：路由、标题、灾害点下拉（10 项）、4 个日期控件、空态、诚实降级与时区文案、
+  点击后可读错误态、无未捕获异常/业务控制台错误；截图 `output/delivery-verify/satellite-compare-*.png`。
+  当次 dev 后端为旧 jar（无新网关），点击后得到「时相对比未完成」错误态，属预期错误路径验证。
+- **前端构建/门禁**：eslint 0 error、vitest 57 passed、SFC 98/98、令牌 0 问题、`vite build` 9.03s 成功；
+  后端 `mvn -q -DskipTests compile/package` 通过，新增 6 用例全过。
+- **材料包**：`output/delivery-materials/DisasterGuard-演示材料包-v1.0.zip`（26 文件 / 19 PPTX，
+  约 324 MB），SHA256 与 `sha256sum -c` 复验结果以同目录
+  `DisasterGuard-演示材料包-v1.0.zip.sha256` 为准（包内 `MANIFEST.md` 说明校验方式）；
+  Python `zipfile` 写入并置 UTF-8 标志位 0x800，中文条目名经 `zipfile.namelist()` 复核正确。
+- **文档**：backlog §I、checklist、SMOKE_TEST SM-15/SM-19、KNOWN_LIMITATIONS 〇/L-05/L-12/L-15、README、DEPLOYMENT_GUIDE §10、OPERATOR_CARD.md。
+
+### 30.4 边界（诚实说明）
+
+- 本轮**未启动完整新后端实例做「浏览器 → 新网关 → AI」端到端联调**：启动验证实例时环境凭据审批被拦，
+  未绕过；改为「真实浏览器页面渲染（旧后端，错误态路径）+ 网关单测真实调用 ai-service + AI 端点脚本实测
+  + 前端纯函数单测」四段覆盖。SM-19 已列出剩余现场清单（真实影像/越权/取消），仍需部署新 jar 后执行。
+- **全量 `mvn test` 的既有环境依赖**：130 用例中 12 个 `@SpringBootTest` 上下文用例因测试环境没有
+  数据库凭据报错（`PSQLException: password authentication failed for user "disasterguard"`），
+  与本轮改动无关（本轮新增 6 用例及全部纯 Mockito 单测均通过）；交付构建门禁按既有口径使用
+  `mvn -DskipTests package` + 指定单测。此为既有测试环境缺口，已如实留档，不计入本轮通过数。
+- 真实卫星影像仍依赖 CDSE/GEE 凭证或公开 STAC 源（C3 / L-04）；无凭证时页面只提示降级，不展示假差异图。
+- A1（听声/真机/按钮点检/彩排）、A4 上线日注入、A6-3 演示数据水印、A6-4 地图合规 Key 仍待现场/上线日；
+  B3/B4-3/B5-1/B5-4/B5-5/B6/B7-1 与 C 类保持原状态。
