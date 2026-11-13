@@ -331,7 +331,11 @@ onMounted(loadApplications)
 </template>
 
 <style scoped>
-.app-shell { display: flex; flex-direction: column; gap: 14px; }
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
 
 .page-header {
   display: flex;
@@ -352,8 +356,17 @@ onMounted(loadApplications)
   color: var(--c-scrim);
   font-size: 16px;
 }
-.page-header p { margin: 0; color: var(--c-text-3); font-size: 12px; }
-.actions { display: flex; gap: 8px; }
+
+.page-header p {
+  margin: 0;
+  color: var(--c-text-3);
+  font-size: 12px;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
 
 .op-btn {
   display: inline-flex;
@@ -366,10 +379,19 @@ onMounted(loadApplications)
   color: var(--c-ink-1);
   font-size: 12px;
   cursor: pointer;
-  transition: background 0.18s, opacity 0.18s;
+  transition:
+    background 0.18s,
+    opacity 0.18s;
 }
-.op-btn:hover:not(:disabled) { background: var(--c-brand-mist); }
-.op-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.op-btn:hover:not(:disabled) {
+  background: var(--c-brand-mist);
+}
+
+.op-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
 
 .filter-bar {
   display: flex;
@@ -419,7 +441,11 @@ onMounted(loadApplications)
   font-size: 12px;
 }
 
-.result-count { margin-left: auto; color: var(--c-text-4); font-size: 11px; }
+.result-count {
+  margin-left: auto;
+  color: var(--c-text-4);
+  font-size: 11px;
+}
 
 .table-panel {
   overflow: hidden;
@@ -427,7 +453,11 @@ onMounted(loadApplications)
   border: 1px solid var(--c-brand-soft);
   border-radius: var(--r-md);
 }
-.data-table { width: 100%; font-size: 12px; }
+
+.data-table {
+  width: 100%;
+  font-size: 12px;
+}
 
 .data-table td.cell-email {
   max-width: 190px;
@@ -441,7 +471,12 @@ onMounted(loadApplications)
   text-align: center;
   color: var(--c-text-4);
 }
-.empty-state :deep(svg) { display: block; margin: 0 auto 8px; opacity: 0.6; }
+
+.empty-state :deep(svg) {
+  display: block;
+  margin: 0 auto 8px;
+  opacity: 0.6;
+}
 
 .status-chip {
   display: inline-block;
@@ -470,7 +505,10 @@ onMounted(loadApplications)
   border: 1px solid rgb(199 85 59 / 28%);
 }
 
-.row-actions { display: flex; gap: 6px; }
+.row-actions {
+  display: flex;
+  gap: 6px;
+}
 
 .mini-btn {
   display: inline-flex;
@@ -480,25 +518,40 @@ onMounted(loadApplications)
   border-radius: var(--r-sm);
   font-size: 11px;
   cursor: pointer;
-  transition: background 0.18s, opacity 0.18s;
+  transition:
+    background 0.18s,
+    opacity 0.18s;
 }
-.mini-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.mini-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
 
 .mini-btn.approve {
   border: 1px solid rgb(111 158 127 / 40%);
   background: rgb(111 158 127 / 10%);
   color: var(--c-brand-hover);
 }
-.mini-btn.approve:hover:not(:disabled) { background: rgb(111 158 127 / 20%); }
+
+.mini-btn.approve:hover:not(:disabled) {
+  background: rgb(111 158 127 / 20%);
+}
 
 .mini-btn.reject {
   border: 1px solid rgb(199 85 59 / 36%);
   background: rgb(199 85 59 / 8%);
   color: #b34a30;
 }
-.mini-btn.reject:hover:not(:disabled) { background: rgb(199 85 59 / 16%); }
 
-.cell-sub { color: var(--c-text-4); font-size: 10px; }
+.mini-btn.reject:hover:not(:disabled) {
+  background: rgb(199 85 59 / 16%);
+}
+
+.cell-sub {
+  color: var(--c-text-4);
+  font-size: 10px;
+}
 
 .panel-foot {
   display: flex;
@@ -509,11 +562,22 @@ onMounted(loadApplications)
   color: var(--c-text-4);
   font-size: 11px;
 }
-.pager { display: flex; gap: 8px; }
+
+.pager {
+  display: flex;
+  gap: 8px;
+}
 
 /* 拒绝弹窗 */
-.form-label i { color: var(--c-danger, #c7553b); font-style: normal; }
-textarea.form-input { resize: vertical; min-height: 88px; }
+.form-label i {
+  color: var(--c-danger, #c7553b);
+  font-style: normal;
+}
+
+textarea.form-input {
+  resize: vertical;
+  min-height: 88px;
+}
 
 .modal-counter {
   margin: 6px 0 4px;
@@ -532,17 +596,36 @@ textarea.form-input { resize: vertical; min-height: 88px; }
 }
 
 @keyframes skeleton-loading {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
 }
 
-.spin { animation: app-spin 0.9s linear infinite; }
+.spin {
+  animation: app-spin 0.9s linear infinite;
+}
 
-@keyframes app-spin { to { transform: rotate(360deg); } }
+@keyframes app-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
 
 @media (width <= 900px) {
-  .filter-bar { flex-wrap: wrap; }
-  .search-input { width: 100%; }
-  .result-count { margin-left: 0; }
+  .filter-bar {
+    flex-wrap: wrap;
+  }
+
+  .search-input {
+    width: 100%;
+  }
+
+  .result-count {
+    margin-left: 0;
+  }
 }
 </style>

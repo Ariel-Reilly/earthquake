@@ -170,10 +170,10 @@ function handleCreate() {
   justify-content: space-between;
   height: 64px;
   padding: 0 var(--sp-24, 24px);
-  background: var(--bg-card, #FFF);
+  background: var(--bg-card, #fff);
 
   /* 底部分割线 */
-  border-bottom: 1px solid var(--border-color, #D1DCD5);
+  border-bottom: 1px solid var(--border-color, #d1dcd5);
   flex-shrink: 0;
 }
 
@@ -204,7 +204,7 @@ function handleCreate() {
 .search-icon {
   position: absolute;
   left: var(--sp-12, 12px);
-  color: var(--text-muted, #6B7A73);
+  color: var(--text-muted, #6b7a73);
   pointer-events: none;
 }
 
@@ -212,10 +212,10 @@ function handleCreate() {
   width: 100%;
   height: 38px;
   padding: 0 var(--sp-12, 12px) 0 calc(var(--sp-12, 12px) + 16px + var(--sp-8, 8px));
-  border: 1px solid var(--border-color, #D1DCD5);
+  border: 1px solid var(--border-color, #d1dcd5);
   border-radius: var(--r-lg, 12px);
-  background: var(--bg-page, #F4F7F5);
-  color: var(--text-main, #2C3B34);
+  background: var(--bg-page, #f4f7f5);
+  color: var(--text-main, #2c3b34);
   font-size: 13px;
   transition:
     border-color 0.2s cubic-bezier(0.32, 0.72, 0, 1),
@@ -224,14 +224,14 @@ function handleCreate() {
 }
 
 .search-input::placeholder {
-  color: var(--text-muted, #6B7A73);
+  color: var(--text-muted, #6b7a73);
   opacity: 0.6;
 }
 
 .search-input:focus {
   outline: none;
-  border-color: var(--primary, #5F7A6B);
-  background: var(--bg-card, #FFF);
+  border-color: var(--primary, #5f7a6b);
+  background: var(--bg-card, #fff);
   box-shadow: var(--focus-ring, 0 0 0 3px rgb(95 122 107 / 16%));
 }
 
@@ -260,26 +260,26 @@ function handleCreate() {
 
 /* 次按钮 */
 .toolbar-btn-secondary {
-  background: var(--bg-page, #F4F7F5);
-  color: var(--text-main, #2C3B34);
-  border: 1px solid var(--border-color, #D1DCD5);
+  background: var(--bg-page, #f4f7f5);
+  color: var(--text-main, #2c3b34);
+  border: 1px solid var(--border-color, #d1dcd5);
 }
 
 .toolbar-btn-secondary:hover {
   background: var(--bg-hover, rgb(95 122 107 / 8%));
-  border-color: var(--border-hover, #B8C7BE);
-  color: var(--primary, #5F7A6B);
+  border-color: var(--border-hover, #b8c7be);
+  color: var(--primary, #5f7a6b);
 }
 
 /* 主按钮 */
 .toolbar-btn-primary {
-  background: var(--primary, #5F7A6B);
-  color: var(--primary-on, #FFF);
+  background: var(--primary, #5f7a6b);
+  color: var(--primary-on, #fff);
   box-shadow: var(--shadow-card, 0 2px 8px rgb(44 59 52 / 4%));
 }
 
 .toolbar-btn-primary:hover {
-  background: var(--primary-hover, #4A6154);
+  background: var(--primary-hover, #4a6154);
   box-shadow: var(--shadow-hover, 0 4px 16px rgb(44 59 52 / 8%));
 }
 
@@ -309,17 +309,17 @@ function handleCreate() {
   height: 96px;
   margin-bottom: var(--sp-24, 24px);
   border-radius: var(--r-2xl, 24px);
-  background: var(--bg-page, #F4F7F5);
+  background: var(--bg-page, #f4f7f5);
 }
 
 .empty-icon {
-  color: var(--text-muted, #6B7A73);
+  color: var(--text-muted, #6b7a73);
   opacity: 0.4;
 }
 
 .empty-title {
   margin: 0 0 var(--sp-12, 12px) 0;
-  color: var(--text-main, #2C3B34);
+  color: var(--text-main, #2c3b34);
   font-size: 18px;
   font-weight: 700;
   line-height: 1.4;
@@ -327,7 +327,7 @@ function handleCreate() {
 
 .empty-description {
   margin: 0;
-  color: var(--text-muted, #6B7A73);
+  color: var(--text-muted, #6b7a73);
   font-size: 14px;
   line-height: 1.6;
   max-width: 400px;
@@ -343,7 +343,7 @@ function handleCreate() {
   display: flex;
   flex-direction: column;
   gap: 0;
-  background: var(--bg-card, #FFF);
+  background: var(--bg-card, #fff);
   border-radius: var(--r-lg, 12px);
   box-shadow: var(--shadow-card, 0 2px 8px rgb(44 59 52 / 4%));
   overflow: hidden;
@@ -355,7 +355,7 @@ function handleCreate() {
   gap: var(--sp-16, 16px);
   min-height: 50px;
   padding: var(--sp-12, 12px) var(--sp-16, 16px);
-  border-bottom: 1px solid var(--border-color, #D1DCD5);
+  border-bottom: 1px solid var(--border-color, #d1dcd5);
   transition: background 0.2s cubic-bezier(0.32, 0.72, 0, 1);
 }
 

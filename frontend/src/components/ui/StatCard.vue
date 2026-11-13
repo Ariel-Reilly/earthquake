@@ -114,19 +114,19 @@ defineProps({
 }
 
 .stat-icon.orange {
-  background: #D4B48B;
+  background: #d4b48b;
 }
 
 .stat-icon.teal {
-  background: #6F9E7F;
+  background: #6f9e7f;
 }
 
 .stat-icon.blue {
-  background: #3E6F94;
+  background: #3e6f94;
 }
 
 .stat-icon.purple {
-  background: #7A5FA8;
+  background: #7a5fa8;
 }
 
 /* 文本容器 */

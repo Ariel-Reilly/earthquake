@@ -500,7 +500,7 @@ onMounted(runServiceCheck)
 }
 
 .nav-item.active::before {
-  content: '';
+  content: "";
   position: absolute;
   left: -16px;
   top: 50%;

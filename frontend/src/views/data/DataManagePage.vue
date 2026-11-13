@@ -118,7 +118,9 @@ function onNotify(msg) {
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  transition:
+    background 0.15s,
+    color 0.15s;
 }
 
 .dm-tab-btn:hover {
@@ -145,7 +147,9 @@ function onNotify(msg) {
 /* 过渡动画 */
 .fade-slide-enter-active,
 .fade-slide-leave-active {
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
 }
 
 .fade-slide-enter-from {

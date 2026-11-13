@@ -378,7 +378,9 @@ onMounted(loadData)
   background: var(--c-surface);
   border: 1px solid var(--c-border);
   border-radius: 10px;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .stat-card:hover {

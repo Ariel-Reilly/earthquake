@@ -419,7 +419,7 @@ onBeforeUnmount(() => {
   justify-content: center;
   padding: 24px;
   background: rgb(255 0 0 / 85%);
-  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
   backdrop-filter: blur(2px);
   animation:
     alarm-overlay-in 0.18s ease-out both,
@@ -626,7 +626,7 @@ onBeforeUnmount(() => {
   justify-content: center;
   padding: 24px;
   background: rgb(15 23 20 / 45%);
-  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
   backdrop-filter: blur(2px);
   animation: alarm-overlay-in 0.18s ease-out both;
 }

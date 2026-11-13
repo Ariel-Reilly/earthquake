@@ -40,16 +40,33 @@ defineProps({
 }
 
 @keyframes mascot-float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-8px); }
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-8px);
+  }
 }
 
 @keyframes shadow-pulse {
-  0%, 100% { width: 60%; opacity: 0.15; }
-  50% { width: 45%; opacity: 0.08; }
+  0%,
+  100% {
+    width: 60%;
+    opacity: 0.15;
+  }
+
+  50% {
+    width: 45%;
+    opacity: 0.08;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .mascot, .mascot-shadow { animation: none; }
+  .mascot,
+  .mascot-shadow {
+    animation: none;
+  }
 }
 </style>

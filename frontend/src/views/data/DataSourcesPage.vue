@@ -355,61 +355,327 @@ onMounted(() => loadSources())
 </template>
 
 <style scoped>
-.data-sources-shell { padding: 24px 28px; }
-.page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 18px; }
-.page-header h2 { margin: 0; display: flex; gap: 8px; align-items: center; font-size: 18px; color: var(--c-text); }
-.page-header p { margin: 4px 0 0; color: var(--c-text-2); font-size: 12px; }
-.op-btn { display: flex; gap: 6px; align-items: center; padding: 7px 12px; border: 1px solid var(--c-separator); background: var(--c-surface); border-radius: var(--r-sm); color: var(--c-text); font-size: 12px; cursor: pointer; }
+.data-sources-shell {
+  padding: 24px 28px;
+}
 
-.stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 18px; }
-.stat-card { padding: 14px 16px; background: var(--c-surface); border: 1px solid var(--c-brand-soft); border-radius: var(--r-md); }
-.stat-card strong { display: block; font-size: 22px; color: var(--c-text); }
-.stat-card span { color: var(--c-text-2); font-size: 12px; }
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 18px;
+}
 
-.filter-bar { display: flex; gap: 10px; align-items: center; background: var(--c-surface); border: 1px solid var(--c-brand-soft); border-radius: var(--r-md); padding: 12px 16px; margin-bottom: 14px; }
-.filter-bar .filter-input { flex: 1; padding: 7px 12px; border: 1px solid var(--c-separator); border-radius: var(--r-sm); background: var(--c-surface-2); }
-.cat-tabs { display: flex; gap: 4px; background: var(--c-bg); padding: 3px; border-radius: var(--r-sm); }
-.cat-tabs button { padding: 5px 10px; border: 0; background: transparent; border-radius: var(--r-sm); cursor: pointer; font-size: 11px; color: var(--c-brand-deep); }
-.cat-tabs button.active { background: var(--c-surface); color: var(--c-text); box-shadow: 0 1px 3px rgb(0 0 0 / 6%); }
+.page-header h2 {
+  margin: 0;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 18px;
+  color: var(--c-text);
+}
 
-.loading-row { padding: 32px; text-align: center; color: var(--c-text-2); }
+.page-header p {
+  margin: 4px 0 0;
+  color: var(--c-text-2);
+  font-size: 12px;
+}
 
-.src-table { width: 100%; border-collapse: collapse; background: var(--c-surface); border: 1px solid var(--c-brand-soft); border-radius: var(--r-md); overflow: hidden; }
-.src-table th, .src-table td { padding: 12px 14px; text-align: left; font-size: 13px; border-bottom: 1px solid var(--c-border-2); }
-.src-table th { background: var(--c-surface-2); color: var(--c-brand-deep); font-weight: 600; }
-.src-table td strong { display: block; color: var(--c-text); }
-.src-table td code { color: var(--c-text-2); font-size: 11px; }
-.cat-tag { padding: 2px 8px; background: var(--c-brand-soft); color: var(--c-brand); border-radius: var(--r-xs); font-size: 11px; }
+.op-btn {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding: 7px 12px;
+  border: 1px solid var(--c-separator);
+  background: var(--c-surface);
+  border-radius: var(--r-sm);
+  color: var(--c-text);
+  font-size: 12px;
+  cursor: pointer;
+}
 
-.status { display: inline-flex; gap: 4px; align-items: center; padding: 2px 8px; border-radius: var(--r-xs); font-size: 12px; font-weight: 500; }
-.status.ok { color: var(--c-brand-deep); background: var(--c-brand-soft); }
-.status.warn { color: var(--c-danger-strong); background: var(--c-danger-bg); }
-.status.off { color: var(--c-text-2); background: var(--c-bg); }
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 18px;
+}
 
-.ops { display: flex; gap: 6px; }
-.ghost-btn.small, .primary-btn.small { padding: 5px 10px; font-size: 11px; }
-.ghost-btn { display: inline-flex; gap: 4px; align-items: center; padding: 6px 10px; border: 1px solid var(--c-separator); background: var(--c-surface); border-radius: var(--r-sm); color: var(--c-text); cursor: pointer; font-size: 12px; }
-.ghost-btn:hover { background: var(--c-bg); }
-.ghost-btn:disabled { opacity: .5; cursor: not-allowed; }
-.primary-btn { display: inline-flex; gap: 4px; align-items: center; padding: 6px 10px; border: 0; background: var(--c-brand); color: var(--c-on-brand); border-radius: var(--r-sm); cursor: pointer; font-size: 12px; }
-.primary-btn:disabled { opacity: .5; cursor: not-allowed; }
+.stat-card {
+  padding: 14px 16px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-brand-soft);
+  border-radius: var(--r-md);
+}
 
-.modal-mask { position: fixed; inset: 0; background: var(--c-overlay); display: grid; place-items: center; z-index: 100; }
-.modal-card { width: min(440px, 92vw); background: var(--c-surface); border-radius: var(--r-lg); padding: 22px; }
-.modal-card h3 { margin: 0 0 16px; color: var(--c-text); display: flex; gap: 6px; align-items: center; }
-.modal-card label { display: block; margin-bottom: 14px; color: var(--c-brand-deep); font-size: 12px; font-weight: 600; }
-.modal-card input, .modal-card select { display: block; width: 100%; margin-top: 6px; padding: 8px 10px; border: 1px solid var(--c-separator); border-radius: var(--r-sm); background: var(--c-surface-2); }
-.modal-card .checkbox-label { display: flex; align-items: center; gap: 8px; font-weight: 500; }
-.modal-card .checkbox-label input { display: inline-block; width: auto; margin-top: 0; }
-.modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px; }
+.stat-card strong {
+  display: block;
+  font-size: 22px;
+  color: var(--c-text);
+}
 
-.spin { animation: spin 1s linear infinite; }
+.stat-card span {
+  color: var(--c-text-2);
+  font-size: 12px;
+}
 
-@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.filter-bar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  background: var(--c-surface);
+  border: 1px solid var(--c-brand-soft);
+  border-radius: var(--r-md);
+  padding: 12px 16px;
+  margin-bottom: 14px;
+}
+
+.filter-bar .filter-input {
+  flex: 1;
+  padding: 7px 12px;
+  border: 1px solid var(--c-separator);
+  border-radius: var(--r-sm);
+  background: var(--c-surface-2);
+}
+
+.cat-tabs {
+  display: flex;
+  gap: 4px;
+  background: var(--c-bg);
+  padding: 3px;
+  border-radius: var(--r-sm);
+}
+
+.cat-tabs button {
+  padding: 5px 10px;
+  border: 0;
+  background: transparent;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--c-brand-deep);
+}
+
+.cat-tabs button.active {
+  background: var(--c-surface);
+  color: var(--c-text);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 6%);
+}
+
+.loading-row {
+  padding: 32px;
+  text-align: center;
+  color: var(--c-text-2);
+}
+
+.src-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--c-surface);
+  border: 1px solid var(--c-brand-soft);
+  border-radius: var(--r-md);
+  overflow: hidden;
+}
+
+.src-table th,
+.src-table td {
+  padding: 12px 14px;
+  text-align: left;
+  font-size: 13px;
+  border-bottom: 1px solid var(--c-border-2);
+}
+
+.src-table th {
+  background: var(--c-surface-2);
+  color: var(--c-brand-deep);
+  font-weight: 600;
+}
+
+.src-table td strong {
+  display: block;
+  color: var(--c-text);
+}
+
+.src-table td code {
+  color: var(--c-text-2);
+  font-size: 11px;
+}
+
+.cat-tag {
+  padding: 2px 8px;
+  background: var(--c-brand-soft);
+  color: var(--c-brand);
+  border-radius: var(--r-xs);
+  font-size: 11px;
+}
+
+.status {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: var(--r-xs);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.status.ok {
+  color: var(--c-brand-deep);
+  background: var(--c-brand-soft);
+}
+
+.status.warn {
+  color: var(--c-danger-strong);
+  background: var(--c-danger-bg);
+}
+
+.status.off {
+  color: var(--c-text-2);
+  background: var(--c-bg);
+}
+
+.ops {
+  display: flex;
+  gap: 6px;
+}
+
+.ghost-btn.small,
+.primary-btn.small {
+  padding: 5px 10px;
+  font-size: 11px;
+}
+
+.ghost-btn {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  padding: 6px 10px;
+  border: 1px solid var(--c-separator);
+  background: var(--c-surface);
+  border-radius: var(--r-sm);
+  color: var(--c-text);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.ghost-btn:hover {
+  background: var(--c-bg);
+}
+
+.ghost-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.primary-btn {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  padding: 6px 10px;
+  border: 0;
+  background: var(--c-brand);
+  color: var(--c-on-brand);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.primary-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.modal-mask {
+  position: fixed;
+  inset: 0;
+  background: var(--c-overlay);
+  display: grid;
+  place-items: center;
+  z-index: 100;
+}
+
+.modal-card {
+  width: min(440px, 92vw);
+  background: var(--c-surface);
+  border-radius: var(--r-lg);
+  padding: 22px;
+}
+
+.modal-card h3 {
+  margin: 0 0 16px;
+  color: var(--c-text);
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.modal-card label {
+  display: block;
+  margin-bottom: 14px;
+  color: var(--c-brand-deep);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.modal-card input,
+.modal-card select {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--c-separator);
+  border-radius: var(--r-sm);
+  background: var(--c-surface-2);
+}
+
+.modal-card .checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+}
+
+.modal-card .checkbox-label input {
+  display: inline-block;
+  width: auto;
+  margin-top: 0;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 18px;
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
 
 /* 设计令牌收尾：模板静态色内联样式 → 类（2026-10-09） */
-.ds-kpi-on { color: var(--c-brand-deep); }
-.ds-kpi-ok { color: var(--c-brand); }
-.ds-kpi-bad { color: var(--c-danger-strong); }
-.ds-req { color: var(--c-danger-strong); }
+.ds-kpi-on {
+  color: var(--c-brand-deep);
+}
+
+.ds-kpi-ok {
+  color: var(--c-brand);
+}
+
+.ds-kpi-bad {
+  color: var(--c-danger-strong);
+}
+
+.ds-req {
+  color: var(--c-danger-strong);
+}
 </style>

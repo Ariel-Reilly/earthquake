@@ -64,7 +64,11 @@ const meta = computed(() => {
   border: 1px solid;
   white-space: nowrap;
 }
-.ai-health-badge.inline { font-size: 11px; padding: 3px 8px; }
+
+.ai-health-badge.inline {
+  font-size: 11px;
+  padding: 3px 8px;
+}
 
 .sev-ok {
   color: var(--c-success-strong);
@@ -86,7 +90,13 @@ const meta = computed(() => {
 }
 
 @keyframes pulse-badge {
-  0%, 100% { box-shadow: 0 0 0 0 rgb(239 68 68 / 0%); }
-  50% { box-shadow: 0 0 0 4px rgb(239 68 68 / 18%); }
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(239 68 68 / 0%);
+  }
+
+  50% {
+    box-shadow: 0 0 0 4px rgb(239 68 68 / 18%);
+  }
 }
 </style>

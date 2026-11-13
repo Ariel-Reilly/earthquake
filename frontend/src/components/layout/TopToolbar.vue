@@ -360,8 +360,8 @@ onBeforeUnmount(() => {
   z-index: var(--z-top, 40);
   width: 100%;
   height: 64px;
-  background: var(--bg-card, #FFF);
-  border-bottom: 1px solid var(--border-color, #D1DCD5);
+  background: var(--bg-card, #fff);
+  border-bottom: 1px solid var(--border-color, #d1dcd5);
   flex-shrink: 0;
   box-sizing: border-box;
 }
@@ -399,8 +399,8 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   border-radius: var(--r-md, 8px);
-  background: linear-gradient(150deg, var(--primary, #5F7A6B), var(--primary-hover, #4A6154));
-  color: var(--primary-on, #FFF);
+  background: linear-gradient(150deg, var(--primary, #5f7a6b), var(--primary-hover, #4a6154));
+  color: var(--primary-on, #fff);
   flex-shrink: 0;
 }
 
@@ -414,13 +414,13 @@ onBeforeUnmount(() => {
   font-size: 14.5px;
   font-weight: 700;
   letter-spacing: 0.01em;
-  color: var(--text-main, #2C3B34);
+  color: var(--text-main, #2c3b34);
 }
 
 .brand-version {
   /* 10px 版本号在 1x 屏基本看不清，提到 12px */
   font-size: 12px;
-  color: var(--text-muted, #6B7A73);
+  color: var(--text-muted, #6b7a73);
 }
 
 /* ── 中间：菜单搜索 ── */
@@ -440,7 +440,7 @@ onBeforeUnmount(() => {
 .search-icon {
   position: absolute;
   left: var(--sp-12, 12px);
-  color: var(--text-muted, #6B7A73);
+  color: var(--text-muted, #6b7a73);
   pointer-events: none;
 }
 
@@ -448,10 +448,10 @@ onBeforeUnmount(() => {
   width: 100%;
   height: 38px;
   padding: 0 50px 0 calc(16px + var(--sp-12, 12px) + var(--sp-8, 8px));
-  border: 1px solid var(--border-color, #D1DCD5);
+  border: 1px solid var(--border-color, #d1dcd5);
   border-radius: var(--r-lg, 12px);
-  background: var(--bg-page, #F4F7F5);
-  color: var(--text-main, #2C3B34);
+  background: var(--bg-page, #f4f7f5);
+  color: var(--text-main, #2c3b34);
   font-size: 13px;
   transition:
     border-color 0.2s cubic-bezier(0.32, 0.72, 0, 1),
@@ -461,7 +461,7 @@ onBeforeUnmount(() => {
 
 /* 占位符不再降透明度：0.6 透明度下对比度只有约 2.2，低于可读下限 */
 .search-input::placeholder {
-  color: var(--text-muted, #5F6F68);
+  color: var(--text-muted, #5f6f68);
   opacity: 1;
 }
 
@@ -473,14 +473,14 @@ onBeforeUnmount(() => {
   transform: translateY(-50%);
   font-family: monospace;
   font-size: 12px;
-  color: var(--text-muted, #6B7A73);
+  color: var(--text-muted, #6b7a73);
   pointer-events: none;
 }
 
 .search-input:focus {
   outline: none;
-  border-color: var(--primary, #5F7A6B);
-  background: var(--bg-card, #FFF);
+  border-color: var(--primary, #5f7a6b);
+  background: var(--bg-card, #fff);
   box-shadow: var(--focus-ring, 0 0 0 3px rgb(95 122 107 / 16%));
 }
 
@@ -495,15 +495,15 @@ onBeforeUnmount(() => {
   max-height: 400px;
   padding: var(--sp-8, 8px);
   border-radius: var(--r-lg, 12px);
-  background: var(--bg-card, #FFF);
-  border: 1px solid var(--border-color, #D1DCD5);
+  background: var(--bg-card, #fff);
+  border: 1px solid var(--border-color, #d1dcd5);
   box-shadow: var(--shadow-hover, 0 4px 16px rgb(44 59 52 / 8%));
   overflow: hidden auto;
 }
 
 .search-empty {
   padding: var(--sp-16, 16px);
-  color: var(--text-muted, #6B7A73);
+  color: var(--text-muted, #6b7a73);
   font-size: 13px;
   text-align: center;
 }
@@ -532,7 +532,7 @@ onBeforeUnmount(() => {
   flex: 1;
   font-size: 13px;
   font-weight: 500;
-  color: var(--text-main, #2C3B34);
+  color: var(--text-main, #2c3b34);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -541,10 +541,10 @@ onBeforeUnmount(() => {
 .result-group {
   flex-shrink: 0;
   font-size: 12px;
-  color: var(--text-muted, #6B7A73);
+  color: var(--text-muted, #6b7a73);
   padding: 2px 8px;
   border-radius: var(--r-sm, 4px);
-  background: var(--bg-page, #F4F7F5);
+  background: var(--bg-page, #f4f7f5);
 }
 
 /* ── 右侧：搜索、新建、通知、头像 ── */
@@ -566,7 +566,7 @@ onBeforeUnmount(() => {
   border: 0;
   border-radius: var(--r-lg, 12px);
   background: transparent;
-  color: var(--text-main, #2C3B34);
+  color: var(--text-main, #2c3b34);
   cursor: pointer;
   transition:
     background 0.2s cubic-bezier(0.32, 0.72, 0, 1),
@@ -589,17 +589,17 @@ onBeforeUnmount(() => {
   height: 18px;
   padding: 0 4px;
   border-radius: var(--r-pill, 9999px);
-  background: var(--alert-high, #C48B8B);
+  background: var(--alert-high, #c48b8b);
 
   /* 白字在 #C48B8B 上对比度仅 2.83，深字 5.18 */
-  color: var(--alert-on, #1F2B25);
+  color: var(--alert-on, #1f2b25);
 
   /* 10px 未读数在 1x 屏不可读，提到 12px 并同步放大胶囊 */
   font-size: 12px;
   font-weight: 700;
   line-height: 18px;
   text-align: center;
-  box-shadow: 0 0 0 2px var(--bg-card, #FFF);
+  box-shadow: 0 0 0 2px var(--bg-card, #fff);
 }
 
 /* ── 新建按钮 ── */
@@ -615,8 +615,8 @@ onBeforeUnmount(() => {
   padding: 0 var(--sp-12, 12px);
   border: 0;
   border-radius: var(--r-lg, 12px);
-  background: var(--primary, #5F7A6B);
-  color: var(--primary-on, #FFF);
+  background: var(--primary, #5f7a6b);
+  color: var(--primary-on, #fff);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
@@ -627,7 +627,7 @@ onBeforeUnmount(() => {
 }
 
 .toolbar-create-trigger:hover {
-  background: var(--primary-hover, #4A6154);
+  background: var(--primary-hover, #4a6154);
   box-shadow: var(--shadow-hover, 0 4px 16px rgb(44 59 52 / 8%));
 }
 
@@ -636,7 +636,7 @@ onBeforeUnmount(() => {
 }
 
 .toolbar-create-trigger.is-active {
-  background: var(--primary-hover, #4A6154);
+  background: var(--primary-hover, #4a6154);
 }
 
 .chevron-icon {
@@ -655,8 +655,8 @@ onBeforeUnmount(() => {
   min-width: 180px;
   padding: var(--sp-8, 8px);
   border-radius: var(--r-lg, 12px);
-  background: var(--bg-card, #FFF);
-  border: 1px solid var(--border-color, #D1DCD5);
+  background: var(--bg-card, #fff);
+  border: 1px solid var(--border-color, #d1dcd5);
   box-shadow: var(--shadow-hover, 0 4px 16px rgb(44 59 52 / 8%));
   overflow: hidden;
 }
@@ -670,7 +670,7 @@ onBeforeUnmount(() => {
   border: 0;
   border-radius: var(--r-md, 8px);
   background: transparent;
-  color: var(--text-main, #2C3B34);
+  color: var(--text-main, #2c3b34);
   font-size: 13px;
   font-weight: 500;
   text-align: left;
@@ -680,7 +680,7 @@ onBeforeUnmount(() => {
 
 .create-dropdown-item:hover {
   background: var(--bg-hover, rgb(95 122 107 / 8%));
-  color: var(--primary, #5F7A6B);
+  color: var(--primary, #5f7a6b);
 }
 
 /* ── 下拉淡入动画 ── */

@@ -927,10 +927,28 @@ onBeforeUnmount(() => {
   gap: 10px;
   flex-wrap: wrap;
 }
-.confirmation-ops-left strong { color: var(--c-success-strong); font-size: 14px; }
-.assignment-badge { color: var(--c-success-strong); }
-.assignee-tag { font-size: 12px; color: var(--c-success); background: color-mix(in srgb, var(--c-success-strong) 10%, transparent); padding: 2px 8px; border-radius: var(--r-xs); }
-.ops-hint { font-size: 11.5px; color: var(--c-text-2); }
+
+.confirmation-ops-left strong {
+  color: var(--c-success-strong);
+  font-size: 14px;
+}
+
+.assignment-badge {
+  color: var(--c-success-strong);
+}
+
+.assignee-tag {
+  font-size: 12px;
+  color: var(--c-success);
+  background: color-mix(in srgb, var(--c-success-strong) 10%, transparent);
+  padding: 2px 8px;
+  border-radius: var(--r-xs);
+}
+
+.ops-hint {
+  font-size: 11.5px;
+  color: var(--c-text-2);
+}
 
 .confirmation-badge {
   padding: 2px 10px;
@@ -939,11 +957,36 @@ onBeforeUnmount(() => {
   font-weight: 700;
   border: 1px solid;
 }
-.confirmation-badge.待确认 { color: var(--c-warning-ink); border-color: color-mix(in srgb, var(--c-warning) 40%, transparent); background: var(--c-warning-bg); }
-.confirmation-badge.已认领   { color: var(--c-brand-deeper); border-color: color-mix(in srgb, var(--sys-blue) 35%, transparent); background: var(--sys-blue-soft); }
-.confirmation-badge.已确认   { color: var(--c-success-strong); border-color: color-mix(in srgb, var(--c-success) 40%, transparent); background: var(--c-success-bg); }
-.confirmation-badge.已驳回   { color: var(--c-text-2); border-color: var(--c-separator); background: var(--c-surface-2); }
-.confirmation-badge.已转派   { color: #7c3aed; border-color: #ddd6fe; background: #f5f3ff; }
+
+.confirmation-badge.待确认 {
+  color: var(--c-warning-ink);
+  border-color: color-mix(in srgb, var(--c-warning) 40%, transparent);
+  background: var(--c-warning-bg);
+}
+
+.confirmation-badge.已认领 {
+  color: var(--c-brand-deeper);
+  border-color: color-mix(in srgb, var(--sys-blue) 35%, transparent);
+  background: var(--sys-blue-soft);
+}
+
+.confirmation-badge.已确认 {
+  color: var(--c-success-strong);
+  border-color: color-mix(in srgb, var(--c-success) 40%, transparent);
+  background: var(--c-success-bg);
+}
+
+.confirmation-badge.已驳回 {
+  color: var(--c-text-2);
+  border-color: var(--c-separator);
+  background: var(--c-surface-2);
+}
+
+.confirmation-badge.已转派 {
+  color: #7c3aed;
+  border-color: #ddd6fe;
+  background: #f5f3ff;
+}
 
 .confirmation-ops-right {
   display: flex;
@@ -966,20 +1009,55 @@ onBeforeUnmount(() => {
   cursor: pointer;
   transition: all 0.15s;
 }
-.ops-btn:hover { background: var(--c-surface-2); border-color: var(--c-text-3); }
-.ops-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.ops-btn.primary { background: var(--c-brand-deeper); color: var(--c-on-brand); border-color: var(--c-brand-deeper); }
-.ops-btn.primary:hover { background: var(--sys-blue-deep); }
-.ops-btn.success { background: var(--c-success-strong); color: var(--c-on-brand); border-color: var(--c-success-strong); }
-.ops-btn.success:hover { background: var(--c-success-strong); }
-.ops-btn.danger { background: var(--c-danger-strong); color: var(--c-on-brand); border-color: var(--c-danger-strong); }
-.ops-btn.danger:hover { background: var(--c-danger-strong); }
+
+.ops-btn:hover {
+  background: var(--c-surface-2);
+  border-color: var(--c-text-3);
+}
+
+.ops-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ops-btn.primary {
+  background: var(--c-brand-deeper);
+  color: var(--c-on-brand);
+  border-color: var(--c-brand-deeper);
+}
+
+.ops-btn.primary:hover {
+  background: var(--sys-blue-deep);
+}
+
+.ops-btn.success {
+  background: var(--c-success-strong);
+  color: var(--c-on-brand);
+  border-color: var(--c-success-strong);
+}
+
+.ops-btn.success:hover {
+  background: var(--c-success-strong);
+}
+
+.ops-btn.danger {
+  background: var(--c-danger-strong);
+  color: var(--c-on-brand);
+  border-color: var(--c-danger-strong);
+}
+
+.ops-btn.danger:hover {
+  background: var(--c-danger-strong);
+}
 
 /* 弹窗遮罩 */
 .mask {
-  position: fixed; inset: 0;
+  position: fixed;
+  inset: 0;
   background: var(--c-overlay); /* 原 rgba(0,0,0,.4) 遮罩 */
-  display: flex; align-items: center; justify-content: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   z-index: 9999;
 }
 
@@ -990,8 +1068,18 @@ onBeforeUnmount(() => {
   width: min(480px, 92vw);
   box-shadow: 0 20px 60px rgb(0 0 0 / 20%);
 }
-.modal h3 { margin: 0 0 8px; font-size: 16px; color: var(--c-ink-1); }
-.modal-hint { font-size: 12.5px; color: var(--c-text-2); margin-bottom: 12px; }
+
+.modal h3 {
+  margin: 0 0 8px;
+  font-size: 16px;
+  color: var(--c-ink-1);
+}
+
+.modal-hint {
+  font-size: 12.5px;
+  color: var(--c-text-2);
+  margin-bottom: 12px;
+}
 
 .modal label {
   display: block;
@@ -1001,7 +1089,8 @@ onBeforeUnmount(() => {
   margin-bottom: 10px;
 }
 
-.modal label textarea, .modal label input {
+.modal label textarea,
+.modal label input {
   width: 100%;
   margin-top: 4px;
   padding: 7px 10px;
@@ -1012,7 +1101,9 @@ onBeforeUnmount(() => {
 }
 
 .modal-actions {
-  display: flex; gap: 8px; justify-content: flex-end;
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
   margin-top: 16px;
 }
 
@@ -1062,13 +1153,41 @@ onBeforeUnmount(() => {
   color: var(--c-ink-2);
   letter-spacing: 0.3px;
 }
-.event-overview-state[data-state="DETECTED"]          { background: rgb(79 143 153 / 18%); color: var(--c-brand); }
-.event-overview-state[data-state="CONFIRMING"]        { background: rgb(224 160 80 / 20%); color: var(--c-warning-ink); }
-.event-overview-state[data-state="CONFIRMED"]         { background: rgb(99 143 194 / 18%); color: var(--c-brand); }
-.event-overview-state[data-state="WARNING_ISSUED"]    { background: rgb(216 133 97 / 20%); color: var(--c-danger-strong); }
-.event-overview-state[data-state="EMERGENCY_ACTIVE"]  { background: rgb(224 96 96 / 18%); color: var(--c-danger); }
-.event-overview-state[data-state="CLOSED"]            { background: rgb(155 174 173 / 25%); color: var(--c-ink-2); }
-.event-overview-state[data-state="REJECTED"]          { background: rgb(122 141 137 / 22%); color: var(--c-text-2); }
+
+.event-overview-state[data-state="DETECTED"] {
+  background: rgb(79 143 153 / 18%);
+  color: var(--c-brand);
+}
+
+.event-overview-state[data-state="CONFIRMING"] {
+  background: rgb(224 160 80 / 20%);
+  color: var(--c-warning-ink);
+}
+
+.event-overview-state[data-state="CONFIRMED"] {
+  background: rgb(99 143 194 / 18%);
+  color: var(--c-brand);
+}
+
+.event-overview-state[data-state="WARNING_ISSUED"] {
+  background: rgb(216 133 97 / 20%);
+  color: var(--c-danger-strong);
+}
+
+.event-overview-state[data-state="EMERGENCY_ACTIVE"] {
+  background: rgb(224 96 96 / 18%);
+  color: var(--c-danger);
+}
+
+.event-overview-state[data-state="CLOSED"] {
+  background: rgb(155 174 173 / 25%);
+  color: var(--c-ink-2);
+}
+
+.event-overview-state[data-state="REJECTED"] {
+  background: rgb(122 141 137 / 22%);
+  color: var(--c-text-2);
+}
 
 .event-overview-btn {
   background: var(--c-surface);
@@ -1092,7 +1211,10 @@ onBeforeUnmount(() => {
 }
 
 /* ── 静态内联色收敛后的工具类（等价于原先的 inline style） ── */
-.u-hint-block { padding: 0 20px 18px; color: var(--c-text-2); }
+.u-hint-block {
+  padding: 0 20px 18px;
+  color: var(--c-text-2);
+}
 
 /* 详情加载失败态：明确展示原因并提供重试，避免停留在"加载中..." */
 .load-error {
@@ -1102,20 +1224,79 @@ onBeforeUnmount(() => {
   gap: 12px;
   color: var(--c-danger-strong);
 }
-.u-hint-box { padding: 12px; color: var(--c-text-2); }
-.u-hint-10 { font-size: 10px; color: var(--c-text-2); }
-.u-hint-9 { font-size: 9px; color: var(--c-text-2); }
-.u-meta { font-size: 10px; color: var(--c-text-3); }
-.u-text-2 { color: var(--c-text-2); }
-.u-text-3 { color: var(--c-text-3); }
-.u-text-brand { color: var(--c-brand-hover); }
-.u-text-warn { color: var(--c-warning); }
-.u-text-clay { color: var(--c-warning-strong); }
-.u-link-inline { color: var(--c-brand-deep); text-decoration: underline; }
-.u-bar-brand { width: 100%; background: var(--c-brand); }
-.u-bar-brand-hover { width: 100%; background: var(--c-brand-hover); }
-.u-flex-hint { display: flex; justify-content: space-between; margin-top: 6px; font-size: 11px; color: var(--c-text-2); }
-.ai-hazard-card--hint { text-align: center; color: var(--c-text-2); font-size: 12px; }
-.ai-hazard-card--hint-3 { text-align: center; color: var(--c-text-3); font-size: 11px; }
 
+.u-hint-box {
+  padding: 12px;
+  color: var(--c-text-2);
+}
+
+.u-hint-10 {
+  font-size: 10px;
+  color: var(--c-text-2);
+}
+
+.u-hint-9 {
+  font-size: 9px;
+  color: var(--c-text-2);
+}
+
+.u-meta {
+  font-size: 10px;
+  color: var(--c-text-3);
+}
+
+.u-text-2 {
+  color: var(--c-text-2);
+}
+
+.u-text-3 {
+  color: var(--c-text-3);
+}
+
+.u-text-brand {
+  color: var(--c-brand-hover);
+}
+
+.u-text-warn {
+  color: var(--c-warning);
+}
+
+.u-text-clay {
+  color: var(--c-warning-strong);
+}
+
+.u-link-inline {
+  color: var(--c-brand-deep);
+  text-decoration: underline;
+}
+
+.u-bar-brand {
+  width: 100%;
+  background: var(--c-brand);
+}
+
+.u-bar-brand-hover {
+  width: 100%;
+  background: var(--c-brand-hover);
+}
+
+.u-flex-hint {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--c-text-2);
+}
+
+.ai-hazard-card--hint {
+  text-align: center;
+  color: var(--c-text-2);
+  font-size: 12px;
+}
+
+.ai-hazard-card--hint-3 {
+  text-align: center;
+  color: var(--c-text-3);
+  font-size: 11px;
+}
 </style>

@@ -151,7 +151,7 @@ function navigateTo(path) {
   width: 100%;
   height: 100%;
   padding: var(--sp-12, 12px) var(--sp-8, 8px);
-  background: var(--bg-card, #FFF);
+  background: var(--bg-card, #fff);
   overflow: hidden auto;
 }
 
@@ -162,15 +162,15 @@ function navigateTo(path) {
   gap: var(--sp-8, 8px);
   margin: 0;
   padding: var(--sp-4, 4px) var(--sp-12, 12px) var(--sp-8, 8px);
-  border-bottom: 1px solid var(--border-color, #D1DCD5);
-  color: var(--text-main, #2C3B34);
+  border-bottom: 1px solid var(--border-color, #d1dcd5);
+  color: var(--text-main, #2c3b34);
   font-size: 14px;
   font-weight: 700;
 }
 
 .sidebar-title-icon {
   flex-shrink: 0;
-  color: var(--primary, #5F7A6B);
+  color: var(--primary, #5f7a6b);
 }
 
 .sidebar-list {
@@ -193,7 +193,7 @@ function navigateTo(path) {
   border: 0;
   border-radius: var(--r-md, 8px);
   background: transparent;
-  color: var(--text-main, #2C3B34);
+  color: var(--text-main, #2c3b34);
   font-size: 13px;
   font-weight: 500;
   text-align: left;
@@ -211,7 +211,7 @@ function navigateTo(path) {
   transform: translateY(-50%) scaleY(0);
   width: 3px;
   height: 60%;
-  background: var(--primary, #5F7A6B);
+  background: var(--primary, #5f7a6b);
   border-radius: 0 2px 2px 0;
   transition: transform 0.2s cubic-bezier(0.32, 0.72, 0, 1);
 }
@@ -223,12 +223,12 @@ function navigateTo(path) {
 /* 文字用 --primary-hover 而非 --primary：主色在浅底上对比度仅 4.16，加深一档后约 5.9 */
 .sidebar-item:hover {
   background: var(--bg-hover, rgb(95 122 107 / 8%));
-  color: var(--primary-hover, #4A6154);
+  color: var(--primary-hover, #4a6154);
 }
 
 .sidebar-item.is-active {
   background: var(--bg-active, rgb(95 122 107 / 10%));
-  color: var(--primary-hover, #4A6154);
+  color: var(--primary-hover, #4a6154);
   font-weight: 650;
 }
 
@@ -258,8 +258,8 @@ function navigateTo(path) {
   height: 20px;
   padding: 0 5px;
   border-radius: var(--r-pill, 9999px);
-  background: var(--primary, #5F7A6B);
-  color: var(--primary-on, #FFF);
+  background: var(--primary, #5f7a6b);
+  color: var(--primary-on, #fff);
 
   /* 10px 数字在 1x 屏几乎不可读，统一提到 12px 并同步放大胶囊 */
   font-size: 12px;
@@ -269,22 +269,22 @@ function navigateTo(path) {
 }
 
 .sidebar-item-badge.badge-danger {
-  background: var(--alert-high, #C48B8B);
+  background: var(--alert-high, #c48b8b);
 
   /* 白字在 #C48B8B 上对比度仅 2.83，深字 5.18 */
-  color: var(--alert-on, #1F2B25);
+  color: var(--alert-on, #1f2b25);
 }
 
 .sidebar-empty {
   margin: var(--sp-24, 24px) var(--sp-16, 16px);
-  color: var(--text-muted, #6B7A73);
+  color: var(--text-muted, #6b7a73);
   font-size: 13px;
   text-align: center;
 }
 
 /* ── 键盘聚焦 ── */
 .sidebar-item:focus-visible {
-  outline: 2px solid var(--primary, #5F7A6B);
+  outline: 2px solid var(--primary, #5f7a6b);
   outline-offset: 2px;
 }
 

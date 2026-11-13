@@ -64,10 +64,11 @@ onMounted(async () => {
   font-size: 11px;
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "PingFang SC", sans-serif;
   box-shadow: 0 4px 12px rgb(0 0 0 / 12%);
-  transition: transform .15s ease, box-shadow .15s ease;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
   cursor: default;
   user-select: none;
-  backdrop-filter: blur(14px) saturate(180%);
   backdrop-filter: blur(14px) saturate(180%);
 }
 
@@ -88,24 +89,39 @@ onMounted(async () => {
   color: #1e7a4e;
   border: 1px solid rgb(111 158 127 / 28%);
 }
-.mode-backend .mode-dot { background: var(--c-brand); }
+
+.mode-backend .mode-dot {
+  background: var(--c-brand);
+}
 
 .mode-mock {
   background: rgb(255 149 0 / 16%);
   color: #b35a00;
   border: 1px solid rgb(255 149 0 / 36%);
 }
-.mode-mock .mode-dot { background: var(--c-warning); }
+
+.mode-mock .mode-dot {
+  background: var(--c-warning);
+}
 
 .mode-unknown {
   background: rgb(142 142 147 / 16%);
   color: #6c6c70;
   border: 1px solid rgb(142 142 147 / 30%);
 }
-.mode-unknown .mode-dot { background: var(--sys-gray); }
+
+.mode-unknown .mode-dot {
+  background: var(--sys-gray);
+}
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.4;
+  }
 }
 </style>

@@ -269,12 +269,19 @@ function handleBadgeRefresh() {
 
 .drawer-slide-enter-active,
 .drawer-slide-leave-active {
-  transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.3s;
+  transition:
+    transform 0.3s cubic-bezier(0.32, 0.72, 0, 1),
+    opacity 0.3s;
 }
 
 @keyframes fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes slide-in-right {

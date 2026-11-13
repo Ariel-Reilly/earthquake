@@ -83,7 +83,7 @@ function clearError() {
   justify-content: center;
   min-height: 100vh;
   padding: 40px 20px;
-  background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
 }
 
 .error-boundary-content {
@@ -97,36 +97,44 @@ function clearError() {
 }
 
 .error-icon {
-  color: #F97316;
+  color: #f97316;
   margin-bottom: 24px;
   animation: pulse-icon 2s ease-in-out infinite;
 }
 
 @keyframes pulse-icon {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.8; transform: scale(0.98); }
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.8;
+    transform: scale(0.98);
+  }
 }
 
 .error-title {
   font-size: 24px;
   font-weight: 600;
-  color: #F8FAFC;
+  color: #f8fafc;
   margin: 0 0 12px;
   letter-spacing: -0.02em;
 }
 
 .error-message {
-  color: #CBD5E1;
+  color: #cbd5e1;
   font-size: 15px;
   line-height: 1.6;
   margin: 0 0 8px;
 }
 
 .error-info {
-  color: #64748B;
+  color: #64748b;
   font-size: 13px;
   margin: 0 0 32px;
-  font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+  font-family: "SF Mono", Monaco, "Cascadia Code", monospace;
 }
 
 .error-actions {
@@ -144,7 +152,7 @@ function clearError() {
   border: 1px solid rgb(255 255 255 / 12%);
   background: rgb(255 255 255 / 6%);
   border-radius: 8px;
-  color: #F8FAFC;
+  color: #f8fafc;
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
@@ -162,14 +170,14 @@ function clearError() {
 }
 
 .eb-btn-primary {
-  background: #22D3EE;
-  border-color: #22D3EE;
-  color: #0F172A;
+  background: #22d3ee;
+  border-color: #22d3ee;
+  color: #0f172a;
 }
 
 .eb-btn-primary:hover {
-  background: #06B6D4;
-  border-color: #06B6D4;
+  background: #06b6d4;
+  border-color: #06b6d4;
 }
 
 .error-detail {
@@ -182,7 +190,7 @@ function clearError() {
 
 .error-detail details summary {
   cursor: pointer;
-  color: #38BDF8;
+  color: #38bdf8;
   font-size: 13px;
   font-weight: 500;
   display: flex;
@@ -192,7 +200,7 @@ function clearError() {
 }
 
 .error-detail details summary:hover {
-  color: #22D3EE;
+  color: #22d3ee;
 }
 
 .error-detail pre {
@@ -201,13 +209,13 @@ function clearError() {
   /* 11px 等宽文本在 1x 屏几乎无法阅读，提到 12px */
   font-size: 12px;
   line-height: 1.5;
-  color: #94A3B8;
+  color: #94a3b8;
   background: rgb(0 0 0 / 40%);
   padding: 12px;
   border-radius: 6px;
   overflow-x: auto;
   max-height: 240px;
-  font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+  font-family: "SF Mono", Monaco, "Cascadia Code", monospace;
 }
 
 .error-detail pre::-webkit-scrollbar {

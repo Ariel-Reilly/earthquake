@@ -294,8 +294,16 @@ function formatTime(t) {
   font-size: 12px;
   cursor: pointer;
 }
-.refresh-btn:hover { border-color: var(--c-brand-hover); color: var(--c-brand-hover); }
-.refresh-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.refresh-btn:hover {
+  border-color: var(--c-brand-hover);
+  color: var(--c-brand-hover);
+}
+
+.refresh-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 
 .timeline-loading {
   display: flex;
@@ -329,8 +337,14 @@ function formatTime(t) {
   position: relative;
   min-width: 0;
 }
-.step.active { background: rgb(76 189 106 / 4%); }
-.step.completed { opacity: 0.85; }
+
+.step.active {
+  background: rgb(76 189 106 / 4%);
+}
+
+.step.completed {
+  opacity: 0.85;
+}
 
 .step-icon {
   display: flex;
@@ -342,11 +356,33 @@ function formatTime(t) {
   flex-shrink: 0;
   transition: all 0.2s;
 }
-.step.active .step-icon { box-shadow: 0 0 0 4px rgb(76 189 106 / 15%); }
-.step-content { min-width: 0; flex: 1; }
-.step-label { font-size: 12px; color: var(--c-text-3); font-weight: 500; }
-.step.active .step-label { color: var(--c-scrim); font-weight: 700; }
-.step-meta { display: flex; align-items: baseline; gap: 6px; margin-top: 2px; }
+
+.step.active .step-icon {
+  box-shadow: 0 0 0 4px rgb(76 189 106 / 15%);
+}
+
+.step-content {
+  min-width: 0;
+  flex: 1;
+}
+
+.step-label {
+  font-size: 12px;
+  color: var(--c-text-3);
+  font-weight: 500;
+}
+
+.step.active .step-label {
+  color: var(--c-scrim);
+  font-weight: 700;
+}
+
+.step-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-top: 2px;
+}
 
 .step-count {
   font-size: 18px;
@@ -355,9 +391,23 @@ function formatTime(t) {
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
-.step.active .step-count { color: var(--c-brand); }
-.step-meta small { font-size: 11px; color: var(--c-text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.step-arrow { color: var(--c-brand-tint); flex-shrink: 0; }
+
+.step.active .step-count {
+  color: var(--c-brand);
+}
+
+.step-meta small {
+  font-size: 11px;
+  color: var(--c-text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.step-arrow {
+  color: var(--c-brand-tint);
+  flex-shrink: 0;
+}
 
 /* 关联事件 */
 .timeline-relations {
@@ -393,7 +443,12 @@ function formatTime(t) {
   font-size: 11px;
   font-variant-numeric: tabular-nums;
 }
-.rel-list { list-style: none; margin: 0; padding: 0; }
+
+.rel-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
 
 .rel-list li {
   display: grid;
@@ -405,10 +460,27 @@ function formatTime(t) {
   cursor: pointer;
   border-bottom: 1px dashed var(--c-brand-soft);
 }
-.rel-list li:hover .rel-title { color: var(--c-brand-hover); }
-.rel-list li:last-child { border-bottom: none; }
-.rel-title { color: var(--c-ink-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.rel-time { color: var(--c-text-3); font-size: 11px; white-space: nowrap; }
+
+.rel-list li:hover .rel-title {
+  color: var(--c-brand-hover);
+}
+
+.rel-list li:last-child {
+  border-bottom: none;
+}
+
+.rel-title {
+  color: var(--c-ink-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rel-time {
+  color: var(--c-text-3);
+  font-size: 11px;
+  white-space: nowrap;
+}
 
 .rel-status {
   font-size: 10px;
@@ -418,7 +490,13 @@ function formatTime(t) {
   color: var(--c-ink-1);
   white-space: nowrap;
 }
-.rel-empty { font-size: 12px; color: var(--c-brand-tint); text-align: center; margin: 6px 0; }
+
+.rel-empty {
+  font-size: 12px;
+  color: var(--c-brand-tint);
+  text-align: center;
+  margin: 6px 0;
+}
 
 .link-btn {
   background: transparent;
@@ -429,15 +507,36 @@ function formatTime(t) {
   padding: 0;
   margin-top: 4px;
 }
-.link-btn:hover { text-decoration: underline; }
 
-.spinning { animation: spin 1s linear infinite; }
+.link-btn:hover {
+  text-decoration: underline;
+}
 
-@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
 
 @media (width <= 1100px) {
-  .timeline-relations { grid-template-columns: 1fr; }
-  .timeline-steps { flex-wrap: wrap; }
-  .step { min-width: 50%; }
+  .timeline-relations {
+    grid-template-columns: 1fr;
+  }
+
+  .timeline-steps {
+    flex-wrap: wrap;
+  }
+
+  .step {
+    min-width: 50%;
+  }
 }
 </style>

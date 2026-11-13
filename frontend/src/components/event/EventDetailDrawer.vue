@@ -404,8 +404,7 @@ const onTabClick = (tab) => {
 .event-drawer-backdrop {
   position: fixed;
   inset: 0;
-  background: var(--c-overlay)
-    /* = rgba 15,23,42/.35 */;
+  background: var(--c-overlay) /* = rgba 15,23,42/.35 */;
   backdrop-filter: blur(2px);
   z-index: 200;
   display: flex;
@@ -430,7 +429,11 @@ const onTabClick = (tab) => {
   color: var(--c-on-brand);
   position: relative;
 }
-.ed-header-meta { flex: 1; min-width: 0; }
+
+.ed-header-meta {
+  flex: 1;
+  min-width: 0;
+}
 
 .ed-header .eyebrow {
   font-size: 10.5px;
@@ -503,7 +506,10 @@ const onTabClick = (tab) => {
   align-items: center;
   justify-content: center;
 }
-.ed-close:hover { background: rgb(255 255 255 / 28%); }
+
+.ed-close:hover {
+  background: rgb(255 255 255 / 28%);
+}
 
 .ed-body {
   flex: 1;
@@ -516,7 +522,11 @@ const onTabClick = (tab) => {
   padding-bottom: 16px;
   border-bottom: 1px dashed var(--c-border);
 }
-.ed-section:last-child { border-bottom: none; padding-bottom: 0; }
+
+.ed-section:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
 
 .ed-section-title {
   font-size: 12px;
@@ -591,7 +601,10 @@ const onTabClick = (tab) => {
   align-items: center;
   gap: 4px;
 }
-.tabs button:hover:not(:disabled) { color: var(--c-brand); }
+
+.tabs button:hover:not(:disabled) {
+  color: var(--c-brand);
+}
 
 .tabs button.active {
   color: var(--c-brand);
@@ -609,10 +622,18 @@ const onTabClick = (tab) => {
   color: var(--c-text-3);
   font-family: ui-monospace, monospace;
 }
-.tabs small.muted { color: var(--c-border); }
-.tabs button.active small { color: var(--sys-blue); }
 
-.tab-content { padding: 4px 0; }
+.tabs small.muted {
+  color: var(--c-border);
+}
+
+.tabs button.active small {
+  color: var(--sys-blue);
+}
+
+.tab-content {
+  padding: 4px 0;
+}
 
 .kv-row {
   display: flex;
@@ -621,14 +642,19 @@ const onTabClick = (tab) => {
   border-bottom: 1px dotted var(--c-border);
   font-size: 13px;
 }
-.kv-row .k { color: var(--c-text-2); }
-.kv-row strong { color: var(--c-ink-1); }
+
+.kv-row .k {
+  color: var(--c-text-2);
+}
+
+.kv-row strong {
+  color: var(--c-ink-1);
+}
 
 .link-btn {
   margin-top: 12px;
   background: transparent;
-  border: 1px solid color-mix(in srgb, var(--c-brand) 40%, transparent)
-    /* = rgba 111,158,127/.4 */;
+  border: 1px solid color-mix(in srgb, var(--c-brand) 40%, transparent) /* = rgba 111,158,127/.4 */;
   color: var(--c-brand);
   padding: 6px 12px;
   border-radius: var(--r-sm);
@@ -640,8 +666,9 @@ const onTabClick = (tab) => {
   transition: all 0.15s;
 }
 
-.link-btn:hover { background: color-mix(in srgb, var(--c-brand) 8%, transparent)
-    /* = rgba 111,158,127/.08 */; }
+.link-btn:hover {
+  background: color-mix(in srgb, var(--c-brand) 8%, transparent) /* = rgba 111,158,127/.08 */;
+}
 
 .empty {
   padding: 18px 0;
@@ -679,7 +706,10 @@ const onTabClick = (tab) => {
   transform: translateY(-1px);
   box-shadow: 0 4px 8px rgb(46 67 93 / 10%);
 }
-.lineage-node.dim { opacity: 0.45; }
+
+.lineage-node.dim {
+  opacity: 0.45;
+}
 
 .lineage-icon {
   display: inline-flex;
@@ -759,24 +789,77 @@ const onTabClick = (tab) => {
   align-items: center;
   gap: 4px;
 }
-.action-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-.action-btn.tone-green { background: var(--c-brand-mist); border-color: var(--c-brand-hover); color: var(--c-brand-deep); }
-.action-btn.tone-green:hover:not(:disabled) { background: var(--c-brand-hover); color: var(--c-on-brand); }
-.action-btn.tone-red { background: var(--c-danger-bg); border-color: var(--c-danger); color: var(--c-danger-strong); }
-.action-btn.tone-red:hover:not(:disabled) { background: var(--c-danger); color: var(--c-on-brand); }
-.action-btn.tone-orange { background: rgb(224 160 80 / 10%); border-color: var(--c-warning); color: var(--c-warning-ink); }
-.action-btn.tone-orange:hover:not(:disabled) { background: var(--c-warning); color: var(--c-on-brand); }
-.action-btn.tone-blue { background: rgb(99 143 194 / 10%); border-color: var(--sys-blue); color: var(--c-brand); }
-.action-btn.tone-blue:hover:not(:disabled) { background: var(--sys-blue); color: var(--c-on-brand); }
-.action-btn.tone-gray { background: var(--c-brand-mist); border-color: var(--c-border); color: var(--c-ink-2); }
-.action-btn.tone-gray:hover:not(:disabled) { background: var(--c-border); color: var(--c-ink-1); }
-.muted { color: var(--c-text-3); font-size: 12px; font-style: italic; }
+
+.action-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.action-btn.tone-green {
+  background: var(--c-brand-mist);
+  border-color: var(--c-brand-hover);
+  color: var(--c-brand-deep);
+}
+
+.action-btn.tone-green:hover:not(:disabled) {
+  background: var(--c-brand-hover);
+  color: var(--c-on-brand);
+}
+
+.action-btn.tone-red {
+  background: var(--c-danger-bg);
+  border-color: var(--c-danger);
+  color: var(--c-danger-strong);
+}
+
+.action-btn.tone-red:hover:not(:disabled) {
+  background: var(--c-danger);
+  color: var(--c-on-brand);
+}
+
+.action-btn.tone-orange {
+  background: rgb(224 160 80 / 10%);
+  border-color: var(--c-warning);
+  color: var(--c-warning-ink);
+}
+
+.action-btn.tone-orange:hover:not(:disabled) {
+  background: var(--c-warning);
+  color: var(--c-on-brand);
+}
+
+.action-btn.tone-blue {
+  background: rgb(99 143 194 / 10%);
+  border-color: var(--sys-blue);
+  color: var(--c-brand);
+}
+
+.action-btn.tone-blue:hover:not(:disabled) {
+  background: var(--sys-blue);
+  color: var(--c-on-brand);
+}
+
+.action-btn.tone-gray {
+  background: var(--c-brand-mist);
+  border-color: var(--c-border);
+  color: var(--c-ink-2);
+}
+
+.action-btn.tone-gray:hover:not(:disabled) {
+  background: var(--c-border);
+  color: var(--c-ink-1);
+}
+
+.muted {
+  color: var(--c-text-3);
+  font-size: 12px;
+  font-style: italic;
+}
 
 .reason-backdrop {
   position: fixed;
   inset: 0;
-  background: var(--c-overlay)
-    /* = rgba 15,23,42/.45 */;
+  background: var(--c-overlay) /* = rgba 15,23,42/.45 */;
   z-index: 300;
   display: flex;
   align-items: center;
@@ -836,8 +919,7 @@ const onTabClick = (tab) => {
 .reason-body textarea:focus {
   outline: none;
   border-color: var(--c-brand);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--c-brand) 10%, transparent)
-    /* = rgba 111,158,127/.1 */;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--c-brand) 10%, transparent) /* = rgba 111,158,127/.1 */;
 }
 
 .reason-body .error {
@@ -869,7 +951,10 @@ const onTabClick = (tab) => {
   border-color: var(--c-border);
   color: var(--c-ink-2);
 }
-.reason-modal footer button.ghost:hover { background: rgb(203 213 224 / 20%); }
+
+.reason-modal footer button.ghost:hover {
+  background: rgb(203 213 224 / 20%);
+}
 
 .reason-modal footer button.primary {
   background: var(--c-brand);
@@ -879,23 +964,57 @@ const onTabClick = (tab) => {
   align-items: center;
   gap: 4px;
 }
-.reason-modal footer button.primary:hover:not(:disabled) { background: var(--sys-blue-deep); }
-.reason-modal footer button.primary:disabled { opacity: 0.6; cursor: not-allowed; }
 
-.spin { animation: spin 1s linear infinite; }
+.reason-modal footer button.primary:hover:not(:disabled) {
+  background: var(--sys-blue-deep);
+}
 
-@keyframes spin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
+.reason-modal footer button.primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
 
-.drawer-enter-active, .drawer-leave-active {
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.drawer-enter-active,
+.drawer-leave-active {
   transition: opacity 0.18s ease;
 }
 
-.drawer-enter-active .event-drawer, .drawer-leave-active .event-drawer {
+.drawer-enter-active .event-drawer,
+.drawer-leave-active .event-drawer {
   transition: transform 0.24s cubic-bezier(0.22, 0.61, 0.36, 1);
 }
-.drawer-enter-from, .drawer-leave-to { opacity: 0; }
-.drawer-enter-from .event-drawer, .drawer-leave-to .event-drawer { transform: translateX(100%); }
 
-.modal-enter-active, .modal-leave-active { transition: opacity 0.16s ease; }
-.modal-enter-from, .modal-leave-to { opacity: 0; }
+.drawer-enter-from,
+.drawer-leave-to {
+  opacity: 0;
+}
+
+.drawer-enter-from .event-drawer,
+.drawer-leave-to .event-drawer {
+  transform: translateX(100%);
+}
+
+.modal-enter-active,
+.modal-leave-active {
+  transition: opacity 0.16s ease;
+}
+
+.modal-enter-from,
+.modal-leave-to {
+  opacity: 0;
+}
 </style>

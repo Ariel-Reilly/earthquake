@@ -115,7 +115,7 @@ function formatBadge(n) {
   padding: 0 var(--sp-16, 16px);
   border: 0;
   background: transparent;
-  color: var(--text-muted, #6B7A73);
+  color: var(--text-muted, #6b7a73);
   font-size: 14px;
   font-weight: 500;
   white-space: nowrap;
@@ -127,26 +127,26 @@ function formatBadge(n) {
 
 /* 底部 3px 指示线：贴着 Header 底边，用 scaleX 做出现动画，不触发布局 */
 .group-tab::after {
-  content: '';
+  content: "";
   position: absolute;
   left: var(--sp-8, 8px);
   right: var(--sp-8, 8px);
   bottom: 0;
   height: 3px;
   border-radius: 3px 3px 0 0;
-  background: var(--primary, #5F7A6B);
+  background: var(--primary, #5f7a6b);
   transform: scaleX(0);
   transition: transform 0.2s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 .group-tab:hover {
-  color: var(--text-main, #2C3B34);
+  color: var(--text-main, #2c3b34);
   background: var(--bg-hover, rgb(95 122 107 / 8%));
 }
 
 /* 文字用 --primary-hover 而非 --primary：主色在白底上对比度仅 4.16，加深一档后约 5.9 */
 .group-tab.is-active {
-  color: var(--primary-hover, #4A6154);
+  color: var(--primary-hover, #4a6154);
   font-weight: 700;
 }
 
@@ -167,8 +167,8 @@ function formatBadge(n) {
   height: 20px;
   padding: 0 5px;
   border-radius: var(--r-pill, 9999px);
-  background: var(--primary, #5F7A6B);
-  color: var(--primary-on, #FFF);
+  background: var(--primary, #5f7a6b);
+  color: var(--primary-on, #fff);
 
   /* 10px 数字在 1x 屏几乎不可读，统一提到 12px 并同步放大胶囊 */
   font-size: 12px;
@@ -178,7 +178,7 @@ function formatBadge(n) {
 }
 
 .group-tab:focus-visible {
-  outline: 2px solid var(--primary, #5F7A6B);
+  outline: 2px solid var(--primary, #5f7a6b);
   outline-offset: -2px;
 }
 

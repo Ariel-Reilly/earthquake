@@ -769,10 +769,30 @@ onBeforeUnmount(() => {
   padding: 14px 18px;
   box-shadow: var(--shadow-xs);
 }
-.dm-title { display: flex; align-items: center; gap: 12px; color: var(--c-scrim); }
-.dm-title h1 { font-size: 18px; font-weight: 600; margin: 0; }
-.dm-title p { font-size: 12px; color: var(--c-text-3); margin: 2px 0 0; }
-.dm-actions { display: flex; gap: 8px; }
+
+.dm-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--c-scrim);
+}
+
+.dm-title h1 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.dm-title p {
+  font-size: 12px;
+  color: var(--c-text-3);
+  margin: 2px 0 0;
+}
+
+.dm-actions {
+  display: flex;
+  gap: 8px;
+}
 
 .dm-btn {
   display: inline-flex;
@@ -787,16 +807,49 @@ onBeforeUnmount(() => {
   cursor: pointer;
   transition: all 0.15s;
 }
-.dm-btn:hover:not(:disabled) { border-color: var(--c-brand-deep); color: var(--c-brand-deep); }
-.dm-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.dm-btn-primary { background: var(--c-brand-deep); color: var(--c-on-brand); border-color: transparent; }
-.dm-btn-primary:hover:not(:disabled) { color: var(--c-on-brand); }
-.dm-btn-ghost { background: transparent; }
-.dm-btn-sm { padding: 3px 8px; font-size: 11px; }
 
-.spin { animation: spin 1s linear infinite; }
+.dm-btn:hover:not(:disabled) {
+  border-color: var(--c-brand-deep);
+  color: var(--c-brand-deep);
+}
 
-@keyframes spin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
+.dm-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.dm-btn-primary {
+  background: var(--c-brand-deep);
+  color: var(--c-on-brand);
+  border-color: transparent;
+}
+
+.dm-btn-primary:hover:not(:disabled) {
+  color: var(--c-on-brand);
+}
+
+.dm-btn-ghost {
+  background: transparent;
+}
+
+.dm-btn-sm {
+  padding: 3px 8px;
+  font-size: 11px;
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
 
 /* ===== Stats ===== */
 .dm-stats {
@@ -816,15 +869,30 @@ onBeforeUnmount(() => {
 }
 
 .dm-stat-icon {
-  width: 36px; height: 36px;
+  width: 36px;
+  height: 36px;
   border-radius: var(--r-sm);
   display: flex;
   align-items: center;
   justify-content: center;
 }
-.dm-stat-body { display: flex; flex-direction: column; }
-.dm-stat-label { font-size: 11px; color: var(--c-text-3); font-weight: 600; }
-.dm-stat-value { font-size: 18px; font-weight: 700; color: var(--c-scrim); }
+
+.dm-stat-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.dm-stat-label {
+  font-size: 11px;
+  color: var(--c-text-3);
+  font-weight: 600;
+}
+
+.dm-stat-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--c-scrim);
+}
 
 /* ===== Main 3-column ===== */
 .dm-main {
@@ -836,11 +904,16 @@ onBeforeUnmount(() => {
 }
 
 @media (width <= 1280px) {
-  .dm-main { grid-template-columns: 280px minmax(0, 1fr) 300px; }
+  .dm-main {
+    grid-template-columns: 280px minmax(0, 1fr) 300px;
+  }
 }
 
 @media (width <= 1024px) {
-  .dm-main { grid-template-columns: 1fr; grid-template-rows: auto 400px auto; }
+  .dm-main {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 400px auto;
+  }
 }
 
 /* ===== 设备列表 ===== */
@@ -887,8 +960,19 @@ onBeforeUnmount(() => {
   margin-bottom: 6px;
   color: var(--c-text-3);
 }
-.dm-search input { background: transparent; border: none; outline: none; font-size: 12px; flex: 1; }
-.dm-filter-row { display: flex; gap: 6px; }
+
+.dm-search input {
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 12px;
+  flex: 1;
+}
+
+.dm-filter-row {
+  display: flex;
+  gap: 6px;
+}
 
 .dm-select {
   flex: 1;
@@ -898,7 +982,11 @@ onBeforeUnmount(() => {
   background: var(--c-surface);
   font-size: 12px;
 }
-.dm-select-sm { padding: 2px 6px; font-size: 11px; }
+
+.dm-select-sm {
+  padding: 2px 6px;
+  font-size: 11px;
+}
 
 .dm-devices {
   list-style: none;
@@ -918,7 +1006,10 @@ onBeforeUnmount(() => {
   cursor: pointer;
   transition: background 0.15s;
 }
-.dm-device-item:hover { background: var(--c-brand-mist); }
+
+.dm-device-item:hover {
+  background: var(--c-brand-mist);
+}
 
 .dm-device-item.active {
   background: var(--sys-blue-soft);
@@ -926,7 +1017,8 @@ onBeforeUnmount(() => {
 }
 
 .dm-device-dot {
-  width: 10px; height: 10px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   box-shadow: 0 0 0 2px var(--c-surface);
 }
@@ -963,7 +1055,13 @@ onBeforeUnmount(() => {
   gap: 4px;
   color: var(--c-text-3);
 }
-.dm-battery { display: inline-flex; align-items: center; gap: 2px; font-size: 10px; }
+
+.dm-battery {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 10px;
+}
 
 .dm-empty {
   padding: 30px 12px;
@@ -985,7 +1083,11 @@ onBeforeUnmount(() => {
   box-shadow: var(--shadow-xs);
   min-height: 480px;
 }
-.dm-map { position: absolute; inset: 0; }
+
+.dm-map {
+  position: absolute;
+  inset: 0;
+}
 
 .dm-map-legend {
   position: absolute;
@@ -1002,17 +1104,24 @@ onBeforeUnmount(() => {
   z-index: 1;
   box-shadow: 0 1px 3px rgb(0 0 0 / 8%);
 }
-.dm-map-legend > div { display: inline-flex; align-items: center; gap: 4px; }
+
+.dm-map-legend > div {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
 
 .dm-dot {
-  width: 10px; height: 10px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   display: inline-block;
 }
 
 .dm-dash {
   display: inline-block;
-  width: 18px; height: 2px;
+  width: 18px;
+  height: 2px;
   background: linear-gradient(to right, var(--c-warning-strong) 50%, transparent 50%);
   background-size: 6px 100%;
 }
@@ -1065,7 +1174,12 @@ onBeforeUnmount(() => {
   margin-bottom: 10px;
   color: var(--c-scrim);
 }
-.dm-card-header h3 { font-size: 13px; font-weight: 600; margin: 0; }
+
+.dm-card-header h3 {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0;
+}
 
 .dm-status-chip {
   margin-left: auto;
@@ -1074,7 +1188,10 @@ onBeforeUnmount(() => {
   font-size: 11px;
   font-weight: 600;
 }
-.dm-card-tip { background: var(--c-warning-bg); }
+
+.dm-card-tip {
+  background: var(--c-warning-bg);
+}
 
 .dm-detail-grid {
   display: grid;
@@ -1088,7 +1205,10 @@ onBeforeUnmount(() => {
   font-size: 12px;
   color: var(--c-text-3);
 }
-.dm-detail-grid > div span { font-size: 10px; }
+
+.dm-detail-grid > div span {
+  font-size: 10px;
+}
 
 .dm-detail-grid > div strong {
   color: var(--c-scrim);
@@ -1104,7 +1224,10 @@ onBeforeUnmount(() => {
   border-radius: 3px;
   font-size: 11px;
 }
-.dm-span { grid-column: 1 / -1; }
+
+.dm-span {
+  grid-column: 1 / -1;
+}
 
 .dm-loading {
   padding: 20px;
@@ -1116,12 +1239,13 @@ onBeforeUnmount(() => {
   font-size: 12px;
 }
 
-.dm-progress-wrap { margin: 12px 0; }
+.dm-progress-wrap {
+  margin: 12px 0;
+}
 
 .dm-progress {
   width: 100%;
   height: 6px;
-  appearance: none;
   appearance: none;
   background: var(--c-brand-mist);
   border-radius: 3px;
@@ -1129,7 +1253,6 @@ onBeforeUnmount(() => {
 }
 
 .dm-progress::-webkit-slider-thumb {
-  appearance: none;
   appearance: none;
   width: 14px;
   height: 14px;
@@ -1159,7 +1282,11 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 4px;
 }
-.dm-control-label { font-size: 11px; color: var(--c-text-3); }
+
+.dm-control-label {
+  font-size: 11px;
+  color: var(--c-text-3);
+}
 
 .dm-current-point {
   background: var(--c-warning-bg);
@@ -1187,15 +1314,39 @@ onBeforeUnmount(() => {
   flex-direction: column;
   color: var(--c-text-3);
 }
-.dm-current-grid > div span { font-size: 10px; }
-.dm-current-grid > div strong { color: var(--c-scrim); font-size: 11px; }
-.dm-current-grid code { background: var(--c-border-2); padding: 1px 3px; border-radius: 3px; font-size: 10px; }
+
+.dm-current-grid > div span {
+  font-size: 10px;
+}
+
+.dm-current-grid > div strong {
+  color: var(--c-scrim);
+  font-size: 11px;
+}
+
+.dm-current-grid code {
+  background: var(--c-border-2);
+  padding: 1px 3px;
+  border-radius: 3px;
+  font-size: 10px;
+}
 
 /* 地图图例圆点：与设备状态/当前位置语义一一对应（原为模板内联 style） */
-.dm-dot--online { background: var(--c-success); }
-.dm-dot--offline { background: var(--c-text-3); }
-.dm-dot--fault { background: var(--c-danger-strong); }
-.dm-dot--current { background: var(--c-warning); }
+.dm-dot--online {
+  background: var(--c-success);
+}
+
+.dm-dot--offline {
+  background: var(--c-text-3);
+}
+
+.dm-dot--fault {
+  background: var(--c-danger-strong);
+}
+
+.dm-dot--current {
+  background: var(--c-warning);
+}
 
 .dm-tips {
   list-style: none;

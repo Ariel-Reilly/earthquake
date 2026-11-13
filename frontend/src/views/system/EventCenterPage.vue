@@ -457,7 +457,9 @@ function stateMeta(id) {
 </template>
 
 <style scoped>
-.event-center { padding-bottom: 12px; }
+.event-center {
+  padding-bottom: 12px;
+}
 
 /* KPI 行 */
 .kpi-row {
@@ -501,14 +503,20 @@ function stateMeta(id) {
   box-shadow: 0 6px 16px rgb(46 67 93 / 10%);
   border-color: var(--tone-color, var(--c-brand));
 }
-.kpi-card:hover::before { opacity: 1; }
+
+.kpi-card:hover::before {
+  opacity: 1;
+}
 
 .kpi-card.active {
   border-color: var(--tone-color, var(--c-brand));
   background: var(--c-surface);
   box-shadow: 0 6px 16px rgb(111 158 127 / 15%);
 }
-.kpi-card.active::before { opacity: 1; }
+
+.kpi-card.active::before {
+  opacity: 1;
+}
 
 .kpi-card.summary {
   grid-column: span 1;
@@ -581,7 +589,10 @@ function stateMeta(id) {
   padding: 8px 10px;
   border-radius: var(--r-sm);
 }
-.active-filter span { flex: 1; }
+
+.active-filter span {
+  flex: 1;
+}
 
 .clear-filter {
   background: transparent;
@@ -594,7 +605,10 @@ function stateMeta(id) {
   gap: 2px;
   padding: 2px 4px;
 }
-.clear-filter:hover { color: var(--c-danger-strong); }
+
+.clear-filter:hover {
+  color: var(--c-danger-strong);
+}
 
 .help-card {
   background: var(--c-info-bg);
@@ -622,7 +636,11 @@ function stateMeta(id) {
   padding-left: 18px;
   line-height: 1.7;
 }
-.help-card strong { color: var(--c-ink-1); font-weight: 600; }
+
+.help-card strong {
+  color: var(--c-ink-1);
+  font-weight: 600;
+}
 
 /* 列表 */
 .ec-list {
@@ -732,7 +750,11 @@ function stateMeta(id) {
   border-color: var(--c-brand);
   color: var(--c-brand);
 }
-.refresh-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.refresh-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
 
 /* 事件卡片 */
 .event-cards {
@@ -764,11 +786,26 @@ function stateMeta(id) {
   width: 3px;
   border-radius: 0 2px 2px 0;
 }
-.event-card.tone-blue::before { background: var(--sys-blue); }
-.event-card.tone-yellow::before { background: var(--c-warning); }
-.event-card.tone-orange::before { background: var(--c-warning-strong); }
-.event-card.tone-red::before { background: var(--c-danger); }
-.event-card.tone-gray::before { background: var(--c-text-4); }
+
+.event-card.tone-blue::before {
+  background: var(--sys-blue);
+}
+
+.event-card.tone-yellow::before {
+  background: var(--c-warning);
+}
+
+.event-card.tone-orange::before {
+  background: var(--c-warning-strong);
+}
+
+.event-card.tone-red::before {
+  background: var(--c-danger);
+}
+
+.event-card.tone-gray::before {
+  background: var(--c-text-4);
+}
 
 .event-card:hover {
   border-color: var(--c-brand);
@@ -900,11 +937,18 @@ function stateMeta(id) {
   font-size: 12px;
 }
 
-.spin { animation: spin 1s linear infinite; }
+.spin {
+  animation: spin 1s linear infinite;
+}
 
 @keyframes spin {
-  from { transform: rotate(0); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* 响应式 */
@@ -916,6 +960,9 @@ function stateMeta(id) {
   .ec-grid {
     grid-template-columns: 1fr;
   }
-  .ec-aside { position: static; }
+
+  .ec-aside {
+    position: static;
+  }
 }
 </style>

@@ -323,8 +323,13 @@ function fmtTime(iso) {
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* 主布局 */
@@ -508,7 +513,7 @@ function fmtTime(iso) {
   padding: 2px 6px;
   background: var(--c-surface-2);
   border-radius: 3px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
   font-size: 11px;
   color: var(--c-brand);
 }

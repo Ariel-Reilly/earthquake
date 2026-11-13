@@ -1102,10 +1102,21 @@ onBeforeUnmount(() => {
   display: inline-block;
 }
 
-.all-dot { background: #999; }
-.danger-dot { background: #e85b61; }
-.warn-dot { background: #f5a623; }
-.safe-dot { background: #5db686; }
+.all-dot {
+  background: #999;
+}
+
+.danger-dot {
+  background: #e85b61;
+}
+
+.warn-dot {
+  background: #f5a623;
+}
+
+.safe-dot {
+  background: #5db686;
+}
 
 .source-dot {
   width: 6px;
@@ -1114,8 +1125,13 @@ onBeforeUnmount(() => {
   display: inline-block;
 }
 
-.source-AI_MONITOR { background: #5d95c1; }
-.source-MANUAL { background: #b5a86e; }
+.source-AI_MONITOR {
+  background: #5d95c1;
+}
+
+.source-MANUAL {
+  background: #b5a86e;
+}
 
 .ai-monitor-bar {
   background: var(--c-warning-bg);
@@ -1644,7 +1660,9 @@ onBeforeUnmount(() => {
   padding: 10px 12px;
   margin-bottom: 8px;
   cursor: pointer;
-  transition: border-color 0.2s, background 0.2s;
+  transition:
+    border-color 0.2s,
+    background 0.2s;
 }
 
 .queue-list li:hover {

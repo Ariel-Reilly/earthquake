@@ -958,7 +958,8 @@ onBeforeUnmount(() => {
   border-radius: var(--radius-lg);
   background: var(--color-card);
   box-shadow: var(--shadow-xs);
-  transition: box-shadow var(--duration-fast) var(--ease-out),
+  transition:
+    box-shadow var(--duration-fast) var(--ease-out),
     border-color var(--duration-fast) var(--ease-out);
 }
 
@@ -1051,7 +1052,8 @@ onBeforeUnmount(() => {
   font-weight: var(--font-semibold);
   white-space: nowrap;
   cursor: pointer;
-  transition: background-color var(--duration-fast) var(--ease-out),
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
     box-shadow var(--duration-fast) var(--ease-out),
     transform var(--duration-fast) var(--ease-out);
 }
@@ -1088,7 +1090,8 @@ onBeforeUnmount(() => {
   font-weight: var(--font-medium);
   white-space: nowrap;
   cursor: pointer;
-  transition: background-color var(--duration-fast) var(--ease-out),
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
     border-color var(--duration-fast) var(--ease-out),
     color var(--duration-fast) var(--ease-out);
 }
@@ -1124,7 +1127,8 @@ onBeforeUnmount(() => {
   font-weight: var(--font-medium);
   white-space: nowrap;
   cursor: pointer;
-  transition: color var(--duration-fast) var(--ease-out),
+  transition:
+    color var(--duration-fast) var(--ease-out),
     background-color var(--duration-fast) var(--ease-out);
 }
 
@@ -1169,7 +1173,8 @@ onBeforeUnmount(() => {
   border-left: 3px solid transparent;
   border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: background-color var(--duration-fast) var(--ease-out),
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
     border-color var(--duration-fast) var(--ease-out),
     box-shadow var(--duration-fast) var(--ease-out);
 }
@@ -1452,7 +1457,8 @@ onBeforeUnmount(() => {
   background: transparent;
   color: var(--color-muted-foreground);
   cursor: pointer;
-  transition: background-color var(--duration-fast) var(--ease-out),
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
     border-color var(--duration-fast) var(--ease-out),
     color var(--duration-fast) var(--ease-out);
 }
@@ -1619,11 +1625,25 @@ onBeforeUnmount(() => {
   margin-right: 5px;
 }
 
-.system-item-value.tone-destructive .level-dot { background: var(--color-destructive-strong); }
-.system-item-value.tone-warning .level-dot { background: var(--color-warning-ink); }
-.system-item-value.tone-caution .level-dot { background: var(--color-warning-ink); }
-.system-item-value.tone-info .level-dot { background: var(--color-accent); }
-.system-item-value.tone-neutral .level-dot { background: var(--color-muted-foreground); }
+.system-item-value.tone-destructive .level-dot {
+  background: var(--color-destructive-strong);
+}
+
+.system-item-value.tone-warning .level-dot {
+  background: var(--color-warning-ink);
+}
+
+.system-item-value.tone-caution .level-dot {
+  background: var(--color-warning-ink);
+}
+
+.system-item-value.tone-info .level-dot {
+  background: var(--color-accent);
+}
+
+.system-item-value.tone-neutral .level-dot {
+  background: var(--color-muted-foreground);
+}
 
 .system-empty {
   display: flex;

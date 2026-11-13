@@ -2761,7 +2761,9 @@ function toggleCompareLegend(which) {
   background: var(--c-surface);
   color: var(--c-text);
   min-width: 120px;
-  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease;
 }
 
 .compare-select:focus,
@@ -2853,7 +2855,9 @@ function toggleCompareLegend(which) {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  transition: box-shadow 0.28s ease, transform 0.28s cubic-bezier(0.25, 0.9, 0.35, 1);
+  transition:
+    box-shadow 0.28s ease,
+    transform 0.28s cubic-bezier(0.25, 0.9, 0.35, 1);
 }
 
 .compare-kpi-card:hover {

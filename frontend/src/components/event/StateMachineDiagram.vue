@@ -277,7 +277,11 @@ const SUMMARY = computed(() => {
 
 <style scoped>
 .state-machine-diagram {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--c-surface) 92%, transparent), color-mix(in srgb, var(--c-surface-2) 92%, transparent));
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--c-surface) 92%, transparent),
+    color-mix(in srgb, var(--c-surface-2) 92%, transparent)
+  );
   border-radius: var(--r-lg);
   border: 1px solid var(--c-border);
   padding: 18px 20px 14px;
@@ -315,8 +319,16 @@ const SUMMARY = computed(() => {
   border-radius: var(--r-pill);
   font-weight: 600;
 }
-.chip.teal { background: rgb(79 143 153 / 12%); color: var(--c-brand); }
-.chip.gray { background: rgb(122 141 137 / 14%); color: var(--c-ink-2); }
+
+.chip.teal {
+  background: rgb(79 143 153 / 12%);
+  color: var(--c-brand);
+}
+
+.chip.gray {
+  background: rgb(122 141 137 / 14%);
+  color: var(--c-ink-2);
+}
 
 .sm-canvas-wrap {
   position: relative;
@@ -341,7 +353,11 @@ const SUMMARY = computed(() => {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-weight: 500;
 }
-.arrow-label.active { fill: var(--c-brand); font-weight: 700; }
+
+.arrow-label.active {
+  fill: var(--c-brand);
+  font-weight: 700;
+}
 
 .sm-nodes {
   position: relative;
@@ -376,8 +392,7 @@ const SUMMARY = computed(() => {
   background: var(--node-color, var(--c-brand));
   color: var(--c-on-brand);
   transform: translateY(-2px) scale(1.04);
-  box-shadow: 0 8px 20px color-mix(in srgb, var(--c-brand) 22%, transparent)
-    /* = rgba 111,158,127/.22 */;
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--c-brand) 22%, transparent) /* = rgba 111,158,127/.22 */;
   border-width: 2px;
 }
 
@@ -419,7 +434,11 @@ const SUMMARY = computed(() => {
   text-align: center;
   box-shadow: 0 1px 4px rgb(224 96 96 / 40%);
 }
-.sm-node.active .node-count { background: var(--c-surface); color: var(--node-color, var(--c-brand)); }
+
+.sm-node.active .node-count {
+  background: var(--c-surface);
+  color: var(--node-color, var(--c-brand));
+}
 
 .node-code {
   font-size: 8.5px;

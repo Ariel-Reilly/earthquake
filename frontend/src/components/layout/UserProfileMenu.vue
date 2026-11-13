@@ -187,7 +187,7 @@ onBeforeUnmount(() => {
   border: 0;
   border-radius: var(--r-lg, 12px);
   background: transparent;
-  color: var(--text-main, #2C3B34);
+  color: var(--text-main, #2c3b34);
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
@@ -213,7 +213,7 @@ onBeforeUnmount(() => {
   width: 32px;
   height: 32px;
   border-radius: var(--r-pill, 9999px);
-  background: var(--primary, #5F7A6B);
+  background: var(--primary, #5f7a6b);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -222,7 +222,7 @@ onBeforeUnmount(() => {
 }
 
 .user-initial {
-  color: var(--primary-on, #FFF);
+  color: var(--primary-on, #fff);
   font-size: 14px;
   font-weight: 650;
   line-height: 1;
@@ -241,7 +241,7 @@ onBeforeUnmount(() => {
 .chevron-icon {
   flex-shrink: 0;
   transition: transform 0.2s cubic-bezier(0.32, 0.72, 0, 1);
-  color: var(--text-muted, #6B7A73);
+  color: var(--text-muted, #6b7a73);
 }
 
 .chevron-icon.is-rotated {
@@ -257,8 +257,8 @@ onBeforeUnmount(() => {
   min-width: 200px;
   padding: var(--sp-8, 8px);
   border-radius: var(--r-lg, 12px);
-  background: var(--bg-card, #FFF);
-  border: 1px solid var(--border-color, #D1DCD5);
+  background: var(--bg-card, #fff);
+  border: 1px solid var(--border-color, #d1dcd5);
   box-shadow: var(--shadow-hover, 0 4px 16px rgb(44 59 52 / 8%));
   overflow: hidden;
 }
@@ -273,7 +273,7 @@ onBeforeUnmount(() => {
   border: 0;
   border-radius: var(--r-md, 8px);
   background: transparent;
-  color: var(--text-main, #2C3B34);
+  color: var(--text-main, #2c3b34);
   font-size: 13px;
   font-weight: 500;
   text-align: left;
@@ -285,7 +285,7 @@ onBeforeUnmount(() => {
 
 .dropdown-item:hover {
   background: var(--bg-hover, rgb(95 122 107 / 8%));
-  color: var(--primary, #5F7A6B);
+  color: var(--primary, #5f7a6b);
 }
 
 .dropdown-item svg {
@@ -300,19 +300,19 @@ onBeforeUnmount(() => {
 
 /* ── 危险项（退出登录） ── */
 .dropdown-item-danger {
-  color: var(--alert-high, #C48B8B);
+  color: var(--alert-high, #c48b8b);
 }
 
 .dropdown-item-danger:hover {
   background: var(--alert-high-bg, rgb(196 139 139 / 12%));
-  color: var(--alert-high, #C48B8B);
+  color: var(--alert-high, #c48b8b);
 }
 
 /* ── 分割线 ── */
 .dropdown-divider {
   height: 1px;
   margin: var(--sp-8, 8px) 0;
-  background: var(--border-color, #D1DCD5);
+  background: var(--border-color, #d1dcd5);
 }
 
 /* ── 下拉淡入动画 ── */

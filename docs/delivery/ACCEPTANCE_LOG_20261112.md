@@ -810,3 +810,22 @@ Edge headless CDP 9222 → nginx(dist) 25173（Origin 改写 + Cesium CSP）
   - DB `event_sign` 2 行均 `CONFIRMED`（signer 3=commander、5=expert，意见分别为本人确认）；
   - 清理后 `signRowsLeft=0`、事件状态还原为 `CONFIRMING`。
 - 结论：**B2-2 ✅ 关闭**。边界：在开发库执行并已清理测试会签行；审计日志保留属正常操作记录。
+
+---
+
+## 三十八、B4-3 Stylelint 第二批：样式块格式化（2026-11-13）
+
+- 起点：第一批后剩余 **2,440 条**（其中单行多声明 2,320）。
+- 方案：新增 `scripts/delivery/format-style-blocks.mjs`，只对 Vue `<style>` 块与独立 `.css`
+  调用 `prettier.format(parser='css')`（dry-run 默认，`--write` 写入），不改模板/脚本；
+  随后 `stylelint --fix` 清理格式化产生的空行规则。
+- 结果：
+  - Prettier 格式化 **85 个文件**（dry-run 先确认 86 个候选、0 解析失败）；
+  - 剩余 stylelint **82 条**（消除 2,358）：`no-duplicate-selectors` 71、
+    `selector-type-no-unknown` 2、废弃关键字 2、未知属性值 1；
+  - diff：+22,850 / −4,950，仅样式格式/换行。
+- 回归：
+  - eslint **0 error**；vitest **69 passed / 7 文件**；`vite build` 成功（4.98s）；
+  - SFC 完整性 **98/98**；真实浏览器 **37/37 PASS**（截图 23 张，总览页/橙色弹窗抽查无变化）。
+- 后续：剩余 82 条均为语义项（重复选择器等），需人工确认是否合并或加例外；
+  清零后再把 CI stylelint 从 advisory 改为阻断。详见 `STYLELINT_BASELINE.md`。

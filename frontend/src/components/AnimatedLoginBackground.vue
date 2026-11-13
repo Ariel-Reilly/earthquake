@@ -241,7 +241,6 @@ onBeforeUnmount(() => {
     linear-gradient(90deg, rgb(111 158 127 / 5.5%) 1px, transparent 1px);
   background-size: 46px 46px;
   mask-image: radial-gradient(circle at 50% 42%, var(--c-overlay-ink) 28%, transparent 76%);
-  mask-image: radial-gradient(circle at 50% 42%, var(--c-overlay-ink) 28%, transparent 76%);
 }
 
 .login-bg-canvas {
@@ -258,8 +257,17 @@ onBeforeUnmount(() => {
 }
 
 @keyframes blob-float {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  33% { transform: translate(42px, -32px) scale(1.08); }
-  66% { transform: translate(-30px, 26px) scale(0.94); }
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+
+  33% {
+    transform: translate(42px, -32px) scale(1.08);
+  }
+
+  66% {
+    transform: translate(-30px, 26px) scale(0.94);
+  }
 }
 </style>

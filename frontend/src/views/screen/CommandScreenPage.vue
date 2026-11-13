@@ -816,43 +816,43 @@ function relativeTime(isoStr) {
      指挥大屏是常驻深色的控制室画面，不随浅色/深色主题切换；
      深色底 / 玻璃面板 / 等级强调色统一收敛到这里，避免散落写死。
      这些色属于「有意区分」的大屏视觉体系，不要合并成单一令牌。 */
-  --cs-bg:            #060a14;
-  --cs-panel:         rgb(10 15 30 / 90%);
-  --cs-panel-deep:    rgb(10 15 30 / 95%);
-  --cs-elev:          rgb(15 23 42 / 80%);
-  --cs-elev-dim:      rgb(15 23 42 / 60%);
-  --cs-elev-strong:   rgb(15 23 42 / 90%);
-  --cs-tab-bg:        rgb(30 41 59 / 80%);
-  --cs-overlay:       rgb(6 10 20 / 85%);
-  --cs-hairline:      rgb(255 255 255 / 6%);
-  --cs-header-grad:   linear-gradient(90deg, #0d1b2a 0%, #1b2a3a 50%, #0d1b2a 100%);
+  --cs-bg: #060a14;
+  --cs-panel: rgb(10 15 30 / 90%);
+  --cs-panel-deep: rgb(10 15 30 / 95%);
+  --cs-elev: rgb(15 23 42 / 80%);
+  --cs-elev-dim: rgb(15 23 42 / 60%);
+  --cs-elev-strong: rgb(15 23 42 / 90%);
+  --cs-tab-bg: rgb(30 41 59 / 80%);
+  --cs-overlay: rgb(6 10 20 / 85%);
+  --cs-hairline: rgb(255 255 255 / 6%);
+  --cs-header-grad: linear-gradient(90deg, #0d1b2a 0%, #1b2a3a 50%, #0d1b2a 100%);
 
   /* 品牌绿叠加：大屏原为蓝色系，已统一改品牌绿，各透明度档位保留区分 */
-  --cs-brand-a06:     rgb(76 189 106 / 6%);
-  --cs-brand-a10:     rgb(76 189 106 / 10%);
-  --cs-brand-a15:     rgb(76 189 106 / 15%);
-  --cs-brand-a20:     rgb(76 189 106 / 20%);
-  --cs-brand-a25:     rgb(76 189 106 / 25%);
-  --cs-brand-a30:     rgb(76 189 106 / 30%);
+  --cs-brand-a06: rgb(76 189 106 / 6%);
+  --cs-brand-a10: rgb(76 189 106 / 10%);
+  --cs-brand-a15: rgb(76 189 106 / 15%);
+  --cs-brand-a20: rgb(76 189 106 / 20%);
+  --cs-brand-a25: rgb(76 189 106 / 25%);
+  --cs-brand-a30: rgb(76 189 106 / 30%);
 
   /* 告警强调叠加（红/橙/黄/绿 分级保留辨识度） */
-  --cs-danger-a20:    rgb(239 68 68 / 20%);
-  --cs-danger-a30:    rgb(239 68 68 / 30%);
-  --cs-warning-a06:   rgb(249 115 22 / 6%);
-  --cs-warning-a10:   rgb(249 115 22 / 10%);
-  --cs-warning-a20:   rgb(249 115 22 / 20%);
-  --cs-warning-a30:   rgb(249 115 22 / 30%);
-  --cs-success-a20:   rgb(34 197 94 / 20%);
-  --cs-success-a30:   rgb(34 197 94 / 30%);
-  --cs-yellow-a15:    rgb(234 179 8 / 15%);
-  --cs-yellow-a20:    rgb(234 179 8 / 20%);
+  --cs-danger-a20: rgb(239 68 68 / 20%);
+  --cs-danger-a30: rgb(239 68 68 / 30%);
+  --cs-warning-a06: rgb(249 115 22 / 6%);
+  --cs-warning-a10: rgb(249 115 22 / 10%);
+  --cs-warning-a20: rgb(249 115 22 / 20%);
+  --cs-warning-a30: rgb(249 115 22 / 30%);
+  --cs-success-a20: rgb(34 197 94 / 20%);
+  --cs-success-a30: rgb(34 197 94 / 30%);
+  --cs-yellow-a15: rgb(234 179 8 / 15%);
+  --cs-yellow-a20: rgb(234 179 8 / 20%);
 
   /* 等级文字/点缀色（蓝/红/橙/黄/青/紫） */
-  --cs-lvl-blue:      #60a5fa;
-  --cs-lvl-red:       #f87171;
-  --cs-lvl-orange:    #fb923c;
-  --cs-lvl-yellow:    #facc15;
-  --cs-accent-cyan:   #06b6d4;
+  --cs-lvl-blue: #60a5fa;
+  --cs-lvl-red: #f87171;
+  --cs-lvl-orange: #fb923c;
+  --cs-lvl-yellow: #facc15;
+  --cs-accent-cyan: #06b6d4;
   --cs-accent-purple: #a855f7;
   --cs-accent-yellow: #eab308;
 
@@ -884,7 +884,10 @@ function relativeTime(isoStr) {
   align-items: center;
   gap: 10px;
 }
-.cs-logo-icon { color: var(--c-brand-hover); }
+
+.cs-logo-icon {
+  color: var(--c-brand-hover);
+}
 
 .cs-logo-text {
   font-size: 18px;
@@ -892,7 +895,10 @@ function relativeTime(isoStr) {
   color: var(--c-brand-mist);
   letter-spacing: 1px;
 }
-.cs-divider { color: var(--c-ink-1); }
+
+.cs-divider {
+  color: var(--c-ink-1);
+}
 
 .cs-subtitle {
   font-size: 12px;
@@ -924,7 +930,11 @@ function relativeTime(isoStr) {
   transition: all 0.2s;
   white-space: nowrap;
 }
-.cs-tab:hover { color: var(--c-brand-soft); background: var(--cs-brand-a15); }
+
+.cs-tab:hover {
+  color: var(--c-brand-soft);
+  background: var(--cs-brand-a15);
+}
 
 .cs-tab.active {
   background: var(--c-brand-deeper);
@@ -948,8 +958,18 @@ function relativeTime(isoStr) {
   font-size: 12px;
   font-weight: 500;
 }
-.ws-ok { background: var(--c-success-bg); color: var(--c-success); border: 1px solid var(--cs-success-a30); }
-.ws-off { background: var(--c-danger-bg); color: var(--c-danger); border: 1px solid var(--cs-danger-a30); }
+
+.ws-ok {
+  background: var(--c-success-bg);
+  color: var(--c-success);
+  border: 1px solid var(--cs-success-a30);
+}
+
+.ws-off {
+  background: var(--c-danger-bg);
+  color: var(--c-danger);
+  border: 1px solid var(--cs-danger-a30);
+}
 
 .cs-clock {
   font-size: 14px;
@@ -974,7 +994,11 @@ function relativeTime(isoStr) {
 }
 
 /* ─── 视图 A: 态势总览 ─── */
-.cs-view-overview { display: flex; flex-direction: column; gap: 12px; }
+.cs-view-overview {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
 
 /* KPI 卡片网格 */
 .cs-kpi-grid {
@@ -998,28 +1022,87 @@ function relativeTime(isoStr) {
 }
 
 .cs-kpi-card::before {
-  content: '';
+  content: "";
   position: absolute;
-  left: 0; top: 0; bottom: 0;
+  left: 0;
+  top: 0;
+  bottom: 0;
   width: 3px;
   border-radius: 3px 0 0 3px;
 }
-.kpi-cyan::before { background: var(--cs-accent-cyan); }
-.kpi-orange::before { background: var(--c-warning-strong); }
-.kpi-red::before { background: var(--c-danger); }
-.kpi-green::before { background: var(--c-success); }
-.kpi-blue::before { background: var(--c-brand-hover); }
-.kpi-purple::before { background: var(--cs-accent-purple); }
-.kpi-yellow::before { background: var(--cs-accent-yellow); }
-.kpi-gray::before { background: var(--c-text-2); }
 
-.kpi-icon-wrap { color: var(--c-text-3); flex-shrink: 0; }
-.kpi-body { flex: 1; min-width: 0; }
-.kpi-value { display: flex; align-items: baseline; gap: 2px; }
-.kpi-num { font-size: 28px; font-weight: 700; color: var(--c-brand-mist); line-height: 1; }
-.kpi-suffix { font-size: 13px; color: var(--c-text-3); margin-left: 2px; }
-.kpi-label { font-size: 12px; color: var(--c-text-3); margin-top: 3px; }
-.kpi-trend { font-size: 11px; color: var(--c-success); margin-top: 2px; }
+.kpi-cyan::before {
+  background: var(--cs-accent-cyan);
+}
+
+.kpi-orange::before {
+  background: var(--c-warning-strong);
+}
+
+.kpi-red::before {
+  background: var(--c-danger);
+}
+
+.kpi-green::before {
+  background: var(--c-success);
+}
+
+.kpi-blue::before {
+  background: var(--c-brand-hover);
+}
+
+.kpi-purple::before {
+  background: var(--cs-accent-purple);
+}
+
+.kpi-yellow::before {
+  background: var(--cs-accent-yellow);
+}
+
+.kpi-gray::before {
+  background: var(--c-text-2);
+}
+
+.kpi-icon-wrap {
+  color: var(--c-text-3);
+  flex-shrink: 0;
+}
+
+.kpi-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.kpi-value {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+}
+
+.kpi-num {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--c-brand-mist);
+  line-height: 1;
+}
+
+.kpi-suffix {
+  font-size: 13px;
+  color: var(--c-text-3);
+  margin-left: 2px;
+}
+
+.kpi-label {
+  font-size: 12px;
+  color: var(--c-text-3);
+  margin-top: 3px;
+}
+
+.kpi-trend {
+  font-size: 11px;
+  color: var(--c-success);
+  margin-top: 2px;
+}
 
 /* 下半分栏 */
 .cs-overview-split {
@@ -1060,12 +1143,27 @@ function relativeTime(isoStr) {
   padding: 2px 8px;
   border-radius: var(--r-md);
 }
-.panel-count-alert { background: var(--c-danger-bg); color: var(--cs-lvl-red); }
+
+.panel-count-alert {
+  background: var(--c-danger-bg);
+  color: var(--cs-lvl-red);
+}
 
 /* 灾害点列表 */
-.cs-hazard-list { flex: 1; overflow-y: auto; padding: 6px 0; }
-.cs-hazard-list::-webkit-scrollbar { width: 4px; }
-.cs-hazard-list::-webkit-scrollbar-thumb { background: var(--sys-indigo-deep); border-radius: var(--r-xs); }
+.cs-hazard-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px 0;
+}
+
+.cs-hazard-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.cs-hazard-list::-webkit-scrollbar-thumb {
+  background: var(--sys-indigo-deep);
+  border-radius: var(--r-xs);
+}
 
 .cs-hazard-item {
   display: flex;
@@ -1074,21 +1172,63 @@ function relativeTime(isoStr) {
   padding: 7px 14px;
   transition: background 0.15s;
 }
-.cs-hazard-item:hover { background: var(--cs-brand-a06); }
+
+.cs-hazard-item:hover {
+  background: var(--cs-brand-a06);
+}
 
 .hazard-dot {
-  width: 8px; height: 8px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   flex-shrink: 0;
 }
-.dot-red, .dot-红色 { background: var(--c-danger); box-shadow: 0 0 6px var(--c-danger); }
-.dot-orange, .dot-橙色 { background: var(--c-warning-strong); box-shadow: 0 0 6px var(--c-warning-strong); }
-.dot-yellow, .dot-黄色 { background: var(--cs-accent-yellow); }
-.dot-blue, .dot-蓝色 { background: var(--c-brand-hover); }
-.dot-关注, .dot-全部 { background: var(--c-text-3); }
-.hazard-info { flex: 1; min-width: 0; }
-.hazard-name { font-size: 13px; color: var(--c-brand-tint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.hazard-meta { font-size: 11px; color: var(--c-ink-1); margin-top: 2px; }
+
+.dot-red,
+.dot-红色 {
+  background: var(--c-danger);
+  box-shadow: 0 0 6px var(--c-danger);
+}
+
+.dot-orange,
+.dot-橙色 {
+  background: var(--c-warning-strong);
+  box-shadow: 0 0 6px var(--c-warning-strong);
+}
+
+.dot-yellow,
+.dot-黄色 {
+  background: var(--cs-accent-yellow);
+}
+
+.dot-blue,
+.dot-蓝色 {
+  background: var(--c-brand-hover);
+}
+
+.dot-关注,
+.dot-全部 {
+  background: var(--c-text-3);
+}
+
+.hazard-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.hazard-name {
+  font-size: 13px;
+  color: var(--c-brand-tint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hazard-meta {
+  font-size: 11px;
+  color: var(--c-ink-1);
+  margin-top: 2px;
+}
 
 .hazard-level {
   font-size: 11px;
@@ -1097,15 +1237,47 @@ function relativeTime(isoStr) {
   font-weight: 600;
   flex-shrink: 0;
 }
-.lvl-red, .lvl-红色 { background: var(--c-danger-bg); color: var(--cs-lvl-red); }
-.lvl-orange, .lvl-橙色 { background: var(--c-warning-bg); color: var(--cs-lvl-orange); }
-.lvl-yellow, .lvl-黄色 { background: var(--cs-yellow-a15); color: var(--cs-lvl-yellow); }
-.lvl-blue, .lvl-蓝色, .lvl-关注 { background: var(--cs-brand-a15); color: var(--cs-lvl-blue); }
+
+.lvl-red,
+.lvl-红色 {
+  background: var(--c-danger-bg);
+  color: var(--cs-lvl-red);
+}
+
+.lvl-orange,
+.lvl-橙色 {
+  background: var(--c-warning-bg);
+  color: var(--cs-lvl-orange);
+}
+
+.lvl-yellow,
+.lvl-黄色 {
+  background: var(--cs-yellow-a15);
+  color: var(--cs-lvl-yellow);
+}
+
+.lvl-blue,
+.lvl-蓝色,
+.lvl-关注 {
+  background: var(--cs-brand-a15);
+  color: var(--cs-lvl-blue);
+}
 
 /* 预警列表 */
-.cs-warning-list { flex: 1; overflow-y: auto; padding: 6px 0; }
-.cs-warning-list::-webkit-scrollbar { width: 4px; }
-.cs-warning-list::-webkit-scrollbar-thumb { background: var(--sys-indigo-deep); border-radius: var(--r-xs); }
+.cs-warning-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px 0;
+}
+
+.cs-warning-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.cs-warning-list::-webkit-scrollbar-thumb {
+  background: var(--sys-indigo-deep);
+  border-radius: var(--r-xs);
+}
 
 .cs-warning-item {
   display: flex;
@@ -1114,11 +1286,35 @@ function relativeTime(isoStr) {
   padding: 7px 14px;
   transition: background 0.15s;
 }
-.cs-warning-item:hover { background: var(--cs-warning-a06); }
-.w-icon { color: var(--c-warning-strong); flex-shrink: 0; }
-.w-body { flex: 1; min-width: 0; }
-.w-title { font-size: 13px; color: var(--c-brand-tint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.w-meta { display: flex; align-items: center; gap: 8px; margin-top: 2px; }
+
+.cs-warning-item:hover {
+  background: var(--cs-warning-a06);
+}
+
+.w-icon {
+  color: var(--c-warning-strong);
+  flex-shrink: 0;
+}
+
+.w-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.w-title {
+  font-size: 13px;
+  color: var(--c-brand-tint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.w-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+}
 
 .w-level {
   font-size: 11px;
@@ -1126,11 +1322,22 @@ function relativeTime(isoStr) {
   border-radius: 3px;
   font-weight: 600;
 }
-.w-time { font-size: 11px; color: var(--c-ink-1); }
+
+.w-time {
+  font-size: 11px;
+  color: var(--c-ink-1);
+}
 
 /* ─── 视图 B: 实时地图 ─── */
-.cs-view-map { padding: 0; position: relative; }
-.cs-map-container { width: 100%; height: 100%; }
+.cs-view-map {
+  padding: 0;
+  position: relative;
+}
+
+.cs-map-container {
+  width: 100%;
+  height: 100%;
+}
 
 .cs-map-overlay-stats {
   position: absolute;
@@ -1154,10 +1361,19 @@ function relativeTime(isoStr) {
   color: var(--c-text-3);
   backdrop-filter: blur(6px);
 }
-.overlay-stat strong { color: var(--c-brand-mist); font-size: 15px; }
+
+.overlay-stat strong {
+  color: var(--c-brand-mist);
+  font-size: 15px;
+}
 
 /* ─── 视图 C: 预警播报 ─── */
-.cs-view-warnings { display: flex; flex-direction: column; gap: 12px; overflow: hidden; }
+.cs-view-warnings {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow: hidden;
+}
 
 /* 统计卡片 */
 .cs-warn-summary {
@@ -1176,12 +1392,39 @@ function relativeTime(isoStr) {
   background: var(--cs-elev);
   border: 1px solid var(--cs-hairline);
 }
-.warn-critical { border-color: var(--cs-danger-a30); color: var(--c-danger); }
-.warn-high { border-color: var(--cs-warning-a30); color: var(--c-warning-strong); }
-.warn-online { border-color: var(--cs-success-a30); color: var(--c-success); }
-.warn-device { border-color: var(--cs-brand-a30); color: var(--c-brand-hover); }
-.wsc-num { font-size: 26px; font-weight: 700; color: var(--c-brand-mist); line-height: 1; }
-.wsc-label { font-size: 12px; color: var(--c-text-3); margin-top: 3px; }
+
+.warn-critical {
+  border-color: var(--cs-danger-a30);
+  color: var(--c-danger);
+}
+
+.warn-high {
+  border-color: var(--cs-warning-a30);
+  color: var(--c-warning-strong);
+}
+
+.warn-online {
+  border-color: var(--cs-success-a30);
+  color: var(--c-success);
+}
+
+.warn-device {
+  border-color: var(--cs-brand-a30);
+  color: var(--c-brand-hover);
+}
+
+.wsc-num {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--c-brand-mist);
+  line-height: 1;
+}
+
+.wsc-label {
+  font-size: 12px;
+  color: var(--c-text-3);
+  margin-top: 3px;
+}
 
 /* 滚动播报 */
 .cs-ticker-wrap {
@@ -1219,8 +1462,13 @@ function relativeTime(isoStr) {
 }
 
 @keyframes ticker-scroll {
-  0%   { transform: translateX(0); }
-  100% { transform: translateX(-50%); }
+  0% {
+    transform: translateX(0);
+  }
+
+  100% {
+    transform: translateX(-50%);
+  }
 }
 
 .cs-ticker-item {
@@ -1238,8 +1486,16 @@ function relativeTime(isoStr) {
   border-radius: 3px;
   font-weight: 600;
 }
-.ti-time { font-size: 11px; color: var(--c-ink-1); }
-.ti-sep { color: var(--c-ink-1); font-size: 10px; }
+
+.ti-time {
+  font-size: 11px;
+  color: var(--c-ink-1);
+}
+
+.ti-sep {
+  color: var(--c-ink-1);
+  font-size: 10px;
+}
 
 /* 预警详情网格 */
 .cs-warn-detail-grid {
@@ -1250,8 +1506,15 @@ function relativeTime(isoStr) {
   overflow-y: auto;
   padding-bottom: 4px;
 }
-.cs-warn-detail-grid::-webkit-scrollbar { width: 4px; }
-.cs-warn-detail-grid::-webkit-scrollbar-thumb { background: var(--sys-indigo-deep); border-radius: var(--r-xs); }
+
+.cs-warn-detail-grid::-webkit-scrollbar {
+  width: 4px;
+}
+
+.cs-warn-detail-grid::-webkit-scrollbar-thumb {
+  background: var(--sys-indigo-deep);
+  border-radius: var(--r-xs);
+}
 
 .cs-warn-card {
   background: var(--cs-panel);
@@ -1262,11 +1525,29 @@ function relativeTime(isoStr) {
   flex-direction: column;
   gap: 6px;
 }
-.card-red { border-color: var(--cs-danger-a30); }
-.card-orange { border-color: var(--cs-warning-a30); }
-.card-yellow { border-color: var(--cs-yellow-a20); }
-.card-blue, .card-gray { border-color: var(--cs-brand-a20); }
-.wcard-top { display: flex; align-items: center; gap: 6px; }
+
+.card-red {
+  border-color: var(--cs-danger-a30);
+}
+
+.card-orange {
+  border-color: var(--cs-warning-a30);
+}
+
+.card-yellow {
+  border-color: var(--cs-yellow-a20);
+}
+
+.card-blue,
+.card-gray {
+  border-color: var(--cs-brand-a20);
+}
+
+.wcard-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
 
 .wcard-level {
   font-size: 12px;
@@ -1280,8 +1561,22 @@ function relativeTime(isoStr) {
   font-size: 11px;
   color: var(--c-text-3);
 }
-.wcard-title { font-size: 14px; font-weight: 600; color: var(--c-brand-soft); }
-.wcard-desc { font-size: 12px; color: var(--c-text-3); line-height: 1.4; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+
+.wcard-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--c-brand-soft);
+}
+
+.wcard-desc {
+  font-size: 12px;
+  color: var(--c-text-3);
+  line-height: 1.4;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
 
 .wcard-footer {
   display: flex;
@@ -1291,11 +1586,27 @@ function relativeTime(isoStr) {
   color: var(--c-ink-1);
   margin-top: 2px;
 }
-.wcard-footer span { display: flex; align-items: center; gap: 3px; }
+
+.wcard-footer span {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
 
 /* ─── 视图 D: 设备状态 ─── */
-.cs-view-devices { display: flex; flex-direction: column; gap: 12px; overflow: hidden; }
-.cs-device-top { display: grid; grid-template-columns: 340px 1fr; gap: 12px; flex-shrink: 0; }
+.cs-view-devices {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow: hidden;
+}
+
+.cs-device-top {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: 12px;
+  flex-shrink: 0;
+}
 
 .cs-rate-panel {
   background: var(--cs-panel);
@@ -1307,16 +1618,55 @@ function relativeTime(isoStr) {
   align-items: center;
   gap: 16px;
 }
-.rate-gauge { width: 130px; height: 130px; }
-.gauge-svg { width: 100%; height: 100%; }
-.gauge-arc { transition: stroke-dasharray 0.8s ease; }
-.rate-stats { display: flex; gap: 16px; }
-.rate-stat { display: flex; flex-direction: column; align-items: center; gap: 3px; }
-.rate-online { color: var(--c-success); }
-.rate-offline { color: var(--c-danger); }
-.rate-total { color: var(--c-text-3); }
-.rs-num { font-size: 20px; font-weight: 700; color: var(--c-brand-mist); }
-.rs-label { font-size: 11px; color: var(--c-text-3); }
+
+.rate-gauge {
+  width: 130px;
+  height: 130px;
+}
+
+.gauge-svg {
+  width: 100%;
+  height: 100%;
+}
+
+.gauge-arc {
+  transition: stroke-dasharray 0.8s ease;
+}
+
+.rate-stats {
+  display: flex;
+  gap: 16px;
+}
+
+.rate-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
+.rate-online {
+  color: var(--c-success);
+}
+
+.rate-offline {
+  color: var(--c-danger);
+}
+
+.rate-total {
+  color: var(--c-text-3);
+}
+
+.rs-num {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--c-brand-mist);
+}
+
+.rs-label {
+  font-size: 11px;
+  color: var(--c-text-3);
+}
 
 .cs-device-types {
   background: var(--cs-panel);
@@ -1326,14 +1676,60 @@ function relativeTime(isoStr) {
   display: flex;
   flex-direction: column;
 }
-.device-type-list { padding: 10px 14px; display: flex; flex-direction: column; gap: 8px; flex: 1; overflow-y: auto; }
-.device-type-list::-webkit-scrollbar { width: 4px; }
-.device-type-list::-webkit-scrollbar-thumb { background: var(--sys-indigo-deep); border-radius: var(--r-xs); }
-.device-type-item { display: flex; align-items: center; gap: 10px; }
-.dtype-label { width: 80px; font-size: 12px; color: var(--c-text-3); flex-shrink: 0; }
-.dtype-bar-wrap { flex: 1; height: 6px; background: var(--cs-tab-bg); border-radius: 3px; overflow: hidden; }
-.dtype-bar { height: 100%; background: var(--c-brand-hover); border-radius: 3px; transition: width 0.6s ease; }
-.dtype-count { width: 28px; text-align: right; font-size: 12px; color: var(--c-brand-soft); font-variant-numeric: tabular-nums; }
+
+.device-type-list {
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.device-type-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.device-type-list::-webkit-scrollbar-thumb {
+  background: var(--sys-indigo-deep);
+  border-radius: var(--r-xs);
+}
+
+.device-type-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dtype-label {
+  width: 80px;
+  font-size: 12px;
+  color: var(--c-text-3);
+  flex-shrink: 0;
+}
+
+.dtype-bar-wrap {
+  flex: 1;
+  height: 6px;
+  background: var(--cs-tab-bg);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.dtype-bar {
+  height: 100%;
+  background: var(--c-brand-hover);
+  border-radius: 3px;
+  transition: width 0.6s ease;
+}
+
+.dtype-count {
+  width: 28px;
+  text-align: right;
+  font-size: 12px;
+  color: var(--c-brand-soft);
+  font-variant-numeric: tabular-nums;
+}
 
 .cs-device-list-grid {
   flex: 1;
@@ -1343,8 +1739,15 @@ function relativeTime(isoStr) {
   overflow-y: auto;
   padding-bottom: 4px;
 }
-.cs-device-list-grid::-webkit-scrollbar { width: 4px; }
-.cs-device-list-grid::-webkit-scrollbar-thumb { background: var(--sys-indigo-deep); border-radius: var(--r-xs); }
+
+.cs-device-list-grid::-webkit-scrollbar {
+  width: 4px;
+}
+
+.cs-device-list-grid::-webkit-scrollbar-thumb {
+  background: var(--sys-indigo-deep);
+  border-radius: var(--r-xs);
+}
 
 .cs-device-card {
   display: flex;
@@ -1355,14 +1758,45 @@ function relativeTime(isoStr) {
   background: var(--cs-panel);
   border: 1px solid var(--cs-hairline);
 }
-.dev-online { border-color: var(--cs-success-a20); }
-.dev-offline { border-color: var(--cs-danger-a20); }
-.dev-icon { color: var(--c-ink-1); }
-.dev-online .dev-icon { color: var(--c-success); }
-.dev-offline .dev-icon { color: var(--c-danger); }
-.dev-info { flex: 1; min-width: 0; }
-.dev-name { font-size: 13px; color: var(--c-brand-tint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.dev-type { font-size: 11px; color: var(--c-ink-1); margin-top: 2px; }
+
+.dev-online {
+  border-color: var(--cs-success-a20);
+}
+
+.dev-offline {
+  border-color: var(--cs-danger-a20);
+}
+
+.dev-icon {
+  color: var(--c-ink-1);
+}
+
+.dev-online .dev-icon {
+  color: var(--c-success);
+}
+
+.dev-offline .dev-icon {
+  color: var(--c-danger);
+}
+
+.dev-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.dev-name {
+  font-size: 13px;
+  color: var(--c-brand-tint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dev-type {
+  font-size: 11px;
+  color: var(--c-ink-1);
+  margin-top: 2px;
+}
 
 .dev-status-badge {
   display: flex;
@@ -1372,11 +1806,22 @@ function relativeTime(isoStr) {
   font-weight: 600;
   flex-shrink: 0;
 }
-.dev-online .dev-status-badge { color: var(--c-success); }
-.dev-offline .dev-status-badge { color: var(--c-danger); }
+
+.dev-online .dev-status-badge {
+  color: var(--c-success);
+}
+
+.dev-offline .dev-status-badge {
+  color: var(--c-danger);
+}
 
 /* ─── 空状态 ─── */
-.cs-empty { padding: 16px; text-align: center; font-size: 12px; color: var(--c-ink-1); }
+.cs-empty {
+  padding: 16px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--c-ink-1);
+}
 
 .cs-empty-large {
   grid-column: 1 / -1;
@@ -1404,26 +1849,48 @@ function relativeTime(isoStr) {
   flex-shrink: 0;
 }
 
-.footer-left, .footer-right {
+.footer-left,
+.footer-right {
   display: flex;
   align-items: center;
   gap: 6px;
 }
-.footer-sep { color: var(--sys-indigo-deep); }
-.footer-view-indicator { display: flex; gap: 5px; align-items: center; }
+
+.footer-sep {
+  color: var(--sys-indigo-deep);
+}
+
+.footer-view-indicator {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
 
 .fvi-dot {
-  width: 6px; height: 6px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: var(--sys-indigo-deep);
   transition: all 0.3s;
 }
-.fvi-dot.active { background: var(--c-brand-hover); transform: scale(1.3); }
+
+.fvi-dot.active {
+  background: var(--c-brand-hover);
+  transform: scale(1.3);
+}
 
 /* ─── 动画 ─── */
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to   { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
-.spin { animation: spin 1s linear infinite; }
+
+.spin {
+  animation: spin 1s linear infinite;
+}
 </style>

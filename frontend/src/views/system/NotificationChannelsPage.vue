@@ -780,7 +780,11 @@ const channelColor = (type) => {
   margin: 0;
 }
 
-.header-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.header-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
 
 /* ── 按钮 ── */
 .btn-primary {
@@ -798,8 +802,14 @@ const channelColor = (type) => {
   transition: background 0.15s;
 }
 
-.btn-primary:hover:not(:disabled) { background: var(--sys-blue-deep); }
-.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-primary:hover:not(:disabled) {
+  background: var(--sys-blue-deep);
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
 
 .btn-secondary {
   display: flex;
@@ -816,7 +826,9 @@ const channelColor = (type) => {
   transition: all 0.15s;
 }
 
-.btn-secondary:hover { background: var(--c-brand-mist); }
+.btn-secondary:hover {
+  background: var(--c-brand-mist);
+}
 
 /* ── 渠道标签 ── */
 .channel-tabs {
@@ -844,8 +856,13 @@ const channelColor = (type) => {
   transition: all 0.15s;
 }
 
-.channel-tab:hover { color: var(--c-brand-deeper); }
-.channel-tab.active { font-weight: 700; }
+.channel-tab:hover {
+  color: var(--c-brand-deeper);
+}
+
+.channel-tab.active {
+  font-weight: 700;
+}
 
 .tab-count {
   background: var(--c-brand-mist);
@@ -890,9 +907,15 @@ const channelColor = (type) => {
   box-sizing: border-box;
 }
 
-.search-input:focus { border-color: var(--c-brand-hover); }
+.search-input:focus {
+  border-color: var(--c-brand-hover);
+}
 
-.channel-summary { display: flex; gap: 8px; flex-wrap: wrap; }
+.channel-summary {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
 
 .summary-chip {
   display: flex;
@@ -906,7 +929,11 @@ const channelColor = (type) => {
 }
 
 /* ── 主体 ── */
-.page-body { flex: 1; overflow-y: auto; padding: 16px 24px; }
+.page-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 24px;
+}
 
 /* ── 渠道卡片 ── */
 .channels-grid {
@@ -924,8 +951,13 @@ const channelColor = (type) => {
   transition: box-shadow 0.15s;
 }
 
-.channel-card:hover { box-shadow: 0 2px 8px rgb(0 0 0 / 6%); }
-.channel-card.disabled { opacity: 0.6; }
+.channel-card:hover {
+  box-shadow: 0 2px 8px rgb(0 0 0 / 6%);
+}
+
+.channel-card.disabled {
+  opacity: 0.6;
+}
 
 .card-header {
   display: flex;
@@ -944,7 +976,9 @@ const channelColor = (type) => {
   flex-shrink: 0;
 }
 
-.card-info { flex: 1; }
+.card-info {
+  flex: 1;
+}
 
 .card-name {
   font-size: 14px;
@@ -953,7 +987,11 @@ const channelColor = (type) => {
   margin-bottom: 5px;
 }
 
-.card-meta { display: flex; align-items: center; gap: 8px; }
+.card-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 
 .health-badge {
   font-size: 11px;
@@ -980,7 +1018,9 @@ const channelColor = (type) => {
   flex-shrink: 0;
 }
 
-.toggle-btn.on { background: var(--c-success); }
+.toggle-btn.on {
+  background: var(--c-success);
+}
 
 .toggle-thumb {
   position: absolute;
@@ -994,7 +1034,9 @@ const channelColor = (type) => {
   box-shadow: 0 1px 3px rgb(0 0 0 / 20%);
 }
 
-.toggle-btn.on .toggle-thumb { transform: translateX(18px); }
+.toggle-btn.on .toggle-thumb {
+  transform: translateX(18px);
+}
 
 /* 配置项 */
 .card-configs {
@@ -1045,10 +1087,21 @@ const channelColor = (type) => {
   border-right: 1px solid var(--c-brand-mist);
 }
 
-.stat-item:last-child { border-right: none; }
+.stat-item:last-child {
+  border-right: none;
+}
 
-.stat-label { font-size: 11px; color: var(--c-text-3); margin-bottom: 2px; }
-.stat-val { font-size: 14px; font-weight: 700; color: var(--c-scrim); }
+.stat-label {
+  font-size: 11px;
+  color: var(--c-text-3);
+  margin-bottom: 2px;
+}
+
+.stat-val {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--c-scrim);
+}
 
 /* 操作按钮 */
 .card-actions {
@@ -1056,7 +1109,8 @@ const channelColor = (type) => {
   gap: 6px;
 }
 
-.btn-test, .btn-edit {
+.btn-test,
+.btn-edit {
   flex: 1;
   display: flex;
   align-items: center;
@@ -1073,8 +1127,15 @@ const channelColor = (type) => {
   transition: all 0.15s;
 }
 
-.btn-test:hover:not(:disabled) { background: var(--sys-blue-soft); border-color: var(--c-brand-hover); color: var(--c-brand-deeper); }
-.btn-edit:hover { background: var(--c-brand-mist); }
+.btn-test:hover:not(:disabled) {
+  background: var(--sys-blue-soft);
+  border-color: var(--c-brand-hover);
+  color: var(--c-brand-deeper);
+}
+
+.btn-edit:hover {
+  background: var(--c-brand-mist);
+}
 
 .btn-delete {
   width: 32px;
@@ -1090,7 +1151,9 @@ const channelColor = (type) => {
   transition: all 0.15s;
 }
 
-.btn-delete:hover { background: var(--c-danger-bg); }
+.btn-delete:hover {
+  background: var(--c-danger-bg);
+}
 
 /* ── 空状态 ── */
 .empty-state {
@@ -1130,7 +1193,9 @@ const channelColor = (type) => {
   color: var(--c-text-3);
 }
 
-.logs-table-wrap { overflow-x: auto; }
+.logs-table-wrap {
+  overflow-x: auto;
+}
 
 .logs-table {
   width: 100%;
@@ -1154,7 +1219,11 @@ const channelColor = (type) => {
   border-bottom: 1px solid var(--c-brand-mist);
 }
 
-.log-time { color: var(--c-text-3); font-family: monospace; font-size: 12px; }
+.log-time {
+  color: var(--c-text-3);
+  font-family: monospace;
+  font-size: 12px;
+}
 
 .status-badge {
   display: inline-flex;
@@ -1166,7 +1235,10 @@ const channelColor = (type) => {
   font-weight: 600;
 }
 
-.log-error { color: var(--c-danger); font-size: 12px; }
+.log-error {
+  color: var(--c-danger);
+  font-size: 12px;
+}
 
 /* ── 抽屉 ── */
 .drawer-overlay {
@@ -1217,7 +1289,10 @@ const channelColor = (type) => {
   transition: all 0.15s;
 }
 
-.btn-close:hover { background: var(--c-brand-mist); color: var(--c-ink-1); }
+.btn-close:hover {
+  background: var(--c-brand-mist);
+  color: var(--c-ink-1);
+}
 
 .drawer-body {
   flex: 1;
@@ -1242,7 +1317,11 @@ const channelColor = (type) => {
   margin-bottom: 10px;
 }
 
-.form-field { display: flex; flex-direction: column; gap: 5px; }
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
 
 .form-field label {
   font-size: 12px;
@@ -1250,9 +1329,12 @@ const channelColor = (type) => {
   color: var(--c-text-3);
 }
 
-.required { color: var(--c-danger); }
+.required {
+  color: var(--c-danger);
+}
 
-.form-input, .form-select {
+.form-input,
+.form-select {
   padding: 8px 10px;
   border: 1px solid var(--c-brand-soft);
   border-radius: var(--r-sm);
@@ -1264,7 +1346,10 @@ const channelColor = (type) => {
   font-family: inherit;
 }
 
-.form-input:focus, .form-select:focus { border-color: var(--c-brand-hover); }
+.form-input:focus,
+.form-select:focus {
+  border-color: var(--c-brand-hover);
+}
 
 .drawer-footer {
   padding: 14px 20px;
@@ -1286,12 +1371,22 @@ const channelColor = (type) => {
   transition: all 0.15s;
 }
 
-.btn-cancel:hover { background: var(--c-brand-mist); }
+.btn-cancel:hover {
+  background: var(--c-brand-mist);
+}
 
 /* 动画 */
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
-.spinning { animation: spin 1s linear infinite; }
+
+.spinning {
+  animation: spin 1s linear infinite;
+}
 </style>

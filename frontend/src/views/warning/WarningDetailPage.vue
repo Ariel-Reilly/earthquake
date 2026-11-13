@@ -405,14 +405,14 @@ onBeforeUnmount(() => {
   text-align: center;
 }
 
-.error-block strong { 
-  font-size: var(--text-lg); 
+.error-block strong {
+  font-size: var(--text-lg);
 }
 
-.error-block p { 
-  margin: 0; 
-  color: var(--color-destructive-strong); 
-  font-size: var(--text-sm); 
+.error-block p {
+  margin: 0;
+  color: var(--color-destructive-strong);
+  font-size: var(--text-sm);
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -439,8 +439,9 @@ onBeforeUnmount(() => {
   font-size: var(--text-sm);
   cursor: pointer;
   border-bottom: 2px solid transparent;
-  transition: color var(--duration-fast) var(--ease-out), 
-              border-color var(--duration-fast) var(--ease-out);
+  transition:
+    color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out);
   position: relative;
 }
 
@@ -736,7 +737,7 @@ onBeforeUnmount(() => {
 }
 
 .suggestion-item::before {
-  content: '•';
+  content: "•";
   color: var(--color-primary);
   font-weight: var(--font-bold);
   font-size: var(--text-lg);
@@ -809,7 +810,7 @@ onBeforeUnmount(() => {
 
 /* 连接线：从本节点圆点下沿延伸到下一节点圆点上沿 */
 .timeline-item::before {
-  content: '';
+  content: "";
   position: absolute;
   left: 12px;
   top: 26px;

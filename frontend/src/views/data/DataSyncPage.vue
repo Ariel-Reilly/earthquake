@@ -461,20 +461,72 @@ async function toggleTask(taskId, currentStatus) {
   align-items: center;
   gap: 12px;
 }
-.ds-stat-card.ds-ok { border-color: var(--c-success); background: var(--c-success-bg); }
-.ds-stat-card.ds-paused { border-color: var(--c-warning); background: var(--c-warning-bg); }
-.ds-stat-card.ds-failed { border-color: var(--c-danger); background: var(--c-danger-bg); }
-.ds-stat-card.ds-records { border-color: var(--c-success); background: var(--c-success-bg); }
-.ds-stat-card.ds-anomaly { border-color: var(--c-info); background: var(--c-info-bg); }
-.stat-icon { color: var(--c-text-3); }
-.ds-stat-card.ds-ok .stat-icon { color: var(--c-success); }
-.ds-stat-card.ds-paused .stat-icon { color: var(--c-warning-strong); }
-.ds-stat-card.ds-failed .stat-icon { color: var(--c-danger); }
-.ds-stat-card.ds-records .stat-icon { color: var(--c-brand-hover); }
-.ds-stat-card.ds-anomaly .stat-icon { color: var(--c-info); }
-.stat-body { flex: 1; }
-.stat-num { font-size: 24px; font-weight: 700; color: var(--c-scrim); line-height: 1; }
-.stat-label { font-size: 12px; color: var(--c-text-3); margin-top: 3px; }
+
+.ds-stat-card.ds-ok {
+  border-color: var(--c-success);
+  background: var(--c-success-bg);
+}
+
+.ds-stat-card.ds-paused {
+  border-color: var(--c-warning);
+  background: var(--c-warning-bg);
+}
+
+.ds-stat-card.ds-failed {
+  border-color: var(--c-danger);
+  background: var(--c-danger-bg);
+}
+
+.ds-stat-card.ds-records {
+  border-color: var(--c-success);
+  background: var(--c-success-bg);
+}
+
+.ds-stat-card.ds-anomaly {
+  border-color: var(--c-info);
+  background: var(--c-info-bg);
+}
+
+.stat-icon {
+  color: var(--c-text-3);
+}
+
+.ds-stat-card.ds-ok .stat-icon {
+  color: var(--c-success);
+}
+
+.ds-stat-card.ds-paused .stat-icon {
+  color: var(--c-warning-strong);
+}
+
+.ds-stat-card.ds-failed .stat-icon {
+  color: var(--c-danger);
+}
+
+.ds-stat-card.ds-records .stat-icon {
+  color: var(--c-brand-hover);
+}
+
+.ds-stat-card.ds-anomaly .stat-icon {
+  color: var(--c-info);
+}
+
+.stat-body {
+  flex: 1;
+}
+
+.stat-num {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--c-scrim);
+  line-height: 1;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: var(--c-text-3);
+  margin-top: 3px;
+}
 
 /* 工具栏 */
 .ds-toolbar {
@@ -503,7 +555,10 @@ async function toggleTask(taskId, currentStatus) {
   font-size: 14px;
   color: var(--c-scrim);
 }
-.ds-input::placeholder { color: var(--c-text-3); }
+
+.ds-input::placeholder {
+  color: var(--c-text-3);
+}
 
 .ds-select {
   padding: 8px 12px;
@@ -529,12 +584,24 @@ async function toggleTask(taskId, currentStatus) {
   transition: all 0.15s;
   white-space: nowrap;
 }
-.ds-btn:hover { border-color: var(--c-brand-hover); color: var(--c-brand-hover); }
-.ds-btn-refresh { border-color: var(--c-brand-hover); color: var(--c-brand-hover); }
-.ds-btn-refresh:hover { background: var(--sys-blue-soft); }
+
+.ds-btn:hover {
+  border-color: var(--c-brand-hover);
+  color: var(--c-brand-hover);
+}
+
+.ds-btn-refresh {
+  border-color: var(--c-brand-hover);
+  color: var(--c-brand-hover);
+}
+
+.ds-btn-refresh:hover {
+  background: var(--sys-blue-soft);
+}
 
 /* 加载/空 */
-.ds-loading, .ds-empty {
+.ds-loading,
+.ds-empty {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -544,11 +611,25 @@ async function toggleTask(taskId, currentStatus) {
   color: var(--c-text-3);
   font-size: 14px;
 }
-.ds-empty small { font-size: 12px; color: var(--c-brand-tint); }
+
+.ds-empty small {
+  font-size: 12px;
+  color: var(--c-brand-tint);
+}
 
 /* 表格 */
-.ds-table-wrap { background: var(--c-surface); border-radius: var(--r-md); border: 1px solid var(--c-brand-soft); overflow: auto; }
-.ds-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.ds-table-wrap {
+  background: var(--c-surface);
+  border-radius: var(--r-md);
+  border: 1px solid var(--c-brand-soft);
+  overflow: auto;
+}
+
+.ds-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
 
 .ds-table th {
   padding: 10px 14px;
@@ -570,17 +651,59 @@ async function toggleTask(taskId, currentStatus) {
   color: var(--c-ink-1);
   vertical-align: middle;
 }
-.ds-table tbody tr { cursor: pointer; transition: background 0.1s; }
-.ds-table tbody tr:hover { background: var(--c-brand-mist); }
-.ds-table tbody tr:last-child td { border-bottom: none; }
-.row-delayed { background: var(--c-warning-bg); }
-.row-failed { background: var(--c-danger-bg); }
-.task-name { font-weight: 500; color: var(--c-scrim); }
-.td-source, .td-target { color: var(--c-text-3); font-size: 13px; }
-.td-num { text-align: right; font-variant-numeric: tabular-nums; }
-.td-time { color: var(--c-text-3); font-size: 12px; white-space: nowrap; }
-.td-actions { display: flex; gap: 4px; }
-.delay-warn { color: var(--c-warning-strong); font-weight: 600; }
+
+.ds-table tbody tr {
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.ds-table tbody tr:hover {
+  background: var(--c-brand-mist);
+}
+
+.ds-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.row-delayed {
+  background: var(--c-warning-bg);
+}
+
+.row-failed {
+  background: var(--c-danger-bg);
+}
+
+.task-name {
+  font-weight: 500;
+  color: var(--c-scrim);
+}
+
+.td-source,
+.td-target {
+  color: var(--c-text-3);
+  font-size: 13px;
+}
+
+.td-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.td-time {
+  color: var(--c-text-3);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.td-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.delay-warn {
+  color: var(--c-warning-strong);
+  font-weight: 600;
+}
 
 /* 状态徽章 */
 .ds-badge {
@@ -593,18 +716,39 @@ async function toggleTask(taskId, currentStatus) {
   font-weight: 600;
   white-space: nowrap;
 }
-.badge-cyan   { background: var(--c-info-bg); color: var(--c-info); }
-.badge-gray   { background: var(--c-border-2); color: var(--c-text-3); }
-.badge-orange { background: var(--c-warning-bg); color: var(--c-warning-ink); }
-.badge-red    { background: var(--c-danger-bg); color: var(--c-danger-strong); }
-.badge-blue   { background: var(--c-success-bg); color: var(--c-brand-deep); }
+
+.badge-cyan {
+  background: var(--c-info-bg);
+  color: var(--c-info);
+}
+
+.badge-gray {
+  background: var(--c-border-2);
+  color: var(--c-text-3);
+}
+
+.badge-orange {
+  background: var(--c-warning-bg);
+  color: var(--c-warning-ink);
+}
+
+.badge-red {
+  background: var(--c-danger-bg);
+  color: var(--c-danger-strong);
+}
+
+.badge-blue {
+  background: var(--c-success-bg);
+  color: var(--c-brand-deep);
+}
 
 /* 图标按钮 */
 .ds-icon-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px; height: 28px;
+  width: 28px;
+  height: 28px;
   border-radius: var(--r-sm);
   border: 1px solid var(--c-brand-soft);
   background: var(--c-surface);
@@ -612,13 +756,23 @@ async function toggleTask(taskId, currentStatus) {
   cursor: pointer;
   transition: all 0.15s;
 }
-.ds-icon-btn:hover { border-color: var(--c-brand-hover); color: var(--c-brand-hover); }
-.ds-icon-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.ds-icon-btn:hover {
+  border-color: var(--c-brand-hover);
+  color: var(--c-brand-hover);
+}
+
+.ds-icon-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 
 /* 详情抽屉 */
 .ds-drawer {
   position: fixed;
-  right: 0; top: 0; bottom: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
   width: 380px;
   background: var(--c-surface);
   border-left: 1px solid var(--c-brand-soft);
@@ -639,8 +793,16 @@ async function toggleTask(taskId, currentStatus) {
   color: var(--c-scrim);
   flex-shrink: 0;
 }
-.drawer-body { flex: 1; overflow-y: auto; padding: 16px 18px; }
-.detail-section { margin-bottom: 24px; }
+
+.drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 18px;
+}
+
+.detail-section {
+  margin-bottom: 24px;
+}
 
 .detail-section h4 {
   display: flex;
@@ -653,11 +815,35 @@ async function toggleTask(taskId, currentStatus) {
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
-.detail-grid { display: flex; flex-direction: column; gap: 8px; }
-.detail-row { display: flex; gap: 8px; font-size: 13px; }
-.detail-key { color: var(--c-text-3); min-width: 70px; flex-shrink: 0; }
-.detail-row span:last-child { color: var(--c-scrim); }
-.no-data { font-size: 13px; color: var(--c-brand-tint); text-align: center; padding: 12px 0; }
+
+.detail-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.detail-row {
+  display: flex;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.detail-key {
+  color: var(--c-text-3);
+  min-width: 70px;
+  flex-shrink: 0;
+}
+
+.detail-row span:last-child {
+  color: var(--c-scrim);
+}
+
+.no-data {
+  font-size: 13px;
+  color: var(--c-brand-tint);
+  text-align: center;
+  padding: 12px 0;
+}
 
 /* 告警 */
 .alert-item {
@@ -668,8 +854,17 @@ async function toggleTask(taskId, currentStatus) {
   border-bottom: 1px solid var(--c-brand-mist);
   font-size: 13px;
 }
-.alert-msg { flex: 1; color: var(--c-ink-1); }
-.alert-time { color: var(--c-text-3); font-size: 12px; white-space: nowrap; }
+
+.alert-msg {
+  flex: 1;
+  color: var(--c-ink-1);
+}
+
+.alert-time {
+  color: var(--c-text-3);
+  font-size: 12px;
+  white-space: nowrap;
+}
 
 /* 遮罩 */
 .ds-overlay {
@@ -680,12 +875,41 @@ async function toggleTask(taskId, currentStatus) {
 }
 
 /* 过渡 */
-.slide-right-enter-active, .slide-right-leave-active { transition: transform 0.25s ease; }
-.slide-right-enter-from, .slide-right-leave-to { transform: translateX(100%); }
-.fade-enter-active, .fade-leave-active { transition: opacity 0.25s; }
-.fade-enter-from, .fade-leave-to { opacity: 0; }
-.spin { animation: spin 1s linear infinite; }
+.slide-right-enter-active,
+.slide-right-leave-active {
+  transition: transform 0.25s ease;
+}
 
-@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-.ml-2 { margin-left: 8px; }
+.slide-right-enter-from,
+.slide-right-leave-to {
+  transform: translateX(100%);
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.25s;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.ml-2 {
+  margin-left: 8px;
+}
 </style>

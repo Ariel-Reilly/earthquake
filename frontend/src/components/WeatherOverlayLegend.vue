@@ -232,7 +232,7 @@ defineExpose({
   box-shadow: 0 14px 36px rgb(31 75 69 / 16%);
   backdrop-filter: blur(12px);
   overflow: hidden;
-  transition: width 0.3s cubic-bezier(.3,.8,.3,1);
+  transition: width 0.3s cubic-bezier(0.3, 0.8, 0.3, 1);
 }
 
 .wx-overlay-panel.collapsed {
@@ -541,28 +541,43 @@ defineExpose({
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
-.wx-legend-enter-active, .wx-legend-leave-active {
-  transition: opacity 0.18s ease, max-height 0.24s ease, padding 0.24s ease;
+.wx-legend-enter-active,
+.wx-legend-leave-active {
+  transition:
+    opacity 0.18s ease,
+    max-height 0.24s ease,
+    padding 0.24s ease;
   overflow: hidden;
 }
 
-.wx-legend-enter-from, .wx-legend-leave-to {
+.wx-legend-enter-from,
+.wx-legend-leave-to {
   opacity: 0;
   max-height: 0;
   padding-top: 0;
   padding-bottom: 0;
 }
 
-.wx-legend-enter-to, .wx-legend-leave-from {
+.wx-legend-enter-to,
+.wx-legend-leave-from {
   opacity: 1;
   max-height: 240px;
 }
 
 @media (width <= 720px) {
-  .wx-overlay-panel { width: calc(100% - 24px); right: 12px; top: 12px; }
-  .wx-overlay-panel.collapsed { width: 152px; }
+  .wx-overlay-panel {
+    width: calc(100% - 24px);
+    right: 12px;
+    top: 12px;
+  }
+
+  .wx-overlay-panel.collapsed {
+    width: 152px;
+  }
 }
 </style>

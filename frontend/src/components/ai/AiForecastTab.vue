@@ -405,8 +405,13 @@ const maxValue = computed(() => {
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .forecast-content {
@@ -596,7 +601,7 @@ const maxValue = computed(() => {
   font-size: 14px;
   font-weight: 600;
   color: var(--c-text);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
 }
 
 .chart-hint {
@@ -645,7 +650,7 @@ const maxValue = computed(() => {
 
 .forecast-table td.numeric {
   text-align: right;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
   color: var(--c-text);
 }
 
@@ -707,7 +712,7 @@ const maxValue = computed(() => {
   font-size: 14px;
   font-weight: 600;
   color: var(--c-text);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
 }
 
 @media (width <= 768px) {

@@ -29,17 +29,18 @@ defineProps({
  * 使用渐变 + 脉冲动画模拟内容加载，视觉上比纯静态占位更友好
  */
 .skeleton-bar {
-  background: linear-gradient(
-    90deg, 
-    var(--c-brand-mist) 0%, 
-    var(--c-bg) 50%, 
-    var(--c-brand-mist) 100%
-  );
+  background: linear-gradient(90deg, var(--c-brand-mist) 0%, var(--c-bg) 50%, var(--c-brand-mist) 100%);
   animation: skeleton-pulse 1.2s ease-in-out infinite;
 }
 
 @keyframes skeleton-pulse {
-  0%, 100% { opacity: 0.65; }
-  50% { opacity: 1; }
+  0%,
+  100% {
+    opacity: 0.65;
+  }
+
+  50% {
+    opacity: 1;
+  }
 }
 </style>

@@ -385,7 +385,7 @@ onBeforeUnmount(() => {
   width: 100%;
   height: 100vh;
   background: transparent;
-  color: var(--text-main, #2C3B34);
+  color: var(--text-main, #2c3b34);
   overflow: hidden;
 }
 
@@ -401,8 +401,8 @@ onBeforeUnmount(() => {
 .main-layout-sidebar {
   width: 260px;
   flex-shrink: 0;
-  background: var(--bg-card, #FFF);
-  border-right: 1px solid var(--border-color, #D1DCD5);
+  background: var(--bg-card, #fff);
+  border-right: 1px solid var(--border-color, #d1dcd5);
   overflow: hidden;
 }
 
@@ -438,11 +438,11 @@ onBeforeUnmount(() => {
      display 不可过渡，直接切换会「啪」地闪没。 */
   .main-layout-sidebar {
     position: fixed;
-    top: 64px;                 /* 顶栏高度：抽屉从顶栏下方滑出，不盖住汉堡按钮 */
+    top: 64px; /* 顶栏高度：抽屉从顶栏下方滑出，不盖住汉堡按钮 */
     bottom: 0;
     left: 0;
     width: min(280px, 85vw);
-    z-index: var(--z-sidebar, 45);  /* 高于顶栏(40)，低于弹窗(50) */
+    z-index: var(--z-sidebar, 45); /* 高于顶栏(40)，低于弹窗(50) */
     visibility: hidden;
     transform: translateX(-100%);
     transition:
