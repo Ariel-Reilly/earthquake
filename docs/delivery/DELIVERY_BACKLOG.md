@@ -48,23 +48,28 @@
 > `ACCEPTANCE_LOG_20261112.md` §28、`KNOWN_LIMITATIONS.md` 〇节。
 > 演练用独立编排 `scripts/delivery/compose.delivery-verify.yml`（独立端口/命名卷），未触碰开发库。
 
-### A4 生产安全配置
+### A4 生产安全配置（代码/工具侧 ✅ 本轮完成；真实环境注入待上线日）
 
-| ID | 任务 | 验收标准 | 预估 |
+| ID | 任务 | 验收标准 | 状态/证据 |
 |---|---|---|---|
-| A4-1 | 改初始密码 | admin/演示账号密码全部更换；禁用/删除不需要的账号 | 0.1d |
-| A4-2 | 密钥与凭证 | JWT secret、AES key、MinIO 密钥、DB 密码改为强随机并只注入环境变量 | 0.2d |
-| A4-3 | 网络隔离 | AI 8001 仅内网可达（或网关鉴权）；数据库/Redis/MinIO 不暴露公网 | 0.3d |
-| A4-4 | HTTPS / CORS / CSP | 域名证书、`CORS_ORIGINS`、CSP 白名单与实际域名一致 | 0.3d |
-| A4-5 | 审计与日志留存 | 操作审计、登录历史、应用日志轮转与保留周期确认 | 0.2d |
+| A4-1 | 改初始密码 | admin/演示账号密码全部更换；禁用/删除不需要的账号 | ⚠️ 上线日执行（代码侧 `ProductionConfigValidator` 会拦截仍是 `admin123` 的种子密码） |
+| A4-2 ✅ | 密钥与凭证 | JWT/AES/MinIO/DB 强随机且只走环境变量 | 新增 `scripts/delivery/prod-config-check.mjs`（21 项）、`docs/delivery/env.production.example`；合格模拟 env **21/21 PASS**，开发 env 按预期报 13 error |
+| A4-3 ✅ | 网络隔离 | AI 8001 仅内网；DB/Redis/MinIO 不暴露公网 | `.env.example` AI 绑定改 `127.0.0.1:8001`；`docker-compose.prod.yml` 后端默认 `127.0.0.1:8081`；公网仅 frontend nginx |
+| A4-4 | HTTPS / CORS / CSP | 域名证书、CSP 白名单与实际域名一致 | ⚠️ 上线日执行（需甲方域名/证书）；检查器会拒绝 localhost/* |
+| A4-5 | 审计与日志留存 | 审计/登录/应用日志保留周期确认 | ⚠️ 上线日按等保要求配置 |
 
-### A5 备份与恢复演练
+> 验证证据：`PRODUCTION_HARDENING.md`；prod profile 实战 fail-fast：
+> `IllegalStateException: prod 配置校验失败（4 项）`，进程退出 1（日志 `output/delivery-verify/prod-validator-fail2.log`）。
 
-| ID | 任务 | 验收标准 | 预估 |
+### A5 备份与恢复演练（✅ 本轮已关闭，真实备份/恢复）
+
+| ID | 任务 | 验收标准 | 状态/证据 |
 |---|---|---|---|
-| A5-1 | Postgres 备份/恢复 | `pg_dump` → 空库恢复 → 预警/设备/审计/设置数据完整 | 0.2d |
-| A5-2 | MinIO 数据备份 | 附件/影像对象恢复后分析详情图片可加载 | 0.2d |
-| A5-3 | 恢复后验证 | 恢复环境跑一遍 37 项浏览器冒烟（至少核心 10 项） | 0.2d |
+| A5-1 ✅ | Postgres 备份/恢复 | `pg_dump` → 空库恢复 → 预警/设备/审计/设置数据完整 | dump 434,253 B（SHA256 `60839886…9434`）；恢复库 8 张关键表行数逐一相等（预警 46/设备 16/审计 1764/规则 6/设置 1/灾害点 9/AI 分数 9/指标 5899） |
+| A5-2 ✅ | MinIO 数据备份 | 附件/影像对象恢复后可用 | 5 个对象；宿主 tar 包 119,110 B（SHA256 `E548ED84…1B38`）；解包后对象数 5=5 |
+| A5-3 ✅ | 恢复后应用验证 | 恢复环境核心接口可用 | 恢复库启动独立后端（18080）：健康、admin 登录、预警/设备/设置/规则/审计/首页 **全部 code=0**；验证后已清理临时库 |
+
+> 详细命令与结果见 `ACCEPTANCE_LOG_20261112.md` §二十九。
 
 ### A6 甲方/安全决策项（阻塞部分范围）
 
@@ -192,3 +197,22 @@
   `ACCEPTANCE_LOG_20261112.md`、`DEPLOYMENT_GUIDE.md`（新增 §9）、`DEPLOYMENT.md`、
   `docs/delivery/README.md`、本文件。
 - **边界**：A1 / A4 / A5 / A6 与 B / C 类均未执行；演示可用 ≠ 试运行上线条件满足。
+
+---
+
+## G. 本轮执行记录（2026-11-13，A4/A5）
+
+- **A5 已关闭**（真实备份/恢复演练）：
+  - Postgres：`pg_dump` 434,253 B（SHA256 `60839886…9434`）→ 临时库恢复 → 8 张关键表行数逐一相等
+    （预警 46 / 设备 16 / 审计 1764 / 规则 6 / 设置 1 / 灾害点 9 / AI 分数 9 / 指标 5899）；
+  - MinIO：5 个对象，宿主 tar 119,110 B（SHA256 `E548ED84…1B38`），解包对象数 5=5；
+  - 应用级：恢复库上启动独立后端（18080），健康/登录/预警/设备/设置/规则/审计/首页全部 code=0，验证后清理临时库。
+- **A4 代码/工具侧完成**：
+  - 新增 `scripts/delivery/prod-config-check.mjs`（21 项生产配置检查，只读）；
+  - 新增 `docs/delivery/env.production.example` 与 `docs/delivery/PRODUCTION_HARDENING.md`；
+  - 安全默认收敛：`.env.example` AI 改 `127.0.0.1:8001`，`docker-compose.prod.yml` 后端默认 `127.0.0.1:8081`；
+  - 验证：合格模拟 env **21/21 PASS**；开发 env 按预期 13 error；prod profile 不安全开关实测
+    `IllegalStateException: prod 配置校验失败（4 项）`、进程退出 1；生产 compose 组合解析退出码 0。
+- **A4 仍待上线日**：真实域名/证书、强密钥注入、防火墙、改初始密码、审计留存（见 `PRODUCTION_HARDENING.md` §五）。
+- **剩余 P0**：A1 现场人工验收（声音/重连/真机/按钮/彩排）、A6 决策项、A2-2 演示材料归属、A4 上线日项；
+  P1/P2 保持不变。

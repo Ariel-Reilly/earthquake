@@ -385,3 +385,49 @@
 
 A1 现场人工验收、A4 生产安全配置、A5 备份恢复演练、A6 甲方/安全决策项；
 B/C 类 P1/P2 项未纳入本轮。**演示可用 ≠ 试运行上线条件已满足**。
+
+---
+
+## 二十九、A4 生产安全加固 / A5 备份恢复演练（2026-11-13）
+
+### A4 生产安全（代码/工具侧完成，环境项待上线日）
+
+1. **配置检查器** `scripts/delivery/prod-config-check.mjs`（只读，21 项）：
+   - 对开发 `.env`：按预期报 **13 error**（DEV_USERS/DEVICE_AUTH/WS/域名/密钥等），退出码 1；
+   - 对模拟强密钥 env：**21/21 PASS**，退出码 0。
+2. **生产 env 模板** `docs/delivery/env.production.example`：JWT/AES/DB/Redis/MinIO/EMQX 全部
+   `__GENERATE__` 占位；配合 `docs/delivery/PRODUCTION_HARDENING.md` 的生成与执行步骤。
+3. **prod 启动 fail-fast 实测**：`SPRING_PROFILES_ACTIVE=prod` + 密钥合格但不安全开关
+   （DEV_USERS=true / DEVICE_AUTH_STRICT=false / WS_REQUIRE_TICKET=false / localhost 域名）
+   → `IllegalStateException: prod 配置校验失败（4 项）`，进程退出 1
+   （日志 `output/delivery-verify/prod-validator-fail2.log`）。
+   另一次试验中 MinIO 空凭证在更早阶段报 `AccessKey and SecretKey must not be empty`，同样拒绝启动。
+4. **端口收敛**：
+   - `.env.example`：`AI_HOST_PORT=127.0.0.1:8001`（原裸端口会暴露到 0.0.0.0）；
+   - `docker-compose.prod.yml`：后端默认 `${BACKEND_HOST_PORT:-127.0.0.1:8081}`，公网仅 frontend nginx；
+   - AI/DB/Redis/MinIO 均不直接暴露公网（部署时用网络策略再兜底）。
+5. **compose 校验**：`docker compose --env-file docs/delivery/env.production.example
+   -f docker-compose.yml -f docker-compose.prod.yml config --quiet` 退出码 0。
+6. 仍待上线日：真实域名/证书、强密钥注入、防火墙、改初始密码、审计留存（`PRODUCTION_HARDENING.md` §五）。
+
+### A5 备份与恢复演练（已关闭）
+
+| 项 | 结果 |
+|---|---|
+| Postgres dump | `dg_20261113.dump` **434,253 B**，SHA256 `6083988687BB726588D2B2DAB38FDAF6A42D4BDF96F680D9A13675ED7C8C9434` |
+| 恢复 | 新建 `dg_restore_verify` → `pg_restore` 退出码 0 |
+| 数据完整性 | 8 张关键表行数逐一相等：预警 46、设备 16、审计 1764、规则 6、设置 1、灾害点 9、AI 综合分 9、指标 5899；平台名读回 `地脉智巡` |
+| MinIO | 5 个对象；宿主 tar 包 **119,110 B**，SHA256 `E548ED8464B536CD2A05CF82EC3C66138278C11485C9D8E99A7AB4EEC4C51B38`；解包后对象数 5=5 |
+| 恢复后应用验证 | 恢复库上启动独立后端（18080）：`/api/system/health`、admin 登录、`/warnings`、`/devices`、`/settings`、`/rules`、`/audit/logs`、`/dashboard/overview` **全部 code=0** |
+| 清理 | 临时库、容器临时文件、恢复实例均已删除；备份产物留在 `output/backup/`（已 gitignore） |
+
+> 演练同时验证了"恢复后应用可启动、真实数据可读"，不是仅比对文件大小。
+> 建议上线后按日执行 `pg_dump` + MinIO 同步，并每季度重复一次本演练。
+
+### 本轮后剩余（P0）
+
+- A1 现场人工验收（声音/WS 重连/真机/页面按钮/演示彩排）
+- A4 环境项（域名证书/密钥注入/防火墙/改密/审计留存）
+- A6 甲方/安全决策项（sign:proxy、时相对比范围、演示数据水印、地图合规、时间显示）
+- A2-2 演示材料归属确认
+- B/C 类 P1/P2 不变

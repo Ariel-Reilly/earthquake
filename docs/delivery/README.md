@@ -22,6 +22,8 @@
 | [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md) | 已知限制与二期能力（诚实边界） | 甲方、项目经理 |
 | [ACCEPTANCE_LOG_20261112.md](ACCEPTANCE_LOG_20261112.md) | 每轮验收记录（问题、修复、证据、排障过程） | 所有人 |
 | [DELIVERY_BACKLOG.md](DELIVERY_BACKLOG.md) | 剩余任务清单（P0 交付前必做 / P1 试运行前 / P2 二期，含验收标准与工时） | 项目经理、开发、甲方 |
+| [PRODUCTION_HARDENING.md](PRODUCTION_HARDENING.md) | 生产安全加固与上线检查（prod 校验器、配置检查器、端口收敛、密钥生成） | 运维、安全 |
+| [env.production.example](env.production.example) | 生产环境变量模板（全部 `__GENERATE__` 占位，需替换后校验） | 运维 |
 
 ## 可执行的验收命令
 
@@ -31,6 +33,12 @@ cd backend; mvn -q -DskipTests compile
 
 # 前端静态检查 / 单测 / 生产构建
 cd frontend; npx eslint src/; npx vitest run; npm run build
+
+# 生产配置静态检查（21 项；合格配置退出码 0）
+node scripts/delivery/prod-config-check.mjs .env.production
+
+# 生产 compose 组合校验（prod 是覆盖文件）
+docker compose --env-file .env.production -f docker-compose.yml -f docker-compose.prod.yml config --quiet
 
 # 真实浏览器冒烟（37 项，需 Edge/Chrome CDP 9222 + 服务已启动）
 node scripts/delivery/browser-smoke.mjs

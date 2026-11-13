@@ -77,14 +77,28 @@
    > 历史库补丁（含重复启动幂等）、`mvn package` + `npm run build` + nginx `/api`、`/ws`（101）全通。
    > 演练同时修复 4 个「全新部署」P0 阻断（initdb 脚本依赖、种子外键、规则镜像创建人、actions JSON 结构）。
 
-## 七、仍待现场确认（不阻塞交付）
+## 七、生产安全与备份恢复（A4/A5，2026-11-13）
+
+| 验收项 | 结果/证据 |
+|---|---|
+| 生产配置检查器 | ✅ `scripts/delivery/prod-config-check.mjs`（21 项）：合格模拟 env **21/21 PASS**；开发 env 按预期报 13 error |
+| 生产 env 模板 | ✅ `docs/delivery/env.production.example`（所有密钥 `__GENERATE__`，含 EMQX 必需变量） |
+| prod 启动 fail-fast | ✅ 不安全开关实测 `IllegalStateException: prod 配置校验失败（4 项）`，进程退出 1；MinIO 空凭证也会提前拒绝启动 |
+| prod compose 解析 | ✅ `docker compose --env-file env.production.example -f docker-compose.yml -f docker-compose.prod.yml config --quiet` 退出码 0 |
+| 端口收敛 | ✅ `.env.example` AI `127.0.0.1:8001`；`docker-compose.prod.yml` 后端默认 `127.0.0.1:8081`；公网仅 frontend nginx |
+| **A5 Postgres 备份恢复** | ✅ dump 434,253 B（SHA256 `60839886…9434`）→ 临时库恢复；8 张关键表行数全部相等（预警 46/设备 16/审计 1764/规则 6/设置 1/灾害点 9/AI 9/指标 5899） |
+| **A5 MinIO 备份恢复** | ✅ 5 个对象；tar 119,110 B（SHA256 `E548ED84…1B38`）解包后对象数 5=5 |
+| **A5 恢复后应用验证** | ✅ 恢复库上独立后端（18080）：健康/登录/预警/设备/设置/规则/审计/首页全部 code=0；验证后清理临时库 |
+| 仍待上线日（A4 环境项） | 真实域名/证书、强密钥注入、防火墙、改初始密码、审计留存——见 [PRODUCTION_HARDENING.md](PRODUCTION_HARDENING.md) §五 |
+
+## 八、仍待现场确认（不阻塞交付）
 
 - 红色警报声音实际外放（headless 无法听声；已提供点击开启兜底与单测）
 - WS 断线重连计时/提示的现场观感
 - 时相对比页面（`satellite-compare` 仍为重定向，见 KNOWN_LIMITATIONS L-05）
 - 影像需真实上传：种子附件 URL 可能失效，页面显示占位而非伪造图片
 
-## 八、验收结论
+## 九、验收结论
 
 - 构建/单测/浏览器冒烟全部通过；核心业务闭环（预警发布→确认→派发→关闭→审计）可演示。
 - 建议现场按 [DEMO_SCRIPT.md](DEMO_SCRIPT.md) 走一遍，并在试运行环境改密、配置真实地图/AI 服务地址。
