@@ -44,12 +44,17 @@ public class EventStateMachineConfig
   @Override
   public void configure(StateMachineStateConfigurer<EventState, EventTrigger> states)
       throws Exception {
+    // B5-1 单测发现的 P1 缺陷（2026-11-13）：CLOSED / REJECTED 原先被声明为
+    // Spring StateMachine 的 .end()（机器终止态）。一旦进入，状态机实例直接终止，
+    // 下面配置的 REOPEN 出口永远不会被接受 —— 关闭/驳回的事件永久死锁
+    // （R3 P1-17 曾补了 REOPEN 转换，但没去掉 .end()，修复并不完整）。
+    //
+    // 业务"终态"由 EventState.isTerminal() 判定即可；配置层面把它们保留为普通状态，
+    // 使 REOPEN 真正可用，同时由于没有配置其他出口，非法流转依旧被 sendEvent 拒绝。
     states
       .withStates()
       .initial(EventState.DETECTED)
-      .states(EnumSet.allOf(EventState.class))
-      .end(EventState.CLOSED)
-      .end(EventState.REJECTED);
+      .states(EnumSet.allOf(EventState.class));
   }
 
   @Override

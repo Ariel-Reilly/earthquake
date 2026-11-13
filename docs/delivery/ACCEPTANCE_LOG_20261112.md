@@ -635,3 +635,87 @@ B/C 类 P1/P2 项未纳入本轮。**演示可用 ≠ 试运行上线条件已�
 - 真实卫星影像仍依赖 CDSE/GEE 凭证或可访问的公开 STAC 源；本轮跑通的是 `dataSource=mock` 的**降级路径**，
   不是真实影像能力。真实三栏影像、取消任务、听声、真机、彩排见 `ONSITE_ACCEPTANCE_CHECKLIST.md`。
 - A1 纯人工项、A4 上线日注入、A6-3/A6-4、B/C 类保持不变；全量 `mvn test` 既有环境缺口不变。
+
+---
+
+## 三十四、B5 测试覆盖补强与状态机缺陷修复（2026-11-13）
+
+### 34.1 起点核对：两条 500 的 HTTP 复核正式关闭
+
+并行工作流提交 `b7825be` 关闭了 §33.3 的遗留边界。本机用 8080 开发后端（登录取 JWT 后逐条请求）复核：
+
+| 端点 | 实测结果 |
+|---|---|
+| `GET /api/notice-templates?page=1&size=5` | `{"code":0,"message":"success",...}`，返回模板列表 |
+| `GET /api/notification/records?page=1&size=5&keyword=` | `code=0`，返回通知记录 |
+| `GET /api/notification/records?page=1&size=5&keyword=%20` | `code=0`（空格关键词不再触发 `lower(bytea)`） |
+
+结论：声明属实，两项正式关闭。同步修订 `ONSITE_ACCEPTANCE_CHECKLIST.md`：§6 标题
+「待重新部署后复核（本轮已修，验证实例已停止）」→「已关闭，无需现场重做」，
+写入三条实测证据；§0 自动化预检表刷新门禁数字、补 ai-service pytest 行，
+并删除「需在重新部署新 jar 后复核」的过期提示。
+
+### 34.2 B5-1：`EventStateMachineTest` 11 例，发现并修复 3 个真实缺陷
+
+测试用 `AnnotationConfigApplicationContext(EventStateMachineConfig.class)` 取得**生产配置**
+构建的真实 `StateMachineFactory`，`UnifiedEventRepository` 用 Mockito 打桩；
+不启动 Spring Boot 上下文，因此不依赖数据库凭据（规避 §31.4 的 12 个 `@SpringBootTest` 缺口）。
+
+| # | 缺陷 | 根因 | 修复 |
+|---|---|---|---|
+| 1 | 状态流转被误判；终态事件收到 `CONFIRM` 会被错误"复活"并写库 | `EventStateService` 调用 `resetStateMachineReactively(...)`，它返回**冷 `Mono`**，而 `doWithAllRegions` 的函数式接口返回 void，Mono 从未订阅 → 状态恢复不执行，每次流转都从 `initial(DETECTED)` 出发 | 改用同步 `StateMachineAccess.resetStateMachine(StateMachineContext)` |
+| 2 | `CLOSED` / `REJECTED` 事件永久死锁，`REOPEN` 恒被拒绝 | `EventStateMachineConfig` 把二者声明为 `.end()` 终止态，机器一进入即终止，配置的 REOPEN 出口永远不会被接受（R3 P1-17 当时只补了转换、没去掉 `.end()`） | 改为普通状态；业务终态仍由 `EventState.isTerminal()` 判定，非法流转依旧被 `sendEvent` 拒绝 |
+| 3 | 审计日志打印成 `CLOSED -> CLOSED` | `entity.setState(newState)` 之后才读 `entity.getState()` 当旧态 | 先保存 `oldState` 再写日志，并加 `ListAppender` 断言 `DETECTED -> CONFIRMING` |
+
+结果：修复前 10 例 **5 失败**（全链路、终态幂等、重复触发、两种 REOPEN），
+修复后 **11/11 PASS**（`cd backend; mvn -q "-Dtest=EventStateMachineTest" test`）。
+
+用例覆盖：认领→确认→发布预警→触发应急→关闭全链路、管理员直接确认、驳回/重开、
+误报解除/重开、终态非法跳转拒绝且不落库、重复触发幂等、活动态非法跳转、
+事件不存在、枚举终态判定、`getCurrentState`、审计日志旧态。
+
+> **口径偏差（如实留档）**：清单 B5-1 原验收标准写「非法状态 409」，
+> 实际 `EventStateController#transition` 返回 HTTP 200 + `ok=false`。
+> 本轮验证的是 service 层 `false` 返回值与「不落库」幂等语义；
+> 改成 409 属于 API 契约调整，可能影响既有前端调用，未在本次交付中改动。
+
+### 34.3 B5-4：前端组件测试 12 例
+
+新增 devDependencies `@vue/test-utils@^2.5.1`、`jsdom@^26.1.0`（`package.json` / `package-lock.json`）。
+
+| 文件 | 用例 | 覆盖 |
+|---|---|---|
+| `frontend/tests/globalAlarmModal.spec.js` | 7 | 初始不渲染；红 critical 满屏 `alertdialog` + 「红色警报」+「确认收到」；橙/黄/蓝三档 `severity-*` 类名与徽标文案；点「确认收到」关闭；点「查看详情」跳 `/dashboard/warnings/{id}`。mock `vue-router` / `useAlarmSound`（避开 jsdom 无 AudioContext）/ `useWarningAlarm`（捕获 `onAlarm` 回调投喂预警） |
+| `frontend/tests/warningAnalysisDetail.spec.js` | 5 | 加载态不空白、异常态显示错误+重试、空态只显示「暂无…」不造假数据、正常态渲染评分与模型标签、重试后恢复。只 mock `dashboardApi.getWarningAnalysisDetail` |
+
+两个文件用 `// @vitest-environment jsdom` 文件级注释启用 DOM，其余 5 个测试文件仍在默认
+node 环境，全量 `npx vitest run` **69 passed / 7 文件**。
+
+### 34.4 B5-5：ai-service pytest 实跑
+
+```
+cd ai-service && python -m pytest tests -q --tb=short
+102 passed, 4 skipped, 2 warnings in 6.48s
+```
+
+10 个测试文件全部可执行，无需外部服务；2 条 warning 均为第三方
+（starlette `anyio.abc.BlockingPortal`、httpx raw content）弃用提示，与业务无关。
+日志：`output/delivery-verify/pytest-20261113.log`。
+
+> **测试数据副作用**：`test_feedback_store.py` 会向
+> `ai-service/models/feedback/feedback.jsonl` 追加 29 行 `feedback_by=test/tester` 记录。
+> 这是测试写入、不是业务数据，已在交付前 `git restore` 撤销（文件恢复为 174 行）。
+> 后续在仓库内跑 pytest 后应检查并恢复该文件，避免把测试记录带进交付包。
+
+### 34.5 门禁复核与边界
+
+- eslint `npx eslint src/ tests/*.spec.js` **0 error**；vitest **69 passed**；
+  SFC 完整性 98/98；令牌完整性 0 问题；`npm run build` 5.24s 成功；
+  `mvn -q -DskipTests -f backend/pom.xml package` 成功（fat jar 127,440,921 B，
+  含 15:14 编译的 `EventStateMachineConfig` / `EventStateService` class）。
+- `npm audit` 全量 17 项（9 moderate / 5 high / 3 critical）；`--omit=dev` 的 5 项
+  （4 high / 1 critical）均为**既有** Vite / launch-editor 公告，与本次新增依赖无关。
+  未在交付轮次执行破坏性 `npm audit fix --force`；建议试运行前统一升级 Vite，见 L-14。
+- 组件测试只覆盖 2 个关键组件；地图 / Cesium / 真实影像仍靠端到端脚本与现场人工清单。
+- 全量 `mvn test` 的 12 个 `@SpringBootTest` 环境凭据缺口保持不变（§31.4）。
+- A1 纯人工项、A4 上线日注入、A6-3/A6-4、B3/B4-3/B6/B7-1 与 C 类保持原状态。

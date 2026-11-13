@@ -167,11 +167,21 @@ public class EventStateService {
       return false;
     }
 
-    // 构造一次性 state machine 并恢复到当前状态
+    // 构造一次性 state machine 并恢复到当前状态。
+    //
+    // B5-1 单测发现的 P1 缺陷（2026-11-13）：此处原先用
+    // `access.resetStateMachineReactively(...)`，它返回的是**冷 Mono**，
+    // 而 doWithAllRegions 的函数式接口返回 void，Mono 从未被订阅 → 状态恢复根本没执行。
+    // 后果：每次流转都从配置里的 initial(DETECTED) 出发，导致
+    //   1) CONFIRMING/CONFIRMED/WARNING_ISSUED 等中间态的合法流转被误判为非法；
+    //   2) 更严重的是 CLOSED/REJECTED 终态收到 CONFIRM 时，会按 DETECTED 的转换
+    //      被错误"复活"成 CONFIRMED 并写库，幂等与审计语义全部失效。
+    // Spring StateMachine 4.0.0 的 StateMachineAccess 提供同步 resetStateMachine(...)，
+    // 直接调用即可，不需要也不应该依赖响应式订阅。
     StateMachine<EventState, EventTrigger> sm = stateMachineFactory.getStateMachine();
     sm.stop();
     sm.getStateMachineAccessor().doWithAllRegions(access ->
-      access.resetStateMachineReactively(
+      access.resetStateMachine(
         new DefaultStateMachineContext<>(entity.getState(), null, null, null)
       )
     );
@@ -184,8 +194,10 @@ public class EventStateService {
       return false;
     }
 
-    // 读取新状态
+    // 读取新状态。必须先保存旧状态：下面 entity.setState(newState) 会就地修改实体，
+    // 若日志再取 entity.getState() 会打印成 "CLOSED -> CLOSED"，审计追溯失真。
     EventState newState = sm.getState().getId();
+    EventState oldState = entity.getState();
     OffsetDateTime now = OffsetDateTime.now();
     entity.setState(newState);
     entity.setUpdatedAt(now);
@@ -201,7 +213,7 @@ public class EventStateService {
       entity.setCloseReason(reason);
     }
     repository.save(entity);
-    log.info("UnifiedEvent transitioned: code={}, {} -> {}, trigger={}", eventCode, entity.getState(), newState, trigger);
+    log.info("UnifiedEvent transitioned: code={}, {} -> {}, trigger={}", eventCode, oldState, newState, trigger);
     return true;
   }
 

@@ -14,10 +14,11 @@
 | Java 网关 API 全链路（含越权/参数负向） | ✅ **14/14 PASS** | `node scripts/delivery/verify-sentinel-e2e.mjs` |
 | A1-2 WS 断线重连计时 | ✅ **6/6 PASS**，阻断 32s，重连 **2013 ms**，轮询兜底持续 | `node scripts/delivery/verify-realtime-reconnect.mjs`；`output/delivery-verify/realtime-reconnect.json` |
 | A1-4 页面/按钮巡检预检 | 15 个路由 / **442** 个可点击按钮，无跳登录、无空白页、无 JS 异常 | `node scripts/delivery/verify-button-sweep.mjs`；`output/delivery-verify/button-sweep.json` |
-| 前端门禁 | eslint 0 error / vitest 57 passed / SFC 98 / 令牌完整性 0 问题 / `vite build` 通过 | — |
-| 后端门禁 | `mvn -q -DskipTests package` 通过，fat jar 127 MB | — |
+| 前端门禁 | eslint 0 error / vitest **69 passed**（7 个测试文件）/ SFC 98 / 令牌完整性 0 问题 / `vite build` 通过 | 含 B5-4 组件测试 12 例 |
+| 后端门禁 | `mvn -q -DskipTests package` 通过，fat jar 127 MB；`EventStateMachineTest` **11/11 PASS** | B5-1 状态机单测 |
+| ai-service pytest | 10 个测试文件 **102 passed / 4 skipped**（6.48s） | `output/delivery-verify/pytest-20261113.log` |
 
-> 巡检中发现并已修复的两处后端 500（见第 6 节），**需在重新部署新 jar 后复核**。
+> 巡检中发现的两处后端 500 已用最新源码重启后端**实测 `code=0` 正式关闭**（见第 6 节），现场无需重做。
 
 ---
 
@@ -92,16 +93,17 @@
 
 ---
 
-## 6. 待重新部署后复核（本轮已修，验证实例已停止）
+## 6. 两条 500 的 HTTP 复核（✅ 2026-11-13 已关闭，无需现场重做）
 
-| 端点 | 原故障 | 代码修复 | 复核动作 |
+| 端点 | 原故障 | 代码修复 | 复核结果 |
 |---|---|---|---|
-| `GET /api/notice-templates` | 500：`column t.updatedat does not exist`。`PageRequest` 传驼峰 `Sort("updatedAt")` 被 Spring Data 原样追加到原生 SQL | `NoticeTemplateController` 去掉 Sort，排序交给 SQL 内 `ORDER BY t.updated_at DESC` | 部署新 jar 后访问应 200；SQL 已直连校验通过 |
-| `GET /api/notification/records` | 500：`function lower(bytea) does not exist`。JPQL `CONCAT('%', :keyword, '%')` 在空关键词时把 null 绑成 bytea | `MessageController` / `NotificationService` 空关键词改传 `""`（产生 `%%` 模式） | 部署新 jar 后访问应 200；SQL 已直连校验通过 |
+| `GET /api/notice-templates` | 500：`column t.updatedat does not exist`。`PageRequest` 传驼峰 `Sort("updatedAt")` 被 Spring Data 原样追加到原生 SQL | `NoticeTemplateController` 去掉 Sort，排序交给 SQL 内 `ORDER BY t.updated_at DESC` | ✅ 用最新源码重启后端后实测 `?page=1&size=5` → `code=0`，返回模板列表 |
+| `GET /api/notification/records` | 500：`function lower(bytea) does not exist`。JPQL `CONCAT('%', :keyword, '%')` 在空关键词时把 null 绑成 bytea | `MessageController` / `NotificationService` 空关键词改传 `""`（产生 `%%` 模式） | ✅ `keyword=` 与 `keyword=%20` 两种空关键词均 `code=0`，返回通知记录 |
 
-> 诚实边界：这两条修复**已编译进 fat jar 并用 SQL 直连验证**，但本机验证实例在打包时已停止，
-> 无法在不读取真实环境凭据的前提下重启，故 HTTP 200 复核留到正式重新部署时执行。
-> 未复核前不要对外宣称这两个页面已通过全量点检。
+> **复核证据（2026-11-13 15:0x，8080 开发后端）**：登录取 JWT 后逐条请求，三个响应首部均为
+> `{"code":0,"message":"success",...}`；证据同步记录于 `ACCEPTANCE_LOG_20261112.md` §33.3、
+> `DELIVERY_BACKLOG.md` §K，提交 `b7825be`。
+> 这两项**已从现场待办中移除**；现场无需再对这两个页面做 500 回归，仅按 §5 做常规按钮点检即可。
 
 ---
 

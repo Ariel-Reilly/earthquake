@@ -56,8 +56,9 @@
 | `GET /api/notice-templates` 500（驼峰排序追加到原生 SQL） | 去掉 `PageRequest` 的 Sort，排序交给 SQL | `NoticeTemplateController.java` |
 | `GET /api/notification/records` 500（`lower(bytea)`） | 空关键词改传 `""`，避免 JPQL CONCAT 把 null 绑成 bytea | `MessageController.java` / `NotificationService.java` |
 
-> **待重新部署复核**：后两条 500 的代码修复已编译 + SQL 直连校验，但本机验证实例在打包时停止，
-> HTTP 200 需在重新部署新 jar 后确认，见 `ONSITE_ACCEPTANCE_CHECKLIST.md` 第 6 节；未复核前不宣称已通过。
+> **两条 500 已关闭（2026-11-13）**：用最新源码重启后端实测三条请求均返回 `code=0`
+> （`/api/notice-templates`、`/api/notification/records?keyword=` 与 `keyword=%20`），
+> 见 `ACCEPTANCE_LOG` §34.1 / `ONSITE_ACCEPTANCE_CHECKLIST.md` 第 6 节；现场无需再复核。
 > **CSP 取舍**：为让 Cesium 可用放开了 `unsafe-eval` / `wasm-unsafe-eval`，属明确的可用性取舍；
 > A4-4 上线加固须结合真实域名重新评估（优先改用无 eval 的 Cesium build 或 Trusted Types 再收紧）。
 
@@ -185,12 +186,27 @@
 - **本轮处理**：删除 2 处调试 `console.log`，其余 12 处 `curly` 已 `--fix`；当前 `npx eslint src/` **0 error**。
 - **证据**：`.github/workflows/frontend-ci.yml` 的全量 lint 步骤已移除 `continue-on-error`，改为阻断门禁。
 
-### L-14 自动化测试覆盖有限
+### L-14 自动化测试覆盖（B5 已补强，仍有边界）
 
-- **前端**：`frontend/src/__tests__/` 仅 `auth.spec.js` 一个用例文件；UI 交互/告警/地图无自动化回归，依赖本清单人工冒烟。
-- **后端**：`backend/src/test` 共 18 个测试类，其中 3 个 `@SpringBootTest` 需真实 PostgreSQL/Redis/MinIO，CI 中已显式排除（`.github/workflows/ci.yml:114-115`）。
-- **ai-service**：`ai-service/tests/` 有 10 个 pytest 文件，但本次未执行（沙箱无依赖/服务）。
-- **影响**：交付证据以人工冒烟 + 构建门禁为主，不能宣称"全覆盖自动化测试"。
+- **2026-11-13 已补（B5-1 / B5-4 / B5-5，证据见 `ACCEPTANCE_LOG` §三十四）**：
+  - 前端：新增 `@vue/test-utils` + `jsdom` 两个 devDependencies；
+    `tests/globalAlarmModal.spec.js` 四档警报渲染与交互 7 例、
+    `tests/warningAnalysisDetail.spec.js` 加载/异常/空/正常/重试 5 例；
+    全量 `npx vitest run` **69 passed / 7 个测试文件**（文件级
+    `// @vitest-environment jsdom` 只作用于这两个文件，其余仍在默认 node 环境）。
+  - 后端：`EventStateMachineTest` **11 例**用真实 Spring StateMachine 工厂 + Mockito 仓储，
+    不依赖数据库凭据；补测过程中发现并修复 3 个真实缺陷（响应式重置未订阅导致状态误判、
+    终态 `.end()` 导致 REOPEN 死锁、审计日志打印成"新态 → 新态"）。
+  - ai-service：10 个 pytest 文件实跑 **102 passed / 4 skipped**（6.48s，仅 2 条第三方弃用警告）。
+- **仍存边界（不宣称"全覆盖"）**：
+  - 地图 / Cesium / 真实卫星影像等强外部依赖路径只有端到端脚本与现场人工清单，无组件级自动化；
+  - 全量 `mvn test` 中 12 个 `@SpringBootTest` 上下文用例因测试环境没有数据库凭据报错，
+    属既有环境缺口（§31.4），交付门禁沿用 `mvn -DskipTests package` + 指定单测；
+  - 组件测试只覆盖 2 个关键组件，其余页面仍靠 `verify-button-sweep.mjs`
+    （15 路由 / 442 按钮）巡检 + 人工冒烟；
+  - 引入 devDependencies 后 `npm audit` 报 17 项（9 moderate / 5 high / 3 critical）；
+    `--omit=dev` 的 5 项均为**既有** Vite / launch-editor 公告，与本次新增依赖无关。
+    建议试运行前统一升级 Vite，不在本轮做破坏性 `npm audit fix --force`。
 
 ---
 

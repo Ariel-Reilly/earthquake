@@ -123,11 +123,11 @@
 
 | ID | 任务 | 验收标准 | 状态 |
 |---|---|---|---|
-| B5-1 | 后端单测：预警状态机 | 确认/派发/关闭/解除非法状态 409/幂等 | ⬜ 待补 |
+| B5-1 ✅ | 后端单测：预警状态机 | 确认/派发/关闭/解除、非法状态拒绝、幂等 | ✅ `EventStateMachineTest` **11 例**：真实 Spring StateMachine 工厂 + Mockito 仓储，覆盖全链路/驳回/误报解除/REOPEN/非法跳转/重复幂等/审计日志；实测发现并修复 3 个缺陷。**口径**：非法流转在 service 层返回 `false` 且不落库，Controller 仍是 HTTP 200 + `ok=false`；原验收标准写的 409 属 API 契约调整，本轮未改，如实留档 |
 | B5-2 ✅ | 后端单测：设置落库/权限 | 白名单字段、越权 403、upsert 幂等 | 新增 `SystemSettingServiceTest`（3 用例）：损坏 JSON 降级、白名单过滤、合并 upsert；并修复历史脏字段被合并写回的问题 |
 | B5-3 ✅ | 后端单测：分析详情聚合 | 无指标/无影像/无 AI 时降级输出 | 新增 `WarningAnalysisServiceTest`：全依赖无数据时 ai=null、metrics.fallback=true、images=[]，不 500 |
-| B5-4 | 前端组件测试 | GlobalAlarmModal 四档渲染、WarningAnalysisDetail 空态/异常 | ⬜ 待补（当前无 @vue/test-utils，需评估是否引依赖） |
-| B5-5 | ai-service pytest 实跑 | 10 个 pytest 文件在 CI/本地可执行并纳入结果 | ⬜ 待补 |
+| B5-4 ✅ | 前端组件测试 | GlobalAlarmModal 四档渲染、WarningAnalysisDetail 空态/异常 | ✅ 引入 `@vue/test-utils` + `jsdom`（devDeps）；2 个 SFC 测试 **12 例**（红/橙/黄/蓝四档 + 加载/异常/空/正常/重试），文件级 jsdom 环境不影响其余 node 用例 |
+| B5-5 ✅ | ai-service pytest 实跑 | 10 个 pytest 文件在本地可执行并纳入结果 | ✅ 实跑 **102 passed / 4 skipped**（6.48s，2 条第三方弃用警告）；日志 `output/delivery-verify/pytest-20261113.log` |
 
 ### B6 Analytics 真实统计 — L-17
 
@@ -169,7 +169,8 @@
 3. ~~**4 项甲方决策 + B1 时相对比**~~ ✅ **2026-11-13 本轮完成**（A2-2 / A6-1 / A6-2 / A6-5 / B1 / B2-3 / B7-2 / B7-3，见 §I）。
 4. **A1 现场人工验收 + SM-19 真实浏览器清单**（0.5 天）：✅ **自动化预检已完成**（端到端 14/14+15/15、WS 重连 6/6、15 路由/442 按钮巡检）；剩余**纯人工项**：真实听声、真机移动端、有副作用按钮点检、演示彩排、真实影像凭证 — 按 `ONSITE_ACCEPTANCE_CHECKLIST.md` 执行 — **当前建议下一步**。
 5. **A6-3 / A6-4 + A4 上线日注入**（0.5 天）：演示数据水印/清空、国内底图 Key 与资质、域名证书、改初始密码、强密钥、审计留存。
-6. **B3/B4-3/B5/B6/B7-1**：进入试运行后按优先级持续迭代；**C 类**二期立项，不在本次交付承诺内。
+6. ~~**B5 测试覆盖补强**~~ ✅ **2026-11-13 本轮关闭**（B5-1 / B5-4 / B5-5，见 §L）。
+   剩余 **B3/B4-3/B6/B7-1**：进入试运行后按优先级持续迭代；**C 类**二期立项，不在本次交付承诺内。
 
 ## E. 验收口径提醒
 
@@ -320,3 +321,43 @@
     真实三栏影像、取消任务、听声、真机、彩排仍在 `ONSITE_ACCEPTANCE_CHECKLIST.md`。
   - 全量 `mvn test` 的 12 个 `@SpringBootTest` 环境凭据缺口保持不变（§31.4）。
 - **下一步**：D 节第 4 项剩余纯人工项 → 第 5 项（A6-3/A6-4 + A4 上线日注入）。
+
+---
+
+## L. 本轮执行记录（2026-11-13，B5 测试覆盖补强）
+
+- **范围**：D 节第 4 项剩余纯人工项、第 5 项甲方/上线日注入均无法在本机执行，
+  故按第 6 项推进可自主完成的 **B5-1 / B5-4 / B5-5**，并同步修正文档一致性。
+- **起点核对**：并行工作流提交 `b7825be` 关闭了两条 500 的 HTTP 复核项；本机复测 `8080`
+  的 `/api/notice-templates`、`/api/notification/records?keyword=`、`keyword=%20`
+  均返回 `code=0`，声明属实。但 `ONSITE_ACCEPTANCE_CHECKLIST.md` §6 仍写「待重新部署后复核」，
+  已改为「已关闭、无需现场重做」，并把三条 `code=0` 实测证据写进表格。
+- **B5-1 状态机单测（11 例）**：新建 `EventStateMachineTest`，用
+  `AnnotationConfigApplicationContext(EventStateMachineConfig.class)` 拿真实 `StateMachineFactory`、
+  Mockito 打桩仓储，规避 12 个 `@SpringBootTest` 的 DB 凭据缺口。补测过程发现并修复 3 个**真实缺陷**：
+  1. `EventStateService` 误用 `resetStateMachineReactively(...)`（返回冷 `Mono` 却从未订阅），
+     状态恢复不执行、每次都从 `DETECTED` 出发 → 中间态流转被误判、终态甚至可被 `CONFIRM` 错误"复活"；
+     改用同步 `resetStateMachine(...)`。
+  2. `EventStateMachineConfig` 把 `CLOSED` / `REJECTED` 声明为 `.end()` 终止态，机器一进入就终止，
+     配置的 `REOPEN` 出口永远不被接受（R3 P1-17 当时只补了转换、没去掉 `.end()`）→ 改为普通状态，
+     业务终态仍由 `EventState.isTerminal()` 判定。
+  3. 审计日志在 `setState(newState)` 之后才取旧态，打印成 `CLOSED -> CLOSED` → 先存 `oldState`，
+     并加日志断言用例。
+  修复前 10 例 5 失败 → 修复后 **11/11 PASS**。**口径**：service 层非法流转返回 `false` 且不落库；
+  `EventStateController` 仍是 HTTP 200 + `ok=false`，原验收标准写的 409 属 API 契约调整，
+  为避免破坏前端调用本轮未改，如实留档。
+- **B5-4 前端组件测试（12 例）**：新增 devDeps `@vue/test-utils@^2.5.1`、`jsdom@^26.1.0`；
+  `tests/globalAlarmModal.spec.js` 7 例（四档渲染 + 确认收到 + 查看详情跳转，mock router / Web Audio / 实时回调）、
+  `tests/warningAnalysisDetail.spec.js` 5 例（加载 / 异常 / 空 / 正常 / 重试，只 mock 聚合 API）。
+  文件级 `// @vitest-environment jsdom` 只作用于这两个文件，其余 5 个测试文件仍跑 node 环境。
+- **B5-5 ai-service pytest**：用装了 `requirements.txt` 的 Anaconda Python 实跑 10 个测试文件，
+  **102 passed / 4 skipped / 2 warnings**（6.48s），无需外部服务；日志 `output/delivery-verify/pytest-20261113.log`。
+- **门禁复核**：eslint 0 / vitest **69 passed**（7 文件）/ SFC 98 / 令牌 0 / `vite build` 5.24s；
+  后端 `mvn -q -DskipTests package` 通过（fat jar 127,440,921 B，含新 class）。
+  `npm audit` 17 项，其中 `--omit=dev` 的 5 项为**既有** Vite / launch-editor 公告，
+  与本次新增依赖无关，详见 `KNOWN_LIMITATIONS.md` L-14。
+- **交付快照**：tag `v1.8.3-delivery`；源码包
+  `output/delivery-verify/DisasterGuard-v1.8.3-delivery.zip` + `.sha256`；
+  演示材料包因 6 份文档快照变更已重新打包并重算 SHA256。
+- **下一步**：D 节第 4 项剩余纯人工项 → 第 5 项（A6-3/A6-4 + A4 上线日注入）；
+  B3/B4-3/B6/B7-1 留待试运行期迭代。
