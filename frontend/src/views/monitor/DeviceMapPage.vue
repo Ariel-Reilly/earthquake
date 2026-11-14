@@ -54,7 +54,7 @@ import {
   fetchDeviceTrajectory,
   regenerateTrajectories,
   statusColor,
-  mobilityIcon,
+  deviceMarkerVisual,
 } from '../../services/_architecture/domain/deviceMapService'
 
 const emit = defineEmits(['notify'])
@@ -238,8 +238,7 @@ function buildDeviceFeatures() {
   if (!deviceMap.value) return
   for (const d of deviceMap.value.devices) {
     const isSelected = d.deviceCode === selectedCode.value
-    const color = statusColor(d.onlineStatus)
-    const radius = isSelected ? 9 : (d.mobile ? 7 : 5)
+    const v = deviceMarkerVisual(d, isSelected)
 
     const feature = new ol.Feature({
       geometry: new ol.Point(ol.fromLonLat([d.longitude, d.latitude])),
@@ -247,22 +246,33 @@ function buildDeviceFeatures() {
       deviceName: d.deviceName,
     })
     feature.setId(d.deviceCode)
-    feature.setStyle(new ol.Style({
-      image: new ol.CircleStyle({
-        radius,
-        fill: new ol.Fill({ color }),
-        stroke: new ol.Stroke({
-          color: isSelected ? '#f97316' : '#ffffff',
-          width: isSelected ? 3 : 1.5,
+    // 可读性改造（2026-11-14 演示 polish，不改核心逻辑）：
+    //   ① 白色光晕底圈 → 卫星影像上"浮起来"；② 深色对比描边（选中态品牌橙）；
+    //   ③ 设备名称标签，文字加白色光晕保证在深色影像上可读。
+    feature.setStyle([
+      new ol.Style({
+        image: new ol.CircleStyle({
+          radius: v.haloRadius,
+          fill: new ol.Fill({ color: v.haloFill }),
         }),
       }),
-      text: new ol.Text({
-        text: d.mobile ? (mobilityIcon(d.mobilityKind) || '移动') : '',
-        font: 'bold 9px sans-serif',
-        fill: new ol.Fill({ color: '#ffffff' }),
-        offsetY: 1,
+      new ol.Style({
+        image: new ol.CircleStyle({
+          radius: v.radius,
+          fill: new ol.Fill({ color: v.color }),
+          stroke: new ol.Stroke({ color: v.ringColor, width: v.ringWidth }),
+        }),
+        text: new ol.Text({
+          text: v.label,
+          font: '600 11px "Segoe UI", system-ui, sans-serif',
+          fill: new ol.Fill({ color: '#1f2937' }),
+          stroke: new ol.Stroke({ color: 'rgba(255,255,255,0.92)', width: 3 }),
+          offsetY: -(v.radius + 9),
+          textAlign: 'center',
+          overflow: true,
+        }),
       }),
-    }))
+    ])
     deviceSource.addFeature(feature)
   }
   fitToDevices()

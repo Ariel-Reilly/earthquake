@@ -163,6 +163,34 @@ export function statusColor(onlineStatus) {
 }
 
 /**
+ * 设备地图 marker 视觉规范（纯函数，可在 node 环境单测，不依赖 OpenLayers 渲染）。
+ *
+ * 可读性改造背景（2026-11-14 演示 polish）：
+ *   原 marker 仅为「状态色小圆 + 白描边」，离线设备取浅蓝灰 (#94a3b8)，
+ *   叠在卫星影像上辨识度差；且无名称标签。改造目标（不改核心逻辑）：
+ *     1) 描边：状态色之外加一圈深色对比描边，选中态用品牌橙；
+ *     2) 在线状态色：沿用 statusColor，保证在线/离线/故障语义一致；
+ *     3) 名称标签：始终显示设备名（无名称回退编码），由调用方加白色光晕保证影像上可读；
+ *     4) 白色光晕底圈：haloRadius 恒大于 radius，让灰点/彩点在深色影像上"浮起来"。
+ *
+ * 仅负责"长什么样"，不负责"画在哪儿"（几何/feature 由 DeviceMapPage 处理）。
+ */
+export function deviceMarkerVisual(d = {}, isSelected = false) {
+  const color = statusColor(d.onlineStatus)
+  const radius = isSelected ? 10 : (d.mobile ? 7 : 6)
+  const label = (d.deviceName || d.deviceCode || '').toString()
+  return {
+    color,
+    radius,
+    haloRadius: radius + 3.5,
+    haloFill: 'rgba(255,255,255,0.9)',
+    ringColor: isSelected ? '#f97316' : '#1f2937',
+    ringWidth: isSelected ? 3 : 1.6,
+    label,
+  }
+}
+
+/**
  * 把移动子类型映射为图标。返回 SVG 字符串或 emoji，UI 自行渲染。
  */
 export function mobilityIcon(mobilityKind) {
