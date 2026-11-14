@@ -62,6 +62,25 @@ describe('normalizePage', () => {
     expect(p.records).toEqual([1])
   })
 
+  it('缺 pages 时由 total/size 推导（5 条 / total 50 / size 10 → 5 页）', () => {
+    const records = Array.from({ length: 5 }, (_, i) => ({ id: i }))
+    const p = normalizePage({ records, total: 50, size: 10 })
+    expect(p.total).toBe(50)
+    expect(p.size).toBe(10)
+    expect(p.pages).toBe(5)
+  })
+
+  it('显式 pages 优先于推导值', () => {
+    const p = normalizePage({ records: [{ id: 1 }], total: 100, size: 10, pages: 7 })
+    expect(p.pages).toBe(7)
+  })
+
+  it('size 为 0 时用列表长度兜底，避免除零', () => {
+    const p = normalizePage({ records: [{ id: 1 }, { id: 2 }, { id: 3 }], total: 3, size: 0 })
+    expect(p.size).toBe(3)
+    expect(p.pages).toBe(1)
+  })
+
   it('total 为 0 时保留 0（不被默认值覆盖）', () => {
     const p = normalizePage({ records: [], total: 0, page: 1, size: 10, pages: 0 })
     expect(p.total).toBe(0)

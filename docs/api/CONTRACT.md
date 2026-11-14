@@ -8,8 +8,9 @@
 - 统一信封：`PageResponse{ records, total, page, size, pages }`（`common/api/PageResponse.java`，**已存在**）。
 - `page` 从 **1** 开始；`pages` 为总页数。
 - 前端**只在 `api/client` 归一化一次**；页面层不得再写 `records/items/list` 三套兼容分支（现存 121 / 83 / 77 处，属历史债，阶段 1 收敛）。
-- **前端归一化实现**：`frontend/src/api/client.js` 的 `normalizePage() / normalizeList()`（纯函数 + 单测 11 例，覆盖 records/items/list/数组/空值/默认值/优先级）。
-  迁移状态：模块已就绪；`dashboardApi.normalizePaged` 与页面调用点的替换在阶段 1 后续**小步**进行（先不改调用点，确保零回归）。
+- **前端归一化实现**：`frontend/src/api/client.js` 的 `normalizePage() / normalizeList()`（纯函数 + 单测 14 例，覆盖 records/items/list/数组/空值/默认值/优先级/**pages 推导**）。
+  - 缺 `pages` 时由 `total / size` 推导（`Math.ceil`），兼容只给 total/size 的不完整旧端点；显式 `pages` 优先；`size=0` 用列表长度兜底避免除零。
+  - 迁移状态：`dashboardApi.normalizePaged` **已改为委托 `normalizePage`**（单点去重、行为等价，调用点不变）；页面层 `items/list` 兼容分支仍待阶段 1 小步清理。
 
 ## 2. 时间
 

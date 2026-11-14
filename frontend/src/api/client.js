@@ -40,6 +40,14 @@ function numberOr(value, fallbackValue) {
 }
 
 /**
+ * 由 total / size 推导总页数；无法推导时返回 1。
+ * 兼容「不完整的旧端点」只给 total/size、不给 pages 的情况。
+ */
+function derivedPages(total, size) {
+  return total > 0 && size > 0 ? Math.ceil(total / size) : 1
+}
+
+/**
  * 归一化分页响应。
  * @param {*} payload 已解包的数据：对象 / 数组 / null
  * @param {any[]} [fallback=[]] 缺失时的回退列表
@@ -62,12 +70,17 @@ export function normalizePage(payload, fallback = []) {
   if (!list) {
     return fallbackPage(fallback)
   }
+  const total = numberOr(payload.total, list.length)
+  const rawSize = numberOr(payload.size, list.length)
+  // size 为 0 时用列表长度兜底，保证 pages 推导与分页器可用。
+  const size = rawSize > 0 ? rawSize : (list.length || 1)
+  const pages = numberOr(payload.pages, derivedPages(total, size))
   return {
     records: list,
-    total: numberOr(payload.total, list.length),
+    total,
     page: numberOr(payload.page, 1),
-    size: numberOr(payload.size, list.length),
-    pages: numberOr(payload.pages, 1),
+    size,
+    pages,
   }
 }
 

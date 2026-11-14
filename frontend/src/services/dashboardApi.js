@@ -39,39 +39,14 @@ export function response(data) {
 }
 
 import * as mock from "./mock";
+import { normalizePage } from "../api/client.js";
 
+/**
+ * 分页归一化统一委托 api/client.normalizePage（records / items / list）。
+ * 避免本文件与 api/client 双实现漂移；行为等价，额外支持 list、裸数组与 pages 推导。
+ */
 function normalizePaged(payload, fallback = []) {
-  if (!payload)
-    {return {
-      records: fallback,
-      total: fallback.length,
-      page: 1,
-      size: fallback.length,
-      pages: 1,
-    };}
-  // 后端分页响应存在两种字段形态：records（PageResponse）与 items（部分 Controller）。
-  // 只认 records 会把 items 形态的响应误判为空，故此处两者都兼容。
-  const list = Array.isArray(payload.records)
-    ? payload.records
-    : Array.isArray(payload.items)
-      ? payload.items
-      : null;
-  if (list) {
-    return {
-      records: list,
-      total: payload.total ?? list.length,
-      page: payload.page ?? 1,
-      size: payload.size ?? list.length,
-      pages: payload.pages ?? 1,
-    };
-  }
-  return {
-    records: fallback,
-    total: fallback.length,
-    page: 1,
-    size: fallback.length,
-    pages: 1,
-  };
+  return normalizePage(payload, fallback);
 }
 
 // withQuery 已迁移到 utils/query.js
