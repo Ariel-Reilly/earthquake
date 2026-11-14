@@ -127,6 +127,12 @@
       <artifactId>spring-boot-starter-test</artifactId>
       <scope>test</scope>
     </dependency>
+    <!-- 集成测试使用一次性 PostgreSQL（PostGIS 镜像），不依赖本机数据库凭据 -->
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>postgresql</artifactId>
+      <scope>test</scope>
+    </dependency>
     <!-- TDengine JDBC：纳入运行 classpath（compile 作用域），
          保证本地 spring-boot:run 与打包 jar 均带驱动，TDENGINE_ENABLED=true 时可直接使用 -->
     <dependency>

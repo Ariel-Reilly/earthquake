@@ -34,6 +34,9 @@
 # 后端编译
 cd backend; mvn -q -DskipTests compile
 
+# 后端编译 / 全量测试（测试用 Testcontainers，需要 Docker；首次会用本地/拉取 postgis 镜像）
+cd backend; mvn -q -DskipTests compile; mvn test
+
 # 前端静态检查 / 单测 / 生产构建
 cd frontend; npx eslint src/; npx vitest run; npm run build
 

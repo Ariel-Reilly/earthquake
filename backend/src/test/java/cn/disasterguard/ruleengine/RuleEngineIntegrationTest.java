@@ -2,6 +2,7 @@ package cn.disasterguard.ruleengine;
 
 import cn.disasterguard.ruleengine.dto.RuleTestRequest;
 import cn.disasterguard.ruleengine.dto.RuleTestResponse;
+import cn.disasterguard.PostgresTestBase;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,7 +26,7 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 @SpringBootTest
 @DisplayName("规则引擎集成测试 - 复合条件与边界")
-public class RuleEngineIntegrationTest {
+public class RuleEngineIntegrationTest extends PostgresTestBase {
 
   @Autowired
   private RuleEngineService ruleEngineService;

@@ -128,6 +128,7 @@
 | B5-3 ✅ | 后端单测：分析详情聚合 | 无指标/无影像/无 AI 时降级输出 | 新增 `WarningAnalysisServiceTest`：全依赖无数据时 ai=null、metrics.fallback=true、images=[]，不 500 |
 | B5-4 ✅ | 前端组件测试 | GlobalAlarmModal 四档渲染、WarningAnalysisDetail 空态/异常 | ✅ 引入 `@vue/test-utils` + `jsdom`（devDeps）；2 个 SFC 测试 **12 例**（红/橙/黄/蓝四档 + 加载/异常/空/正常/重试），文件级 jsdom 环境不影响其余 node 用例 |
 | B5-5 ✅ | ai-service pytest 实跑 | 10 个 pytest 文件在本地可执行并纳入结果 | ✅ 实跑 **102 passed / 4 skipped**（6.48s，2 条第三方弃用警告）；日志 `output/delivery-verify/pytest-20261113.log` |
+| B5-6 ✅ | 全量 `mvn test` 可执行 | 不依赖本机数据库凭据；CI/干净机器可跑 | ✅ 新增 `PostgresTestBase`（Testcontainers + 本地 `postgis/postgis:15-3.4-alpine`）驱动 3 个 `@SpringBootTest`；全量 **141 tests / 0 failures / 0 errors / 4 skipped** |
 
 ### B6 Analytics 真实统计 — L-17
 

@@ -2,6 +2,7 @@ package cn.disasterguard.ruleengine;
 
 import cn.disasterguard.ruleengine.dto.RuleTestRequest;
 import cn.disasterguard.ruleengine.dto.RuleTestResponse;
+import cn.disasterguard.PostgresTestBase;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,7 +25,7 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 @SpringBootTest
 @DisplayName("规则引擎匹配验证")
-public class RuleMatchingVerificationTest {
+public class RuleMatchingVerificationTest extends PostgresTestBase {
 
   @Autowired
   private RuleEngineService ruleEngineService;

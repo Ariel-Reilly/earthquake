@@ -17,6 +17,7 @@
 | 前端 lint | `cd frontend; npx eslint src/` | ✅ 0 error |
 | 前端单测 | `npx vitest run` | ✅ **69 passed**（7 个测试文件；含 B5-4 SFC 组件测试 12 例） |
 | 后端状态机单测 | `cd backend; mvn -q "-Dtest=EventStateMachineTest" test` | ✅ **11 passed**（B5-1；真实 Spring StateMachine 工厂，无 DB 凭据依赖） |
+| 后端全量测试 | `cd backend; mvn test`（需 Docker） | ✅ **141 tests / 0 failures / 0 errors / 4 skipped**；Testcontainers 一次性 PostGIS 容器（B5-6） |
 | ai-service pytest | `cd ai-service; python -m pytest tests -q` | ✅ **102 passed / 4 skipped**（10 个文件，6.48s；B5-5） |
 | 前端生产构建 | `npm run build` | ✅ 成功（`dist/`） |
 | SFC 完整性 | `node scripts/verify-sfc-integrity.mjs` | ✅ 全部组件解析通过 |

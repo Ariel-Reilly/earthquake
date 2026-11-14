@@ -945,3 +945,38 @@ Edge headless CDP 9222 → nginx(dist) 25173（Origin 改写 + Cesium CSP）
 
 - 本轮覆盖 7 个高频业务页；其他低频页（如注册/管理类）尚未逐页审计，可复用脚本继续扩展；
 - 深色审计是"计算样式 + 对比度"检测，不能替代人工视觉验收；现场仍需抽查深色截图。
+
+---
+
+## 四十二、B5-6 全量 `mvn test` 可执行（Testcontainers，2026-11-14）
+
+### 42.1 起点
+
+- 修复前全量 `mvn test`：**141 tests / 12 errors / 4 skipped**；
+- 12 个错误均来自 3 个 `@SpringBootTest` 上下文（`DisasterguardApplicationTests`、
+  `RuleEngineIntegrationTest`、`RuleMatchingVerificationTest`），根因：
+  `FATAL: password authentication failed for user "disasterguard"`（本机数据库凭据）。
+- 因此交付门禁只能 `mvn -DskipTests package` + 指定单测，属真实环境缺口。
+
+### 42.2 实现
+
+- `backend/pom.xml` 新增 test 作用域 `org.testcontainers:postgresql`；
+- 新增 `backend/src/test/java/cn/disasterguard/PostgresTestBase.java`：
+  - 静态启动 `postgis/postgis:15-3.4-alpine`（`asCompatibleSubstituteFor("postgres")`），
+    数据库 disasterguard / 用户 disasterguard；
+  - `@DynamicPropertySource` 覆盖 `spring.datasource.url/username/password`；
+  - 容器生命周期与 JVM 一致，测试结束由 Testcontainers 回收。
+- 3 个 `@SpringBootTest` 继承该基类；纯 Mockito 单测不启动容器。
+- 未改任何生产代码。
+
+### 42.3 验证
+
+- 指定 3 个集成测试：**12/12 通过**（含 schema.sql + data.sql 初始化、规则引擎用例）；
+- 全量：`cd backend; mvn test` → **141 tests / 0 failures / 0 errors / 4 skipped**；
+- 测试后 `docker ps` 无残留 Testcontainers 容器（仅开发库 `disasterguard-postgres` 常驻）。
+
+### 42.4 边界
+
+- 运行需 Docker；首次使用/拉取 `postgis/postgis:15-3.4-alpine` 镜像；
+- 与生产数据库无关，测试数据落在一次性容器内，不污染开发库；
+- 文档门禁已从"跳过测试打包 + 指定单测"升级为 `mvn test` 可执行。

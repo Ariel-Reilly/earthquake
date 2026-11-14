@@ -200,8 +200,10 @@
   - ai-service：10 个 pytest 文件实跑 **102 passed / 4 skipped**（6.48s，仅 2 条第三方弃用警告）。
 - **仍存边界（不宣称"全覆盖"）**：
   - 地图 / Cesium / 真实卫星影像等强外部依赖路径只有端到端脚本与现场人工清单，无组件级自动化；
-  - 全量 `mvn test` 中 12 个 `@SpringBootTest` 上下文用例因测试环境没有数据库凭据报错，
-    属既有环境缺口（§31.4），交付门禁沿用 `mvn -DskipTests package` + 指定单测；
+  - 全量 `mvn test` 已于 2026-11-14 用 Testcontainers 修复：3 个 `@SpringBootTest` 继承
+    `PostgresTestBase`，用一次性 PostGIS 容器覆盖 datasource（不再依赖本机数据库凭据）；
+    全量 **141 tests / 0 failures / 0 errors / 4 skipped**。运行需 Docker，首次会使用/拉取
+    `postgis/postgis:15-3.4-alpine` 镜像；
   - 组件测试只覆盖 2 个关键组件，其余页面仍靠 `verify-button-sweep.mjs`
     （15 路由 / 442 按钮）巡检 + 人工冒烟；
   - 引入 devDependencies 后 `npm audit` 报 17 项（9 moderate / 5 high / 3 critical）；
