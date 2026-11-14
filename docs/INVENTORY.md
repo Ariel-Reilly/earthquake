@@ -194,7 +194,7 @@ find frontend/src backend ai-service -type f \( -name '*.vue' -o -name '*.js' -o
 
 - `common/api/PageResponse{records,total,page,size,pages}` **已存在**（Javadoc 已注明历史上两个 record 已合一），并已在 admin application 分页使用。
 - **任务 3 不是「新建 PageResponse」，而是「前端在 `api/client` 归一化一次 + 校验尚未遵循的端点 + 逐步消除页面层 `items/list` 兼容分支」。**
-- **归一化落点已建**：`frontend/src/api/client.js`（`normalizePage / normalizeList`，纯函数 + 单测 **14** 例）；`dashboardApi.normalizePaged` **已改为委托 `normalizePage`**（已去重、行为等价）；页面层 `items/list` 兼容分支待阶段 1 小步清理。
+- **归一化落点已建**：`frontend/src/api/client.js`（`normalizePage / normalizeList`，纯函数 + 单测 **14** 例）；`dashboardApi.normalizePaged` **已改为委托 `normalizePage`**（已去重、行为等价）；页面层 `items/list` 兼容分支待阶段 1 小步清理（**首个已迁移**：`DataSyncPage.toList` → `normalizeList`）。
 
 ### 7.2 时间快照
 
@@ -225,6 +225,7 @@ find frontend/src backend ai-service -type f \( -name '*.vue' -o -name '*.js' -o
 | `styles.css` 9,420 行大搬迁 | 样式层极易回归 | 逐页面迁移 + 截图对比，禁一次性搬 |
 | 数据库初始化补丁 | `schema.sql`/`data.sql`/`DatabaseSchemaPatchInitializer` 幂等补丁属高风险债 | 演示后引入 Flyway 再动 |
 | 历史文档丢失 | 验收证据依赖 `docs/delivery/` | 迁移进 `archive/`，不删除 |
+| prettier `format:check` 存量未过 | 全仓 **148** 文件不符合 prettier（`semi:false / singleQuote / printWidth:100`）；CI `ci.yml` 有 `format:check` 步骤，合并到 `main` 会失败（`release/delivery` 为本地分支未触发 CI） | 单开「纯格式化」PR 或临时设 `continue-on-error`；**勿混入功能 PR** |
 
 ---
 

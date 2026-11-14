@@ -29,6 +29,7 @@ import {
   XCircle,
 } from "lucide-vue-next"
 import { dashboardApi } from "../../services/dashboardApi.js";
+import { normalizeList } from "../../api/client.js";
 import { computed, onMounted, ref } from "vue";
 
 const props = defineProps({
@@ -58,9 +59,7 @@ const STATUS_MAP = {
 };
 
 function toList(data) {
-  if (Array.isArray(data)) return data;
-  const list = data?.records ?? data?.items ?? data?.list;
-  return Array.isArray(list) ? list : [];
+  return normalizeList(data);
 }
 
 function normalizeTask(raw) {

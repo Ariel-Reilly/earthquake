@@ -73,7 +73,7 @@ export function normalizePage(payload, fallback = []) {
   const total = numberOr(payload.total, list.length)
   const rawSize = numberOr(payload.size, list.length)
   // size 为 0 时用列表长度兜底，保证 pages 推导与分页器可用。
-  const size = rawSize > 0 ? rawSize : (list.length || 1)
+  const size = rawSize > 0 ? rawSize : list.length || 1
   const pages = numberOr(payload.pages, derivedPages(total, size))
   return {
     records: list,

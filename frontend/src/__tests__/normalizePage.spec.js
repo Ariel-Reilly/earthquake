@@ -9,7 +9,13 @@ import { normalizeList, normalizePage } from '../api/client.js'
 
 describe('normalizePage', () => {
   it('records 形态：原样取列表与分页元信息', () => {
-    const p = normalizePage({ records: [{ id: 1 }, { id: 2 }], total: 8, page: 2, size: 2, pages: 4 })
+    const p = normalizePage({
+      records: [{ id: 1 }, { id: 2 }],
+      total: 8,
+      page: 2,
+      size: 2,
+      pages: 4,
+    })
     expect(p.records).toHaveLength(2)
     expect(p.total).toBe(8)
     expect(p.page).toBe(2)
