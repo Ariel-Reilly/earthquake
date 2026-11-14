@@ -323,7 +323,7 @@ public class WarningService {
   /**
    * P0-2：解除范围下钻。
    *
-   * <p>TODO: 当前为硬编码三镇兜底。待注入 RegionRepository 后改为
+   * <p>TODO(backend-team, 2026-12-31, #TRIAGE-BACKEND): 当前为硬编码三镇兜底。待注入 RegionRepository 后改为
    * {@code regionRepository.findByLevel("TOWN")} 之类的真实字典查询。
    */
   public Map<String, Object> resolveScope(Long id) {

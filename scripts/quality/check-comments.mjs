@@ -68,7 +68,8 @@ function walk(dir, out = []) {
 }
 
 const bare = []
-const exempt = []
+const allowlisted = []
+const owned = []
 const legacy = []
 let total = 0
 
@@ -90,9 +91,9 @@ for (const t of TARGETS) {
         const hit = ALLOWLIST.find((a) => a.file === rel && line.includes(a.snippet))
         if (hit) {
           hit.matched++
-          exempt.push(rec)
+          allowlisted.push(rec)
         } else if (OWNED_RE.test(line)) {
-          exempt.push(rec)
+          owned.push(rec)
         } else {
           bare.push(rec)
         }
@@ -108,7 +109,7 @@ const selfOk = stale.length === 0 && multi.length === 0
 
 console.log(`[check-comments] 扫描：${TARGETS.join(', ')}`)
 console.log(
-  `[check-comments] TODO/FIXME 命中 ${total} 处；豁免 ${exempt.length} 处（L-01/L-04 已知待实现点）；裸标记 ${bare.length} 处`,
+  `[check-comments] TODO/FIXME 命中 ${total} 处；已带 owner ${owned.length} 处；allowlist 豁免 ${allowlisted.length} 处；裸标记 ${bare.length} 处`,
 )
 console.log(
   `[check-comments] allowlist 自检：${ALLOWLIST.length - stale.length}/${ALLOWLIST.length} 命中` +

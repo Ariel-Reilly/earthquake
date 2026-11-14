@@ -99,7 +99,8 @@ find frontend/src backend ai-service -type f \( -name '*.vue' -o -name '*.js' -o
 
 | 标记 | 实测 | 说明 |
 |---|---|---|
-| `TODO` | 后端 **6** · 前端 **0** · AI **9** · 合计 **15** | AI 9 处见 §4.1，均为待实现点 |
+| `TODO` | 后端 **6** · 前端 **0** · AI **9** · 合计 **15** | 后端 6 已补占位 owner（§4.3）；AI 9 见 §4.1 allowlist |
+| `裸标记`（无 owner/date/issue） | **0** | 门禁默认已转绿（2026-11-14） |
 | `FIXME` | **0** | — |
 | `@Deprecated` | **6** | 主要在 `AiDeprecatedGapController`（类 + 3 方法） |
 
@@ -117,20 +118,36 @@ find frontend/src backend ai-service -type f \( -name '*.vue' -o -name '*.js' -o
 | `ai-service/app/routers/sentinel.py` | 799 | 按真实 PNG 像素尺寸换算 | L-04 |
 | `ai-service/app/routers/sentinel.py` | 1177 | 真实场景改用连通域分析 + 凸包 | L-04 |
 
-> 结论：AI 这 9 处**不应按「裸 TODO 清理」处理**，而是待实现点，归入 `docs/delivery/KNOWN_LIMITATIONS.md` 的 **L-01**（drift/multimodal）与 **L-04**（卫星影像）。**真正需要按规范补 owner 的裸 TODO 是后端 6 处。**
+> 结论：AI 这 9 处**不应按「裸 TODO 清理」处理**，而是待实现点，归入 `docs/delivery/KNOWN_LIMITATIONS.md` 的 **L-01**（drift/multimodal）与 **L-04**（卫星影像）。**后端 6 处已于 2026-11-14 补占位 owner（见 §4.3），当前裸标记 0。**
 
 ### 4.2 门禁脚本的豁免项与移除条件（方案 B）
 
 `scripts/quality/check-comments.mjs` 对上述 **AI 9 处**做**显式 allowlist**（按 `文件 + 行内片段` 精确匹配，**非整文件豁免**），运行输出：
 
 ```text
-命中 15 处；豁免 9 处（L-01/L-04 已知待实现点）；裸标记 6 处
+命中 15 处；已带 owner 6 处；allowlist 豁免 9 处；裸标记 0 处
 ```
 
 - **豁免范围**：仅 `drift.py`(4) / `multimodal.py`(3) / `sentinel.py`(2) 的这 9 行；这三个文件里**新增**的 TODO 仍会被判为裸标记。
 - **为何不选方案 A**：其中 4 处是 docstring/prose（`multimodal.py:184/220`、`sentinel.py:799/1177`），强改 `TODO(owner,date,issue)` 会破坏可读性；且后端 6 处若也要求「严格模式通过」需臆造团队/工单，风险更大。
 - **自检**：`--selfcheck` 逐条核对 allowlist 是否仍命中 1 行，失效/重复命中即报错并点名条目（已验证：人为改坏一条 → `8/9 命中` 并精确报出 `sentinel.py` 失效项）。CI 只查完整性用 `--warn --selfcheck`。并配套 `check-comments.selftest.mjs` 回归（9/9：文件缺失 / 片段重复 / 干净 fixture / 清零后严格模式 / 真实仓库）。
-- **移除条件**：阶段 2 为这 9 处补 `TODO(ai-team, 日期, #L-01/#L-04)` 后，**删除对应 allowlist 条目**；届时裸标记应只剩后端 6（阶段 1 补 owner 后归零）。
+- **移除条件**：阶段 2 为这 9 处补 `TODO(ai-team, 日期, #L-01/#L-04)` 后，**删除对应 allowlist 条目**；届时全部 TODO 均为「已带 owner」，裸标记维持 0。
+
+### 4.3 后端 6 处占位 owner（阶段 1 首项，2026-11-14）
+
+以下 6 处已从裸 TODO 改为占位格式 `TODO(backend-team, 2026-12-31, #TRIAGE-BACKEND)`，**仅注释、零逻辑改动**；`backend-team / 2026-12-31 / #TRIAGE-BACKEND` 为**占位值**，待正式负责人与工单确认后替换。
+
+| 文件 | 行 | 内容 |
+|---|---|---|
+| `notification/channel/AppSender.java` | 35 | 集成真实推送服务（极光/个推/FCM） |
+| `notification/channel/EmailSender.java` | 38 | 集成真实邮件服务（JavaMail/阿里云） |
+| `notification/channel/SmsSender.java` | 39 | 集成真实短信网关（阿里云/腾讯云） |
+| `notification/channel/SoundLightSender.java` | 38 | 集成真实声光报警器 API |
+| `ruleengine/RuleEngineService.java` | 401 | 实现版本回滚逻辑 |
+| `warning/service/WarningService.java` | 326 | 三镇硬编码兜底 → 注入 RegionRepository |
+
+- 一键定位：`grep -rn "TODO(backend-team, 2026-12-31, #TRIAGE-BACKEND)" backend/src`
+- 替换条件：拿到真实负责人/工单后批量替换该串；替换后重跑 `check-comments.mjs` 与 `selftest.mjs`。
 
 > ⚠ 方案里写的「TODO/FIXME/@Deprecated 211 处 / 52 文件」**不成立**（属宽匹配误报，如 `todo:view`、`toDouble`）。实测 `TODO` **15** + `@Deprecated` **6** = **21**。**任务 1「清裸 TODO」工作量很小（后端 6 处）；AI 9 处按 §4.2 豁免登记。**
 

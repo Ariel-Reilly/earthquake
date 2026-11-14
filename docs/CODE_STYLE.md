@@ -134,7 +134,7 @@ export function formatWarningTime(warning, timeZone) {}
 
 - [ ] 新增/修改的 `public` class / method：Javadoc / JSDoc 覆盖率 **100%**；
 - [ ] 每个新增文件有文件头（职责 + 关键约束），纯 DTO/常量可豁免；
-- [ ] 全仓**无未登记裸 TODO**（缺 owner/date/issue）、**无注释掉的旧代码**、**无过期日期叙述**；其中 AI 9 处为 L-01/L-04 已知边界，已在 `INVENTORY §4.2` 显式 allowlist 豁免，阶段 2 补 owner 后移除；
+- [ ] 全仓**无未登记裸 TODO**（缺 owner/date/issue）、**无注释掉的旧代码**、**无过期日期叙述**；其中 AI 9 处为 L-01/L-04 已知边界，已在 `INVENTORY §4.2` 显式 allowlist 豁免，阶段 2 补 owner 后移除；后端 6 处已补占位 owner（`INVENTORY §4.3`），待真实负责人替换；
 - [ ] 所有 `@Deprecated` 带替代方案与移除计划；
 - [ ] 所有「未实现/未接入/演示」点使用第 4 节标记词，且前后端表现一致（不冒充真实）；
 - [ ] Code review 抽查 20 个文件，注释与实现**一致率 100%**。
@@ -151,7 +151,7 @@ node scripts/quality/check-comments.mjs --warn
 node scripts/quality/check-comments.mjs
 ```
 
-脚本规则：大小写敏感 `\bTODO\b` / `\bFIXME\b`；允许 `TODO(owner, 2026-11-20, #123)`；AI 9 处按 `INVENTORY §4.2` 的 allowlist 报告为「豁免」；默认裸标记 > 0 即失败。
+脚本规则：大小写敏感 `\bTODO\b` / `\bFIXME\b`；允许 `TODO(owner, 2026-11-20, #123)`；输出区分「已带 owner / allowlist 豁免 / 裸标记」三档；AI 9 处按 `INVENTORY §4.2` 豁免；默认裸标记 > 0 即失败。
 
 同一脚本还检查**注释掉的旧代码**（`.js/.vue/.java` 的 `// 关键字`），默认只报告，`--strict-legacy` 才阻断：
 

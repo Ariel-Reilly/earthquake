@@ -398,7 +398,7 @@ public class RuleEngineService {
    */
   @Transactional
   public RuleDto rollback(Long id, Integer targetVersion) {
-    // TODO: 实现版本回滚逻辑
+    // TODO(backend-team, 2026-12-31, #TRIAGE-BACKEND): 实现版本回滚逻辑
     throw new UnsupportedOperationException("版本回滚功能待实现");
   }
 

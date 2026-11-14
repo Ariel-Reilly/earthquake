@@ -35,7 +35,7 @@ public class SoundLightSender implements NotificationSender {
     }
 
     try {
-      // TODO: 集成真实声光报警器 API（如 HTTP POST / MQTT）
+      // TODO(backend-team, 2026-12-31, #TRIAGE-BACKEND): 集成真实声光报警器 API（如 HTTP POST / MQTT）
       String messageId = UUID.randomUUID().toString();
 
       String level = (String) variables.getOrDefault("level", "normal");

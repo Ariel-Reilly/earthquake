@@ -35,7 +35,7 @@ public class EmailSender implements NotificationSender {
     }
 
     try {
-      // TODO: 集成真实邮件服务（如 JavaMail/阿里云邮件）
+      // TODO(backend-team, 2026-12-31, #TRIAGE-BACKEND): 集成真实邮件服务（如 JavaMail/阿里云邮件）
       String messageId = UUID.randomUUID().toString();
       log.info("[EMAIL Mock] 发送邮件到 {}: {} - {}", target, title, content);
 

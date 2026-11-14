@@ -32,7 +32,7 @@ public class AppSender implements NotificationSender {
     }
 
     try {
-      // TODO: 集成真实推送服务（如极光/个推/FCM）
+      // TODO(backend-team, 2026-12-31, #TRIAGE-BACKEND): 集成真实推送服务（如极光/个推/FCM）
       String messageId = UUID.randomUUID().toString();
       log.info("[APP Mock] 发送推送到设备 {}: {} - {}", target, title, content);
 
