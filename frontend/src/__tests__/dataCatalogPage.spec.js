@@ -115,6 +115,35 @@ describe('DataCatalogPage 使用排行与容错', () => {
     expect(wrapper.findAll('.tab-btn .count')[1].text()).toBe('1')
   })
 
+  it('点击「查看趋势」二次拉取 usage，趋势抽屉按新数据渲染（openTrend 路径）', async () => {
+    api.getCatalogSummary.mockResolvedValue({ total: 1, tables: 1, fields: 12, lastUpdated: '—' })
+    api.listDataAssets.mockResolvedValue({ records: [ASSET] })
+    // 两次调用返回不同长度：列表 3 条 trend，openTrend 二次拉取 5 条；
+    // 抽屉柱子数只可能来自第二次，才能真正证明 openTrend 的取数分支被执行。
+    api.listCatalogUsage.mockReset()
+    api.listCatalogUsage
+      .mockResolvedValueOnce({ records: [{ ...USAGE, trend7d: [1, 2, 3] }] })
+      .mockResolvedValueOnce({
+        records: [{ id: 'A-1', name: USAGE.name, trend7d: [5, 6, 7, 8, 9] }],
+      })
+
+    const wrapper = mount(DataCatalogPage)
+    await flushPromises()
+
+    await wrapper.findAll('.tab-btn')[1].trigger('click')
+    await flushPromises()
+
+    const trendBtn = wrapper.findAll('button').find((b) => b.text().includes('查看趋势'))
+    expect(trendBtn, '使用排行行内应有「查看趋势」按钮').toBeTruthy()
+    await trendBtn.trigger('click')
+    await flushPromises()
+
+    expect(api.listCatalogUsage).toHaveBeenCalledTimes(2)
+    expect(wrapper.find('.trend-drawer').exists()).toBe(true)
+    expect(wrapper.findAll('.trend-drawer .spark-bar').length).toBe(5)
+    expect(wrapper.text()).not.toContain('无趋势数据')
+  })
+
   it('接口抛错时资源列表降级为空态、页面不崩', async () => {
     api.getCatalogSummary.mockResolvedValue(null)
     api.listDataAssets.mockRejectedValue(new Error('boom'))

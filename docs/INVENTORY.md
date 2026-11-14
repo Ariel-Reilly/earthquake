@@ -196,7 +196,10 @@ find frontend/src backend ai-service -type f \( -name '*.vue' -o -name '*.js' -o
 - **任务 3 不是「新建 PageResponse」，而是「前端在 `api/client` 归一化一次 + 校验尚未遵循的端点 + 逐步消除页面层 `items/list` 兼容分支」。**
 - **归一化落点已建**：`frontend/src/api/client.js`（`normalizePage / normalizeList`，纯函数 + 单测 **14** 例）；`dashboardApi.normalizePaged` **已改为委托 `normalizePage`**（已去重、行为等价）；页面层 `items/list` 兼容分支待阶段 1 小步清理。
 - **已迁移页面（2）**：`DataSyncPage.toList`；`DataCatalogPage` 三处（`loadAssets` / `loadUsage` / `openTrend`，原 `Array.isArray(data?.records) ? data.records : Array.isArray(data) ? data : []`）。
-- **页面迁移的验收基线**：迁移必须带页面级回归，不接受“纯函数绿 + 页面未验证”。示范：`dataSyncPage.spec.js`（6 例）、`dataCatalogPage.spec.js`（6 例，含 Tab 切换 / usage 路径）；两个用例均做过**变异验证**（把归一层换成返回 `[]`，各自 4 例失败），证明能挡回归。
+- **页面迁移的验收基线**：迁移必须带页面级回归，不接受“纯函数绿 + 页面未验证”；**一页多处取数须逐路径覆盖**。
+  - `dataSyncPage.spec.js`（6 例）：records/items/list/裸数组/null/抛错；变异验证：`toList` 返回 `[]` → 4 例失败。
+  - `dataCatalogPage.spec.js`（7 例）：`loadAssets`（records/裸数组/items/空）+ `loadUsage`（Tab）+ `openTrend`（二次拉取趋势）+ 抛错降级。
+    变异验证分两步：整体换 `() => []` → 4 例失败；**只坏 `openTrend` 一处 → 仅 1 例失败**，证明第三处取数被独立锁定。
 
 ### 7.2 时间快照
 

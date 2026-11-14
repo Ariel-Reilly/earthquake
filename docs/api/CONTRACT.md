@@ -12,7 +12,9 @@
   - 缺 `pages` 时由 `total / size` 推导（`Math.ceil`），兼容只给 total/size 的不完整旧端点；显式 `pages` 优先；`size=0` 用列表长度兜底避免除零。
   - 迁移状态：`dashboardApi.normalizePaged` **已改为委托 `normalizePage`**（单点去重、行为等价，调用点不变）；页面层 `items/list` 兼容分支按页小步清理。
   - **已迁移页面**：`DataSyncPage.toList` → `normalizeList`；`DataCatalogPage`（`loadAssets` / `loadUsage` / `openTrend` 三处 `records/裸数组` 分支）→ `normalizeList`。
-  - **迁移验收要求**：每迁一个页面必须附页面级回归，不能只靠纯函数单测。示范：`dataSyncPage.spec.js`（6 例）、`dataCatalogPage.spec.js`（6 例，含 Tab 切换与 usage 路径）。
+  - **迁移验收要求**：每迁一个页面必须附页面级回归，不能只靠纯函数单测；**一个页面有多处取数时逐路径覆盖**，不得只测主列表。
+    - `dataSyncPage.spec.js`（6 例）：`records/items/list/裸数组/null/抛错`。
+    - `dataCatalogPage.spec.js`（7 例）：`loadAssets`（records/裸数组/items/空）＋ `loadUsage`（Tab 切换）＋ `openTrend`（二次拉取 5 条趋势，与首次列表 3 条区分，证明走的是自身取数分支）＋ 抛错降级。
   - **`fallback` 必须是数组**：历史 `normalizePaged(data, { items: [] })` 已全部改为 `[]`，否则空数据时 `records` 会变成对象（后续 `.map` 抛错）。单测已锁定该契约。
 
 ## 2. 时间
