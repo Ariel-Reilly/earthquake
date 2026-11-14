@@ -34,6 +34,12 @@
 > ⚠ `DeviceOnlineChecker` 每 60s 把 5 分钟无上报的在线设备置离线，演示设备不会真的上报，
 > 所以**每场演示开始前 5 分钟内必须重跑刷新脚本**（幂等、只 UPDATE），长时间彩排每 4 分钟重跑。
 > 该脚本会改写业务时间戳与设备状态，**生产/试运行环境禁用**。
+> **⚠ 刷新后须在页面确认**：预警列表时间显示「今天」而非「11-06」。2026-11-14 第三轮复测发现
+> 刷新脚本曾用 `COALESCE` 保留旧 `triggered_at`、验证只查 `created_at`，造成「脚本 PASS、页面旧日期」
+> 的假绿；现已改为覆盖 `triggered_at` 并用 DB 双列 + `/api/warnings` 接口 + 真实浏览器页面时间三层校验
+> （见 [RETEST_FIX_REPORT.md](RETEST_FIX_REPORT.md) §五）。演示前执行命令：
+> `APPLY=1 node scripts/delivery/verify-demo-data-refresh.mjs`（默认只读、`APPLY=1` 才刷新），
+> 并打开预警页肉眼复核时间为今天；只读时在线数回落标 `WARN` 属心跳预期，非刷新失败。
 
 ---
 

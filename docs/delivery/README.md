@@ -22,7 +22,7 @@
 | [ONSITE_ACCEPTANCE_CHECKLIST.md](ONSITE_ACCEPTANCE_CHECKLIST.md) | 现场人工验收记录表（听声/真机/彩排/真实影像，含已完成的自动化预检） | 测试、项目经理 |
 | [A1_PREFLIGHT_REPORT.md](A1_PREFLIGHT_REPORT.md) | A1 现场项自动化预检报告（4 脚本 / 34 项判定、现场剩余人工项、复现命令） | 测试、项目经理 |
 | [REVIEW_FIX_REPORT.md](REVIEW_FIX_REPORT.md) | 2026-11-14 审查 P0/P1 修复报告（8 个缺陷、真实接口 12/12 + 浏览器 14/14） | 项目经理、测试、甲方 |
-| [RETEST_FIX_REPORT.md](RETEST_FIX_REPORT.md) | 2026-11-14 复测遗留项修复（地图 fit / 演示数据 / AI 首屏 / drift 懒加载；4/4 + 17/17） | 项目经理、测试、演示人 |
+| [RETEST_FIX_REPORT.md](RETEST_FIX_REPORT.md) | 2026-11-14 复测遗留项修复（地图 fit / 演示数据 / AI 首屏 / drift 懒加载；4/4 + 17/17）**+ §五 第三轮复测假绿补修**（triggered_at、9/9 + 20/20） | 项目经理、测试、演示人 |
 | [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md) | 已知限制与二期能力（诚实边界） | 甲方、项目经理 |
 | [ACCEPTANCE_LOG_20261112.md](ACCEPTANCE_LOG_20261112.md) | 每轮验收记录（问题、修复、证据、排障过程） | 所有人 |
 | [DELIVERY_BACKLOG.md](DELIVERY_BACKLOG.md) | 剩余任务清单（P0 交付前必做 / P1 试运行前 / P2 二期，含验收标准与工时） | 项目经理、开发、甲方 |
@@ -93,13 +93,21 @@ node scripts/delivery/browser-smoke.mjs
   （落库评分 + 后台实时刷新，明确标注来源）、drift 改 Tab 懒加载（首屏 0 个 501）、模型页空态说明；
   `verify-demo-data-refresh.mjs` **4/4** + `verify-retest-fixes.mjs` **17/17** PASS。
   详见 [RETEST_FIX_REPORT.md](RETEST_FIX_REPORT.md)。
-- 源码提交：`release/delivery` 分支；交付快照 tag **`v1.8.7-delivery`**（复测遗留项修复轮次）；
-  源码包 `output/delivery-verify/DisasterGuard-v1.8.7-delivery.zip` + 同名 `.sha256`；
-  `v1.8.6` / `v1.8.5` / `v1.8.4` / `v1.8.3` / `v1.8.2` / `v1.8.1` / `v1.8.0-delivery` 保留为历史快照，不强制移动
+- **第三轮复测：演示数据「预警时间」假绿补修（2026-11-14）**：刷新脚本曾用 `COALESCE` 保留旧
+  `triggered_at`、自检/验证脚本只查 `created_at`，导致脚本 PASS 但页面仍显示「11-06」。
+  已改为直接覆盖 `triggered_at`、DB 双列 + 接口层 + 真实浏览器三层校验；证据链
+  修复前 **4/8**（抓到假绿）→ `APPLY=1` **9/9** → 浏览器 **20/20**（页面 `11-14 06:15`）。
+  详见 [RETEST_FIX_REPORT.md](RETEST_FIX_REPORT.md) §五、`ACCEPTANCE_LOG` §四十六。
+- 源码提交：`release/delivery` 分支；交付快照 tag **`v1.8.8-delivery`**（第三轮复测假绿补修轮次）；
+  源码包 `output/delivery-verify/DisasterGuard-v1.8.8-delivery.zip` + 同名 `.sha256`；
+  `v1.8.7` / `v1.8.6` / `v1.8.5` / `v1.8.4` / `v1.8.3` / `v1.8.2` / `v1.8.1` / `v1.8.0-delivery` 保留为历史快照，不强制移动
 - 现场人工验收记录表：[ONSITE_ACCEPTANCE_CHECKLIST.md](ONSITE_ACCEPTANCE_CHECKLIST.md)（已纳入演示材料包）
-- **演示前 5 分钟内**重跑 `scripts/delivery/refresh-demo-data.sql`：
-  `DeviceOnlineChecker` 每 60s 会把 5 分钟无上报的在线设备置离线，演示设备不会真的上报，
-  刷新出的「6 台在线」约 5 分钟后自然衰减；长时间彩排每 4 分钟重跑一次。
+- **演示前 5 分钟内**重跑 `APPLY=1 node scripts/delivery/verify-demo-data-refresh.mjs`
+  （默认只读，`APPLY=1` 才刷新并即时验证）：`DeviceOnlineChecker` 每 60s 会把 5 分钟无上报的
+  在线设备置离线，演示设备不会真的上报，刷新出的「6 台在线」约 5 分钟后自然衰减；
+  长时间彩排每 4 分钟重跑一次。**须确认「6 在线 + 页面预警时间今天」都成立**——
+  刷新脚本已改为同时覆盖 `created_at` 与 `triggered_at`（页面/DTO 实际字段），
+  验证脚本 DB 双列 + 接口 + 浏览器三层校验，不再出现「脚本 PASS、页面显示 11-06」的假绿。
   执行前备份参考 `output/delivery-verify/dev-db-backup-before-demo-refresh-20261114.sql`。
 - 已知待现场确认：人耳真实听声、真机移动端触摸/网络、通知送达口径人工核对、
   按 `DEMO_SCRIPT.md` 完整彩排 2 遍计时 ≤20 分钟、时相对比真实影像凭证、AI 开启后 AI 洞察页完整渲染

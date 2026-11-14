@@ -5,11 +5,13 @@
  *       ai-service 8001、Edge/Chrome headless CDP 9222。
  * 用法：node scripts/delivery/verify-retest-fixes.mjs
  *
- * 覆盖 4 项：
+ * 覆盖 5 项：
  *   1) 设备地图视野 fit 到真实 16 台重庆设备（不再停留成都 demo 中心）；
  *   2) 演示数据刷新后 6/16 在线、预警/灾害点时间为今天；
  *   3) AI 综合研判首屏秒级展示「落库评分」并标注来源，后台再刷新实时研判；
- *   4) AI 模型页首屏不再发 drift 501，只有点开 Tab 才请求，空态说明明确。
+ *   4) AI 模型页首屏不再发 drift 501，只有点开 Tab 才请求，空态说明明确；
+ *   5) 预警页真实渲染时间与 /api/warnings.time 一致且不再是 11-06
+ *      （第三轮复测：triggered_at 未刷新导致「脚本 PASS / 页面旧日期」的假绿闭环）。
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -256,7 +258,44 @@ async function main() {
   check('漂移页显示「能力未接入」而非 0 值', /能力未接入/.test(driftNotice || ''),
     driftNotice?.slice(0, 80))
 
-  const issueSets = [dmIssues, insightIssues, beforeTab, afterTab]
+  // ── 5) 预警页真实渲染时间（第三轮复测「假绿」闭环）──
+  // 刷新脚本曾只刷 created_at、验证脚本也只查 created_at，但页面 /api/warnings
+  // 绑定的是 triggeredAt / time。这里用真实浏览器确认页面显示的时间确实变了。
+  from = client.events.length
+  const wl = await api('/warnings?page=1&size=200', { token })
+  const wlRaw = wl.json?.data
+  const wlRows = Array.isArray(wlRaw) ? wlRaw : (wlRaw?.records ?? wlRaw?.list ?? [])
+  const activeWarnings = wlRows.filter((w) => !['已解除', '已关闭'].includes(w.status))
+  const apiActive = activeWarnings[0] ?? null
+  const todayMMDD = (() => {
+    const d = new Date()
+    return `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  })()
+  await client.send('Page.navigate', { url: APP + '/dashboard/warnings' })
+  await waitReady(client)
+  let warnProbe = null
+  for (let i = 0; i < 24; i++) {
+    try {
+      warnProbe = await client.eval(`(() => {
+        const times = [...document.querySelectorAll('.warning-time')].map(e => e.innerText.trim())
+        return { times, bodyHasOld: document.body.innerText.includes('11-06 14:37') }
+      })()`)
+      if (warnProbe?.times?.length > 0) break
+    } catch (_) { /* 导航中 */ }
+    await sleep(400)
+  }
+  const warnIssues = client.issues(from)
+  await client.screenshot('retest-warnings-time.png')
+  check('预警列表接口活跃预警 time 为今天（triggeredAt 已刷新）',
+    !!apiActive && String(apiActive.time ?? '').startsWith(todayMMDD) && !/11-06/.test(String(apiActive.time ?? '')),
+    `time=${apiActive?.time ?? '-'} triggeredAt=${apiActive?.triggeredAt ?? '-'} today=${todayMMDD}`)
+  check('页面渲染时间与接口 time 一致（无假绿）',
+    !!apiActive && (warnProbe?.times ?? []).includes(apiActive.time),
+    `api=${apiActive?.time ?? '-'} dom=${(warnProbe?.times ?? []).slice(0, 3).join(' / ')}`)
+  check('页面不再残留旧的 11-06 14:37 活跃预警时间',
+    warnProbe?.bodyHasOld === false, `bodyHasOld=${warnProbe?.bodyHasOld}`)
+
+  const issueSets = [dmIssues, insightIssues, beforeTab, afterTab, warnIssues]
   const unexpected = issueSets.flatMap((x) => x.serverErrors)
     .filter((s) => !/\/api\/ai\/drift/.test(s) && !/\/api\/weather\//.test(s))
   check('全流程无意外 5xx', unexpected.length === 0, unexpected.slice(0, 2).join(' , '))
@@ -266,7 +305,8 @@ async function main() {
     checkedAt: new Date().toISOString(), app: APP, browser: version.Browser,
     deviceMapStats: stats, mapProbe, insightMs, insight,
     preDrift501, postDrift501, driftNotice: driftNotice?.slice(0, 200),
-    unexpected5xx: unexpected, checks,
+    apiActiveTime: apiActive?.time, apiActiveTriggeredAt: apiActive?.triggeredAt,
+    warnProbe, unexpected5xx: unexpected, checks,
   }
   fs.writeFileSync(path.join(OUT, 'retest-fixes.json'), JSON.stringify(summary, null, 2))
   await fetch(`${CDP}/json/close/${targetId}`).catch(() => {})

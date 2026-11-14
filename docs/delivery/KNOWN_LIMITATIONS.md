@@ -277,6 +277,13 @@
   ⚠ `DeviceOnlineChecker` 每 60s 把 5 分钟无上报的在线设备置离线，演示设备不会真的上报，
   因此**约 5 分钟后自然衰减回 0 在线**；每场演示前 5 分钟内重跑脚本即可，长时间彩排每 4 分钟重跑。
   「已记录轨迹 0」为真实统计（演示库无移动设备类型），未伪造。
+- **演示数据「预警时间」字段口径（2026-11-14 第三轮复测修正，见 L-20 附记 / RETEST_FIX_REPORT §五）**：
+  页面列表 `time` / `triggeredAt`、列表排序与 24h 时间对比**都以 `warning_event.triggered_at` 为准**
+  （`WarningDto` 不返回 `createdAt`）。刷新脚本早期用 `COALESCE` 保留旧 `triggered_at`、自检与验证
+  脚本只查 `max(created_at)`，造成「脚本 PASS、页面仍显示 11-06」的**验证假绿**。现已：
+  `triggered_at` 直接覆盖、自检双列、`verify-demo-data-refresh.mjs` 增 DB 双列 + `/api/warnings`
+  接口层断言、`verify-retest-fixes.mjs` 增真实浏览器页面时间断言（17→20 项）。
+  现场执行须确认「页面显示今天」而不只是脚本数字；只读检查时在线数回落标 WARN 而非失败。
 
 ### L-21 预警「消息通知送达率 / 联动部门数」统计未接入（正式登记二期）
 

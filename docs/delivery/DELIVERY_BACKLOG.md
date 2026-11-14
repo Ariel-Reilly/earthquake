@@ -478,3 +478,28 @@
 - **仍未关闭**：A1 纯人工项、A4 上线日注入、A6-3/A6-4、B6-1/B7-1、状态机 409 契约、
   Vite 升级、L-21 真实聚合、drift/multimodal 同源代理与 P2 二期能力；
   以及每场演示前的演示数据保活重跑。
+
+## R. 本轮执行记录（2026-11-14，第三轮复测：演示数据「预警时间」假绿补修）
+
+- **输入**：基于 `7e98b55` 的第三轮复测结论——前四项修复全部生效（110 GET **0 个 500**、
+  41 路由 **0 个 403**、冒烟 37/37、vitest 77），但发现 **1 个「验证脚本会误判通过」的真实问题**：
+  活跃预警 `created_at=2026-11-14` 但 `triggered_at=2026-11-06`，页面仍显示「11-06 14:37」。
+  详见 [RETEST_FIX_REPORT.md](RETEST_FIX_REPORT.md) §五。
+- **根因（假绿三层）**：刷新脚本 `COALESCE` 保留旧 `triggered_at`；脚本自检与验证脚本都只查
+  `max(created_at)`；但 `/api/warnings` 的 `time`/`triggeredAt`、列表排序、24h 时间对比
+  **全部以 `triggered_at` 为准**（`WarningDto` 甚至不返回 `createdAt`）。
+- **已修 4 处**：
+  1. `refresh-demo-data.sql`：`triggered_at` 直接覆盖 `now()-…`，去掉 `COALESCE`；
+  2. 同脚本自检：同时输出 `latest_warning_created_day` 与 `latest_warning_triggered_day`；
+  3. `verify-demo-data-refresh.mjs`：DB 双列校验 + **新增接口层断言**（活跃预警 `triggeredAt`/`time`）+ 在线数按 `APPLY` 分级（回落标 WARN 不假失败）；
+  4. `verify-retest-fixes.mjs`：新增第 5 组**真实浏览器**断言（页面 `.warning-time` 与接口一致、不残留 `11-06 14:37`），17→**20** 项。
+- **三级证据链**：修复前只读 **4/8 PASS / 1 WARN**（4 FAIL 精确命中旧 `triggered_at` 与 `time=11-06 14:37`）
+  → `APPLY=1` 刷新即时验证 **9/9 PASS**（`time=11-14 06:15`、`triggeredAt=2026-11-14T06:15:29Z`、6/16 在线）
+  → 真实浏览器 **20/20 PASS**（页面渲染 `11-14 06:15`、`bodyHasOld=false`），既有 17 项无回归。
+- **本轮未改产品源码**（仅交付脚本 + 文档）：门禁沿用 eslint 0 / stylelint 0 / vitest 77 / SFC 98；
+  交付快照 tag **`v1.8.8-delivery`**。
+- **P2/P3 登记不改代码**：设备地图 marker 辨识度（纯视觉 polish，对比度 7 页 0 issues）、
+  AI 模型版本库补种子数据（演示策划）、预警通知统计 → L-21 二期、外部 ORB/天气源 → L-20。
+- **现场执行要求不变**：每场演示前 5 分钟内 `APPLY=1` 重跑刷新脚本（心跳窗口），
+  确认「6 在线 + **页面**预警时间今天」，而不只是脚本数字通过。
+- **仍未关闭**：同 §Q（A1 纯人工、A4 上线日、A6-3/A6-4、B/C 类、二期能力）。

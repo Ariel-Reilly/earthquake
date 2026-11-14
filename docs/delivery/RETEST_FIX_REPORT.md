@@ -95,3 +95,79 @@
 - A1 纯人工项（人耳听声、真机、彩排计时、真实影像凭证）、A4 上线日注入、A6-3/A6-4；
 - B6-1 巡检报告 ground truth、B7-1 通知/待办口径、状态机 409 契约、Vite 升级、
   预警通知统计真实聚合（L-21）、drift/multimodal 同源代理、P2 二期能力。
+
+---
+
+## 五、第三轮复测补修（2026-11-14）：演示数据「预警时间」验证假绿
+
+### 5.1 复测输入
+
+基于 `7e98b55` 的第三轮复测确认前四项修复全部生效（设备地图 fit / 16 台真实数据、
+AI 研判首屏 ~842ms、drift 懒加载 0 个 501、110 GET 0 个 500、41 路由 0 个 403、
+冒烟 37/37、vitest 77），但发现 **1 个「验证脚本会误判通过」的真实问题**：
+
+```
+活跃预警 id=275：created_at = 2026-11-14 13:41:53（脚本已刷）
+               triggered_at = 2026-11-06 22:37:00+08（页面实际显示 11-06 14:37）
+```
+
+### 5.2 根因（假绿三层）
+
+| 层 | 缺陷 | 后果 |
+|---|---|---|
+| 刷新脚本 `refresh-demo-data.sql:48` | `triggered_at = COALESCE(w.triggered_at, now()-…)` 保留旧值 | 页面用的列从未被刷新 |
+| 脚本自检 `:72` | 只 `SELECT max(created_at)::date` | 自检显示「预警时间=今天」 |
+| 验证脚本 `verify-demo-data-refresh.mjs:61` | 只查 `max(created_at)` | 断言 PASS，但页面仍 11-06 |
+
+字段事实链：`WarningEvent.@Column(name="triggered_at", nullable=false)` →
+`WarningDto.triggeredAt` → `/api/warnings` 返回 `time` / `triggeredAt`（**无 createdAt**）→
+列表 `ORDER BY w.triggeredAt DESC` → 页面 `warning.time`；24h 时间对比也按
+`warning_event.triggered_at` 聚合（验收日志 §四十二）。即页面与统计**都用 triggered_at**。
+
+### 5.3 修复（4 处）
+
+1. `refresh-demo-data.sql`：`triggered_at = now() - (interval '1 hour' * r.rn)` 直接覆盖，
+   去掉 `COALESCE`；头部注释写明「页面/DTO/统计字段是 triggered_at，两列都要刷」。
+2. `refresh-demo-data.sql` 自检：同时输出 `latest_warning_created_day` 与
+   `latest_warning_triggered_day`，不再只看单列。
+3. `verify-demo-data-refresh.mjs`：DB 双列都校验今天且日期一致；**新增接口层断言**
+   直接查 `/api/warnings` 活跃预警的 `triggeredAt` / `time`（页面真实数据源）；
+   在线数断言按 `APPLY` 分级——刚刷新严格 6/16，只读时心跳回落标 `WARN`
+   而非 `FAIL`（避免已知语义造成假失败，也不伪装「已在线」）。
+4. `verify-retest-fixes.mjs`：新增第 5 组 **真实浏览器**断言——页面 `.warning-time`
+   渲染文本与接口 `time` 一致、且不再残留 `11-06 14:37`；总判定 17→**20** 项。
+
+### 5.4 证据链（同一命令内前后对照）
+
+| 阶段 | 结果 |
+|---|---|
+| ① 修复前只读 | **4/8 PASS / 1 WARN**；4 个 FAIL 全部命中 `triggered=2026-11-06`、接口 `time=11-06 14:37`、`triggeredAt=2026-11-06T14:37Z` → 新断言成功**抓到历史假绿** |
+| ② `APPLY=1` 刷新并即时验证 | **9/9 PASS**：`created=triggered=2026-11-14`、接口 `time=11-14 06:15`、`triggeredAt=2026-11-14T06:15:29Z`、6/16 在线 |
+| ③ 真实浏览器回归 | **20/20 PASS**：页面渲染 `11-14 06:15` 与接口一致、`bodyHasOld=false`；地图 fit / AI 首屏 846ms / drift 懒加载等既有 17 项无回归 |
+
+证据文件：`output/delivery-verify/demo-data-refresh.json`（含 `activeWarnings[].time/triggeredAt`）、
+`retest-fixes.json`（含 `apiActiveTime`、`warnProbe`、`checks`）；截图
+`output/retest-fixes/retest-warnings-time.png`。
+
+### 5.5 心跳回落（复测第二节，非 bug）
+
+复测实测 `online=0`、`verify-demo-data-refresh.mjs` 只读 3/4（旧版把「6/16 在线」硬判 FAIL）。
+`DeviceOnlineChecker` 每 60s 把 5 分钟无上报的在线设备置离线，演示设备不会真的上报，
+这是正确心跳语义。本轮已把该断言改为分级：`APPLY=1` 即时严格校验、只读回落标 WARN 并提示
+「演示前 5 分钟内重跑」。**现场执行要求**：每场演示开始前 5 分钟内执行
+`APPLY=1 node scripts/delivery/verify-demo-data-refresh.mjs`，确认「6 在线 + 页面预警时间今天」。
+
+### 5.6 本轮 P2/P3 边界（登记不改代码）
+
+- 设备地图 marker 在卫星底图上辨识度不足（当前全离线 → 灰色）：纯视觉 polish；
+  浅/深色对比度 7 页 0 issues、1440 无横向溢出，复测亦定性「整体不建议大改」，
+  **本轮不动产品视觉代码**；如确需，建议后续单独迭代描边/聚合/在线状态色。
+- AI 模型版本库 0 条：空态已写明「演示库尚未初始化」，补种子数据属演示策划，非缺陷。
+- 预警通知送达率 / 联动部门统计：维持「未接入」，正式登记 **L-21 二期**。
+- 外部 ORB（约 320 条）、NSMC/NMC 天气超时：维持 **L-20** 外部边界。
+
+### 5.7 门禁与交付
+
+`node --check` 两个脚本 OK；本轮**未改产品前端源码 / 后端 Java**，仅改交付脚本与文档，
+故 eslint/stylelint/vitest 全量复跑结论沿用（77 passed / 0 / 0），未重跑全量后端 `mvn test`
+（无 Java 改动）。交付快照 tag `v1.8.8-delivery`。

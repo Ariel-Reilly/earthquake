@@ -12,6 +12,13 @@
 -- 幂等性：只 UPDATE 现有记录，不 INSERT、不 DELETE；重复执行只会把时间再刷一遍，
 --         不会累积数据。设备在线数固定为 6 台（按 device_code 排序取前 6）。
 --
+-- ⚠ 关键字段（2026-11-14 第三轮复测修正）：预警列表 /api/warnings 的 `time`、
+--    WarningDto.triggeredAt 与 24h 时间对比聚合用的都是 **warning_event.triggered_at**，
+--    不是 created_at。两个时间列都必须刷新、验证脚本也必须同时检查两列，
+--    否则会出现「脚本自检通过、页面仍显示 11-06 旧日期」的假绿。
+--    历史缺陷：本脚本曾用 COALESCE(w.triggered_at, ...) 保留旧值，且自检只查
+--    max(created_at)；详见 docs/delivery/RETEST_FIX_REPORT.md。
+--
 -- 用法（隔离库 / 演示库示例）：
 --   docker exec -i <pg容器> psql -U disasterguard -d disasterguard \
 --     -v ON_ERROR_STOP=1 -f - < scripts/delivery/refresh-demo-data.sql
@@ -38,6 +45,8 @@ FROM ranked r
 WHERE d.id = r.id;
 
 -- 2) 未闭环预警：把时间平移到今天（保留 1 小时间隔），便于演示「实时预警」。
+--    ⚠ triggered_at 必须直接覆盖，不能用 COALESCE 保留旧值 —— 页面显示、列表排序、
+--      DTO.time、24h 时间对比聚合都以 triggered_at 为准（2026-11-14 第三轮复测）。
 WITH recent AS (
   SELECT id, row_number() OVER (ORDER BY created_at DESC) AS rn
   FROM warning_event
@@ -45,7 +54,7 @@ WITH recent AS (
 )
 UPDATE warning_event w
 SET created_at   = now() - (interval '1 hour' * r.rn),
-    triggered_at = COALESCE(w.triggered_at, now() - (interval '1 hour' * r.rn)),
+    triggered_at = now() - (interval '1 hour' * r.rn),
     last_seen_at = now(),
     updated_at   = now()
 FROM recent r
@@ -65,10 +74,13 @@ WHERE u.id = r.id AND r.rn <= 3;
 
 COMMIT;
 
--- 4) 自检：期望「在线设备 6 / 未闭环预警时间=今天 / 灾害点最近发现=今天」。
+-- 4) 自检：期望「在线设备 6 / 预警 created_at 与 triggered_at 均为今天 / 灾害点最近发现=今天」。
+--    ⚠ 必须同时列出 created_at 与 triggered_at：页面用的是 triggered_at，
+--      只查 created_at 会掩盖 triggered_at 仍为旧值（历史假绿根因）。
 SELECT
-  (SELECT count(*) FILTER (WHERE online_status = '在线') FROM monitoring_device) AS online_devices,
-  (SELECT count(*) FROM monitoring_device)                                      AS total_devices,
-  (SELECT max(created_at)::date FROM warning_event)                             AS latest_warning_day,
+  (SELECT count(*) FILTER (WHERE online_status = '在线') FROM monitoring_device)  AS online_devices,
+  (SELECT count(*) FROM monitoring_device)                                        AS total_devices,
+  (SELECT max(created_at)::date FROM warning_event)                               AS latest_warning_created_day,
+  (SELECT max(triggered_at)::date FROM warning_event)                             AS latest_warning_triggered_day,
   (SELECT max(discovered_at)::date FROM unified_event WHERE kind::text = 'HAZARD') AS latest_hazard_day,
-  current_date                                                                  AS today;
+  current_date                                                                    AS today;

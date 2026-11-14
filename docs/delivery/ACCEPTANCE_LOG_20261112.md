@@ -1121,3 +1121,51 @@ Edge headless CDP `9222`。仅使用编排文件内标注「仅本机隔离演�
 - 总览页约 320 条 `ERR_BLOCKED_BY_ORB`、NSMC/NMC 天气源超时、设备地图右侧空白提示 → **L-20**；
 - UI 设计体系不动：浅/深色对比度 7 页 0 issues、1440 下无横向溢出。
 - 详见 `RETEST_FIX_REPORT.md`、`DELIVERY_BACKLOG.md` §Q。
+
+---
+
+## 四十六、第三轮复测补修：演示数据「预警时间」验证假绿（2026-11-14）
+
+### 46.1 复测输入与根因
+
+基于 `7e98b55` 的第三轮复测确认 §四十五 四项修复全部生效，但发现 1 个真实问题：
+活跃预警 `created_at=2026-11-14 13:41:53`、`triggered_at=2026-11-06 22:37:00+08`，
+页面仍显示「11-06 14:37」。假绿三层：
+
+1. `refresh-demo-data.sql:48` 用 `COALESCE(w.triggered_at, now()-…)` **保留了旧值**；
+2. 脚本自检与 `verify-demo-data-refresh.mjs` 都只查 `max(created_at)` → 显示「时间=今天」并 PASS；
+3. 但 `/api/warnings` 的 `time` / `triggeredAt`（`WarningDto` 不含 `createdAt`）、
+   列表 `ORDER BY w.triggeredAt DESC`、24h 时间对比聚合**全以 `triggered_at` 为准**
+   （实测 `time=11-06 14:37`、`triggeredAt=2026-11-06T14:37:00Z`）。
+
+### 46.2 修复
+
+| 文件 | 改动 |
+|---|---|
+| `scripts/delivery/refresh-demo-data.sql` | `triggered_at` 改为直接 `now()-…` 覆盖；自检新增 `latest_warning_triggered_day`；头部注明页面字段是 `triggered_at` |
+| `scripts/delivery/verify-demo-data-refresh.mjs` | DB 双列校验今天且一致；新增 `/api/warnings` 接口层断言（活跃预警 `triggeredAt`/`time`）；在线数按 `APPLY` 分级，心跳回落标 `WARN` 不假失败 |
+| `scripts/delivery/verify-retest-fixes.mjs` | 新增第 5 组真实浏览器断言：页面 `.warning-time` 与接口 `time` 一致、不残留 `11-06 14:37`；17→20 项 |
+
+### 46.3 三级证据链（同一次执行前后对照）
+
+- ① **修复前只读**：`4/8 PASS / 1 WARN`，4 个 FAIL 精确命中 `triggered=2026-11-06`、
+  接口 `time=11-06 14:37`、`triggeredAt=2026-11-06T14:37Z` → 证明新断言能抓到历史假绿。
+- ② **`APPLY=1` 刷新即时验证**：`9/9 PASS`，`created=triggered=2026-11-14`、
+  接口 `time=11-14 06:15`、`triggeredAt=2026-11-14T06:15:29Z`、6/16 在线。
+- ③ **真实浏览器回归**：`20/20 PASS`，页面渲染 `11-14 06:15` 与接口一致、
+  `bodyHasOld=false`；地图 fit（16 marker / 中心重庆 / zoom≈11）、AI 首屏 846ms、
+  drift 懒加载 0→2 个 501 等既有 17 项无回归。
+
+证据：`output/delivery-verify/demo-data-refresh.json`、`retest-fixes.json`；
+截图 `output/retest-fixes/retest-warnings-time.png`。
+
+### 46.4 边界与现场要求
+
+- 心跳回落（`online=0`）是 `DeviceOnlineChecker` 正确语义，非 bug；验证脚本已分级处理。
+  **每场演示前 5 分钟内**执行 `APPLY=1 node scripts/delivery/verify-demo-data-refresh.mjs`，
+  确认「6 在线 + 页面预警时间今天」。
+- 本轮**未改产品前端源码 / 后端 Java**（仅交付脚本 + 文档），门禁沿用
+  eslint 0 / stylelint 0 / vitest 77 / SFC 98；未重跑全量 `mvn test`。
+- P2/P3 登记不改代码：设备地图 marker 辨识度（视觉 polish）、AI 模型版本库补种子数据、
+  预警通知统计 → L-21 二期、外部 ORB / 天气源 → L-20。
+- 详见 `RETEST_FIX_REPORT.md` §五、`DELIVERY_BACKLOG.md` §R。交付快照 tag `v1.8.8-delivery`。
