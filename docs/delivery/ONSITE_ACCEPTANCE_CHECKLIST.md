@@ -17,7 +17,8 @@
 | A1-2 WS 断线重连计时 | ✅ **6/6 PASS**，阻断 32s，重连 **2013 ms**，轮询兜底持续 | `node scripts/delivery/verify-realtime-reconnect.mjs`；`output/delivery-verify/realtime-reconnect.json` |
 | A1-4 页面/按钮巡检预检 | 15 个路由 / **442** 个可点击按钮，无跳登录、无空白页、无 JS 异常 | `node scripts/delivery/verify-button-sweep.mjs`；`output/delivery-verify/button-sweep.json` |
 | 2026-11-14 审查 P0/P1 修复回归 | ✅ 真实接口 **12/12** + 真实浏览器 **14/14**（7 页面）PASS：设备地图真实 16 台 / 无 mock、气象页不再 403、灾害预测不再 500、预警 KPI 显示「未接入」、灾害列表不自动弹窗 | `node scripts/delivery/verify-review-api-fixes.mjs`；`node scripts/delivery/verify-review-browser-fixes.mjs`；详见 [REVIEW_FIX_REPORT.md](REVIEW_FIX_REPORT.md) |
-| 前端门禁 | eslint 0 error / stylelint 0 / vitest **77 passed**（8 个测试文件）/ SFC 98 / 令牌完整性 0 问题 / `vite build` 通过 | 含 B5-4 组件测试 12 例、审查修复回归 7 例 |
+| 前端门禁 | eslint 0 error / stylelint 0 / vitest **86 passed**（9 个测试文件）/ SFC 98 / 令牌完整性 0 问题 / `vite build` 通过 | 含 B5-4 组件测试 12 例、审查修复回归 7 例、时区语义 9 例 |
+| 预警时间本地时区（第四轮复测） | ✅ `verify-retest-fixes.mjs` **23/23 PASS**：上海 `14:43` / UTC `06:43` 双时区不同、页面取自 `triggeredAt` | `node scripts/delivery/verify-retest-fixes.mjs`；见 [RETEST_FIX_REPORT.md](RETEST_FIX_REPORT.md) §六 |
 | 后端门禁 | `mvn -q -DskipTests package` 通过，fat jar 127 MB；`EventStateMachineTest` **11/11 PASS** | B5-1 状态机单测 |
 | ai-service pytest | 10 个测试文件 **102 passed / 4 skipped**（6.48s） | `output/delivery-verify/pytest-20261113.log` |
 | A1-3 移动端响应式（CDP 设备模拟） | ✅ **8/8 PASS**：4 视口 × 5 路由 = 20 组，无横向溢出 / 空白页 / 5xx / 异常；360×800 红色弹窗不溢出、按钮全可点 | `node scripts/delivery/verify-mobile-responsive.mjs`；9 张 `mobile-*.png` |
@@ -40,6 +41,10 @@
 > （见 [RETEST_FIX_REPORT.md](RETEST_FIX_REPORT.md) §五）。演示前执行命令：
 > `APPLY=1 node scripts/delivery/verify-demo-data-refresh.mjs`（默认只读、`APPLY=1` 才刷新），
 > 并打开预警页肉眼复核时间为今天；只读时在线数回落标 `WARN` 属心跳预期，非刷新失败。
+> **⚠ 时区口径（第四轮复测补修）**：预警时间必须显示为**浏览器本地时间**（如库里
+> `14:15+08` → 页面 `11-14 14:15`），不能是 UTC 的 `06:15`。前端已统一按 `triggeredAt`
+> 本地化并用上海/UTC 双时区回归 23/23 验证（见 [RETEST_FIX_REPORT.md](RETEST_FIX_REPORT.md) §六）。
+> 现场换机器演示前请确认演示机时区与系统时间正确；若页面早 8 小时，先检查演示机时区设置。
 
 ---
 

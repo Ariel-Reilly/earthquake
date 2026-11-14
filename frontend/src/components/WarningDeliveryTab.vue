@@ -27,6 +27,7 @@ import {
 } from "lucide-vue-next";
 import PermissionButton from "./PermissionButton.vue";
 import { dashboardApi } from "../services/dashboardApi";
+import { formatWarningTime } from "../utils/warningTime";
 
 const props = defineProps({
   warningId: { type: String, required: true },
@@ -165,8 +166,12 @@ const confirmRate = computed(() => {
 });
 
 const triggerTimeText = computed(() => {
-  const ts = warningDetail.value?.item?.updatedAt;
-  if (!ts) return warningDetail.value?.item?.time ?? "—";
+  const item = warningDetail.value?.item;
+  if (!item) return "—";
+  // A6-5：优先用 triggeredAt 按浏览器本地时区格式化；缺字段时回退原有展示口径。
+  if (item.triggeredAt) return formatWarningTime(item);
+  const ts = item.updatedAt;
+  if (!ts) return item.time ?? "—";
   try {
     return new Date(ts).toLocaleString("zh-CN", { hour12: false });
   } catch (_) {

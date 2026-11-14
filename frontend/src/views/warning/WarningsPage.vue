@@ -14,6 +14,7 @@ import WarningCreateModal from '../../components/WarningCreateModal.vue'
 import { dashboardApi } from '../../services/dashboardApi'
 import { useEscapeClose } from '../../composables/useEscapeClose'
 import { useRealtimeStore } from '../../stores/realtime'
+import { formatWarningTime } from '../../utils/warningTime'
 
 const emit = defineEmits(['notify'])
 const props = defineProps({ userRole: { type: String, default: 'admin' } })
@@ -686,7 +687,7 @@ onBeforeUnmount(() => {
                 <div class="warning-meta">
                   <span class="warning-desc">{{ warning.desc }}</span>
                   <span class="warning-point"><MapPin :size="12" />{{ warning.point }}</span>
-                  <time class="warning-time">{{ warning.time }}</time>
+                  <time class="warning-time">{{ formatWarningTime(warning) }}</time>
                 </div>
                 <p
                   v-if="isArchived(warning) && (warning.closeReason || warning.closedAt)"
@@ -763,7 +764,7 @@ onBeforeUnmount(() => {
               </div>
               <div class="system-item">
                 <span class="system-item-label"><AlertTriangle :size="13" />触发时间</span>
-                <strong class="system-item-value is-time">{{ selectedWarning.time }}</strong>
+                <strong class="system-item-value is-time">{{ formatWarningTime(selectedWarning) }}</strong>
               </div>
               <div class="system-item">
                 <span class="system-item-label"><FileText :size="13" />当前状态</span>

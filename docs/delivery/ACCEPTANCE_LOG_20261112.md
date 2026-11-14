@@ -1169,3 +1169,55 @@ Edge headless CDP `9222`。仅使用编排文件内标注「仅本机隔离演�
 - P2/P3 登记不改代码：设备地图 marker 辨识度（视觉 polish）、AI 模型版本库补种子数据、
   预警通知统计 → L-21 二期、外部 ORB / 天气源 → L-20。
 - 详见 `RETEST_FIX_REPORT.md` §五、`DELIVERY_BACKLOG.md` §R。交付快照 tag `v1.8.8-delivery`。
+
+---
+
+## 四十七、第四轮复测补修：预警时间 UTC → 浏览器本地时区（2026-11-14）
+
+### 47.1 复测输入与根因
+
+基于 `cdeab28` 的第四轮复测确认前几轮全部生效，但发现 1 个真实问题：库里
+`triggered_at=2026-11-14 14:15:29+08`、`/api/warnings` 的 `triggeredAt=2026-11-14T06:15:29Z`、
+`time="11-14 06:15"`，页面显示 `11-14 06:15`（比本地早 8 小时）。根因
+`WarningService.java:513` 用 `getTriggeredAt().format(DateTimeFormatter.ofPattern("MM-dd HH:mm"))`
+直接格式化 JPA 返回的 UTC `OffsetDateTime` 生成 `WarningDto.time`，前端 `warning.time` 原样渲染。
+后果：早 8 小时、跨午夜显示成前一天、与 A6-5「跟随浏览器时区」不符；第三轮验证只断言
+「接口 `time` == DOM `time`」（同为 UTC），**无法发现**。
+
+### 47.2 方案
+
+不改后端 Java：`ZoneId.systemDefault()` / 写死 `Asia/Shanghai` 是固定**服务器**时区，与 A6-5
+「跟随浏览器本地时区」冲突且写死进 DTO 后前端无法调整。改为前端用 `triggeredAt`（ISO 绝对
+时刻）按浏览器本地 getter 格式化（补齐 A6-5 漏网点，非改决策），`time` 快照字段保留以维持
+导出 / WS 契约。L-15 原文「不做代码改动」是当时判断「已跟随」的结论，按事实补正。
+
+### 47.3 改动
+
+| 文件 | 改动 |
+|---|---|
+| `frontend/src/utils/warningTime.js`（新） | `formatWarningTime(warning, timeZone?)`：优先 `triggeredAt` 输出本地 "MM-dd HH:mm"，缺字段/无效 ISO 回退 `time`；可选 `timeZone` 供单测 |
+| `WarningsPage.vue` / `WarningDetailPage.vue` | 列表与详情触发时间改本地化 |
+| `realtimeService.js` | `normalizeWarning` 透传 `triggeredAt` |
+| `GlobalAlarmModal.vue` / `WarningDeliveryTab.vue` / `EventStatusTimeline.vue` | 弹窗、触发时间、关联预警统一本地化（保留兜底） |
+| `tests/warningTime.spec.js`（新） | 9 例：上海 14:15 / UTC 06:15 / 纽约 01:15、跨午夜、跨年、fallback、无效 ISO、空值 |
+| `verify-retest-fixes.mjs` | 第 5 组改为 CDP 双时区语义断言，17→23 项 |
+
+### 47.4 证据
+
+- `verify-demo-data-refresh.mjs`（`APPLY=1`）**9/9 PASS**；
+- `verify-retest-fixes.mjs` **23/23 PASS**：上海时区 DOM `11-14 14:43`、UTC 时区 DOM
+  `11-14 06:43`（两时区不同，证明真正跟随浏览器，非硬编码 UTC+8）、页面时间取自
+  `triggeredAt` 而非后端 UTC `time` 快照（`14:43` ≠ `06:43`）、不残留 `11-06 14:37`；
+  既有 17 项（地图 fit 16 marker / 中心重庆 / zoom≈11、AI 首屏 878ms、drift 懒加载）无回归；
+- 额外核对详情页触发时间显示 `11-14 14:43`。
+- 证据：`output/delivery-verify/retest-fixes.json`（`expectedShanghai`/`expectedUtc`/
+  `warnProbe.{shanghai,utc}`）、截图 `output/retest-fixes/retest-warnings-time-{shanghai,utc}.png`。
+
+### 47.5 门禁与边界
+
+`vite build` 8.53s；eslint 0 / stylelint 0 / **vitest 86**（77 + 9）/ SFC 98 / 令牌完整。
+本轮**改了产品前端源码、未改后端 Java**，未重跑全量 `mvn test`。
+P2/P3 登记不改代码：心跳回落（演示前 5 分钟重跑，只读 WARN 合理）、marker 辨识度、
+模型版本库种子、AI 落库评分日期旧、预警通知统计（L-21）、外部 ORB/天气源（L-20）、
+UI 设计体系。详见 `RETEST_FIX_REPORT.md` §六、`DELIVERY_BACKLOG.md` §S。
+交付快照 tag `v1.8.9-delivery`。

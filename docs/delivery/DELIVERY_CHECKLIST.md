@@ -123,6 +123,13 @@
   实际字段）、自检双列、验证脚本增 DB 双列 + 接口层 + 真实浏览器页面时间断言；证据链
   修复前 **4/8**（抓到假绿）→ `APPLY=1` **9/9** → 浏览器 **20/20**（页面 `11-14 06:15`、旧 `11-06` 消失）。
   见 [RETEST_FIX_REPORT.md](RETEST_FIX_REPORT.md) §五、`ACCEPTANCE_LOG` §四十六。
+- **2026-11-14 第四轮复测「预警时间 UTC → 浏览器本地时区」已补修**：前端统一用 `triggeredAt`
+  按浏览器本地时区格式化（覆盖列表/详情/弹窗/送达/关联时间线），不改后端、不用服务器时区；
+  验证脚本升级为 CDP 双时区语义断言（上海 `14:43` / UTC `06:43` 不同，页面取自 `triggeredAt`
+  而非 UTC `time` 快照）。`verify-demo-data-refresh.mjs` **9/9** + `verify-retest-fixes.mjs`
+  **23/23 PASS**；新增时区单测 9 例，vitest **86**。见 [RETEST_FIX_REPORT.md](RETEST_FIX_REPORT.md) §六、
+  `ACCEPTANCE_LOG` §四十七、`KNOWN_LIMITATIONS.md` L-15 口径补正。
+  现场换机器演示前须确认演示机时区，页面预警时间应为本地时间（不再是 UTC 早 8 小时）。
 - 建议现场按 [DEMO_SCRIPT.md](DEMO_SCRIPT.md) 走一遍，并在试运行环境改密、配置真实地图/AI 服务地址。
 - 演示数据已在开发演示库刷新（执行前全库备份 + SHA256）。⚠ `DeviceOnlineChecker` 5 分钟心跳会把
   在线数自然打回 0，**每场演示前 5 分钟内**重跑

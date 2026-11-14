@@ -22,7 +22,7 @@
 | [ONSITE_ACCEPTANCE_CHECKLIST.md](ONSITE_ACCEPTANCE_CHECKLIST.md) | 现场人工验收记录表（听声/真机/彩排/真实影像，含已完成的自动化预检） | 测试、项目经理 |
 | [A1_PREFLIGHT_REPORT.md](A1_PREFLIGHT_REPORT.md) | A1 现场项自动化预检报告（4 脚本 / 34 项判定、现场剩余人工项、复现命令） | 测试、项目经理 |
 | [REVIEW_FIX_REPORT.md](REVIEW_FIX_REPORT.md) | 2026-11-14 审查 P0/P1 修复报告（8 个缺陷、真实接口 12/12 + 浏览器 14/14） | 项目经理、测试、甲方 |
-| [RETEST_FIX_REPORT.md](RETEST_FIX_REPORT.md) | 2026-11-14 复测遗留项修复（地图 fit / 演示数据 / AI 首屏 / drift 懒加载；4/4 + 17/17）**+ §五 第三轮复测假绿补修**（triggered_at、9/9 + 20/20） | 项目经理、测试、演示人 |
+| [RETEST_FIX_REPORT.md](RETEST_FIX_REPORT.md) | 2026-11-14 四轮复测修复全记录（地图 fit / 演示数据 / AI 首屏 / drift 懒加载；§五 triggered_at 假绿补修 9/9 + 20/20；**§六 预警时间 UTC→浏览器本地时区 9/9 + 23/23 双时区验证**） | 项目经理、测试、演示人 |
 | [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md) | 已知限制与二期能力（诚实边界） | 甲方、项目经理 |
 | [ACCEPTANCE_LOG_20261112.md](ACCEPTANCE_LOG_20261112.md) | 每轮验收记录（问题、修复、证据、排障过程） | 所有人 |
 | [DELIVERY_BACKLOG.md](DELIVERY_BACKLOG.md) | 剩余任务清单（P0 交付前必做 / P1 试运行前 / P2 二期，含验收标准与工时） | 项目经理、开发、甲方 |
@@ -59,8 +59,8 @@ node scripts/delivery/browser-smoke.mjs
 
 ## 当前状态摘要（以本目录最新记录为准）
 
-- 前端：eslint 0 error、stylelint 全量 0、vitest **77 passed**（8 个测试文件；含时相对比 12 例、
-  权限回归 2 例、B5-4 组件测试 12 例、审查修复回归 7 例）、vite build 成功、SFC/令牌完整性通过
+- 前端：eslint 0 error、stylelint 全量 0、vitest **86 passed**（9 个测试文件；含时相对比 12 例、
+  权限回归 2 例、B5-4 组件测试 12 例、审查修复回归 7 例、**时区语义 9 例**）、vite build 成功、SFC/令牌完整性通过
 - 后端：`mvn compile` / `package` 通过（jar 127,456,012 B）；全量 `mvn test`（Testcontainers）**141 tests / 0 failures / 0 errors / 4 skipped**；
   新增 `SignProxyPermissionTest`（2）、`SentinelCompareControllerTest`（4）、`EventStateMachineTest`（**11**，B5-1 状态机）全通过
 - ai-service：pytest 实跑 10 个测试文件 **102 passed / 4 skipped**（6.48s，仅 2 条第三方弃用警告）
@@ -98,9 +98,16 @@ node scripts/delivery/browser-smoke.mjs
   已改为直接覆盖 `triggered_at`、DB 双列 + 接口层 + 真实浏览器三层校验；证据链
   修复前 **4/8**（抓到假绿）→ `APPLY=1` **9/9** → 浏览器 **20/20**（页面 `11-14 06:15`）。
   详见 [RETEST_FIX_REPORT.md](RETEST_FIX_REPORT.md) §五、`ACCEPTANCE_LOG` §四十六。
-- 源码提交：`release/delivery` 分支；交付快照 tag **`v1.8.8-delivery`**（第三轮复测假绿补修轮次）；
-  源码包 `output/delivery-verify/DisasterGuard-v1.8.8-delivery.zip` + 同名 `.sha256`；
-  `v1.8.7` / `v1.8.6` / `v1.8.5` / `v1.8.4` / `v1.8.3` / `v1.8.2` / `v1.8.1` / `v1.8.0-delivery` 保留为历史快照，不强制移动
+- **第四轮复测：预警时间 UTC → 浏览器本地时区（2026-11-14）**：后端 `WarningService` 把 UTC
+  `OffsetDateTime` 直接格式化成 `time` 快照、前端原样渲染，导致页面比本地早 8 小时且与 A6-5
+  「跟随浏览器时区」冲突。改为前端统一用 `triggeredAt` 按浏览器本地时区格式化（不改后端 Java、
+  不用服务器时区，保留 `time` 维持 API 契约），覆盖预警列表 / 详情 / 弹窗 / 送达 / 关联时间线；
+  验证脚本升级为 **CDP 双时区语义断言**（上海 `14:43` / UTC `06:43` 不同）。
+  `verify-demo-data-refresh.mjs` **9/9** + `verify-retest-fixes.mjs` **23/23 PASS**。
+  详见 [RETEST_FIX_REPORT.md](RETEST_FIX_REPORT.md) §六、`ACCEPTANCE_LOG` §四十七。
+- 源码提交：`release/delivery` 分支；交付快照 tag **`v1.8.9-delivery`**（第四轮复测时区修复轮次）；
+  源码包 `output/delivery-verify/DisasterGuard-v1.8.9-delivery.zip` + 同名 `.sha256`；
+  `v1.8.8` / `v1.8.7` / `v1.8.6` / `v1.8.5` / `v1.8.4` / `v1.8.3` / `v1.8.2` / `v1.8.1` / `v1.8.0-delivery` 保留为历史快照，不强制移动
 - 现场人工验收记录表：[ONSITE_ACCEPTANCE_CHECKLIST.md](ONSITE_ACCEPTANCE_CHECKLIST.md)（已纳入演示材料包）
 - **演示前 5 分钟内**重跑 `APPLY=1 node scripts/delivery/verify-demo-data-refresh.mjs`
   （默认只读，`APPLY=1` 才刷新并即时验证）：`DeviceOnlineChecker` 每 60s 会把 5 分钟无上报的
@@ -108,6 +115,9 @@ node scripts/delivery/browser-smoke.mjs
   长时间彩排每 4 分钟重跑一次。**须确认「6 在线 + 页面预警时间今天」都成立**——
   刷新脚本已改为同时覆盖 `created_at` 与 `triggered_at`（页面/DTO 实际字段），
   验证脚本 DB 双列 + 接口 + 浏览器三层校验，不再出现「脚本 PASS、页面显示 11-06」的假绿。
+  **且页面时间应按浏览器本地时区显示**（如库里 14:15+08 显示 14:15，而非 UTC 06:15）——
+  第四轮复测已把前端统一改为按 `triggeredAt` 本地化并加双时区验证，见 §六；
+  换机器演示前确认演示机时区正确，后端 `time` 快照仍为 UTC 属正常，不用于展示。
   执行前备份参考 `output/delivery-verify/dev-db-backup-before-demo-refresh-20261114.sql`。
 - 已知待现场确认：人耳真实听声、真机移动端触摸/网络、通知送达口径人工核对、
   按 `DEMO_SCRIPT.md` 完整彩排 2 遍计时 ≤20 分钟、时相对比真实影像凭证、AI 开启后 AI 洞察页完整渲染

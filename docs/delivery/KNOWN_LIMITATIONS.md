@@ -217,7 +217,15 @@
 ### L-15 时区/编码约定
 
 - 服务默认 `TZ=Asia/Shanghai`（根 `.env.example`、`docker-compose.yml`）；时间字段后端用 `OffsetDateTime`（UTC+偏移）落库，前端按本地时区展示（如 `frontend/src/views/system/AuditLogPage.vue:123`、`frontend/src/views/monitor/WeatherPage.vue:216` 的 `toLocaleString('zh-CN', { hour12: false })`）。
-- **决策已定（A6-5，2026-11-13）：跟随浏览器本地时区**，不再统一固定北京时间，**不做代码改动**（B7-2 因条件不满足而关闭）。服务端 `TZ=Asia/Shanghai` 继续用于日志与调度，与前端展示口径互不冲突。
+- **决策已定（A6-5，2026-11-13）：跟随浏览器本地时区**，不再统一固定北京时间（B7-2 因条件不满足而关闭）。服务端 `TZ=Asia/Shanghai` 继续用于日志与调度，与前端展示口径互不冲突。
+- **口径补正（2026-11-14 第四轮复测，见 `RETEST_FIX_REPORT.md` §六）**：A6-5 当时结论写的是
+  「当前跟随浏览器时区、不做代码改动」，但复测证明**预警列表是例外**——`WarningDto.time`
+  由后端 `WarningService` 对 UTC `OffsetDateTime` 直接 `format("MM-dd HH:mm")` 生成，前端原样渲染
+  会比本地早 8 小时、跨午夜显示成前一天。本轮按**决策本意**（跟随浏览器）补齐落地：前端统一用
+  `frontend/src/utils/warningTime.js` 从 `triggeredAt`（ISO 绝对时刻）按浏览器本地时区格式化，
+  涉及预警列表 / 详情 / 全局弹窗 / 送达 Tab / 关联事件时间线；`time` 快照字段保留不动以维持
+  API 契约。**未采用**「后端 `ZoneId.systemDefault()` / 写死 `Asia/Shanghai`」——那是固定服务器
+  时区，换时区浏览器又会错，与 A6-5 冲突。双时区验证（上海 14:43 / UTC 06:43）见 §6.4。
 - **现场提示**：演示/值班前确认浏览器所在机器的时区与系统时间；见 `OPERATOR_CARD.md` §1、§6。
 
 ### L-16 地图/外部服务合规

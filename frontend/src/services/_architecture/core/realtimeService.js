@@ -163,6 +163,10 @@ function normalizeWarning(item) {
       item.cssClass ?? item.class ?? (String(item.level).includes("橙") ? "orange" : "blue"),
     point: item.point ?? item.owner ?? "",
     time: item.time ?? item.updatedAt ?? new Date().toISOString(),
+    // A6-5：保留 ISO 绝对时刻，供展示层按浏览器本地时区格式化。
+    // 后端 time 是 UTC 格式化的 "MM-dd HH:mm" 快照，不能按本地时区还原，
+    // 因此 WS 推送对象必须带上 triggeredAt（WarningDto 原本就有）。
+    triggeredAt: item.triggeredAt ?? null,
     lon: item.lon,
     lat: item.lat,
     status: item.status ?? "待确认",

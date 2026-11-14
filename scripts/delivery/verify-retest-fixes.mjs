@@ -10,8 +10,10 @@
  *   2) 演示数据刷新后 6/16 在线、预警/灾害点时间为今天；
  *   3) AI 综合研判首屏秒级展示「落库评分」并标注来源，后台再刷新实时研判；
  *   4) AI 模型页首屏不再发 drift 501，只有点开 Tab 才请求，空态说明明确；
- *   5) 预警页真实渲染时间与 /api/warnings.time 一致且不再是 11-06
- *      （第三轮复测：triggered_at 未刷新导致「脚本 PASS / 页面旧日期」的假绿闭环）。
+ *   5) 预警页真实渲染时间（第四轮复测：UTC→浏览器本地时区闭环）：
+ *      用 CDP 切 Asia/Shanghai 与 UTC 两个时区，证明页面时间分别等于各时区
+ *      从 triggeredAt 计算的值、两者不同，且不残留 11-06。
+ *      注意：不再断言「DOM == 接口 time」——后端 time 是 UTC 快照，本地化后二者本就不等。
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -258,42 +260,72 @@ async function main() {
   check('漂移页显示「能力未接入」而非 0 值', /能力未接入/.test(driftNotice || ''),
     driftNotice?.slice(0, 80))
 
-  // ── 5) 预警页真实渲染时间（第三轮复测「假绿」闭环）──
-  // 刷新脚本曾只刷 created_at、验证脚本也只查 created_at，但页面 /api/warnings
-  // 绑定的是 triggeredAt / time。这里用真实浏览器确认页面显示的时间确实变了。
+  // ── 5) 预警页真实渲染时间 + 双时区语义（第四轮复测「UTC→浏览器本地时区」闭环）──
+  // 根因：后端 WarningDto.time 是按 UTC 格式化的 "MM-dd HH:mm" 快照，前端原样渲染
+  // 会比本地早 8 小时；而 triggeredAt 是 ISO 绝对时刻，应由前端按浏览器时区格式化。
+  // 第三轮曾断言「DOM == 接口 time」，两者同为 UTC 所以发现不了时区问题 —— 本轮改为
+  // 用 CDP 切两个时区，证明 DOM 分别等于各自时区从 triggeredAt 计算的值、且互不相同。
   from = client.events.length
   const wl = await api('/warnings?page=1&size=200', { token })
   const wlRaw = wl.json?.data
   const wlRows = Array.isArray(wlRaw) ? wlRaw : (wlRaw?.records ?? wlRaw?.list ?? [])
   const activeWarnings = wlRows.filter((w) => !['已解除', '已关闭'].includes(w.status))
   const apiActive = activeWarnings[0] ?? null
-  const todayMMDD = (() => {
-    const d = new Date()
-    return `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-  })()
-  await client.send('Page.navigate', { url: APP + '/dashboard/warnings' })
-  await waitReady(client)
-  let warnProbe = null
-  for (let i = 0; i < 24; i++) {
-    try {
-      warnProbe = await client.eval(`(() => {
-        const times = [...document.querySelectorAll('.warning-time')].map(e => e.innerText.trim())
-        return { times, bodyHasOld: document.body.innerText.includes('11-06 14:37') }
-      })()`)
-      if (warnProbe?.times?.length > 0) break
-    } catch (_) { /* 导航中 */ }
-    await sleep(400)
+
+  // 按指定 IANA 时区从 triggeredAt 计算期望的 "MM-dd HH:mm"（与接口 time 无关）
+  const expectedInTz = (iso, timeZone) => {
+    if (!iso) return null
+    const d = new Date(iso)
+    if (Number.isNaN(d.getTime())) return null
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone, hourCycle: 'h23', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit',
+    }).formatToParts(d)
+    const g = (t) => parts.find((p) => p.type === t)?.value ?? ''
+    return `${g('month')}-${g('day')} ${g('hour')}:${g('minute')}`
   }
+  const probeTimes = async (timeZone) => {
+    await client.send('Emulation.setTimezoneOverride', { timezoneId: timeZone })
+    await client.send('Page.navigate', { url: APP + '/dashboard/warnings' })
+    await waitReady(client)
+    for (let i = 0; i < 24; i++) {
+      try {
+        const r = await client.eval(`(() => {
+          const times = [...document.querySelectorAll('.warning-time')].map(e => e.innerText.trim())
+          return { times, tz: Intl.DateTimeFormat().resolvedOptions().timeZone, bodyHasOld: document.body.innerText.includes('11-06 14:37') }
+        })()`)
+        if (r?.times?.length > 0) return r
+      } catch (_) { /* 导航中 */ }
+      await sleep(400)
+    }
+    return { times: [], tz: null, bodyHasOld: null }
+  }
+
+  const sh = await probeTimes('Asia/Shanghai')
+  await client.screenshot('retest-warnings-time-shanghai.png')
+  const utc = await probeTimes('UTC')
+  await client.screenshot('retest-warnings-time-utc.png')
+  // 恢复默认（跟随系统），避免影响后续
+  await client.send('Emulation.setTimezoneOverride', { timezoneId: '' })
   const warnIssues = client.issues(from)
-  await client.screenshot('retest-warnings-time.png')
-  check('预警列表接口活跃预警 time 为今天（triggeredAt 已刷新）',
-    !!apiActive && String(apiActive.time ?? '').startsWith(todayMMDD) && !/11-06/.test(String(apiActive.time ?? '')),
-    `time=${apiActive?.time ?? '-'} triggeredAt=${apiActive?.triggeredAt ?? '-'} today=${todayMMDD}`)
-  check('页面渲染时间与接口 time 一致（无假绿）',
-    !!apiActive && (warnProbe?.times ?? []).includes(apiActive.time),
-    `api=${apiActive?.time ?? '-'} dom=${(warnProbe?.times ?? []).slice(0, 3).join(' / ')}`)
+
+  const expSh = expectedInTz(apiActive?.triggeredAt, 'Asia/Shanghai')
+  const expUtc = expectedInTz(apiActive?.triggeredAt, 'UTC')
+  check('接口活跃预警 triggeredAt 为今天（triggered_at 已刷新，非 11-06）',
+    !!apiActive && !/11-06/.test(String(apiActive.triggeredAt ?? '')) && !!expSh,
+    `triggeredAt=${apiActive?.triggeredAt ?? '-'} 接口time=${apiActive?.time ?? '-'}`)
+  check('上海时区页面显示 triggeredAt 的本地时间（不再早 8 小时）',
+    !!expSh && sh.times.includes(expSh), `期望=${expSh} dom=${sh.times.slice(0, 3).join(' / ')} tz=${sh.tz}`)
+  check('UTC 时区页面显示 UTC 时间（跟随浏览器时区，非硬编码 UTC+8）',
+    !!expUtc && utc.times.includes(expUtc), `期望=${expUtc} dom=${utc.times.slice(0, 3).join(' / ')} tz=${utc.tz}`)
+  check('两个时区渲染不同（真正跟随浏览器时区）',
+    !!expSh && !!expUtc && expSh !== expUtc && sh.times[0] !== utc.times[0],
+    `上海=${sh.times[0]} UTC=${utc.times[0]}`)
+  check('页面时间取自 triggeredAt 而非后端 UTC time 快照',
+    !!expSh && !!apiActive && expSh !== apiActive.time && sh.times.includes(expSh),
+    `本地=${expSh} 后端快照=${apiActive?.time ?? '-'}`)
   check('页面不再残留旧的 11-06 14:37 活跃预警时间',
-    warnProbe?.bodyHasOld === false, `bodyHasOld=${warnProbe?.bodyHasOld}`)
+    sh.bodyHasOld === false && utc.bodyHasOld === false,
+    `sh=${sh.bodyHasOld} utc=${utc.bodyHasOld}`)
 
   const issueSets = [dmIssues, insightIssues, beforeTab, afterTab, warnIssues]
   const unexpected = issueSets.flatMap((x) => x.serverErrors)
@@ -306,7 +338,8 @@ async function main() {
     deviceMapStats: stats, mapProbe, insightMs, insight,
     preDrift501, postDrift501, driftNotice: driftNotice?.slice(0, 200),
     apiActiveTime: apiActive?.time, apiActiveTriggeredAt: apiActive?.triggeredAt,
-    warnProbe, unexpected5xx: unexpected, checks,
+    expectedShanghai: expSh, expectedUtc: expUtc,
+    warnProbe: { shanghai: sh, utc }, unexpected5xx: unexpected, checks,
   }
   fs.writeFileSync(path.join(OUT, 'retest-fixes.json'), JSON.stringify(summary, null, 2))
   await fetch(`${CDP}/json/close/${targetId}`).catch(() => {})

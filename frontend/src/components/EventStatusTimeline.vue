@@ -27,6 +27,7 @@ import {
   Truck,
 } from 'lucide-vue-next'
 import { dashboardApi } from '../services/dashboardApi.js'
+import { formatWarningTime } from '../utils/warningTime'
 
 const props = defineProps({
   hazardId: { type: [String, Number], required: true },
@@ -197,7 +198,7 @@ function formatTime(t) {
           <ul v-if="related.warnings.length" class="rel-list">
             <li v-for="w in related.warnings.slice(0, 3)" :key="w.id" @click="goToWarnings">
               <span class="rel-title">{{ w.title ?? w.name ?? `预警 #${w.id}` }}</span>
-              <small class="rel-time">{{ formatTime(w.time ?? w.updatedAt ?? w.createdAt) }}</small>
+              <small class="rel-time">{{ w.triggeredAt ? formatWarningTime(w) : formatTime(w.time ?? w.updatedAt ?? w.createdAt) }}</small>
               <span class="rel-status">{{ w.status }}</span>
             </li>
           </ul>

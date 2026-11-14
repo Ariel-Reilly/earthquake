@@ -171,3 +171,87 @@ AI 研判首屏 ~842ms、drift 懒加载 0 个 501、110 GET 0 个 500、41 路�
 `node --check` 两个脚本 OK；本轮**未改产品前端源码 / 后端 Java**，仅改交付脚本与文档，
 故 eslint/stylelint/vitest 全量复跑结论沿用（77 passed / 0 / 0），未重跑全量后端 `mvn test`
 （无 Java 改动）。交付快照 tag `v1.8.8-delivery`。
+
+---
+
+## 六、第四轮复测补修（2026-11-14）：预警时间 UTC → 浏览器本地时区
+
+### 6.1 复测输入
+
+基于 `cdeab28` 的第四轮复测确认前几轮全部生效（20/20、8/8 + 1 WARN、
+110 GET 0 个 500、41 路由 0 个 403、冒烟 37/37、vitest 77），但发现 **1 个真实时区缺陷**：
+
+| 层 | 值 |
+|---|---|
+| 数据库 `triggered_at` | `2026-11-14 14:15:29+08`（本地 14:15） |
+| `/api/warnings` | `triggeredAt = 2026-11-14T06:15:29Z`；`time = "11-14 06:15"` |
+| 页面显示 | `11-14 06:15`（比本地早 8 小时） |
+
+根因在 `WarningService.java:513`：
+`warning.getTriggeredAt().format(DateTimeFormatter.ofPattern("MM-dd HH:mm"))` 直接格式化
+JPA 返回的 UTC `OffsetDateTime`，生成 `WarningDto.time` 快照；前端 `warning.time` 原样渲染。
+后果：比本地早 8 小时、跨午夜显示成前一天、与 A6-5「跟随浏览器时区」不一致。
+且第三轮验证只断言「接口 `time` == DOM `time`」（二者同为 UTC），**发现不了**这个问题。
+
+### 6.2 方案选择：为什么不用「后端改时区」
+
+复测建议了两条路，选**前端本地化**（方案 2），不改后端 Java：
+
+- A6-5 决策原文是「**跟随浏览器本地时区，不固定 UTC+8**」。后端
+  `ZoneId.systemDefault()` / 配置 `Asia/Shanghai` 固定在**服务器**时区，换时区的浏览器又会错，
+  且把格式化结果写死进 DTO 后前端无法再调整 —— 与决策冲突。
+- 后端 `time` 是 UTC 快照、`triggeredAt` 是 ISO 绝对时刻；前端按 `triggeredAt` 用浏览器本地
+  getter 格式化，才是唯一符合「跟随浏览器」的做法，也和项目其它页面
+  （详情页 / 时间线 / AI / 通知都用 `toLocaleString('zh-CN')`）一致。
+- `time` 字段保留不动，避免破坏导出 / WS / 其它消费方的 API 契约。
+- 这是**补齐 A6-5 落地的漏网点**，不是改变决策；L-15 原文「不做代码改动」是 2026-11-13
+  当时判断「已跟随」的结论，本轮复测证明 `warning.time` 例外，故按事实补正。
+
+### 6.3 修复（6 个前端文件 + 1 新工具 + 1 单测）
+
+新增 `frontend/src/utils/warningTime.js`：`formatWarningTime(warning, timeZone?)` 优先用
+`triggeredAt` 按浏览器本地 getter 输出原 "MM-dd HH:mm" 格式；缺字段 / 无效 ISO 回退 `time`
+（兼容旧 mock），可选 `timeZone` 供单测 / SSR 显式指定（默认行为不变）。
+
+| 文件 | 改动 |
+|---|---|
+| `WarningsPage.vue` | 列表 `.warning-time` 与右侧详情「触发时间」改用 `formatWarningTime` |
+| `WarningDetailPage.vue` | 触发时间改用 `formatWarningTime(warning)` |
+| `realtimeService.js` | `normalizeWarning` 透传 `triggeredAt`（后端 WS 广播的 `WarningDto` 本就带），供弹窗本地化 |
+| `GlobalAlarmModal.vue` | `timeText` 改用 `formatWarningTime(activeWarning)` |
+| `WarningDeliveryTab.vue` | `triggerTimeText` 优先 `triggeredAt` 本地化，保留 `updatedAt` / `time` 兜底 |
+| `EventStatusTimeline.vue` | 关联预警有 `triggeredAt` 时本地化，否则保留原 `formatTime` 兜底 |
+| `tests/warningTime.spec.js` | 新增 **9 例**：上海 14:15 / UTC 06:15 / 纽约 01:15、跨午夜、跨年、fallback、无效 ISO、空值 |
+
+### 6.4 验证脚本：从「比字符串」升级到「双时区语义」
+
+第三轮的「DOM == 接口 `time`」断言本轮**必须打破**（本地化后 DOM 是 `14:43`、接口快照是
+`06:43`，本就不等）。`verify-retest-fixes.mjs` 第 5 组改为用 CDP
+`Emulation.setTimezoneOverride` 切两个时区分别加载预警页：
+
+| 断言 | 结果 |
+|---|---|
+| 上海时区页面 = 按 `triggeredAt` 计算的本地时间 | `11-14 14:43` |
+| UTC 时区页面 = 按 `triggeredAt` 计算的 UTC 时间 | `11-14 06:43` |
+| 两时区渲染不同（真正跟随浏览器，非硬编码 UTC+8） | ✅ |
+| 页面时间取自 `triggeredAt` 而非后端 UTC `time` 快照 | ✅（`14:43` ≠ `06:43`） |
+| 页面不残留旧 `11-06 14:37` | ✅ |
+
+**全量 23/23 PASS**（原 17 + 本组 6）；既有地图 fit（16 marker / 中心重庆 / zoom≈11）、
+AI 首屏 878ms、drift 懒加载等无回归。额外核对详情页触发时间显示 `11-14 14:43`。
+证据：`output/delivery-verify/retest-fixes.json`（`expectedShanghai` / `expectedUtc` /
+`warnProbe.{shanghai,utc}`）、截图 `output/retest-fixes/retest-warnings-time-{shanghai,utc}.png`。
+
+### 6.5 门禁与交付
+
+`vite build` 8.53s 成功；eslint 0 / stylelint 全量 0 / **vitest 86 passed**（77 + 新增 9）/
+SFC 98 / 令牌完整。本轮**改了产品前端源码、未改后端 Java**，故未重跑全量 `mvn test`
+（无 Java 改动）。交付快照 tag `v1.8.9-delivery`。
+
+### 6.6 本轮 P2/P3 边界（登记不改代码）
+
+- 演示运行态：16 台全离线是 `DeviceOnlineChecker` 心跳语义，非 bug；**每场演示前 5 分钟内**
+  `APPLY=1` 重跑刷新脚本并在页面确认「6 在线 + 预警时间今天」，只读 WARN 提示合理。
+- 设备地图 marker 辨识度、AI 模型版本库补种子数据、AI 落库评分日期旧、预警通知统计（L-21）、
+  外部 ORB / 天气源（L-20）：维持为演示 polish / 二期 / 外部边界，不改产品代码。
+- 复测亦定性「浅/深色对比度 7 页 0 issues、不建议大改视觉体系」，UI 设计体系不动。

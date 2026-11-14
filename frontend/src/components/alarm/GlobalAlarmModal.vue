@@ -28,6 +28,7 @@ import {
   ALARM_SEVERITY,
   severityLabelOf,
 } from '../../utils/alarmWarning'
+import { formatWarningTime } from '../../utils/warningTime'
 
 /** 普通弹窗（橙/黄/蓝）停留时长：到期自动跳转详情页（需求指定 3 秒）。 */
 const AUTO_JUMP_DELAY_MS = 3000
@@ -115,10 +116,7 @@ const descText = computed(
     '收到一条待确认的高等级预警，请立即核实并处置。'
 )
 const pointText = computed(() => activeWarning.value?.point || '')
-const timeText = computed(() => {
-  const raw = activeWarning.value?.time || activeWarning.value?.updatedAt || ''
-  return raw ? String(raw) : ''
-})
+const timeText = computed(() => formatWarningTime(activeWarning.value))
 const bizNoText = computed(() => activeWarning.value?.bizNo || '')
 
 /** 按当前级别同步弹窗可见性、警报音与自动跳转定时器。 */

@@ -29,6 +29,7 @@ import PermissionButton from "../../components/PermissionButton.vue";
 import WarningDeliveryTab from "../../components/WarningDeliveryTab.vue";
 import WarningAnalysisDetail from "../../components/warning/WarningAnalysisDetail.vue";
 import { dashboardApi } from "../../services/dashboardApi";
+import { formatWarningTime } from "../../utils/warningTime";
 import { aiApi } from "../../services/aiApi";
 import { useAiContext } from "../../composables/useAiContext";
 import { useEscapeClose } from "../../composables/useEscapeClose";
@@ -1166,7 +1167,7 @@ onBeforeUnmount(() => {
                     <span class="info-label">
                       <MapPin :size="16" />触发时间
                     </span>
-                    <span class="info-value">{{ warning.time }}</span>
+                    <span class="info-value">{{ formatWarningTime(warning) }}</span>
                   </div>
                   <div class="info-item">
                     <span class="info-label">
