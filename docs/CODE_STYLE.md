@@ -64,7 +64,7 @@ Module: drift monitor
 Responsibility: 计算在线特征漂移并返回结构化告警
 Invariants:
   - 无基线时返回空结构，不臆造漂移分
-References: docs/architecture/ADR-00x-ai-fallback.md
+References: docs/architecture/README.md（ADR 索引；AI 降级 ADR 待建）
 """
 ```
 
@@ -139,18 +139,28 @@ export function formatWarningTime(warning, timeZone) {}
 - [ ] 所有「未实现/未接入/演示」点使用第 4 节标记词，且前后端表现一致（不冒充真实）；
 - [ ] Code review 抽查 20 个文件，注释与实现**一致率 100%**。
 
-### 6.1 建议的静态检查（阶段 5 落地）
+### 6.1 静态检查（跨平台，Node 脚本）
+
+裸 TODO / FIXME 用项目内 Node 脚本检查（**不依赖 grep，Windows 可用**）：
 
 ```bash
-# 裸 TODO（应返回 0）
-grep -rnE '(TODO|FIXME)(?!\()' backend/src frontend/src ai-service/app \
-  --include='*.java' --include='*.js' --include='*.vue' --include='*.py'
+# 阶段 1 过渡：先告警不阻断
+node scripts/quality/check-comments.mjs --warn
 
-# @Deprecated 无替代说明（人工抽查）
+# 阻断模式（裸标记 > 0 即非零退出，供 CI 使用）
+node scripts/quality/check-comments.mjs
+```
+
+脚本规则：大小写敏感 `\bTODO\b` / `\bFIXME\b`；允许 `TODO(owner, 2026-11-20, #123):`；输出 `文件:行` + 标记 + 文本；默认裸标记 > 0 即失败。
+
+其余两项仍建议人工抽查（少量，可跨平台失效时改用编辑器全局搜索）：
+
+```bash
+# @Deprecated 是否都带替代方案与移除计划
 grep -rn '@Deprecated' backend/src --include='*.java'
 
-# 注释掉的旧代码（人工抽查，少量）
-grep -rnE '^\s*//\s*(public|private|function|const|return|if\s*\()' frontend/src
+# 注释掉的旧代码
+grep -rnE '^\s*//\s*(public|private|function|const|return)' frontend/src
 ```
 
 > 本阶段只制定规范，**不批量改存量**。存量按「阶段 1 低风险清理」逐模块对齐，每模块单独 PR + 单测 + 截图。

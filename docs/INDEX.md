@@ -1,5 +1,5 @@
 # 文档索引
-> 最后更新：2026-11-08
+> 最后更新：2026-11-14
 > 本页只做入口与指向，不复述各文档内容；端口/环境以根 `README.md` 为权威源。
 
 ## 1. 总入口与一键启动
@@ -89,6 +89,12 @@
 | `docs/ARCHITECTURE.md` | 系统分层与架构总览。 |
 | `docs/DEVELOPER.md` | 深度开发指南（分章）。 |
 | `docs/FRONTEND_API.md` | 前端功能与接口对照。 |
+| `docs/CODE_STYLE.md` | 注释与契约规范、标记词、可执行验收（阶段 0 新增）。 |
+| `docs/INVENTORY.md` | 仓库实测盘点：大文件 / TODO / 501 / mock / 契约不一致（阶段 0 新增）。 |
+| `docs/api/CONTRACT.md` | API 契约红线：分页 / 时间 / ID / mock / 权限。 |
+| `docs/architecture/README.md` | 架构文档与 ADR 索引（迁移中，权威总览仍为 `docs/ARCHITECTURE.md`）。 |
+| `docs/data/DICTIONARY.md` | 数据字典（骨架，待补；以代码为准）。 |
+| `docs/operations/RUNBOOK.md` | 运维手册：启停 / 演示数据刷新 / 演示前检查。 |
 | `docs/UNIFIED_EVENT_STATEMACHINE.md` | 统一事件状态机的状态与转移规则。 |
 | `docs/CDSE_SETUP.md` | 卫星数据接入配置。 |
 | `docs/HARDWARE_SANDBOX.md` | 硬件沙箱总说明与沙盘加工方案。 |

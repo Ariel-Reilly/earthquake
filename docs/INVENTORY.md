@@ -11,6 +11,7 @@
 - 行数用 `wc -l`；**排除** `node_modules/`、`.venv/`、`dist/`、`target/`、`__pycache__/`。
 - 前端统计 `frontend/src` 下 `.vue/.js/.css`；后端统计 `backend` 下 `.java`（**含测试源**）；AI 统计 `ai-service` 下 `.py`（排除虚拟环境）。
 - 「大文件」阈值：前端 SFC/JS/CSS **≥ 1200 行**、后端 Java **≥ 400 行**、AI Python **≥ 1000 行**。
+- **待办统计口径**：`TODO`/`FIXME` 用**大小写敏感** `\bTODO\b` / `\bFIXME\b`（避免 `todo:view`、`toDouble` 误报）；后端**含测试源**；`@Deprecated` **单独统计**、不计入 TODO。复跑以 `scripts/quality/check-comments.mjs` 为准。
 
 复现命令示例：
 
@@ -94,12 +95,31 @@ find frontend/src backend ai-service -type f \( -name '*.vue' -o -name '*.js' -o
 
 ## 4. 待办与弃用实测（**远低于方案估算**）
 
+> 口径：大小写敏感 `\bTODO\b` / `\bFIXME\b`；后端含测试源；前端仅 `frontend/src`；AI 仅 `ai-service/app`（排除 `.venv`）；`@Deprecated` 单独统计、不计入 TODO。
+
 | 标记 | 实测 | 说明 |
 |---|---|---|
-| `TODO` / `FIXME` | 后端 **6**、前端 **0**、AI **0** | 裸 TODO 清理几乎是零工作量 |
-| `@Deprecated` | **6** | 主要集中在 `AiDeprecatedGapController`（类 + 3 方法） |
+| `TODO` | 后端 **6** · 前端 **0** · AI **9** · 合计 **15** | AI 9 处见 §4.1，均为待实现点 |
+| `FIXME` | **0** | — |
+| `@Deprecated` | **6** | 主要在 `AiDeprecatedGapController`（类 + 3 方法） |
 
-> ⚠ 方案里写的「TODO/FIXME/@Deprecated 211 处 / 52 文件」**不成立**。实测 TODO+@Deprecated 合计仅 **12**。若方案该数字来自旧扫描或把其他标记混入，请以本文为准。**结论：任务 1「清裸 TODO」不需要单列排期，随模块顺带即可。**
+### 4.1 AI 服务 9 处 TODO（待实现点，非「裸清理」）
+
+| 文件 | 行 | 内容摘要 | 关联边界 |
+|---|---|---|---|
+| `ai-service/app/routers/drift.py` | 112 | 从数据库加载历史漂移记录 | L-01 |
+| `ai-service/app/routers/drift.py` | 142 | 返回特征详细分布 | L-01 |
+| `ai-service/app/routers/drift.py` | 216 | 实际触发重训任务 | L-01 |
+| `ai-service/app/routers/drift.py` | 235 | 从任务队列获取状态 | L-01 |
+| `ai-service/app/routers/multimodal.py` | 140 | 按 `event_id` 从融合结果库加载真实记录（接入后删 `_demo_meta()`） | L-01 |
+| `ai-service/app/routers/multimodal.py` | 184 | 贡献度详情（当前演示数据） | L-01 |
+| `ai-service/app/routers/multimodal.py` | 220 | 权重配置（当前演示数据） | L-01 |
+| `ai-service/app/routers/sentinel.py` | 799 | 按真实 PNG 像素尺寸换算 | L-04 |
+| `ai-service/app/routers/sentinel.py` | 1177 | 真实场景改用连通域分析 + 凸包 | L-04 |
+
+> 结论：AI 这 9 处**不应按「裸 TODO 清理」处理**，而是待实现点，归入 `docs/delivery/KNOWN_LIMITATIONS.md` 的 **L-01**（drift/multimodal）与 **L-04**（卫星影像）。**真正需要按规范补 owner 的裸 TODO 是后端 6 处。**
+
+> ⚠ 方案里写的「TODO/FIXME/@Deprecated 211 处 / 52 文件」**不成立**（属宽匹配误报，如 `todo:view`、`toDouble`）。实测 `TODO` **15** + `@Deprecated` **6**。**任务 1「清裸 TODO」工作量很小（后端 6 处）；AI 9 处按已知边界登记即可。**
 
 ---
 
