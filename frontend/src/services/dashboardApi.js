@@ -749,7 +749,7 @@ export const dashboardApi = {
   getResources: async (params = {}) => {
     if (USE_BACKEND) {
       const data = await request(`/resources${withQuery(params)}`);
-      return normalizePaged(data, { items: [] });
+      return normalizePaged(data, []);
     }
     return response(mock.operations.getResourcesMock());
   },
@@ -840,7 +840,7 @@ export const dashboardApi = {
   getUsers: async (params = {}) => {
     if (USE_BACKEND) {
       const data = await request(`/users${withQuery(params)}`);
-      return normalizePaged(data, { items: [] });
+      return normalizePaged(data, []);
     }
     return response(mock.system.getUsersMock());
   },
@@ -973,7 +973,7 @@ export const dashboardApi = {
   getApplications: async (params = {}) => {
     requireBackend("注册申请审核");
     const data = await request(`/admin/applications${withQuery(params)}`);
-    return normalizePaged(data, { items: [] });
+    return normalizePaged(data, []);
   },
 
   /**
@@ -1005,7 +1005,7 @@ export const dashboardApi = {
   getAuditLogs: async (params = {}) => {
     if (USE_BACKEND) {
       const data = await request(`/audit/logs${withQuery(params)}`);
-      const normalized = normalizePaged(data, { items: [] });
+      const normalized = normalizePaged(data, []);
       // operation_log 字段名（createdAt/actionName/requestPath/ipAddress）与审计页视图模型
       //（time/action/target/detail/ip）不同，这里统一映射；否则页面整表取值都是 undefined。
       const items = normalized.records.map((log) => {
@@ -1056,7 +1056,7 @@ export const dashboardApi = {
   getMessages: async (params = {}) => {
     if (USE_BACKEND) {
       const data = await request(`/messages${withQuery(params)}`);
-      return normalizePaged(data, { items: [] });
+      return normalizePaged(data, []);
     }
     return response(mock.workflow.getMessagesMock());
   },

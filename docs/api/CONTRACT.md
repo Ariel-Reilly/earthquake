@@ -11,6 +11,7 @@
 - **前端归一化实现**：`frontend/src/api/client.js` 的 `normalizePage() / normalizeList()`（纯函数 + 单测 14 例，覆盖 records/items/list/数组/空值/默认值/优先级/**pages 推导**）。
   - 缺 `pages` 时由 `total / size` 推导（`Math.ceil`），兼容只给 total/size 的不完整旧端点；显式 `pages` 优先；`size=0` 用列表长度兜底避免除零。
   - 迁移状态：`dashboardApi.normalizePaged` **已改为委托 `normalizePage`**（单点去重、行为等价，调用点不变）；页面层 `items/list` 兼容分支仍待阶段 1 小步清理。
+  - **`fallback` 必须是数组**：历史 `normalizePaged(data, { items: [] })` 已全部改为 `[]`，否则空数据时 `records` 会变成对象（后续 `.map` 抛错）。单测已锁定该契约。
 
 ## 2. 时间
 

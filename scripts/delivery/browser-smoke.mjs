@@ -414,8 +414,18 @@ async function main() {
   log('SM-09 审计日志按类型筛选后仍有数据', clicked && auditFiltered.rows > 0 && !auditFiltered.emptyState, JSON.stringify(auditFiltered))
   await cdp.screenshot('10-audit-log.png')
 
-  // 12) 后端不可达错误态（CDP 阻断 /api）
-  await cdp.send('Network.setBlockedURLs', { urls: ['*api*'] })
+  // 12) 后端不可达错误态（CDP 阻断真实 API 路径）
+  // 注意：不可用 '*api*' 这种过宽 glob —— 会连带阻断前端模块 /src/api/client.js，导致白页（SM-11 假失败）。
+  await cdp.send('Network.setBlockedURLs', {
+    urls: [
+      '*://localhost:8080/api/*',
+      '*://127.0.0.1:8080/api/*',
+      '*://localhost:8081/api/*',
+      '*://127.0.0.1:8081/api/*',
+      '*://localhost:5173/api/*',
+      '*://127.0.0.1:5173/api/*',
+    ],
+  })
   await cdp.navigate(`${APP}/dashboard/warnings`)
   await cdp.waitFor(`!!document.querySelector('.warning-load-error')`, 25000)
   const apiDownWarnings = await cdp.eval(`(() => ({

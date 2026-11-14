@@ -49,6 +49,12 @@ describe('normalizePage', () => {
     expect(p.total).toBe(0)
   })
 
+  it('fallback 必须按数组使用：空数据时 records 是数组而非对象', () => {
+    const p = normalizePage({}, [])
+    expect(Array.isArray(p.records)).toBe(true)
+    expect(p.records).toEqual([])
+  })
+
   it('缺省分页元信息：给安全默认（total=长度, page=1, size=长度, pages=1）', () => {
     const p = normalizePage({ records: [{ id: 1 }, { id: 2 }] })
     expect(p.total).toBe(2)
