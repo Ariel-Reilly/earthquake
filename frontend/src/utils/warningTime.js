@@ -16,6 +16,9 @@
  */
 const pad = (n) => String(n).padStart(2, '0')
 
+/** 后端 OffsetDateTime 序列化形态：2026-11-14T06:43:15.074227Z / +08:00。 */
+const ISO_INSTANT = /^\d{4}-\d{2}-\d{2}T/
+
 /**
  * @param {object} warning 含 triggeredAt（ISO）与/或 time（"MM-dd HH:mm"）的预警对象
  * @param {string} [timeZone] 可选 IANA 时区，供单测 / SSR 显式指定；
@@ -39,4 +42,28 @@ export function formatWarningTime(warning, timeZone) {
     }
   }
   return warning?.time ?? '—'
+}
+
+/**
+ * 时间线节点时间：兼容三类值，供「预警发布 / 确认 / 派发 / 处理反馈 / 关闭」共用。
+ *
+ * - ISO 绝对时刻字符串（后端 `confirmedAt` / `dispatchedAt` / `closedAt` 等
+ *   OffsetDateTime）：按浏览器本地时区格式化为 "MM-dd HH:mm"，不再直出 UTC 原文；
+ * - 预警 / 历史对象：走 `formatWarningTime`，优先 `triggeredAt`、回退 `time`；
+ * - 已是 "MM-dd HH:mm" 的展示串或「已确认」等状态文案：原样保留，不造新值。
+ *
+ * @param {string|object} value
+ * @param {string} [fallback] 空值时使用的占位文案
+ * @param {string} [timeZone] 可选 IANA 时区，供单测显式指定
+ * @returns {string}
+ */
+export function formatTimelineTime(value, fallback = '—', timeZone) {
+  if (value && typeof value === 'object') {
+    return formatWarningTime(value, timeZone)
+  }
+  if (value === null || value === undefined || value === '') {return fallback;}
+  const text = String(value)
+  if (!ISO_INSTANT.test(text)) {return text;}
+  // 无效的 ISO 也不能变成 '—'：把原文同时作为 time 回退值
+  return formatWarningTime({ triggeredAt: text, time: text }, timeZone)
 }

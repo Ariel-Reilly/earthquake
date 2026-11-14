@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest'
-import { formatWarningTime } from '../src/utils/warningTime'
+import { formatTimelineTime, formatWarningTime } from '../src/utils/warningTime'
 
 /**
  * 第四轮复测 P1：预警时间必须跟随浏览器本地时区，而不是后端 UTC 快照。
@@ -56,5 +56,46 @@ describe('formatWarningTime — A6-5 浏览器本地时区语义', () => {
   it('跨年时刻（12-31 → 01-01）按本地时区正确翻年', () => {
     const w = { triggeredAt: '2026-12-31T16:30:00Z', time: '12-31 16:30' }
     expect(formatWarningTime(w, 'Asia/Shanghai')).toBe('01-01 00:30')
+  })
+
+  it('只有 time 快照、没有 triggeredAt 时按原值展示（兼容旧数据，不造新值）', () => {
+    expect(formatWarningTime({ time: '11-14 06:15' })).toBe('11-14 06:15')
+  })
+})
+
+describe('formatTimelineTime — 详情页时间线节点', () => {
+  const ISO = '2026-11-12T13:09:17.321049Z'
+
+  it('后端 OffsetDateTime ISO 原文按浏览器本地时区格式化，不再直出 UTC', () => {
+    expect(formatTimelineTime(ISO, '已关闭', 'Asia/Shanghai')).toBe('11-12 21:09')
+    expect(formatTimelineTime(ISO, '已关闭', 'UTC')).toBe('11-12 13:09')
+  })
+
+  it('带 offset 的 ISO 同样按绝对时刻换算', () => {
+    expect(formatTimelineTime('2026-11-12T21:09:17+08:00', '—', 'UTC')).toBe('11-12 13:09')
+  })
+
+  it('空值回退到状态文案（已确认 / 已派发 / 已关闭）', () => {
+    expect(formatTimelineTime(null, '已确认')).toBe('已确认')
+    expect(formatTimelineTime(undefined, '已派发')).toBe('已派发')
+    expect(formatTimelineTime('', '已关闭')).toBe('已关闭')
+  })
+
+  it('已是 "MM-dd HH:mm" 的展示串或状态文案原样保留', () => {
+    expect(formatTimelineTime('11-14 14:43')).toBe('11-14 14:43')
+    expect(formatTimelineTime('已确认')).toBe('已确认')
+  })
+
+  it('预警对象走 formatWarningTime（triggeredAt 优先）', () => {
+    const w = { triggeredAt: '2026-11-14T06:43:15Z', time: '11-14 06:43' }
+    expect(formatTimelineTime(w, '—', 'Asia/Shanghai')).toBe('11-14 14:43')
+  })
+
+  it('历史记录无 triggeredAt 但有 time 快照时原样保留', () => {
+    expect(formatTimelineTime({ time: '11-14 14:43' })).toBe('11-14 14:43')
+  })
+
+  it('无效 ISO 不会变成占位符而是保留原文，避免吞掉信息', () => {
+    expect(formatTimelineTime('2026-99-99T99:99:99Z')).toBe('2026-99-99T99:99:99Z')
   })
 })

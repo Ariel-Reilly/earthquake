@@ -28,6 +28,7 @@ import { useOverviewSearch } from "../composables/useOverviewSearch";
 import PersonnelTooltip from "../components/PersonnelTooltip.vue";
 import PersonnelRouteDrawer from "../components/PersonnelRouteDrawer.vue";
 import WeatherOverlayLegend from "../components/WeatherOverlayLegend.vue";
+import { formatWarningTime } from "../utils/warningTime";
 
 const props = defineProps({
   currentTime: { type: String, default: () => new Date().toLocaleString('zh-CN') },
@@ -206,8 +207,10 @@ const filteredPoints = computed(() =>
     (point) => riskFilter.value === "全部" || point.level === riskFilter.value,
   ),
 );
+// 与「当前预警事件 N 起」卡片、地图预警图层保持同一口径：只展示活跃预警。
+// 之前用全量 warnings，活跃数不足 3 时会把已解除/已关闭的历史预警补进列表。
 const visibleWarnings = computed(() =>
-  warnings.value.slice(0, showAllWarnings.value ? warnings.value.length : 3),
+  activeWarnings.value.slice(0, showAllWarnings.value ? activeWarnings.value.length : 3),
 );
 const weatherAlertLevel = computed(() => getWeatherAlertLevel(weather.value));
 
@@ -1924,6 +1927,11 @@ function toggleCompareLegend(which) {
               </button>
             </div>
             <div class="warning-list">
+              <!-- 只列活跃预警后，全部关闭时是合法空态，不能留白让人误以为加载失败 -->
+              <div v-if="!visibleWarnings.length" class="panel-empty warning-empty">
+                <p>暂无活跃预警</p>
+                <small>已解除 / 已关闭的预警不在此列</small>
+              </div>
               <article
                 v-for="warning in visibleWarnings"
                 :key="warning.id"
@@ -1939,7 +1947,7 @@ function toggleCompareLegend(which) {
                   <p>{{ warning.desc }}</p>
                   <small
                     ><MapPin :size="12" />{{ warning.point
-                    }}<time>{{ warning.time }}</time></small
+                    }}<time class="warning-time">{{ formatWarningTime(warning) }}</time></small
                   >
                 </div>
               </article>
@@ -2662,6 +2670,23 @@ function toggleCompareLegend(which) {
 <style scoped>
 .overview-page {
   container-type: inline-size;
+}
+
+/* 「实时预警」全部关闭时的空态，边框/底色沿用全局 .panel-empty */
+.warning-empty {
+  margin: 12px 0 4px;
+  padding: 18px 12px;
+  color: var(--c-text-3);
+}
+
+.warning-empty p {
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.warning-empty small {
+  font-size: 11px;
 }
 
 /* 首屏加载失败态：明确告知 + 重试，避免"永久正在加载"或误判为无数据 */

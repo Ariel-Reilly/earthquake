@@ -1221,3 +1221,55 @@ P2/P3 登记不改代码：心跳回落（演示前 5 分钟重跑，只读 WARN
 模型版本库种子、AI 落库评分日期旧、预警通知统计（L-21）、外部 ORB/天气源（L-20）、
 UI 设计体系。详见 `RETEST_FIX_REPORT.md` §六、`DELIVERY_BACKLOG.md` §S。
 交付快照 tag `v1.8.9-delivery`。
+
+## 四十八、第五轮复测：时区本地化覆盖全站 + 总览活跃预警过滤（2026-11-14 16:06–17:05）
+
+复测结论指出 `0cd0c30` 的 `warningTime.js` 只覆盖预警中心，总览/区域专项/移动端/详情时间线
+仍显示 UTC。逐条核查**修正 3 处判断**（详见 `RETEST_FIX_REPORT.md` §7.1）：
+
+- 移动端 457 行原本 `clockOf(triggeredAt)` 已是浏览器本地 `HH:mm`，但投影对象**丢弃
+  `triggeredAt`**；只换模板会回退旧值形成假绿 → 映射里必须保留 ISO 绝对时刻。
+- 区域专项 556 行**不是 UTC 而是空白**：`/dashboard/zone/related-warnings` 的
+  `RelatedWarning` 无 `time`/`point`/`desc`/`id` 字段，列表 key 重复、点击不跳转。
+- 移动端 407 行是 `relativeTime()` 的「x 分钟前」，与时区无关，不改。
+- 报告漏了详情时间线 `confirmedAt`/`dispatchedAt`/`closedAt` 三个 `OffsetDateTime`
+  **直出 ISO 原文**（`2026-11-12T13:09:17.321049Z`）。
+
+### 48.1 修复
+
+| 文件 | 改动 |
+|---|---|
+| `utils/warningTime.js` | 新增 `formatTimelineTime(value, fallback, timeZone?)` |
+| `OverviewPage.vue` | `visibleWarnings` 改 `activeWarnings`；时间本地化；新增「暂无活跃预警」空态 |
+| `ZoneDashboardPage.vue` | `normalizeRelatedWarning()` 收敛两种 DTO 形状；时间本地化；跳转只认数字 id |
+| `MobileCommandPage.vue` | 投影保留 `triggeredAt`（防假绿）；时间本地化 |
+| `WarningDetailPage.vue` | 时间线 5 类节点全部本地化，空态判断补 `!w.triggeredAt` |
+| `tests/warningTime.spec.js` | 9 → **17 例**（+8） |
+| `verify-retest-fixes.mjs` | 新增第 6 组：5 个页面 × 双时区 DOM 断言，**23 → 57 项** |
+
+**防假绿**：首次扩展跑出 51/57，详情时间线探针未点「处置时间轴」Tab 导致选择器为空，
+而 `every()` 对空数组恒 `true`，**4 项断言在零渲染时仍 PASS**。已改为 URL 带
+`?tab=timeline` + 兜底点击 Tab，且所有断言先要求 `times.length > 0 && raw.length > 0`。
+
+### 48.2 证据
+
+- `verify-retest-fixes.mjs` **57/57 PASS**：总览 `11-14 14:43`/`06:43`、区域
+  `11-06 22:42`/`14:42`、移动端、详情发布/关闭时间线五处双时区结果均不同；
+  详情关闭 `closedAt` → 上海 `11-12 21:09` / UTC `13:09`；无 ISO 原文残留。
+- 总览活跃过滤：折叠 `dom=1 = min(3, 活跃1)`，展开 `dom=1 = 活跃1`，全量 46 条不补位。
+- 浏览器冒烟 **37/37**；`verify-demo-data-refresh.mjs` **8/8 + 1 WARN**（心跳回落）。
+- 门禁：eslint 0 / stylelint 0 / **vitest 94** / `vite build` 10.95s /
+  check-missing-imports 0 / check-broken-imports 0 / check-timer-leaks 0。
+- 320px / 390px 视口横向溢出 **0**；全流程无意外 5xx、无未捕获 JS 异常。
+- 证据：`output/delivery-verify/retest-fixes.json`（`pageProbe.{shanghai,utc}`）、
+  `retest-fixes-run.log`、截图 `output/retest-fixes/retest-overview-time-shanghai.png`。
+
+### 48.3 交付与边界
+
+本轮**只改前端 + 验证脚本，未改 Java / SQL**，未重跑全量 `mvn test`；后端 UTC `time`
+快照保留（API 契约），按 A6-5「前端跟随浏览器时区」执行。
+tag **`v1.8.10-delivery`** / 源码包 `DisasterGuard-v1.8.10-delivery.zip`
+（SHA256 见同名 `.sha256` 文件）；演示材料包 30 条目 / 19 PPTX 已刷新
+（SHA256 见 `DisasterGuard-演示材料包-v1.0.zip.sha256`），`MANIFEST.md` 改指 v1.8.10。
+演示前 5 分钟仍需 `APPLY=1` 重跑刷新脚本；P2/P3（marker、模型种子、L-20/L-21、
+AI 落库评分日期旧）维持登记不改代码。仍未关闭同 §Q/§R。

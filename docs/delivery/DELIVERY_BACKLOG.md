@@ -528,3 +528,28 @@
   模型版本库种子数据、AI 落库评分日期旧、预警通知统计（L-21）、外部 ORB / 天气源（L-20）；
   UI 设计体系不动（对比度 7 页 0 issues）。
 - **仍未关闭**：同 §Q/§R（A1 纯人工、A4 上线日、A6-3/A6-4、B/C 类、二期能力）。
+
+## T. 第五轮复测（2026-11-14）：全站预警时间本地化闭环 / v1.8.10
+
+- **复测发现**：`0cd0c30` 的 `warningTime.js` 只覆盖预警中心/详情主字段/弹窗/送达 Tab，
+  总览 `OverviewPage.vue:1942` 仍读 UTC `time`；`visibleWarnings` 用全量 `warnings`
+  而非 `activeWarnings`，活跃不足 3 条时把已解除/已关闭历史预警补进列表。
+- **核查修正 3 处报告判断**：移动端 457 行 `clockOf(triggeredAt)` 本就是本地 `HH:mm`
+  （但投影丢 `triggeredAt`，只换模板会假绿）；区域专项 556 行不是 UTC 而是**空白**
+  （`RelatedWarning` 无 `time`/`point`/`desc`/`id`）；移动端 407 行是相对时长，不该改。
+  另补报告漏项：详情时间线 `confirmedAt`/`dispatchedAt`/`closedAt` 直出 ISO 原文。
+- **已改**：`utils/warningTime.js` 新增 `formatTimelineTime`；4 个页面统一本地化并补
+  `triggeredAt` 透传 / DTO 归一化 / 数字 id 跳转守卫；总览改活跃过滤 + 空态；
+  单测 9→17（全量 86→94）；`verify-retest-fixes.mjs` 23→57 项，覆盖
+  总览/区域/移动端/详情发布/详情关闭 5 处双时区 DOM 断言。
+- **防假绿教训（常记）**：`every()` 对空数组恒 `true`。首次扩展 51/57 时详情时间线
+  因未点 Tab 零渲染，仍有 4 项 PASS。所有 DOM 断言必须先要求 `times.length > 0`。
+- **回归**：retest **57/57**（上海 `11-14 14:43` / UTC `06:43`，五处双时区均不同）、
+  浏览器冒烟 **37/37**、demo-data **8/8 + 1 WARN**；门禁 eslint 0 / stylelint 0 /
+  vitest **94** / build 10.95s / 三项 audit 0；320px/390px 溢出 0；无意外 5xx/JS 异常。
+- **交付**：tag **`v1.8.10-delivery`** / 源码包 + 同名 `.sha256`；
+  演示材料包 30 条目 / 19 PPTX 刷新并重算 SHA256。
+- **边界**：只改前端 + 验证脚本，未改 Java/SQL，未重跑 `mvn test`；后端 UTC `time`
+  快照保留（API 契约）。区域专项列表仍不可跳转（`RelatedWarning` 无数字 id，需后端补字段，P2）。
+  演示前 5 分钟仍需 `APPLY=1` 刷新；P2/P3 同 §S。
+- **仍未关闭**：同 §Q/§R（A1 纯人工、A4 上线日、A6-3/A6-4、B/C 类、二期能力）。

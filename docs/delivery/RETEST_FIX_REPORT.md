@@ -255,3 +255,65 @@ SFC 98 / 令牌完整。本轮**改了产品前端源码、未改后端 Java**�
 - 设备地图 marker 辨识度、AI 模型版本库补种子数据、AI 落库评分日期旧、预警通知统计（L-21）、
   外部 ORB / 天气源（L-20）：维持为演示 polish / 二期 / 外部边界，不改产品代码。
 - 复测亦定性「浅/深色对比度 7 页 0 issues、不建议大改视觉体系」，UI 设计体系不动。
+
+---
+
+## 七、第五轮复测（16:06–17:00）：时区本地化覆盖全站 + 总览活跃预警过滤
+
+### 7.1 复测结论与核查修正
+
+第四轮 `0cd0c30` 的 `warningTime.js` 只覆盖预警中心 / AlarmModal / 送达 Tab / 详情主字段，
+总览、区域专项、移动端、详情时间线仍读后端 UTC `time` 快照。逐条核查后**修正 3 处判断**：
+
+| 复测报告说法 | 实测结论 |
+|---|---|
+| `MobileCommandPage.vue:457` 仍显示 UTC | ❌ `w.time = clockOf(triggeredAt)` 本就是浏览器本地 `HH:mm`；但投影对象**丢弃了 `triggeredAt`**，若只把模板换成 `formatWarningTime(w)` 会静默回退到旧 `time` → 典型「假绿」，必须在映射里保留 `triggeredAt` |
+| `ZoneDashboardPage.vue:556` 仍显示 UTC | ❌ `/dashboard/zone/related-warnings` 的 `RelatedWarning` **完全没有 `time`/`point`/`desc`/`id` 字段**，实际渲染为空白（时间/位置/描述全空、列表 key 重复、点击不跳转）。修复靠 `triggeredAt` + 字段归一化，不是替换一个模板表达式 |
+| `MobileCommandPage.vue:407` 也需本地化 | ❌ 该处是 `relativeTime()` 的「x 分钟前」相对时长，与时区无关，保持不动 |
+| `OverviewPage.vue:1942` / `visibleWarnings` | ✅ 属实，UTC 早 8 小时；列表用全量 `warnings` 会把已解除/已关闭历史预警补位 |
+| `WarningDetailPage.vue:97` 时间线发布节点 | ✅ 属实；**报告漏了** `confirmedAt` / `dispatchedAt` / `closedAt` 三个 `OffsetDateTime` 字段直出 ISO 原文（如 `2026-11-12T13:09:17.321049Z`） |
+
+### 7.2 修复（6 前端文件 + 1 工具扩展 + 1 单测 + 1 回归脚本）
+
+| 文件 | 改动 |
+|---|---|
+| `utils/warningTime.js` | 新增 `formatTimelineTime(value, fallback, timeZone?)`：ISO 绝对时刻按浏览器本地时区格式化；已是 `MM-dd HH:mm` 展示串或「已确认」状态文案原样保留；无效 ISO 保留原文不吞信息 |
+| `OverviewPage.vue` | 引入 `formatWarningTime`；`visibleWarnings` 由 `warnings` 改 `activeWarnings`（与「当前预警事件 N 起」、地图图层同口径）；新增「暂无活跃预警」空态，避免全部关闭时留白 |
+| `ZoneDashboardPage.vue` | 新增 `normalizeRelatedWarning()` 收敛 `RelatedWarning` 与 `WarningDto` 两种形状（code/point/desc）；时间走 `formatWarningTime`；`viewWarning` 只允许数字 id（后端 `@PathVariable Long`，用 code 拼路由会 400） |
+| `MobileCommandPage.vue` | 映射保留 `triggeredAt`（关键，防假绿）；时间走 `formatWarningTime`，与其余页面统一为 `MM-dd HH:mm` |
+| `WarningDetailPage.vue` | 时间线发布节点 `formatWarningTime(w)`；确认/派发/关闭/历史节点 `formatTimelineTime`；空态判断补 `!w.triggeredAt` |
+| `tests/warningTime.spec.js` | 新增 8 例（ISO 上海/UTC、带 offset、状态文案回退、历史对象、无效 ISO 等），9 → 17 例；全量 86 → **94** |
+| `verify-retest-fixes.mjs` | 新增第 6 组：对总览/区域/移动端/详情发布/详情关闭 5 个页面做上海+UTC 双时区 DOM 断言（含空数组防护、ISO 原文检测、活跃过滤折叠/展开计数），**23 → 57 项** |
+
+### 7.3 防假绿：空数组断言
+
+首次扩展跑出 51/57，6 处 FAIL 集中在详情时间线：时间线在「处置时间轴」Tab 内，
+探针未点击导致选择器为空；而 `every()` 对空数组恒为 `true`，**4 项断言在没渲染任何内容时仍 PASS**。
+两处修正：URL 带 `?tab=timeline` 并兜底点击 Tab；所有断言统一先要求 `times.length > 0 && raw.length > 0`。
+避免重复第三轮「脚本 PASS 但页面没数据」的教训。
+
+### 7.4 验证
+
+| 项 | 结果 |
+|---|---|
+| `verify-retest-fixes.mjs` | **57/57 PASS**（上海 `11-14 14:43` / UTC `11-14 06:43`；区域 `11-06 22:42` / `14:42`；移动端、详情发布/关闭时间线均双时区不同） |
+| 总览活跃过滤 | 折叠 `dom=1 = min(3,活跃1)`；「查看全部」展开 `dom=1 = 活跃1`，全量 46 条不补位 |
+| 详情时间线 | 发布 `11-14 14:43`、关闭 `closedAt` → `11-12 21:09`（UTC `13:09`），无 ISO 原文 |
+| 浏览器冒烟 | **37/37 PASS** |
+| `verify-demo-data-refresh.mjs` | **8/8 PASS / 1 WARN**（16 台全离线为心跳回落） |
+| 门禁 | eslint 0 / stylelint 0 / vitest **94** / `vite build` 10.95s / check-missing-imports 0 / check-broken-imports 0 / check-timer-leaks 0 |
+| 流程 | 全流程无意外 5xx、无未捕获 JS 异常 |
+| 移动端窄屏 | 320px / 390px：文档与 `.warning-meta` 横向溢出均为 **0**（时间由 `HH:mm` 变 `MM-dd HH:mm` 后） |
+
+证据：`output/delivery-verify/retest-fixes.json`（`pageProbe.{shanghai,utc}`、57 项 checks）、
+`retest-fixes-run.log`、截图 `output/retest-fixes/retest-overview-time-shanghai.png` 与
+`retest-warnings-time-{shanghai,utc}.png`、`output/browser-verify/08-overview-page.png`。
+
+### 7.5 边界与下一步
+
+- 本轮**只改前端与验证脚本，未改 Java / SQL**，故未跑全量 `mvn test`；后端 `time` UTC 快照
+  保留不动（API 契约），仍按 A6-5「前端跟随浏览器时区」执行。
+- 区域专项关联预警列表仍不可点击跳转（`RelatedWarning` 不含数字 id），属既有数据契约限制，
+  本轮未扩大改动范围；如需跳转需后端补 `id` 字段（P2）。
+- 演示前 5 分钟内仍需 `APPLY=1` 重跑 `refresh-demo-data.sql` 确认「6 在线 + 预警时间本地今天」；
+  落库 AI 评分日期旧、marker 辨识度、L-20/L-21 二期项维持登记不改代码。

@@ -14,6 +14,10 @@
  *      用 CDP 切 Asia/Shanghai 与 UTC 两个时区，证明页面时间分别等于各时区
  *      从 triggeredAt 计算的值、两者不同，且不残留 11-06。
  *      注意：不再断言「DOM == 接口 time」——后端 time 是 UTC 快照，本地化后二者本就不等。
+ *   6) 第五轮复测：时区本地化覆盖全站 + 总览活跃预警过滤。
+ *      总览「实时预警」/ 区域专项「关联预警」/ 移动端「预警中心」/ 详情「预警发布」时间线
+ *      同样做双时区 DOM 断言，避免只验证预警中心；并校验总览列表按活跃状态过滤。
+ *      期望值一律由接口 triggeredAt 按当前时区计算，绝不拿后端 time 快照当基准。
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -269,7 +273,8 @@ async function main() {
   const wl = await api('/warnings?page=1&size=200', { token })
   const wlRaw = wl.json?.data
   const wlRows = Array.isArray(wlRaw) ? wlRaw : (wlRaw?.records ?? wlRaw?.list ?? [])
-  const activeWarnings = wlRows.filter((w) => !['已解除', '已关闭'].includes(w.status))
+  // 与 OverviewPage.activeWarnings 的过滤口径保持一致（已关闭/已忽略/已解除）
+  const activeWarnings = wlRows.filter((w) => !['已解除', '已关闭', '已忽略'].includes(w.status))
   const apiActive = activeWarnings[0] ?? null
 
   // 按指定 IANA 时区从 triggeredAt 计算期望的 "MM-dd HH:mm"（与接口 time 无关）
@@ -327,7 +332,163 @@ async function main() {
     sh.bodyHasOld === false && utc.bodyHasOld === false,
     `sh=${sh.bodyHasOld} utc=${utc.bodyHasOld}`)
 
-  const issueSets = [dmIssues, insightIssues, beforeTab, afterTab, warnIssues]
+  // ── 6) 全站时区覆盖（第五轮复测）+ 总览活跃预警过滤 ──
+  // 第四轮只验证预警中心，导致总览 / 区域专项 / 移动端 / 详情时间线漏网。
+  // 这里对 4 类页面同样用 CDP 切双时区，并断言：
+  //   a) 每个页面的时间都落在「按当前时区由 triggeredAt 计算的期望集合」内；
+  //   b) 上海时区不残留 UTC 快照、UTC 时区不出现 UTC+8 结果（证明跟随浏览器而非硬编码）；
+  //   c) 两个时区的 DOM 结果不同；
+  //   d) 详情时间线不直出 ISO 原文（confirmedAt/dispatchedAt/closedAt 也要本地化）；
+  //   e) 总览「实时预警」折叠/展开都只列活跃预警。
+  from = client.events.length
+  const rowsOf = (json) => {
+    const d = json?.data
+    return Array.isArray(d) ? d : (d?.records ?? d?.list ?? [])
+  }
+  const [zoneResp, previewResp] = await Promise.all([
+    api('/dashboard/zone/related-warnings?kind=all&region=all&range=7d', { token }),
+    api('/warnings/preview', { token }),
+  ])
+  // 时间线的 confirmedAt / dispatchedAt / closedAt 也是绝对时刻，一并纳入期望集合
+  const instantFields = (w) => [w.triggeredAt, w.confirmedAt, w.dispatchedAt, w.closedAt]
+    .filter(Boolean)
+  const allRows = [...wlRows, ...rowsOf(zoneResp.json), ...rowsOf(previewResp.json)]
+  const expectedSet = (timeZone) => new Set(
+    allRows.flatMap((w) => instantFields(w).map((iso) => expectedInTz(iso, timeZone))).filter(Boolean))
+  const shSet = expectedSet('Asia/Shanghai')
+  const utcSet = expectedSet('UTC')
+  // 只在一侧出现的取值，用来抓「渲染成另一时区」或「原样输出后端 UTC time 快照」
+  const utcOnly = new Set([...utcSet].filter((t) => !shSet.has(t)))
+  const shOnly = new Set([...shSet].filter((t) => !utcSet.has(t)))
+  const rawSnapshots = new Set(wlRows.map((w) => w.time).filter(Boolean))
+
+  const detailId = apiActive?.id ?? wlRows[0]?.id
+  const closedRow = wlRows.find((w) => w.closedAt) ?? null
+  const pageDefs = [
+    { key: 'overview', label: '总览「实时预警」', url: '/dashboard',
+      sel: '.warning-panel .warning-time', strict: true },
+    { key: 'zone', label: '区域专项「关联预警」', url: '/dashboard/zone/all/all',
+      sel: '.warning-panel .warning-time', strict: true },
+    { key: 'mobile', label: '移动端「预警中心」', url: '/mobile',
+      sel: '.warning-card .warning-time', strict: true },
+    { key: 'detail', label: '详情「预警发布」时间线',
+      url: `/dashboard/warnings/${detailId}?tab=timeline`,
+      sel: '.timeline-time', strict: false, timelineTab: true },
+  ]
+  if (closedRow?.id) {
+    pageDefs.push({ key: 'detailClosed', label: '详情「预警关闭」时间线',
+      url: `/dashboard/warnings/${closedRow.id}?tab=timeline`,
+      sel: '.timeline-time', strict: false, timelineTab: true })
+  }
+
+  const probePages = async (timeZone) => {
+    await client.send('Emulation.setTimezoneOverride', { timezoneId: timeZone })
+    const out = {}
+    for (const p of pageDefs) {
+      await client.send('Page.navigate', { url: APP + p.url })
+      await waitReady(client, 100)
+      // 详情时间线在 Tab 内；?tab=timeline 已直连，这里再兜底点一次 Tab
+      if (p.timelineTab) {
+        await client.eval(`(() => {
+          const b = [...document.querySelectorAll('.tab-button')]
+            .find(x => x.innerText.includes('处置时间轴'));
+          if (b) {b.click();}
+          return !!b;
+        })()`).catch(() => false)
+        await sleep(500)
+      }
+      let raw = []
+      for (let i = 0; i < 24; i++) {
+        try {
+          const r = await client.eval(`(() => [...document.querySelectorAll(${JSON.stringify(p.sel)})]
+            .map(e => e.innerText.trim()))()`)
+          if (r?.length > 0) { raw = r; break }
+        } catch (_) { /* 导航中上下文销毁 */ }
+        await sleep(400)
+      }
+      const times = raw.filter((t) => /^\d{2}-\d{2} \d{2}:\d{2}$/.test(t))
+      const iso = raw.filter((t) => /\d{4}-\d{2}-\d{2}T/.test(t))
+      let items = 0
+      let expandedItems = null
+      let pageTz = null
+      try {
+        pageTz = await client.eval(`Intl.DateTimeFormat().resolvedOptions().timeZone`)
+        items = await client.eval(`document.querySelectorAll('.warning-panel .warning-item').length`)
+      } catch (_) { /* 非总览页 */ }
+      if (p.key === 'overview' && timeZone === 'Asia/Shanghai') {
+        await client.screenshot('retest-overview-time-shanghai.png')
+        const clicked = await client.eval(`(() => {
+          const b = [...document.querySelectorAll('.warning-panel button')]
+            .find(x => x.innerText.includes('查看全部'));
+          if (!b) return false;
+          b.click();
+          return true;
+        })()`)
+        if (clicked) {
+          await sleep(400)
+          try {
+            expandedItems = await client.eval(`document.querySelectorAll('.warning-panel .warning-item').length`)
+          } catch (_) { /* ignore */ }
+        }
+      }
+      out[p.key] = { raw, times, iso, items, expandedItems, tz: pageTz }
+    }
+    return out
+  }
+
+  const shPages = await probePages('Asia/Shanghai')
+  const utcPages = await probePages('UTC')
+  await client.send('Emulation.setTimezoneOverride', { timezoneId: '' })
+  const pageIssues = client.issues(from)
+
+  // 所有断言都先要求 DOM 非空 —— 空数组上的 every() 恒为 true，会让「没渲染」假绿通过
+  for (const p of pageDefs) {
+    const a = shPages[p.key]
+    const b = utcPages[p.key]
+    const ready = a.times.length > 0 && b.times.length > 0 && a.raw.length > 0 && b.raw.length > 0
+    check(`${p.label} 双时区都渲染出时间`, ready,
+      `上海=${a.times.length} 项 / UTC=${b.times.length} 项 tz=${a.tz}/${b.tz}`)
+    check(`${p.label} 时间格式统一为 MM-dd HH:mm${p.strict ? '（无 ISO / HH:mm 残值）' : '（状态文案除外）'}`,
+      ready && (!p.strict || [...a.raw, ...b.raw].every((t) => /^\d{2}-\d{2} \d{2}:\d{2}$/.test(t))),
+      `上海=${a.raw.slice(0, 2).join(' / ')} UTC=${b.raw.slice(0, 2).join(' / ')}`)
+    check(`${p.label} 不直出后端 ISO / UTC 原文`,
+      ready && a.iso.length === 0 && b.iso.length === 0,
+      `iso=${[...a.iso, ...b.iso].slice(0, 2).join(' / ')}`)
+    check(`${p.label} 上海时区按 triggeredAt 本地化（无 UTC 快照）`,
+      ready && a.times.every((t) => shSet.has(t) && !utcOnly.has(t)),
+      `dom=${a.times.slice(0, 3).join(' / ')} 后端快照=${[...rawSnapshots].slice(0, 2).join(' / ')}`)
+    check(`${p.label} UTC 时区跟随浏览器（非硬编码 UTC+8）`,
+      ready && b.times.every((t) => utcSet.has(t) && !shOnly.has(t)),
+      `dom=${b.times.slice(0, 3).join(' / ')}`)
+    check(`${p.label} 两个时区渲染结果不同`,
+      ready && a.times.join('|') !== b.times.join('|'),
+      `上海=${a.times[0]} UTC=${b.times[0]}`)
+  }
+
+  // 详情时间线：发布节点 == 触发时间，关闭节点 == closedAt 的本地时间
+  const expDetailSh = expectedInTz(apiActive?.triggeredAt, 'Asia/Shanghai')
+  const expDetailUtc = expectedInTz(apiActive?.triggeredAt, 'UTC')
+  check('详情「预警发布」时间线与主字段一致且按时区变化',
+    shPages.detail.times.includes(expDetailSh) && utcPages.detail.times.includes(expDetailUtc),
+    `期望 上海=${expDetailSh} UTC=${expDetailUtc} dom=${shPages.detail.times.join(' / ')}`)
+  if (closedRow) {
+    const expCloseSh = expectedInTz(closedRow.closedAt, 'Asia/Shanghai')
+    const expCloseUtc = expectedInTz(closedRow.closedAt, 'UTC')
+    check('详情「预警关闭」时间线把 closedAt(ISO) 格式化为本地时间',
+      shPages.detailClosed.times.includes(expCloseSh)
+        && utcPages.detailClosed.times.includes(expCloseUtc),
+      `期望 上海=${expCloseSh} UTC=${expCloseUtc} dom=${shPages.detailClosed.times.join(' / ')}`)
+  }
+
+  const activeCount = activeWarnings.length
+  check('总览「实时预警」折叠态只列活跃预警（不再用全量补位）',
+    shPages.overview.items === Math.min(3, activeCount) && activeCount > 0,
+    `dom=${shPages.overview.items} 期望=${Math.min(3, activeCount)} 活跃=${activeCount} 全量=${wlRows.length}`)
+  check('总览「查看全部」展开后仍只列活跃预警',
+    shPages.overview.expandedItems === activeCount,
+    `dom=${shPages.overview.expandedItems} 活跃=${activeCount} 全量=${wlRows.length}`)
+
+  const issueSets = [dmIssues, insightIssues, beforeTab, afterTab, warnIssues, pageIssues]
   const unexpected = issueSets.flatMap((x) => x.serverErrors)
     .filter((s) => !/\/api\/ai\/drift/.test(s) && !/\/api\/weather\//.test(s))
   check('全流程无意外 5xx', unexpected.length === 0, unexpected.slice(0, 2).join(' , '))
@@ -339,7 +500,10 @@ async function main() {
     preDrift501, postDrift501, driftNotice: driftNotice?.slice(0, 200),
     apiActiveTime: apiActive?.time, apiActiveTriggeredAt: apiActive?.triggeredAt,
     expectedShanghai: expSh, expectedUtc: expUtc,
-    warnProbe: { shanghai: sh, utc }, unexpected5xx: unexpected, checks,
+    warnProbe: { shanghai: sh, utc },
+    pageProbe: { shanghai: shPages, utc: utcPages,
+      activeCount, totalWarnings: wlRows.length, closedRowId: closedRow?.id ?? null },
+    unexpected5xx: unexpected, checks,
   }
   fs.writeFileSync(path.join(OUT, 'retest-fixes.json'), JSON.stringify(summary, null, 2))
   await fetch(`${CDP}/json/close/${targetId}`).catch(() => {})

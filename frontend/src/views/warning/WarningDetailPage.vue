@@ -29,7 +29,7 @@ import PermissionButton from "../../components/PermissionButton.vue";
 import WarningDeliveryTab from "../../components/WarningDeliveryTab.vue";
 import WarningAnalysisDetail from "../../components/warning/WarningAnalysisDetail.vue";
 import { dashboardApi } from "../../services/dashboardApi";
-import { formatWarningTime } from "../../utils/warningTime";
+import { formatTimelineTime, formatWarningTime } from "../../utils/warningTime";
 import { aiApi } from "../../services/aiApi";
 import { useAiContext } from "../../composables/useAiContext";
 import { useEscapeClose } from "../../composables/useEscapeClose";
@@ -87,14 +87,15 @@ const timelineItems = computed(() => {
 
   const history = w.history || [];
   // 预警没有发布时间、没有历史反馈、状态还停在待确认 —— 说明确实什么都没发生过
-  if (!w.time && history.length === 0 && w.status === "待确认") return [];
+  if (!w.time && !w.triggeredAt && history.length === 0 && w.status === "待确认") return [];
 
   const items = [
     {
       key: "publish",
       type: "publish",
       title: "预警发布",
-      time: w.time,
+      // 与右侧「触发时间」同源：triggeredAt 绝对时刻按浏览器本地时区格式化
+      time: formatWarningTime(w),
       desc: w.title,
       operator: `发布者: ${w.publisher || "系统"}`,
     },
@@ -105,7 +106,7 @@ const timelineItems = computed(() => {
       key: "approve",
       type: "approve",
       title: "预警已确认",
-      time: w.confirmedAt || "已确认",
+      time: formatTimelineTime(w.confirmedAt, "已确认"),
       desc: "用户已确认该预警",
       operator: `确认人: ${w.confirmedBy || "未知"}`,
     });
@@ -116,7 +117,7 @@ const timelineItems = computed(() => {
       key: "dispatch",
       type: "dispatch",
       title: "资源派发",
-      time: w.dispatchedAt || "已派发",
+      time: formatTimelineTime(w.dispatchedAt, "已派发"),
       desc: "已派发对应等级的应急资源",
       operator: `派发人: ${w.dispatchedBy || "系统"}`,
       // 橙/红级别会同步触发应急响应。用标签单独标出，而不是塞进正文句子
@@ -131,7 +132,8 @@ const timelineItems = computed(() => {
       key: `history-${index}`,
       type: "feedback",
       title: record.title || "处理反馈",
-      time: record.time,
+      // 历史记录若带 triggeredAt 则本地化；否则沿用已有展示串 / ISO
+      time: formatTimelineTime(record.triggeredAt ? record : record.time),
       desc: record.desc,
     });
   });
@@ -141,7 +143,7 @@ const timelineItems = computed(() => {
       key: "close",
       type: "close",
       title: "预警关闭",
-      time: w.closedAt || "已关闭",
+      time: formatTimelineTime(w.closedAt, "已关闭"),
       desc: w.closeReason || "预警已关闭",
       operator: `关闭人: ${w.closedBy || "系统"}`,
     });

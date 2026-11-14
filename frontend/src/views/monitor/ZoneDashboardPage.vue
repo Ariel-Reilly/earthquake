@@ -8,6 +8,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { Activity, AlertTriangle, ChevronLeft, ChevronRight, Crosshair, Filter, Layers3, ListChecks, Loader2, MapPin, Mountain, MountainSnow, Pause, Play, Radio, RefreshCcw, Send, TrendingUp } from 'lucide-vue-next';
 import { dashboardApi } from "../../services/dashboardApi";
+import { formatWarningTime } from "../../utils/warningTime";
 
 const props = defineProps({
   currentTime: { type: String, default: "" },
@@ -212,6 +213,26 @@ function backToOverview() {
   router.push({ name: "overview" });
 }
 
+/**
+ * 关联预警统一成列表卡片需要的形状。
+ *
+ * /dashboard/zone/related-warnings 返回 `RelatedWarning`
+ * (code/title/level/status/region/triggeredAt)，**没有** id / point / desc / time；
+ * 早期模板直接读这些字段，导致位置、描述、时间全空且点击无 id 可跳转。
+ * 降级路径的 /warnings/preview 返回 `WarningDto`，字段又不同。这里收敛一次。
+ */
+function normalizeRelatedWarning(w) {
+  return {
+    ...w,
+    // code 只用作列表 key：详情接口只接受数字 id，不能拿 code 去拼路由
+    code: w.code ?? w.warningCode,
+    point: w.point ?? w.region ?? "",
+    desc: w.desc ?? w.triggerValue ?? "",
+    // time 仅作为 formatWarningTime 的兼容回退；正常路径一律走 triggeredAt
+    time: w.time,
+  };
+}
+
 async function loadAll() {
   loading.value = true;
   loadError.value = "";
@@ -233,19 +254,21 @@ async function loadAll() {
     hazards.value = Array.isArray(haz?.list) ? haz.list : [];
 
     // 关联预警与应急：优先使用 summary 返回的关联列表；否则尝试预览接口
-    warnings.value = sum?.relatedWarnings ?? [];
+    warnings.value = (sum?.relatedWarnings ?? []).map(normalizeRelatedWarning);
     incidents.value = sum?.relatedIncidents ?? [];
 
     if (!warnings.value.length) {
       try {
         const preview = await dashboardApi.getWarningsPreview();
         const all = preview?.list ?? [];
-        warnings.value = all.filter((w) => {
-          const hazard = hazards.value.find(
-            (h) => String(h.id) === String(w.hazardId) || h.code === w.hazardCode,
-          );
-          return Boolean(hazard);
-        });
+        warnings.value = all
+          .filter((w) => {
+            const hazard = hazards.value.find(
+              (h) => String(h.id) === String(w.hazardId) || h.code === w.hazardCode,
+            );
+            return Boolean(hazard);
+          })
+          .map(normalizeRelatedWarning);
       } catch (_) {
         warnings.value = [];
       }
@@ -289,7 +312,8 @@ function viewHazard(item) {
 }
 
 function viewWarning(item) {
-  if (!item?.id) return;
+  // related-warnings 只给 code（非数字），详情接口 @PathVariable Long 会 400
+  if (!item?.id || !/^\d+$/.test(String(item.id))) return;
   router.push(`/dashboard/warnings/${item.id}`);
 }
 
@@ -545,7 +569,7 @@ watch(
             <p>暂无关联预警</p>
           </div>
           <ul v-else class="warning-list">
-            <li v-for="w in warnings" :key="w.id" class="warning-item" @click="viewWarning(w)">
+            <li v-for="w in warnings" :key="w.code ?? w.id" class="warning-item" @click="viewWarning(w)">
               <span class="warning-symbol" :class="w.cssClass ?? w.class ?? 'orange'">!</span>
               <div class="warning-body">
                 <div class="warning-title">
@@ -553,7 +577,7 @@ watch(
                   <span :class="w.cssClass ?? w.class ?? 'orange'">{{ w.level }}</span>
                 </div>
                 <p>{{ w.desc }}</p>
-                <small><MapPin :size="11" />{{ w.point }}<time>{{ w.time }}</time></small>
+                <small><MapPin :size="11" />{{ w.point }}<time class="warning-time">{{ formatWarningTime(w) }}</time></small>
               </div>
             </li>
           </ul>

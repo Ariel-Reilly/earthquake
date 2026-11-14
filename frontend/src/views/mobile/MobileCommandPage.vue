@@ -43,6 +43,7 @@ import {
 } from "lucide-vue-next";
 import { useRouter } from "vue-router";
 import { dashboardApi } from "../../services/dashboardApi";
+import { formatWarningTime } from "../../utils/warningTime";
 
 defineProps({ searchTerm: { type: String, default: "" }, userRole: { type: String, default: "admin" } });
 const emit = defineEmits(["notify"]);
@@ -202,6 +203,9 @@ async function loadData() {
         status: w.status ?? "draft",
         statusLabel:
           w.statusLabel ?? WARNING_STATUS_LABEL[w.status] ?? w.status ?? "未知",
+        // 保留 ISO 绝对时刻，供 formatWarningTime 按浏览器本地时区渲染；
+        // time 只作为旧数据 / mock 无 triggeredAt 时的兼容快照（HH:mm）。
+        triggeredAt: w.triggeredAt,
         time: clockOf(w.publishedAt ?? w.createdAt ?? w.triggeredAt),
         location: w.regionName ?? w.location ?? w.regionCode ?? "",
       }));
@@ -454,7 +458,7 @@ function goVideo() {
             <span>{{ w.location }}</span>
             <span class="meta-sep">·</span>
             <Clock :size="12" />
-            <span>{{ w.time }}</span>
+            <span class="warning-time">{{ formatWarningTime(w) }}</span>
           </div>
           <div v-if="w.status === 'draft'" class="warning-actions">
             <button class="btn-publish" @click="quickPublish(w)">
