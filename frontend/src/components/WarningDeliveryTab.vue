@@ -27,6 +27,7 @@ import {
 } from "lucide-vue-next";
 import PermissionButton from "./PermissionButton.vue";
 import { dashboardApi } from "../services/dashboardApi";
+import { normalizeList } from "../api/client";
 import { formatWarningTime } from "../utils/warningTime";
 
 const props = defineProps({
@@ -233,13 +234,8 @@ async function loadChannel(channel) {
     const data = await dashboardApi.getDeliveryRecords(props.warningId, {
       channel,
     });
-    const records = Array.isArray(data?.records)
-      ? data.records
-      : Array.isArray(data?.list)
-        ? data.list
-        : Array.isArray(data)
-          ? data
-          : [];
+    // 后端该端点历史上出现过 records / list / 裸数组三种形态，统一走归一层。
+    const records = normalizeList(data);
     channelRecords.value[channel].records = records;
   } catch (error) {
     channelRecords.value[channel].error =

@@ -11,10 +11,12 @@
 - **前端归一化实现**：`frontend/src/api/client.js` 的 `normalizePage() / normalizeList()`（纯函数 + 单测 14 例，覆盖 records/items/list/数组/空值/默认值/优先级/**pages 推导**）。
   - 缺 `pages` 时由 `total / size` 推导（`Math.ceil`），兼容只给 total/size 的不完整旧端点；显式 `pages` 优先；`size=0` 用列表长度兜底避免除零。
   - 迁移状态：`dashboardApi.normalizePaged` **已改为委托 `normalizePage`**（单点去重、行为等价，调用点不变）；页面层 `items/list` 兼容分支按页小步清理。
-  - **已迁移页面（3）**：`DataSyncPage.toList` → `normalizeList`；`DataCatalogPage`（`loadAssets` / `loadUsage` / `openTrend` 三处 `records/裸数组` 分支）；`PersonnelManagePage.loadPersonnel`（`data.list ?? data` → `normalizeList`，**顺带修复潜在缺陷**：旧写法在 `{records}` 形态下把对象当数组 `.map`、在 `null` 下 `data.list` 直接 TypeError，都会被 catch 成「人员列表加载失败」）。
+  - **已迁移页面/组件（4）**：`DataSyncPage.toList` → `normalizeList`；`DataCatalogPage`（`loadAssets` / `loadUsage` / `openTrend` 三处 `records/裸数组` 分支）；`PersonnelManagePage.loadPersonnel`（`data.list ?? data` → `normalizeList`，**顺带修复潜在缺陷**：旧写法在 `{records}` 形态下把对象当数组 `.map`、在 `null` 下 `data.list` 直接 TypeError）；`WarningDeliveryTab.loadChannel`（`records → list → 裸数组` 三级嵌套三元，5 个渠道共用）。
   - **迁移验收要求**：每迁一个页面必须附页面级回归，不能只靠纯函数单测；**一个页面有多处取数时逐路径覆盖**，不得只测主列表。
     - `dataSyncPage.spec.js`（6 例）：`records/items/list/裸数组/null/抛错`。
     - `dataCatalogPage.spec.js`（7 例）：`loadAssets`（records/裸数组/items/空）＋ `loadUsage`（Tab 切换）＋ `openTrend`（二次拉取 5 条趋势，与首次列表 3 条区分，证明走的是自身取数分支）＋ 抛错降级。
+    - `personnelManagePage.spec.js`（5 例）：`{list}/{records}/裸数组/null/抛错`。
+    - `warningDeliveryTab.spec.js`（5 例）：5 个渠道共用一处取数，故按**渠道**逐形态覆盖——sms=records、app=list、email=裸数组、空记录空态、单渠道失败降级。
   - **`fallback` 必须是数组**：历史 `normalizePaged(data, { items: [] })` 已全部改为 `[]`，否则空数据时 `records` 会变成对象（后续 `.map` 抛错）。单测已锁定该契约。
 
 ## 2. 时间
