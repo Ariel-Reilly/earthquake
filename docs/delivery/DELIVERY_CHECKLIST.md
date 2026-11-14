@@ -1,6 +1,6 @@
 # 交付检查表（DisasterGuard · 御灾智巡）
 
-> 版本：v1.8 · 检查日期：2026-11-12/13 · 检查人：开发交付组
+> 版本：v1.8.12 · 检查日期：2026-11-12/14 · 检查人：开发交付组
 > 结论：**可进入现场演示 / 试运行**。已知限制与二期能力见 [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md)。
 
 ## 一、交付范围与环境
@@ -15,12 +15,14 @@
 | 检查项 | 命令 | 结果 |
 |---|---|---|
 | 前端 lint | `cd frontend; npx eslint src/` | ✅ 0 error |
-| 前端单测 | `npx vitest run` | ✅ **69 passed**（7 个测试文件；含 B5-4 SFC 组件测试 12 例） |
+| 前端单测 | `cd frontend; npx vitest run` | ✅ **168 passed**（20 个测试文件；含分页归一层 14 例 + 9 个页面/组件级回归） |
 | 后端状态机单测 | `cd backend; mvn -q "-Dtest=EventStateMachineTest" test` | ✅ **11 passed**（B5-1；真实 Spring StateMachine 工厂，无 DB 凭据依赖） |
-| 后端全量测试 | `cd backend; mvn test`（需 Docker） | ✅ **141 tests / 0 failures / 0 errors / 4 skipped**；Testcontainers 一次性 PostGIS 容器（B5-6） |
+| 后端全量测试 | `cd backend; mvn test`（需 Docker） | ✅ **149 tests / 0 failures / 0 errors / 4 skipped**；Testcontainers 一次性 PostGIS 容器（B5-6） |
 | ai-service pytest | `cd ai-service; python -m pytest tests -q` | ✅ **102 passed / 4 skipped**（10 个文件，6.48s；B5-5） |
 | 前端生产构建 | `npm run build` | ✅ 成功（`dist/`） |
-| SFC 完整性 | `node scripts/verify-sfc-integrity.mjs` | ✅ 全部组件解析通过 |
+| SFC 完整性 | `cd frontend; npm run check:sfc` | ✅ **98/98** 组件解析、脚本、模板、样式全部通过 |
+| 注释门禁 | `node scripts/quality/check-comments.mjs` | ✅ 退出 0：命中 15 / 已带 owner 6 / allowlist 9 / **裸标记 0** |
+| 注释门禁自检 | `node scripts/quality/check-comments.selftest.mjs` | ✅ **19/19**（含误报防护与 allowlist 完整性场景） |
 | 设计令牌完整性 | `node scripts/verify-token-integrity.mjs` | ✅ 无未定义引用/依赖环 |
 | 后端编译 | `cd backend; mvn -q -DskipTests compile` | ✅ 通过 |
 | AI 模型健康 | `GET /api/ai/health` | ✅ UP；模型加载状态可查 |

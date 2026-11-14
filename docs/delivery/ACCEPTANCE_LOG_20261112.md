@@ -1273,3 +1273,41 @@ tag **`v1.8.10-delivery`** / 源码包 `DisasterGuard-v1.8.10-delivery.zip`
 （SHA256 见 `DisasterGuard-演示材料包-v1.0.zip.sha256`），`MANIFEST.md` 改指 v1.8.10。
 演示前 5 分钟仍需 `APPLY=1` 重跑刷新脚本；P2/P3（marker、模型种子、L-20/L-21、
 AI 落库评分日期旧）维持登记不改代码。仍未关闭同 §Q/§R。
+
+## 49. 2026-11-14 重构轮（阶段 0 + 页面层分页归一化）
+
+### 49.1 范围与性质
+
+- 改动面：**前端 + 质量脚本 + 文档**；后端仅 6 处 TODO 注释补 owner（`git diff` 已核对为纯注释行，零逻辑）。
+- 新增 `frontend/src/api/client.js`：`normalizePage / normalizeList` 纯函数层（14 例单测），
+  `dashboardApi.normalizePaged` 改为单点委托，消除双实现。
+- 页面/组件迁移 9 处：DataSync / DataCatalog / Personnel / WarningDelivery / Ota / NoticeTemplate /
+  TodoCenter / ModelManage / Settings，每处均附**页面级回归 + 变异验证**（改坏实现必有用例失败）。
+- 顺带修复 2 个真实缺陷：
+  1. `PersonnelManagePage.loadPersonnel`：`{records}` 形态把对象当数组 `.map`、`null` 下 TypeError，
+     被 catch 静默转为「人员列表加载失败」；
+  2. `ModelManagePage`：模板 4 处 `<PermissionButton>` 漏 import，Vue 仅 warn、**按钮渲染为空**。
+- 注释门禁加固：只在注释/docstring 文本内匹配（支持 Python 三引号 docstring）、反引号引用不计、
+  selftest 扩到 19 条（含 allowlist 完整性、误报防护、过期提醒）。
+
+### 49.2 门禁实测（2026-11-14，本地）
+
+| 项 | 结果 |
+|---|---|
+| 前端 eslint / stylelint | 0 / 0 |
+| 前端单测 | **168 passed**（20 文件） |
+| SFC 完整性 | **98/98** |
+| 前端生产构建 | 成功 7.16s |
+| 后端 `mvn test` | **149 tests / 0 failures / 0 errors / 4 skipped** |
+| 注释门禁 | 退出 0：命中 15 / owner 6 / allowlist 9 / **裸 0** |
+| 注释门禁自检 | **19/19** |
+
+### 49.3 未执行与边界
+
+- **浏览器冒烟 37/37 未在本轮复跑**：需同时起前端 5173 与后端 8080 + Chrome，
+  本轮无后端逻辑改动，按既有基线引用；演示前请复跑确认。
+- **ai-service pytest 未复跑**：本轮无 AI 代码改动。
+- **源码包 zip 与 SHA256 待在交付侧重新生成**（仓库内无自动打包脚本）。
+- 页面层「猜分页形态」已基本清零；**根因仍是 `dashboardApi` 三种返回风格并存**
+  （`{records}` / `{list}` / 原样透传），统一需单开一轮并配契约测试。
+- tag **`v1.8.12-delivery`**（本地附注标签，沿用既有「仅本地归集、不推送」约定）。
