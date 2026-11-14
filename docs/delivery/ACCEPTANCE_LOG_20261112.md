@@ -1067,7 +1067,57 @@ Edge headless CDP `9222`。仅使用编排文件内标注「仅本机隔离演�
 
 - drift / multimodal 后端代理**仍是显式 501**（L-01/L-08），本轮只做到页面明确提示「能力未接入」，
   没有把 501 包装成真实接口；ai-service 直连 8001 的 drift 端点可用，生产形态接入属二期。
-- 演示数据刷新脚本**只在隔离库验证**（结果：6 在线 / 16 台、预警与灾害点日期均为 2026-11-14），
-  **未在开发库或任何真实环境执行**；执行前须由演示负责人确认目标库并备份。
+- 演示数据刷新脚本在 §四十四轮次**只在隔离库验证**（结果：6 在线 / 16 台、预警与灾害点日期均为 2026-11-14），
+  当时未在开发库执行。→ **已在 §四十五轮次补做**：全库备份后在开发演示库执行，4/4 PASS，
+  并发现 `DeviceOnlineChecker` 5 分钟心跳窗口（演示前需重跑），详见 §45.3。
 - 外部 NSMC/NMC 天气源与地图外链仍有 ORB / 超时（登记 L-20）；页面已有逐产品失败文案，地图仍可渲染。
 - A1 纯人工项、A4 上线日注入、A6-3/A6-4、B6-1/B7-1、状态机 409 契约、Vite 升级及 P2 二期能力不变。
+
+## 四十五、复测遗留项修复（2026-11-14）
+
+### 45.1 复测确认
+
+第二轮真实接口 + 真实浏览器复测确认 `fc41abc` 的 P0 修复全部生效：
+110 个 GET **0 个 500**（仅 2 个显式 501 + 1 个外部气象超时）、41 条路由 **0 个 403**、
+浏览器冒烟 37/37、前端 vitest 77 / eslint 0、新增 3 个后端修复测试通过。
+证据 `output/review-endpoint-scan.json`、`output/review-menu-scan.json`、`output/review-ui/`。
+
+### 45.2 本轮修复
+
+| 复测项 | 文件 | 处理 |
+|---|---|---|
+| 设备地图默认中心仍是成都 | `DeviceMapPage.vue` | 默认中心改重庆 `[106.55,29.56]`；新增 `fitToDevices()` 按真实设备投影坐标算 extent 调 `mapView.fit`，只首次自动执行；增加 DEV-only 诊断句柄供 CDP 断言 |
+| 演示数据未刷新 | `refresh-demo-data.sql` / `verify-demo-data-refresh.mjs` | 全库备份（3,500,997 B + SHA256）后在**开发演示库**执行；6/16 在线、预警/灾害点日期今天、近 24h 轨迹 40；脚本头部写明 5 分钟心跳窗口与重跑要求 |
+| AI 综合研判 27.6s 首屏 | `aiApi.js` / `AiComprehensiveTab.vue` | 新增 `disasterAssessmentCached()` 读落库评分（不触发推理）；两阶段加载：先渲染并标注「落库评分·时间·非实时推理·评分较旧」，后台异步刷新实时研判成功后替换，失败保留缓存 |
+| drift 首屏 501 / 模型页空态 | `ModelManagePage.vue` | 移除顶层无条件 `loadDriftMonitor()`，改为 Tab 懒加载；版本库空态写明「演示库尚未初始化模型版本表」，KPI 全 0 写明「真实统计为空」 |
+
+### 45.3 关键发现（不是缺陷）
+
+- `DeviceOnlineChecker` 每 60s 把「在线且 `last_report_at` 早于 now()-5min」的设备置离线
+  （`application.yml:169-170`）。演示设备不会真的上报，因此刷新出的 6 台在线**约 5 分钟后
+  自然衰减回 0**。这是正确的心跳语义；处理方式是文档化「演示前 5 分钟内重跑刷新脚本」，
+  而不是改调度器或伪造未来时间戳。
+- 「已记录轨迹 0」为真实统计：近 24h 轨迹属于 `DV-002`/`DV-004`（gnss / crack_meter），
+  演示库没有移动设备类型，故 `trajectoryDevices=0`，未伪造移动设备。
+- 落库评分 `ai_comprehensive_score` 最新为 2026-11-06，部分更早；UI 已加「评分较旧」提示，
+  没有把旧评分改写成今天（那等于造假）。`refreshAllNow()` 会逐个调 27s 的 AI 推理，不适合演示保活。
+
+### 45.4 回归证据与门禁
+
+| 脚本 | 结果 |
+|---|---|
+| `verify-demo-data-refresh.mjs`（`APPLY=1`） | **4/4 PASS**：6/16 在线、接口一致、日期今天、近 24h 轨迹 40 |
+| `verify-retest-fixes.mjs`（dev 5173 + CDP） | **17/17 PASS**：marker 16 / 中心重庆 / zoom≈11、AI 首屏 850ms 且标注落库评分、首屏 0 个 501、点 Tab 后 2 个 501 + 「能力未接入」、空态文案、无意外 5xx / 异常 |
+
+证据：`output/delivery-verify/demo-data-refresh.json`、`retest-fixes.json`；截图 `output/retest-fixes/`。
+门禁：eslint 0 / stylelint 全量 0 / vitest **77** / SFC 98 / 令牌 0 / `vite build` 5.71s；
+后端全量 `mvn test` **149 / 0 failures / 0 errors / 4 skipped** + `mvn package` 成功。
+本轮**未改产品后端 Java 代码**。
+
+### 45.5 正式登记的边界
+
+- 预警通知送达率/联动部门统计 → **L-21 二期能力**（需 `notification_record` 聚合 + 部门关联建模），
+  本轮保持「未接入」说明，不做半真半假统计；
+- 总览页约 320 条 `ERR_BLOCKED_BY_ORB`、NSMC/NMC 天气源超时、设备地图右侧空白提示 → **L-20**；
+- UI 设计体系不动：浅/深色对比度 7 页 0 issues、1440 下无横向溢出。
+- 详见 `RETEST_FIX_REPORT.md`、`DELIVERY_BACKLOG.md` §Q。

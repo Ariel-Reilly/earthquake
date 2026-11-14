@@ -115,7 +115,12 @@
   admin 气象页 403、drift 路径与 0 值、预警空白 KPI、灾害列表首屏弹窗全部关闭；
   真实接口 **12/12** + 真实浏览器 **14/14** PASS（7 页面、无意外 5xx / JS 异常 / 横向溢出）；
   见 [REVIEW_FIX_REPORT.md](REVIEW_FIX_REPORT.md) 与 `ACCEPTANCE_LOG` §四十四。
+- **2026-11-14 复测遗留项已回归**：设备地图 `fit` 到真实 16 台设备（中心重庆）、演示数据已在开发演示库
+  刷新并备份（6/16 在线、日期今天）、AI 研判首屏 ~850ms（落库评分 + 异步实时刷新）、drift 首屏 0 个 501；
+  `verify-demo-data-refresh.mjs` **4/4** + `verify-retest-fixes.mjs` **17/17** PASS。
+  见 [RETEST_FIX_REPORT.md](RETEST_FIX_REPORT.md) 与 `ACCEPTANCE_LOG` §四十五。
 - 建议现场按 [DEMO_SCRIPT.md](DEMO_SCRIPT.md) 走一遍，并在试运行环境改密、配置真实地图/AI 服务地址。
-- 演示前若发现「0 在线 / 预警日期过期」，由演示负责人确认目标库并备份后执行
-  `scripts/delivery/refresh-demo-data.sql`（仅 UPDATE、幂等；**本轮只在隔离库验证，未在开发库执行**）。
+- 演示数据已在开发演示库刷新（执行前全库备份 + SHA256）。⚠ `DeviceOnlineChecker` 5 分钟心跳会把
+  在线数自然打回 0，**每场演示前 5 分钟内**重跑 `scripts/delivery/refresh-demo-data.sql`（幂等、只 UPDATE），
+  长时间彩排每 4 分钟重跑；生产/试运行环境不要这样保活。
 - 甲方签字：____________________　日期：____________________

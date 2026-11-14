@@ -20,6 +20,10 @@ const emit = defineEmits(['notify'])
 const kpiLoading = ref(true)
 const kpiUnavailable = ref(false)
 const kpiData = ref({ onlineCount: 0, todayInferences: 0, avgLatency: 0,综合F1: 0 })
+// 接口正常但统计表全为 0 时，明确说明这是「真实统计为零」而不是未接入/接口故障。
+const kpiAllZero = computed(() =>
+  !kpiLoading.value && !kpiUnavailable.value &&
+  Object.values(kpiData.value).every((v) => Number(v) === 0))
 
 // Tab 状态
 const activeTab = ref('versions')
@@ -402,6 +406,16 @@ function selectDriftModel(model) {
   loadDriftMonitor()
 }
 
+// drift 后端代理返回显式 501（L-01/L-08）。首屏（模型版本库 Tab）不发无意义请求，
+// 只有用户点开「漂移监控」Tab 才懒加载一次，消除控制台 501 噪声。
+const driftRequested = ref(false)
+function ensureDriftLoad() {
+  if (!driftRequested.value) {
+    driftRequested.value = true
+    loadDriftMonitor()
+  }
+}
+
 function buildDriftMiniLine() {
   if (!driftTrend.value || driftTrend.value.length < 2) return ''
   const w = 280, h = 50, pad = 4
@@ -419,10 +433,9 @@ function buildDriftMiniLine() {
   return `<polyline points="${coords.join(' ')}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round"/><circle cx="${coords[coords.length - 1].split(',')[0]}" cy="${coords[coords.length - 1].split(',')[1]}" r="3" fill="${color}"/>`
 }
 
-// Initialize
+// Initialize：只设置默认选中模型，不在此触发 drift 请求（改为 Tab 懒加载）。
 if (driftModels.value.length > 0) {
   selectedDriftModel.value = driftModels.value[0]
-  loadDriftMonitor()
 }
 
 onMounted(async () => {
@@ -466,6 +479,9 @@ onMounted(async () => {
     <p v-if="kpiUnavailable" class="kpi-unavailable-note">
       模型统计接口不可用：以上指标显示「未接入」，不把 0 当作真实统计。
     </p>
+    <p v-else-if="kpiAllZero" class="kpi-unavailable-note">
+      模型统计表为空：以上 0 是真实统计值（演示库未初始化模型数据），不是接口故障。
+    </p>
 
     <!-- Tab 切换 -->
     <div class="tab-bar">
@@ -475,7 +491,7 @@ onMounted(async () => {
       <button :class="{ active: activeTab === 'training' }" @click="activeTab = 'training'">
         <Bot :size="15" />训练任务
       </button>
-      <button :class="{ active: activeTab === 'drift' }" @click="activeTab = 'drift'; loadDriftMonitor()">
+      <button :class="{ active: activeTab === 'drift' }" @click="activeTab = 'drift'; ensureDriftLoad()">
         <TrendingUp :size="15" />漂移监控
       </button>
     </div>
@@ -527,7 +543,9 @@ onMounted(async () => {
                 <td colspan="8" class="table-empty">加载中...</td>
               </tr>
               <tr v-else-if="!filteredVersions.length">
-                <td colspan="8" class="table-empty">暂无数据</td>
+                <td colspan="8" class="table-empty">
+                  暂无模型版本数据（演示库尚未初始化模型版本表），非接口故障；导入版本后此处自动显示。
+                </td>
               </tr>
               <tr v-for="m in filteredVersions" :key="m.versionId" class="table-row-hover" @click="openVersionDrawer(m.versionId)">
                 <td><code>{{ m.versionId }}</code></td>

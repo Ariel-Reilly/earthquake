@@ -12,9 +12,16 @@
 -- 幂等性：只 UPDATE 现有记录，不 INSERT、不 DELETE；重复执行只会把时间再刷一遍，
 --         不会累积数据。设备在线数固定为 6 台（按 device_code 排序取前 6）。
 --
--- 用法（隔离库示例）：
---   docker exec -i dg-delivery-verify-postgres psql -U disasterguard -d disasterguard \
+-- 用法（隔离库 / 演示库示例）：
+--   docker exec -i <pg容器> psql -U disasterguard -d disasterguard \
 --     -v ON_ERROR_STOP=1 -f - < scripts/delivery/refresh-demo-data.sql
+--
+-- ⚠ 有效期只有约 5 分钟：后端 `DeviceOnlineChecker` 每 60s 扫描一次，把
+--    「在线且 last_report_at 早于 now()-5min」的设备自动置为离线（application.yml:169-170）。
+--    演示设备不会真的上报，因此脚本执行约 5 分钟后 6 台「在线」会被心跳检查打回离线，
+--    这是**正确的心跳语义**，不是脚本失效。
+--    → 请在每场演示开始前 5 分钟内重新执行本脚本（幂等，可反复跑）；
+--      长时间彩排可每 4 分钟重跑一次。生产/试运行环境不要这样保活。
 
 BEGIN;
 

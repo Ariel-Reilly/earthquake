@@ -264,13 +264,29 @@
 
 - **外部资源**：NSMC/NMC 产品与部分地图瓦片存在 `ERR_BLOCKED_BY_ORB` 或超时；天气页已逐产品
   显示失败原因（如 `no available slot … HTTP 404`），地图仍可渲染；未引入外链代理。
+  2026-11-14 复测总览页约 **320 条** ORB 控制台噪声，属外部依赖边界，不影响核心闭环；
+  设备地图右侧「未选设备」大块空白为演示 polish 项，浅/深色对比度 7 页仍为 0 issues。
 - **drift / multimodal**：后端 `AiDeprecatedGapController` 对 `/api/ai/drift/**`、
   `/api/ai/multimodal/**` 显式返回 501 + `deprecated:true`（L-01/L-08）。前端回退路径已修正为
   `/ai${path}`，501 时页面显示「漂移监控能力未接入」，不再显示 0 值或泛化网络错误。
   ai-service 直连 `8001` 的 drift 端点实测可用；生产形态要真正用上需补同源代理，属二期。
 - **演示数据新鲜度**：开发库设备全部离线、预警/灾害点时间停在 2026-11-06，属演示数据过期而非代码缺陷。
-  `scripts/delivery/refresh-demo-data.sql` 提供幂等刷新（只在隔离库验证过，**未在开发库执行**），
-  执行前须由演示负责人确认目标库并备份。
+  `scripts/delivery/refresh-demo-data.sql` 提供幂等刷新，**2026-11-14 已在开发演示库执行**
+  （执行前完整备份 `output/delivery-verify/dev-db-backup-before-demo-refresh-20261114.sql`）。
+  结果 6/16 在线、预警/灾害点日期为当天；`verify-demo-data-refresh.mjs` 4/4 PASS。
+  ⚠ `DeviceOnlineChecker` 每 60s 把 5 分钟无上报的在线设备置离线，演示设备不会真的上报，
+  因此**约 5 分钟后自然衰减回 0 在线**；每场演示前 5 分钟内重跑脚本即可，长时间彩排每 4 分钟重跑。
+  「已记录轨迹 0」为真实统计（演示库无移动设备类型），未伪造。
+
+### L-21 预警「消息通知送达率 / 联动部门数」统计未接入（正式登记二期）
+
+- **现状**：`WarningDto` 未提供 `notificationRate / deptCount / linkedDepartments` 字段，
+  `WarningsPage` 两张 KPI 显示「未接入 + 原因说明」（2026-11-14 审查 P1-6 修复），
+  不再显示空白 `—`，也不编造数值。
+- **接入条件**：需后端从 `notification_record` 按预警聚合真实送达率，并定义预警与联动部门的
+  关联模型后统计部门数；当前数据库无该关联，需先做数据建模。
+- **结论**：本轮**不做半真半假的聚合**，正式登记为二期能力；演示时按「未接入」说明，
+  不得宣称已具备该统计。证据：`RETEST_FIX_REPORT.md` §二.5。
 
 ---
 

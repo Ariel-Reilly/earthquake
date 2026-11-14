@@ -44,6 +44,39 @@ const report = ref(null)
 const loading = ref(false)
 const loadingSeconds = ref(0)
 let loadingTimer = null
+// 2026-11-14 复测：实时研判约 27.6s。首屏先展示落库评分（带明确时间与来源标识），
+// 实时推理在后台刷新，避免演示时长时间空白；刷新失败仍保留落库评分。
+const fromCache = ref(false)
+const cachedAt = ref('')
+const refreshing = ref(false)
+const refreshError = ref('')
+
+const RISK_TO_CONCERN = {
+  LOW: '稳定', MEDIUM: '关注', HIGH: '预警', CRITICAL: '异常严重',
+}
+// 落库评分可能来自几天前的落库周期，必须提示「较旧」，避免被当成刚算出来的结论。
+const cacheStale = computed(() => {
+  if (!cachedAt.value) return false
+  const t = Date.parse(cachedAt.value)
+  return Number.isFinite(t) && Date.now() - t > 24 * 3600 * 1000
+})
+
+function mapCachedToReport(cached) {
+  return {
+    overall: {
+      riskLevel: cached.riskLevel || 'LOW',
+      riskScore: Number(cached.riskScore ?? 0),
+      concernLabel: RISK_TO_CONCERN[cached.riskLevel] || '未知',
+      analyzedAt: cached.analyzedAt || null,
+    },
+    dimensions: cached.dimensions || {},
+    reasoning: cached.reasoning || [],
+    suggestedActions: cached.suggestedActions || [],
+    feature_contributions: [],
+    disasterType: null,
+    summary: null,
+  }
+}
 
 function stopLoadingTimer() {
   if (loadingTimer) {
@@ -207,18 +240,50 @@ function fmtTime(iso) {
 }
 
 async function loadReport() {
-  if (!props.selectedHazardCode) return
-  loading.value = true
-  loadingSeconds.value = 0
-  startLoadingTimer()
+  const code = props.selectedHazardCode
+  if (!code) return
   errorMsg.value = ''
+  refreshError.value = ''
+  fromCache.value = false
+  cachedAt.value = ''
+  report.value = null
+
+  // 1) 先读落库评分（毫秒级，不触发 AI 推理），让首屏立刻有可解释内容。
   try {
-    report.value = await aiApi.disasterAssessment(props.selectedHazardCode)
+    const cached = await aiApi.disasterAssessmentCached(code)
+    if (props.selectedHazardCode !== code) return // 期间用户切了灾害点
+    report.value = mapCachedToReport(cached)
+    fromCache.value = true
+    cachedAt.value = cached.analyzedAt || ''
+  } catch (_e) {
+    // 没有落库评分（等待 5 分钟落库周期）时，回退到实时推理加载态。
+  }
+
+  // 2) 后台刷新实时研判；已有缓存时不用全屏 loading 遮住内容。
+  if (report.value) {
+    refreshing.value = true
+  } else {
+    loading.value = true
+    startLoadingTimer()
+  }
+  try {
+    const fresh = await aiApi.disasterAssessment(code)
+    if (props.selectedHazardCode !== code) return
+    report.value = fresh
+    fromCache.value = false
+    errorMsg.value = ''
   } catch (err) {
-    errorMsg.value = err?.message || 'AI 灾害评估失败，请稍后重试'
-    report.value = null
+    if (props.selectedHazardCode !== code) return
+    if (report.value) {
+      // 保留落库评分，明确告知实时刷新失败，绝不冒充实时结果。
+      refreshError.value = err?.message || '实时研判失败'
+    } else {
+      errorMsg.value = err?.message || 'AI 灾害评估失败，请稍后重试'
+      report.value = null
+    }
   } finally {
     loading.value = false
+    refreshing.value = false
     stopLoadingTimer()
   }
 }
@@ -401,6 +466,16 @@ onBeforeUnmount(() => {
 
     <!-- 主体内容 -->
     <div v-else-if="report" class="comprehensive-content">
+      <!-- 数据来源标识：落库评分 ≠ 实时推理，避免把缓存结果说成刚算出来的 -->
+      <div class="source-banner" :class="{ 'is-cached': fromCache }" role="status">
+        <template v-if="fromCache">
+          <strong>落库评分</strong> · {{ fmtTime(cachedAt) }}（非实时推理）
+          <span v-if="refreshing"> · 后台实时研判刷新中…</span>
+          <span v-else-if="refreshError" class="source-warn"> · 实时刷新失败：{{ refreshError }}，继续展示落库评分</span>
+          <span v-if="cacheStale" class="source-warn"> · 评分较旧，实时结果刷新后自动替换</span>
+        </template>
+        <template v-else>实时研判结果</template>
+      </div>
       <!-- 综合风险卡片 -->
       <div class="overall-card" :class="`level-${overallLevel.color}`">
         <div class="card-header">
@@ -637,6 +712,25 @@ onBeforeUnmount(() => {
   font-size: 12px;
   line-height: 1.6;
 }
+
+/* 数据来源标识：落库缓存 / 实时推理必须可区分 */
+.source-banner {
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--c-brand-soft);
+  border-radius: var(--r-md);
+  background: var(--c-brand-mist);
+  color: var(--c-text-2);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.source-banner.is-cached {
+  border-color: var(--c-warning);
+  background: var(--c-warning-bg);
+  color: var(--c-warning-ink);
+}
+.source-warn { color: var(--c-danger-strong); }
 
 @keyframes spin {
   from {

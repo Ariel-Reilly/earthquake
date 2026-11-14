@@ -267,6 +267,30 @@ export const aiApi = {
     return payload.data;
   },
 
+  /**
+   * 读取**落库评分**（不触发 AI 实时推理，毫秒级）。
+   *
+   * 2026-11-14 复测：/api/ai/disaster-assessment 实测 27.6s，首屏会长时间空白。
+   * 后端 /api/ai/comprehensive-analysis/cached 直接读 ai_comprehensive_score 表，
+   * 可用于首屏立即展示已有评分；实时推理结果异步刷新后再替换。
+   * 缓存缺失时后端返回 code=404，这里抛错由调用方决定是否走实时推理。
+   *
+   * @param {string} hazardCode
+   * @returns {Promise<object>} 落库评分（riskLevel/riskScore/analyzedAt/dimensions/...）
+   */
+  async disasterAssessmentCached(hazardCode) {
+    const token = getAuthToken();
+    const resp = await fetchApi(
+      `${API_BASE}/ai/comprehensive-analysis/cached?hazardCode=${encodeURIComponent(hazardCode)}`,
+      { headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) } },
+    );
+    if (!resp.ok) {throw new Error(`AI comprehensive-analysis/cached ${resp.status}`);}
+    const payload = await resp.json();
+    if (payload?.code !== 0 || !payload?.data)
+      {throw new Error(payload?.message || "暂无落库评分");}
+    return payload.data;
+  },
+
   /** 获取灾害评估字典（六大类型 + 关注度标签 + 风险等级） */
   async disasterAssessmentStatus() {
     const token = getAuthToken();

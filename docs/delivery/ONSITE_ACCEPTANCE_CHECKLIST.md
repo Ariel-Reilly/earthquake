@@ -28,8 +28,11 @@
 > 巡检中发现的两处后端 500 已用最新源码重启后端**实测 `code=0` 正式关闭**（见第 6 节），现场无需重做。
 > 上述 A1 预检详见 [A1_PREFLIGHT_REPORT.md](A1_PREFLIGHT_REPORT.md)；**A1 各子项并未整体关闭**，
 > 第 2/4/5/8 节列出的真人 / 真机 / 话术项仍须现场执行。
-> **演示数据新鲜度**：若现场看到「0 在线设备 / 预警日期过期」，由演示负责人确认目标库并备份后执行
-> `scripts/delivery/refresh-demo-data.sql`（仅 UPDATE、幂等；本轮只在隔离库验证，未在开发库执行）。
+> **演示数据新鲜度**：`refresh-demo-data.sql` 已先在隔离库验证、随后**在开发演示库执行**
+> （执行前全库备份 `output/delivery-verify/dev-db-backup-before-demo-refresh-20261114.sql` + SHA256），
+> 结果 6/16 在线、预警/灾害点日期为当天，`verify-demo-data-refresh.mjs` 4/4 PASS。
+> ⚠ `DeviceOnlineChecker` 每 60s 把 5 分钟无上报的在线设备置离线，演示设备不会真的上报，
+> 所以**每场演示开始前 5 分钟内必须重跑刷新脚本**（幂等、只 UPDATE），长时间彩排每 4 分钟重跑。
 > 该脚本会改写业务时间戳与设备状态，**生产/试运行环境禁用**。
 
 ---

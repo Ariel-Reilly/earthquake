@@ -191,9 +191,10 @@ async function loadOpenLayers() {
 async function initMap() {
   await loadOpenLayers()
   if (!mapRef.value) return
-  // 默认中心：成都（demo 数据基本都集中在 104.06 / 30.57）
+  // 默认中心：重庆（真实设备集中在 106.4 / 29.5）。历史值 104.065 / 30.575
+  // 是成都 mock 数据坐标，修完 500 后列表已是真实设备，但地图首屏看不到 marker。
   mapView = new ol.View({
-    center: ol.fromLonLat([104.065, 30.575]),
+    center: ol.fromLonLat([106.55, 29.56]),
     zoom: 11,
     minZoom: 4,
     maxZoom: 19,
@@ -224,6 +225,11 @@ async function initMap() {
     view: mapView,
     controls: ol.defaults({ attribution: false }),
   })
+  // 仅开发环境暴露只读诊断句柄，供 CDP 回归脚本断言「视野已 fit 到真实设备范围」；
+  // 生产构建不包含此分支。
+  if (import.meta.env.DEV) {
+    window.__dgDeviceMap = { view: mapView, source: deviceSource }
+  }
 }
 
 function buildDeviceFeatures() {
@@ -259,6 +265,36 @@ function buildDeviceFeatures() {
     }))
     deviceSource.addFeature(feature)
   }
+  fitToDevices()
+}
+
+/**
+ * 首次拿到真实设备后把视野适配到设备范围。
+ *
+ * 历史缺陷：接口 500 被修好后页面仍以成都 demo 坐标为中心，16 台重庆设备全在视野外，
+ * 看起来像「地图没有 marker」。这里用投影后的坐标算 bounding extent 调 fit；
+ * 无有效坐标时回退到重庆默认中心。只自动执行一次，避免刷新覆盖用户手动缩放。
+ */
+let deviceExtentFitted = false
+function fitToDevices() {
+  if (deviceExtentFitted || !mapView || !ol.loaded) return
+  const coords = (deviceMap.value?.devices || [])
+    .filter((d) => Number.isFinite(Number(d.longitude)) && Number.isFinite(Number(d.latitude)))
+    .map((d) => ol.fromLonLat([Number(d.longitude), Number(d.latitude)]))
+  deviceExtentFitted = true
+  if (!coords.length) {
+    mapView.setCenter(ol.fromLonLat([106.55, 29.56]))
+    mapView.setZoom(11)
+    return
+  }
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+  for (const [x, y] of coords) {
+    minX = Math.min(minX, x); minY = Math.min(minY, y)
+    maxX = Math.max(maxX, x); maxY = Math.max(maxY, y)
+  }
+  mapView.fit([minX, minY, maxX, maxY], {
+    padding: [70, 70, 70, 70], duration: 600, maxZoom: 14,
+  })
 }
 
 function selectDevice(code, { fitView = true } = {}) {
