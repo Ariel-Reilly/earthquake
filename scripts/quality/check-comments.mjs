@@ -19,10 +19,13 @@
  *  node scripts/quality/check-comments.mjs --selfcheck     # allowlist 失效即失败（供 CI）
  */
 import { readdirSync, readFileSync } from 'node:fs'
-import { join, extname, relative, dirname } from 'node:path'
+import { join, extname, relative, dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
+// QC_ROOT 仅用于自检脚本注入临时 fixture，生产/CI 不设置此变量。
+const ROOT = process.env.QC_ROOT
+  ? resolve(process.env.QC_ROOT)
+  : join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const TARGETS = ['backend/src', 'frontend/src', 'ai-service/app']
 const EXTS = new Set(['.java', '.js', '.vue', '.py'])
 const SKIP_DIRS = new Set(['node_modules', '.venv', 'dist', 'target', '__pycache__', '.git'])

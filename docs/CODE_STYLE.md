@@ -169,6 +169,12 @@ node scripts/quality/check-comments.mjs --warn --selfcheck
 node scripts/quality/check-comments.mjs --selfcheck
 ```
 
+自检本身也有回归（覆盖 文件缺失 / 片段重复 / 干净 fixture / 真实仓库 4 类，8 个断言）：
+
+```bash
+node scripts/quality/check-comments.selftest.mjs
+```
+
 仅 `@Deprecated` 的替代方案说明仍建议人工抽查：
 
 ```bash
