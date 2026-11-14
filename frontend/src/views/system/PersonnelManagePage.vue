@@ -40,6 +40,7 @@ import {
   WifiOff,
 } from 'lucide-vue-next'
 import { dashboardApi } from '../../services/dashboardApi'
+import { normalizeList } from '../../api/client'
 import { safeMin, safeMax } from '../../utils/safeMinMax'
 
 const loading = ref(false)
@@ -107,7 +108,10 @@ async function loadPersonnel(silent = false) {
   errorMsg.value = ''
   try {
     const data = await dashboardApi.getPersonnel()
-    const list = data.list ?? data ?? []
+    // getPersonnel 会把后端裸数组包装成 { list }，也可能返回 PageResponse{records}；
+    // 旧写法 `data.list ?? data` 在拿到 { records } 时会把对象当数组 .map 抛错，
+    // 统一走 normalizeList 兼容 list/records/items/裸数组/空值。
+    const list = normalizeList(data)
     personnelList.value = list.map((p) => {
       // 离线判定：lastSeen 超过 2 分钟
       const last = p.lastSeen ? new Date(p.lastSeen).getTime() : 0
