@@ -79,14 +79,19 @@ try {
   writeFileSync(
     join(C, 'ai-service/app/routers/multimodal.py'),
     [
+      '"""',
       'TODO: 按 event_id 从融合结果库加载真实记录',
+      '"""',
       '"""x TODO: 从融合结果库加载 y"""',
       '"""x TODO: 从配置库加载 y"""',
     ].join('\n') + '\n',
   )
   writeFileSync(
     join(C, 'ai-service/app/routers/sentinel.py'),
-    ['x TODO 标记在 _cluster_hotspots() 中', 'TODO 真实场景下应替换为连通域分析'].join('\n') + '\n',
+    [
+      '"""x TODO 标记在 _cluster_hotspots() 中 y"""',
+      '"""x TODO 真实场景下应替换为连通域分析 y"""',
+    ].join('\n') + '\n',
   )
   const rc = run(['--warn', '--selfcheck'], C)
   check('C 干净 fixture → 退出 0', rc.status === 0, `status=${rc.status}`)
@@ -136,6 +141,45 @@ try {
   )
   const re3 = run([], E2)
   check('E2 未来日期 → 不报过期（0 处）', /过期 TODO（date < [^）]+）：0 处/.test(out(re3)))
+
+  // F. 代码上下文里的 TODO 不算待办（历史上测试 fixture `const TODO = {...}` 曾把 CI 打红）
+  const F = join(base, 'f')
+  mkdirSync(join(F, 'frontend/src'), { recursive: true })
+  writeFileSync(
+    join(F, 'frontend/src/fixture.spec.js'),
+    [
+      "const TODO = { id: 'T-1' }",
+      "const label = 'TODO: 只是字符串'",
+      '// TODO: 这才是真注释',
+    ].join('\n') + '\n',
+  )
+  const rf = run([], F)
+  check(
+    'F 代码标识符/字符串中的 TODO 不计入（只算 1 处真注释）',
+    /裸标记 1 处/.test(out(rf)),
+    out(rf).split('\n')[1] || '',
+  )
+  check('F 真注释 TODO 仍被检出（fixture.spec.js:3）', /fixture\.spec\.js:3/.test(out(rf)))
+
+  // G. Python：字符串字面量里的 TODO 不算，`#` 注释才算
+  const G = join(base, 'g')
+  mkdirSync(join(G, 'ai-service/app'), { recursive: true })
+  writeFileSync(
+    join(G, 'ai-service/app/sample.py'),
+    ['x = "TODO: 字符串里的"', '# TODO: python 注释里的'].join('\n') + '\n',
+  )
+  const rg = run([], G)
+  check('G Python 字符串里的 TODO 不计入（只算 1 处 # 注释）', /裸标记 1 处/.test(out(rg)), out(rg).split('\n')[1] || '')
+
+  // H. 块注释跨行：javadoc 续行（以 * 开头）里的 TODO 应被检出
+  const H = join(base, 'h')
+  mkdirSync(join(H, 'backend/src'), { recursive: true })
+  writeFileSync(
+    join(H, 'backend/src/Block.java'),
+    ['/**', ' * TODO: javadoc 续行里的待办', ' */', 'class Block {}'].join('\n') + '\n',
+  )
+  const rh = run([], H)
+  check('H javadoc 续行中的 TODO 被检出', /Block\.java:2/.test(out(rh)), out(rh).split('\n')[1] || '')
 } finally {
   rmSync(base, { recursive: true, force: true })
 }

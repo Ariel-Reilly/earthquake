@@ -11,7 +11,7 @@
 - 行数用 `wc -l`；**排除** `node_modules/`、`.venv/`、`dist/`、`target/`、`__pycache__/`。
 - 前端统计 `frontend/src` 下 `.vue/.js/.css`；后端统计 `backend` 下 `.java`（**含测试源**）；AI 统计 `ai-service` 下 `.py`（排除虚拟环境）。
 - 「大文件」阈值：前端 SFC/JS/CSS **≥ 1200 行**、后端 Java **≥ 400 行**、AI Python **≥ 1000 行**。
-- **待办统计口径**：`TODO`/`FIXME` 用**大小写敏感** `\bTODO\b` / `\bFIXME\b`（避免 `todo:view`、`toDouble` 误报）；后端**含测试源**；`@Deprecated` **单独统计**、不计入 TODO。复跑以 `scripts/quality/check-comments.mjs` 为准。
+- **待办统计口径**：`TODO`/`FIXME` 用**大小写敏感** `\bTODO\b` / `\bFIXME\b`（避免 `todo:view`、`toDouble` 误报）；且**只在注释/docstring 文本内匹配**（代码标识符、字符串常量不计，例：测试 fixture `const TODO = {...}`）；后端**含测试源**；`@Deprecated` **单独统计**、不计入 TODO。复跑以 `scripts/quality/check-comments.mjs` 为准。
 
 复现命令示例：
 
@@ -95,7 +95,7 @@ find frontend/src backend ai-service -type f \( -name '*.vue' -o -name '*.js' -o
 
 ## 4. 待办与弃用实测（**远低于方案估算**）
 
-> 口径：大小写敏感 `\bTODO\b` / `\bFIXME\b`；后端含测试源；前端仅 `frontend/src`；AI 仅 `ai-service/app`（排除 `.venv`）；`@Deprecated` 单独统计、不计入 TODO。
+> 口径：大小写敏感 `\bTODO\b` / `\bFIXME\b` 且仅匹配注释/docstring 文本；后端含测试源；前端仅 `frontend/src`；AI 仅 `ai-service/app`（排除 `.venv`）；`@Deprecated` 单独统计、不计入 TODO。
 
 | 标记 | 实测 | 说明 |
 |---|---|---|
@@ -130,7 +130,7 @@ find frontend/src backend ai-service -type f \( -name '*.vue' -o -name '*.js' -o
 
 - **豁免范围**：仅 `drift.py`(4) / `multimodal.py`(3) / `sentinel.py`(2) 的这 9 行；这三个文件里**新增**的 TODO 仍会被判为裸标记。
 - **为何不选方案 A**：其中 4 处是 docstring/prose（`multimodal.py:184/220`、`sentinel.py:799/1177`），强改 `TODO(owner,date,issue)` 会破坏可读性；且后端 6 处若也要求「严格模式通过」需臆造团队/工单，风险更大。
-- **自检**：`--selfcheck` 逐条核对 allowlist 是否仍命中 1 行，失效/重复命中即报错并点名条目（已验证：人为改坏一条 → `8/9 命中` 并精确报出 `sentinel.py` 失效项）。**CI 使用 `--selfcheck`（严格：裸标记 + allowlist 自检）；过渡期才用 `--warn --selfcheck`。** 并配套 `check-comments.selftest.mjs` 回归（13/13：文件缺失 / 片段重复 / 干净 fixture / 清零后严格模式 / 真实仓库 / 过期与未来日期）。
+- **自检**：`--selfcheck` 逐条核对 allowlist 是否仍命中 1 行，失效/重复命中即报错并点名条目（已验证：人为改坏一条 → `8/9 命中` 并精确报出 `sentinel.py` 失效项）。**CI 使用 `--selfcheck`（严格：裸标记 + allowlist 自检）；过渡期才用 `--warn --selfcheck`。** 并配套 `check-comments.selftest.mjs` 回归（**17/17**：文件缺失 / 片段重复 / 干净 fixture / 清零后严格模式 / 真实仓库 / 过期与未来日期 / **代码标识符与字符串不误报（F/G）** / **javadoc 续行仍检出（H）**）。
 - **移除条件**：阶段 2 为这 9 处补 `TODO(ai-team, 日期, #L-01/#L-04)` 后，**删除对应 allowlist 条目**；届时全部 TODO 均为「已带 owner」，裸标记维持 0。
 
 ### 4.3 后端 6 处占位 owner（阶段 1 首项，2026-11-14）

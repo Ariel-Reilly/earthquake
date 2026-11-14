@@ -3,7 +3,8 @@
  * 注释门禁（跨平台，纯 Node，不依赖 grep）。
  *
  * 检查三类问题：
- *  1) 裸 TODO / FIXME：大小写敏感 \bTODO\b / \bFIXME\b。
+ *  1) 裸 TODO / FIXME：大小写敏感 \bTODO\b / \bFIXME\b，且**只在注释/docstring 文本里匹配**
+ *     （代码标识符与字符串常量不算，例：测试 fixture `const TODO = {...}`）。
  *     - 允许带主格式：TODO(owner, 2026-11-20, #123)
  *     - AI 服务 9 处为 KNOWN_LIMITATIONS L-01/L-04 的已知待实现点，走显式 allowlist，
  *       报告中单独列为「豁免」，不计入裸标记；阶段 2 补 owner 后应删除 allowlist。
@@ -70,6 +71,91 @@ function walk(dir, out = []) {
   return out
 }
 
+/**
+ * 生成「整行 → 该行的注释文本」提取器（按文件独立维护块注释/docstring 状态）。
+ *
+ * 为什么必须做这一步：只对整行做 `\bTODO\b` 匹配，会把**代码标识符和字符串**当待办。
+ * 真实踩过：组件测试里的 fixture 常量 `const TODO = {...}` 被判成 5 处裸标记，直接把 CI 打红。
+ *
+ * 覆盖范围（够用且无解析依赖）：
+ *   - .java/.js/.vue：`//` 行注释、块注释（javadoc 的 `*` 续行因此也算）；
+ *   - .py：`#` 行注释、`"""..."""` / `'''...'''` docstring（含单行与跨行）。
+ *
+ * 已知取舍：不做完整词法分析，字符串里出现 `//`、`#`、`"""` 时可能把其后内容当注释。
+ * 这种情况最多造成「多报」，不会漏报真实注释里的 TODO。
+ */
+function makeCommentExtractor(ext) {
+  if (ext === '.py') {
+    let inDoc = false
+    let delim = ''
+    return (line) => {
+      let out = ''
+      let rest = line
+      while (rest.length) {
+        if (inDoc) {
+          const end = rest.indexOf(delim)
+          if (end === -1) {
+            out += rest
+            break
+          }
+          out += rest.slice(0, end)
+          rest = rest.slice(end + 3)
+          inDoc = false
+          delim = ''
+          continue
+        }
+        const hash = rest.indexOf('#')
+        const dq = rest.indexOf('"""')
+        const sq = rest.indexOf("'''")
+        const triples = [dq, sq].filter((i) => i !== -1)
+        const tri = triples.length ? Math.min(...triples) : -1
+        if (hash !== -1 && (tri === -1 || hash < tri)) {
+          out += rest.slice(hash + 1)
+          break
+        }
+        if (tri === -1) break
+        const d = rest.startsWith('"""', tri) ? '"""' : "'''"
+        rest = rest.slice(tri + 3)
+        const end = rest.indexOf(d)
+        if (end === -1) {
+          out += rest
+          inDoc = true
+          delim = d
+          break
+        }
+        out += rest.slice(0, end)
+        rest = rest.slice(end + 3)
+      }
+      return out
+    }
+  }
+  let inBlock = false
+  return (line) => {
+    let out = ''
+    let rest = line
+    if (inBlock) {
+      const end = rest.indexOf('*/')
+      if (end === -1) return rest
+      out += rest.slice(0, end)
+      rest = rest.slice(end + 2)
+      inBlock = false
+    }
+    const block = rest.indexOf('/*')
+    const lineComment = rest.indexOf('//')
+    if (block !== -1 && (lineComment === -1 || block < lineComment)) {
+      const after = rest.slice(block + 2)
+      const end = after.indexOf('*/')
+      if (end === -1) {
+        inBlock = true
+        return out + after
+      }
+      return out + after.slice(0, end)
+    }
+    if (lineComment !== -1) return out + rest.slice(lineComment + 2)
+    return out
+  }
+}
+
 const bare = []
 const allowlisted = []
 const owned = []
@@ -89,19 +175,22 @@ for (const t of TARGETS) {
       continue
     }
     const rel = relative(ROOT, abs).replace(/\\/g, '/')
+    const commentOf = makeCommentExtractor(extname(abs))
     text.split(/\r?\n/).forEach((line, i) => {
+      // 只在注释/docstring 文本里找 TODO，避免代码标识符与字符串误报。
+      const commentText = commentOf(line)
       TODO_RE.lastIndex = 0
       let m
-      while ((m = TODO_RE.exec(line)) !== null) {
+      while ((m = TODO_RE.exec(commentText)) !== null) {
         total++
         const rec = { file: rel, line: i + 1, marker: m[1], text: line.trim() }
         const hit = ALLOWLIST.find((a) => a.file === rel && line.includes(a.snippet))
         if (hit) {
           hit.matched++
           allowlisted.push(rec)
-        } else if (OWNED_RE.test(line)) {
+        } else if (OWNED_RE.test(commentText)) {
           owned.push(rec)
-          const dm = /(?:TODO|FIXME)\(\s*[^,()]+,\s*(\d{4})-(\d{2})-(\d{2})\s*,/.exec(line)
+          const dm = /(?:TODO|FIXME)\(\s*[^,()]+,\s*(\d{4})-(\d{2})-(\d{2})\s*,/.exec(commentText)
           if (dm) {
             const d = `${dm[1]}-${dm[2]}-${dm[3]}`
             if (d < TODAY) overdue.push({ file: rel, line: i + 1, date: d, text: line.trim() })

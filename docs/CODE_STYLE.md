@@ -151,7 +151,8 @@ node scripts/quality/check-comments.mjs --warn
 node scripts/quality/check-comments.mjs
 ```
 
-脚本规则：大小写敏感 `\bTODO\b` / `\bFIXME\b`；允许 `TODO(owner, 2026-11-20, #123)`；输出区分「已带 owner / allowlist 豁免 / 裸标记」三档；AI 9 处按 `INVENTORY §4.2` 豁免；默认裸标记 > 0 即失败。
+脚本规则：**只在注释 / docstring 文本内**匹配（代码标识符与字符串常量不算，例：测试 fixture `const TODO = {...}` 不计入）；大小写敏感 `\bTODO\b` / `\bFIXME\b`；允许 `TODO(owner, 2026-11-20, #123)`；输出区分「已带 owner / allowlist 豁免 / 裸标记」三档；AI 9 处按 `INVENTORY §4.2` 豁免；默认裸标记 > 0 即失败。
+覆盖范围：`.java/.js/.vue` 的 `//` 与块注释（含 javadoc `*` 续行）；`.py` 的 `#` 与 `""" / '''` docstring（含跨行）。已知取舍：不做完整词法分析，字符串里出现 `//`、`#`、`"""` 时可能「多报」，不会漏报真实注释。
 
 同一脚本还检查**注释掉的旧代码**（`.js/.vue/.java` 的 `// 关键字`），默认只报告，`--strict-legacy` 才阻断：
 
