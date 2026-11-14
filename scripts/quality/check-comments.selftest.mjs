@@ -180,6 +180,17 @@ try {
   )
   const rh = run([], H)
   check('H javadoc 续行中的 TODO 被检出', /Block\.java:2/.test(out(rh)), out(rh).split('\n')[1] || '')
+
+  // I. 反引号包裹的关键字属「引用」而非标记（写规则说明时常见）
+  const I = join(base, 'i')
+  mkdirSync(join(I, 'frontend/src'), { recursive: true })
+  writeFileSync(
+    join(I, 'frontend/src/rule.js'),
+    ['// 说明：`TODO` 只是被引用的关键字，不是待办', '// TODO: 这才是真标记'].join('\n') + '\n',
+  )
+  const ri = run([], I)
+  check('I 反引号内的关键字不计数（只算 1 处真标记）', /裸标记 1 处/.test(out(ri)), out(ri).split('\n')[1] || '')
+  check('I 真标记仍被检出（rule.js:2）', /rule\.js:2/.test(out(ri)))
 } finally {
   rmSync(base, { recursive: true, force: true })
 }

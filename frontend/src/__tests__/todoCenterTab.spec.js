@@ -9,7 +9,7 @@
  * 依赖隔离：`vue-router` 的 `useRouter().push` 只在点开待办时用到，这里 mock 掉。
  *
  * 注：fixture 常量故意命名为 `TODO`——它同时也是注释门禁的「误报回归样本」：
- * `check-comments.mjs` 只在注释/docstring 内匹配 TODO，代码标识符不应被计入
+ * `check-comments.mjs` 只在注释/docstring 内匹配标记词，代码标识符不应被计入
  * （selftest 的 F/G 场景与此对应）。改名会让这条真实样本消失，请勿重命名。
  */
 import { flushPromises, mount } from '@vue/test-utils'

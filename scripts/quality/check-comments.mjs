@@ -182,6 +182,11 @@ for (const t of TARGETS) {
       TODO_RE.lastIndex = 0
       let m
       while ((m = TODO_RE.exec(commentText)) !== null) {
+        // 反引号包裹的是「被引用的关键字/标识符」（如文档里解释规则时写 `TODO`），
+        // 属提及而非待办标记，不计入。
+        if (commentText[m.index - 1] === '`' || commentText[m.index + m[0].length] === '`') {
+          continue
+        }
         total++
         const rec = { file: rel, line: i + 1, marker: m[1], text: line.trim() }
         const hit = ALLOWLIST.find((a) => a.file === rel && line.includes(a.snippet))
