@@ -134,7 +134,7 @@ export function formatWarningTime(warning, timeZone) {}
 
 - [ ] 新增/修改的 `public` class / method：Javadoc / JSDoc 覆盖率 **100%**；
 - [ ] 每个新增文件有文件头（职责 + 关键约束），纯 DTO/常量可豁免；
-- [ ] 全仓**无裸 TODO**（缺 owner/date/issue）、**无注释掉的旧代码**、**无过期日期叙述**；
+- [ ] 全仓**无未登记裸 TODO**（缺 owner/date/issue）、**无注释掉的旧代码**、**无过期日期叙述**；其中 AI 9 处为 L-01/L-04 已知边界，已在 `INVENTORY §4.2` 显式 allowlist 豁免，阶段 2 补 owner 后移除；
 - [ ] 所有 `@Deprecated` 带替代方案与移除计划；
 - [ ] 所有「未实现/未接入/演示」点使用第 4 节标记词，且前后端表现一致（不冒充真实）；
 - [ ] Code review 抽查 20 个文件，注释与实现**一致率 100%**。
@@ -151,16 +151,18 @@ node scripts/quality/check-comments.mjs --warn
 node scripts/quality/check-comments.mjs
 ```
 
-脚本规则：大小写敏感 `\bTODO\b` / `\bFIXME\b`；允许 `TODO(owner, 2026-11-20, #123):`；输出 `文件:行` + 标记 + 文本；默认裸标记 > 0 即失败。
+脚本规则：大小写敏感 `\bTODO\b` / `\bFIXME\b`；允许 `TODO(owner, 2026-11-20, #123)`；AI 9 处按 `INVENTORY §4.2` 的 allowlist 报告为「豁免」；默认裸标记 > 0 即失败。
 
-其余两项仍建议人工抽查（少量，可跨平台失效时改用编辑器全局搜索）：
+同一脚本还检查**注释掉的旧代码**（`.js/.vue/.java` 的 `// 关键字`），默认只报告，`--strict-legacy` 才阻断：
 
 ```bash
-# @Deprecated 是否都带替代方案与移除计划
-grep -rn '@Deprecated' backend/src --include='*.java'
+node scripts/quality/check-comments.mjs --strict-legacy
+```
 
-# 注释掉的旧代码
-grep -rnE '^\s*//\s*(public|private|function|const|return)' frontend/src
+仅 `@Deprecated` 的替代方案说明仍建议人工抽查：
+
+```bash
+grep -rn '@Deprecated' backend/src --include='*.java'
 ```
 
 > 本阶段只制定规范，**不批量改存量**。存量按「阶段 1 低风险清理」逐模块对齐，每模块单独 PR + 单测 + 截图。

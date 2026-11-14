@@ -119,7 +119,19 @@ find frontend/src backend ai-service -type f \( -name '*.vue' -o -name '*.js' -o
 
 > 结论：AI 这 9 处**不应按「裸 TODO 清理」处理**，而是待实现点，归入 `docs/delivery/KNOWN_LIMITATIONS.md` 的 **L-01**（drift/multimodal）与 **L-04**（卫星影像）。**真正需要按规范补 owner 的裸 TODO 是后端 6 处。**
 
-> ⚠ 方案里写的「TODO/FIXME/@Deprecated 211 处 / 52 文件」**不成立**（属宽匹配误报，如 `todo:view`、`toDouble`）。实测 `TODO` **15** + `@Deprecated` **6**。**任务 1「清裸 TODO」工作量很小（后端 6 处）；AI 9 处按已知边界登记即可。**
+### 4.2 门禁脚本的豁免项与移除条件（方案 B）
+
+`scripts/quality/check-comments.mjs` 对上述 **AI 9 处**做**显式 allowlist**（按 `文件 + 行内片段` 精确匹配，**非整文件豁免**），运行输出：
+
+```text
+命中 15 处；豁免 9 处（L-01/L-04 已知待实现点）；裸标记 6 处
+```
+
+- **豁免范围**：仅 `drift.py`(4) / `multimodal.py`(3) / `sentinel.py`(2) 的这 9 行；这三个文件里**新增**的 TODO 仍会被判为裸标记。
+- **为何不选方案 A**：其中 4 处是 docstring/prose（`multimodal.py:184/220`、`sentinel.py:799/1177`），强改 `TODO(owner,date,issue)` 会破坏可读性；且后端 6 处若也要求「严格模式通过」需臆造团队/工单，风险更大。
+- **移除条件**：阶段 2 为这 9 处补 `TODO(ai-team, 日期, #L-01/#L-04)` 后，**删除对应 allowlist 条目**；届时裸标记应只剩后端 6（阶段 1 补 owner 后归零）。
+
+> ⚠ 方案里写的「TODO/FIXME/@Deprecated 211 处 / 52 文件」**不成立**（属宽匹配误报，如 `todo:view`、`toDouble`）。实测 `TODO` **15** + `@Deprecated` **6** = **21**。**任务 1「清裸 TODO」工作量很小（后端 6 处）；AI 9 处按 §4.2 豁免登记。**
 
 ---
 
@@ -202,7 +214,7 @@ find frontend/src backend ai-service -type f \( -name '*.vue' -o -name '*.js' -o
 | 后端规模 | 337 文件 / 33,233 行 | **363 / 41,702** | 方案偏小（含测试/或旧快照） |
 | 前端规模 | 155 / 88,901 | **153 / 101,283** | 方案偏小 |
 | AI 规模 | 79 / 13,952 | **80 / 21,427** | 方案偏小（可能未含部分模块） |
-| TODO/FIXME/@Deprecated | 211 处 / 52 文件 | **12**（TODO 6 + @Dep 6） | **方案高估**，不需单列任务 |
+| TODO/FIXME/@Deprecated | 211 处 / 52 文件（宽匹配误报） | **21**（TODO 15 + @Deprecated 6） | **方案高估**；但 AI 9 处需按 §4.2 登记豁免 |
 | `PageResponse` | 「统一为…」（暗示新建） | **已存在且已统一** | 任务改为「推广/归一化」 |
 | `AiController` | 871 行 | **1,016 行** | 已增长，拆分优先级更高 |
 | 501 面 | 多处 | **HTTP 501 仅 2 端点**，其余为 `ApiResponse.fail(501)`/文案 | 治理面小、集中 |
