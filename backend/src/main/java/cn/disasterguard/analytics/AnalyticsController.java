@@ -1,6 +1,8 @@
 package cn.disasterguard.analytics;
 
 import cn.disasterguard.common.api.ApiResponse;
+import java.sql.Timestamp;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -11,7 +13,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ThreadLocalRandom;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -21,6 +23,12 @@ import org.springframework.security.access.prepost.PreAuthorize;
 @RestController
 @RequestMapping("/api/analytics")
 public class AnalyticsController {
+
+  private final JdbcTemplate jdbcTemplate;
+
+  public AnalyticsController(JdbcTemplate jdbcTemplate) {
+    this.jdbcTemplate = jdbcTemplate;
+  }
 
   /**
    * AI 巡检报告。
@@ -145,98 +153,236 @@ public class AnalyticsController {
   ) {
     String safeMode = "side".equals(mode) || "overlay".equals(mode) || "delta".equals(mode)
         ? mode : "side";
-
-    TimeWindow baseWindow = parseWindow("base", base, Instant.now(), 24);
-    TimeWindow cmpWindow = "previous".equalsIgnoreCase(compare)
-        ? baseWindow.previous()
-        : parseWindow("compare", compare, baseWindow.from, baseWindow.bucketHours());
-
-    long seed = (baseWindow.from.toEpochMilli() ^ cmpWindow.from.toEpochMilli())
-        + safeMode.hashCode();
-    ThreadLocalRandom rnd = ThreadLocalRandom.current();
-
-    // 单调序列
-    List<Map<String, Object>> baseSeries = buildHourlySeries(baseWindow, 60 + rnd.nextInt(80), seed, 1);
-    List<Map<String, Object>> compareSeries = buildHourlySeries(cmpWindow, 60 + rnd.nextInt(80), seed, 2);
-
-    // KPI 矩阵
-    int baseIncidents = 18 + (int) (Math.abs(seed) % 20);
-    int cmpIncidents = Math.max(2, (int) Math.round(baseIncidents * (0.7 + (Math.abs(seed / 3) % 80) / 100.0)));
-    int baseWarnings = 12 + (int) (Math.abs(seed / 7) % 18);
-    int cmpWarnings = Math.max(2, (int) Math.round(baseWarnings * (0.7 + (Math.abs(seed / 11) % 80) / 100.0)));
-    int baseHazards = 25 + (int) (Math.abs(seed / 13) % 25);
-    int cmpHazards = Math.max(2, (int) Math.round(baseHazards * (0.7 + (Math.abs(seed / 17) % 80) / 100.0)));
-    int baseDevices = 90 + (int) (Math.abs(seed / 19) % 30);
-    int cmpDevices = Math.max(2, (int) Math.round(baseDevices * (0.7 + (Math.abs(seed / 23) % 80) / 100.0)));
-
-    List<Map<String, Object>> kpis = new ArrayList<>(4);
-    kpis.add(buildKpi("incidentTotal", "事件总数", "起", baseIncidents, cmpIncidents, false));
-    kpis.add(buildKpi("warningTotal", "预警总数", "条", baseWarnings, cmpWarnings, false));
-    kpis.add(buildKpi("hazardTotal", "隐患总数", "处", baseHazards, cmpHazards, false));
-    kpis.add(buildKpi("deviceOnline", "在线设备", "台", baseDevices, cmpDevices, true));
-
-    // 类别分布
-    String[] catKeys = {"位移异常", "裂缝扩展", "雨量阈值", "设备离线"};
-    Map<String, Object> categories = new LinkedHashMap<>();
-    for (int i = 0; i < catKeys.length; i++) {
-      int b = 8 + (int) ((seed + i * 7) % 30);
-      int c = Math.max(1, (int) Math.round(b * (0.6 + (Math.abs(seed / (i + 1)) % 80) / 100.0)));
-      categories.put(catKeys[i], Map.of("base", b, "compare", c));
+    Instant now = Instant.now();
+    TimeWindow baseWindow = parseWindow("base", base, now, 24);
+    TimeWindow cmpWindow;
+    if ("previous".equalsIgnoreCase(compare)) {
+      cmpWindow = baseWindow.previous();
+    } else if ("lastYear".equalsIgnoreCase(compare)) {
+      cmpWindow = baseWindow.shiftYears(-1);
+    } else {
+      cmpWindow = parseWindow("compare", compare, baseWindow.from, baseWindow.bucketHours());
     }
 
-    // 区域分布
-    String[] regionKeys = {"龙安镇", "石桥镇", "清河镇", "白石乡", "中心区"};
-    Map<String, Object> regions = new LinkedHashMap<>();
-    for (int i = 0; i < regionKeys.length; i++) {
-      int b = 4 + (int) ((seed + i * 11) % 25);
-      int c = Math.max(1, (int) Math.round(b * (0.6 + (Math.abs(seed / (i + 3)) % 80) / 100.0)));
-      regions.put(regionKeys[i], Map.of("base", b, "compare", c));
-    }
+    WindowStats baseStats = loadWindow(baseWindow);
+    WindowStats cmpStats = loadWindow(cmpWindow);
 
-    // series：用于折线/柱图
-    List<Map<String, Object>> series = new ArrayList<>(3);
-    series.add(Map.of(
-        "key", "incident",
-        "label", "事件趋势",
-        "points", baseSeries
-    ));
-    series.add(Map.of(
-        "key", "warning",
-        "label", "预警趋势",
-        "points", compareSeries
-    ));
+    List<Map<String, Object>> kpis = new ArrayList<>(6);
+    kpis.add(kpi("incidentTotal", "事件总数", "起",
+        baseStats.events, cmpStats.events, false));
+    kpis.add(kpi("disposalRate", "处置率", "%",
+        baseStats.disposalRate, cmpStats.disposalRate, true));
+    kpis.add(kpi("avgHandleMinutes", "平均处置时长", "分钟",
+        baseStats.avgHandleMinutes, cmpStats.avgHandleMinutes, false));
+    kpis.add(kpi("onlineRate", "在线设备率", "%",
+        baseStats.onlineRate, cmpStats.onlineRate, true));
+    kpis.add(kpi("falseAlarmRate", "误报率", "%",
+        baseStats.falseAlarmRate, cmpStats.falseAlarmRate, false));
+    kpis.add(kpi("activeUsers", "用户活跃", "人",
+        baseStats.activeUsers, cmpStats.activeUsers, true));
 
     Map<String, Object> response = new LinkedHashMap<>();
-    response.put("base", Map.of(
-        "label", baseWindow.label,
-        "range", Map.of("from", baseWindow.from, "to", baseWindow.to),
-        "totals", Map.of(
-            "events", baseIncidents,
-            "warnings", baseWarnings,
-            "hazards", baseHazards,
-            "devices", baseDevices
-        )
+    response.put("base", windowPayload(baseWindow, baseStats));
+    response.put("compare", windowPayload(cmpWindow, cmpStats));
+    response.put("series", Map.of(
+        "base", baseStats.series,
+        "compare", cmpStats.series
     ));
-    response.put("compare", Map.of(
-        "label", cmpWindow.label,
-        "range", Map.of("from", cmpWindow.from, "to", cmpWindow.to),
-        "totals", Map.of(
-            "events", cmpIncidents,
-            "warnings", cmpWarnings,
-            "hazards", cmpHazards,
-            "devices", cmpDevices
-        )
+    response.put("spark", Map.of(
+        "base", downsample(baseStats.series, 16),
+        "compare", downsample(cmpStats.series, 16)
     ));
-    response.put("series", series);
     response.put("kpis", kpis);
-    response.put("categories", categories);
-    response.put("regions", regions);
+    response.put("categories", mergeCounts(baseStats.categories, cmpStats.categories));
+    response.put("regions", mergeRegions(baseStats.regionCounts, cmpStats.regionCounts));
     response.put("mode", safeMode);
-    // 与巡检报告一致：时间对比当前同样是按时间窗口生成的演示数据，必须显式标注
-    response.put("synthetic", true);
-    response.put("dataSource", "SIMULATED");
-    response.put("note", "时间对比接口当前未接入真实总量统计，数据为按时间窗口生成的演示数据");
+    response.put("synthetic", false);
+    response.put("dataSource", "DATABASE");
+    response.put("note", "基于 unified_event / warning_event / hazard_point / operation_log / monitoring_device 实时聚合");
     return ApiResponse.success(response);
+  }
+
+  /** 加载一个时间窗口的真实聚合指标。 */
+  private WindowStats loadWindow(TimeWindow window) {
+    WindowStats s = new WindowStats();
+    Timestamp from = Timestamp.from(window.from);
+    Timestamp to = Timestamp.from(window.to);
+    s.events = count(
+        "select count(*) from unified_event where created_at >= ? and created_at < ?", from, to);
+    s.warnings = count(
+        "select count(*) from warning_event where triggered_at >= ? and triggered_at < ?", from, to);
+    s.hazards = count(
+        "select count(*) from hazard_point where discovered_at >= ? and discovered_at < ?", from, to);
+    s.devices = count("select count(*) from monitoring_device");
+    s.onlineDevices = count(
+        "select count(*) from monitoring_device where lower(online_status) = 'online'");
+    s.activeUsers = count(
+        "select count(distinct operator) from operation_log where created_at >= ? and created_at < ?",
+        from, to);
+    long closedEvents = count(
+        "select count(*) from unified_event where state = 'CLOSED' "
+            + "and created_at >= ? and created_at < ?", from, to);
+    long autoResolved = count(
+        "select count(*) from warning_event where coalesce(auto_resolved, false) "
+            + "and triggered_at >= ? and triggered_at < ?", from, to);
+    s.disposalRate = ratio(closedEvents, s.events);
+    s.onlineRate = ratio(s.onlineDevices, s.devices);
+    s.falseAlarmRate = ratio(autoResolved, s.warnings);
+    Double avg = jdbcTemplate.queryForObject(
+        "select avg(extract(epoch from (last_transition_at - created_at)) / 60.0) "
+            + "from unified_event where state = 'CLOSED' "
+            + "and last_transition_at >= ? and last_transition_at < ?",
+        Double.class, from, to);
+    s.avgHandleMinutes = avg == null ? 0 : round1(avg);
+    s.series = buildSeries(window, "unified_event", "created_at");
+    s.categories = countsBy(
+        "select hazard_type as k, count(*) as cnt from unified_event "
+            + "where created_at >= ? and created_at < ? and hazard_type is not null "
+            + "group by hazard_type",
+        from, to);
+    s.regionCounts = countsBy(
+        "select coalesce(region_code, '未分区') as k, count(*) as cnt from unified_event "
+            + "where created_at >= ? and created_at < ? group by region_code",
+        from, to);
+    return s;
+  }
+
+  private long count(String sql, Object... args) {
+    Long v = jdbcTemplate.queryForObject(sql, Long.class, args);
+    return v == null ? 0 : v;
+  }
+
+  private Map<String, Integer> countsBy(String sql, Object... args) {
+    Map<String, Integer> out = new LinkedHashMap<>();
+    for (Map<String, Object> row : jdbcTemplate.queryForList(sql, args)) {
+      out.put(String.valueOf(row.get("k")), ((Number) row.get("cnt")).intValue());
+    }
+    return out;
+  }
+
+  /** 按小时（≤48h）或按天（更长窗口）分桶的真实计数序列；最多 48 个桶。 */
+  private List<Integer> buildSeries(TimeWindow window, String table, String timeColumn) {
+    long spanSeconds = Math.max(1, Duration.between(window.from, window.to).getSeconds());
+    long bucketSeconds = spanSeconds > 48 * 3600L ? 86400L : 3600L;
+    long start = window.from.getEpochSecond() - Math.floorMod(window.from.getEpochSecond(), bucketSeconds);
+    long end = window.to.getEpochSecond();
+    int size = (int) Math.max(1, Math.min(48, (end - start) / bucketSeconds + 1));
+    int[] counts = new int[size];
+    for (Timestamp ts : jdbcTemplate.queryForList(
+        "select " + timeColumn + " from " + table
+            + " where " + timeColumn + " >= ? and " + timeColumn + " < ?",
+        Timestamp.class, Timestamp.from(window.from), Timestamp.from(window.to))) {
+      long idx = (ts.getTime() / 1000 - start) / bucketSeconds;
+      if (idx >= 0 && idx < size) {
+        counts[(int) idx]++;
+      }
+    }
+    List<Integer> out = new ArrayList<>(size);
+    for (int v : counts) {
+      out.add(v);
+    }
+    return out;
+  }
+
+  private static List<Integer> downsample(List<Integer> values, int n) {
+    List<Integer> out = new ArrayList<>(n);
+    if (values.isEmpty()) {
+      for (int i = 0; i < n; i++) {
+        out.add(0);
+      }
+      return out;
+    }
+    for (int i = 0; i < n; i++) {
+      int idx = (int) Math.round(i * (values.size() - 1.0) / (n - 1));
+      out.add(values.get(idx));
+    }
+    return out;
+  }
+
+  private static Map<String, Object> windowPayload(TimeWindow window, WindowStats stats) {
+    Map<String, Object> totals = new LinkedHashMap<>();
+    totals.put("events", stats.events);
+    totals.put("warnings", stats.warnings);
+    totals.put("hazards", stats.hazards);
+    totals.put("devices", stats.devices);
+    Map<String, Object> payload = new LinkedHashMap<>();
+    payload.put("key", window.label);
+    payload.put("label", window.label);
+    payload.put("range", Map.of("from", window.from, "to", window.to));
+    payload.put("totals", totals);
+    return payload;
+  }
+
+  private static List<Map<String, Object>> mergeCounts(
+      Map<String, Integer> base, Map<String, Integer> compare) {
+    java.util.LinkedHashSet<String> keys = new java.util.LinkedHashSet<>(base.keySet());
+    keys.addAll(compare.keySet());
+    List<Map<String, Object>> rows = new ArrayList<>(keys.size());
+    for (String key : keys) {
+      Map<String, Object> row = new LinkedHashMap<>();
+      row.put("key", key);
+      row.put("label", key);
+      row.put("base", base.getOrDefault(key, 0));
+      row.put("compare", compare.getOrDefault(key, 0));
+      rows.add(row);
+    }
+    return rows;
+  }
+
+  private List<Map<String, Object>> mergeRegions(
+      Map<String, Integer> base, Map<String, Integer> compare) {
+    Map<String, String> names = new LinkedHashMap<>();
+    for (Map<String, Object> row : jdbcTemplate.queryForList(
+        "select region_code, region_name from region")) {
+      names.put(String.valueOf(row.get("region_code")), String.valueOf(row.get("region_name")));
+    }
+    java.util.LinkedHashSet<String> keys = new java.util.LinkedHashSet<>(base.keySet());
+    keys.addAll(compare.keySet());
+    List<Map<String, Object>> rows = new ArrayList<>(keys.size());
+    for (String key : keys) {
+      Map<String, Object> row = new LinkedHashMap<>();
+      row.put("name", names.getOrDefault(key, key));
+      row.put("base", base.getOrDefault(key, 0));
+      row.put("compare", compare.getOrDefault(key, 0));
+      rows.add(row);
+    }
+    return rows;
+  }
+
+  private static Map<String, Object> kpi(
+      String key, String label, String unit, double base, double compare, boolean higherIsBetter) {
+    double delta = round1(compare - base);
+    double deltaPercent = base == 0 ? 0 : round1(delta * 100 / base);
+    Map<String, Object> m = new LinkedHashMap<>();
+    m.put("key", key);
+    m.put("label", label);
+    m.put("unit", unit);
+    m.put("base", round1(base));
+    m.put("compare", round1(compare));
+    m.put("delta", delta);
+    m.put("deltaPercent", deltaPercent);
+    m.put("higherIsBetter", higherIsBetter);
+    return m;
+  }
+
+  private static double ratio(long numerator, long denominator) {
+    return denominator == 0 ? 0 : round1(numerator * 100.0 / denominator);
+  }
+
+  private static final class WindowStats {
+    long events;
+    long warnings;
+    long hazards;
+    long devices;
+    long onlineDevices;
+    long activeUsers;
+    double disposalRate;
+    double onlineRate;
+    double falseAlarmRate;
+    double avgHandleMinutes;
+    List<Integer> series = List.of();
+    Map<String, Integer> categories = Map.of();
+    Map<String, Integer> regionCounts = Map.of();
   }
 
   // 工具方法
@@ -401,6 +547,13 @@ public class AnalyticsController {
       Instant prevTo = from.minusSeconds(1);
       Instant prevFrom = prevTo.minusSeconds(spanSec);
       return new TimeWindow("previous", prevFrom, prevTo);
+    }
+
+    /** 同比：整体平移 N 年（lastYear 对比）。 */
+    TimeWindow shiftYears(int years) {
+      Instant f = from.atZone(ZoneOffset.UTC).plusYears(years).toInstant();
+      Instant t = to.atZone(ZoneOffset.UTC).plusYears(years).toInstant();
+      return new TimeWindow(years == -1 ? "lastYear" : label + years, f, t);
     }
   }
 

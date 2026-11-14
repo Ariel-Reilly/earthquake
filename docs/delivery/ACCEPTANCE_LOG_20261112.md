@@ -863,3 +863,50 @@ Edge headless CDP 9222 → nginx(dist) 25173（Origin 改写 + Cesium CSP）
 - 前端：eslint 0 / vitest **69 passed** / build 成功 / SFC **98/98** / stylelint **0** /
   浏览器 **37/37 PASS**；
 - 后端：仅 CORS 默认值与配置注释改动，重启后健康、预检、登录均正常。
+
+---
+
+## 四十、B6-2 时间对比真实统计 + 契约对齐（2026-11-14）
+
+### 40.1 问题
+
+- `GET /api/analytics/compare` 原为确定性随机模拟（`synthetic:true`），且返回结构与前端
+  `OverviewPage` 消费契约不一致：
+  - 后端 `categories`/`regions` 是对象、`series` 是数组；
+  - 前端期望 `categories`/`regions` 数组、`series`/`spark` 为 `{base, compare}`。
+- 结果：即使接口 200，多时相对比页面的 KPI/图表也无法正确渲染真实数据。
+
+### 40.2 实现
+
+- 后端改为真实 SQL 聚合（`JdbcTemplate`）：
+  - 事件数：`unified_event.created_at`；预警数：`warning_event.triggered_at`；
+    隐患数：`hazard_point.discovered_at`；设备数：`monitoring_device`；
+  - 处置率：窗口内 `state='CLOSED'` / 事件总数；
+  - 平均处置时长：`last_transition_at - created_at`（分钟）；
+  - 在线设备率：`online_status='online'` / 设备总数；
+  - 误报率：`auto_resolved=true` / 预警数；
+  - 用户活跃：`operation_log` 窗口内 distinct operator；
+  - 灾种/区域分布：`unified_event.hazard_type / region_code`（region 表映射名称）；
+  - 趋势/Spark：按小时（≤48h）或按天分桶的真实计数。
+- 支持 `previous`、`lastYear`、`custom:from,to` 窗口；响应 `synthetic:false`、
+  `dataSource:"DATABASE"`，并说明聚合来源。
+- 巡检报告 `inspection-report` **仍保留模拟**：缺少误报/漏报/混淆矩阵 ground truth，
+  不伪造真实值，继续显式 `synthetic:true` + 前端"演示数据"标注。
+
+### 40.3 验证
+
+- API（7d / previous）：
+  - 后端返回 `events=4 / warnings=39 / hazards=4 / devices=16`；
+  - SQL 直接查询 `now()-14d ~ now()-7d` 同窗口：`4 / 39 / 4 / 16`，**完全一致**；
+  - `synthetic=false / dataSource=DATABASE`；6 个 KPI、categories/regions/series/spark 结构完整。
+- 浏览器（`output/diag-compare.mjs`）：
+  - 打开「多时相对比」Tab：**6 个 KPI 卡片 + 2 个趋势图 polyline** 正常渲染；
+  - 无 "演示数据" 文案、无加载错误、无 `Failed to fetch`；
+  - 截图：`output/delivery-verify/analytics-compare-real.png`。
+- 其他窗口（24h / lastYear）接口 code=0、结构正确；24h 无数据时返回 0 而非模拟值（诚实）。
+
+### 40.4 边界
+
+- 巡检报告仍为模拟（见 L-17）；如需真实误报/漏报，需先确定 ground truth 数据来源。
+- `disposalRate` / `falseAlarmRate` 是当前可用字段的近似口径，已在 `KNOWN_LIMITATIONS.md` 说明；
+  不应在验收话术里表述为"官方统计口径"。

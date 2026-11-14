@@ -16,7 +16,7 @@
 | 「我的工作台」纯占位（统计全 0、无接口） | 改为真实 `/tasks` + `/todo/summary` 数据，失败显示"—"与错误提示；新增指挥大屏/移动端/预警/巡检快捷入口 | `frontend/src/views/system/WorkbenchPage.vue` |
 | 前端 eslint 14 处存量错误 | 已全部清零（`no-console` 删除调试日志、`curly` 自动修复）；CI 全量 lint 从 advisory 翻转为阻断 | `.github/workflows/frontend-ci.yml`；`npx eslint src/` 退出码 0 |
 | 实时地图时间轴"回放"只弹提示不换数据 | 显式禁用播放/拖动并标注"演示刻度，历史回放待后端接口"，不再伪装成可用功能 | `frontend/src/views/monitor/RealTimeMapPage.vue:65-72,544-570` |
-| Analytics 巡检报告/时间对比接口为服务端模拟数据却无标识 | 后端响应新增 `synthetic:true / dataSource:SIMULATED / note`；前端展示"演示数据，待接入真实统计"标注，并删除主 Tab 硬编码 92.4% | `AnalyticsController.java:96-116`；`frontend/src/views/data/AnalyticsPage.vue` |
+| Analytics 巡检报告/时间对比接口为服务端模拟数据却无标识 | 先补 `synthetic:true / dataSource / note` 与前端标注；2026-11-14 起**时间对比已改真实 SQL 聚合**（`synthetic:false`、契约对齐），巡检报告因缺 ground truth 仍保留模拟并标注 | `AnalyticsController.java`；`AnalyticsPage.vue`；验收记录 §四十 |
 | **WS 预警推送全部静默失败**（运行时实测发现）：`RealtimeBroadcastService` 用裸 `new ObjectMapper()`，`WarningDto.triggeredAt`（OffsetDateTime）序列化抛异常，前端收不到任何 `warning` 推送，只能靠 10s 轮询 | 改为注入 Spring `ObjectMapper` 并显式注册 `JavaTimeModule`；实测创建预警后 WS 收到 `type=warning` 消息（含 level/status/lon/lat/triggeredAt） | `backend/.../realtime/RealtimeBroadcastService.java:32-60`；验收记录 `docs/delivery/ACCEPTANCE_LOG_20261112.md` 第四节 |
 
 ### 2026-11-13 干净机器部署演练补修（A3）
@@ -224,12 +224,22 @@
 - **证据**：`frontend/.env.example:103-121`、`infra/nginx/frontend.conf:12-16`（CSP 白名单注释）。
 - **待确认**：甲方是否已有高德企业 Key 及测绘资质编号。
 
-### L-17 Analytics 巡检报告/时间对比为服务端模拟数据（已加显式标识）
+### L-17 Analytics 巡检报告为模拟数据；时间对比已真实聚合
 
-- **现状**：`GET /api/analytics/inspection-report` 与 `/api/analytics/compare` 的指标由查询参数确定性生成（如 `coverage = 60 + seed % 30`），不是数据库真实统计。
-- **本轮处理**：后端响应新增 `synthetic: true`、`dataSource: "SIMULATED"`、`note` 字段（两个接口均已加，运行时实测均返回 `synthetic=true`）；前端「AI 巡检报告」页展示"当前为演示数据"提示，主 Tab 的「巡检覆盖率」卡片改为读取该字段并标注"演示数据 · 待接入真实统计"（删除原硬编码 92.4%）。
-- **证据**：`backend/.../analytics/AnalyticsController.java:96-116`；`frontend/src/views/data/AnalyticsPage.vue`；验收记录 `docs/delivery/ACCEPTANCE_LOG_20261112.md` 第三节。
-- **待确认**：是否需要交付前把该报表接入真实巡检任务/事件统计（后端改造约 1-2 人日）。
+- **现状**：
+  - `GET /api/analytics/inspection-report` 仍由查询参数确定性生成（如 `coverage = 60 + seed % 30`），
+    因为缺少巡检误报/漏报/混淆矩阵的 ground truth，不伪造真实值；响应保留
+    `synthetic: true`、`dataSource: "SIMULATED"`、`note`，前端展示"演示数据"标注。
+  - `GET /api/analytics/compare` 已改为 **真实 SQL 聚合**：
+    事件/预警/隐患/设备/处置率/平均处置时长/误报率/用户活跃/灾种分布/区域分布/趋势序列
+    均来自 `unified_event`、`warning_event`、`hazard_point`、`operation_log`、`monitoring_device`，
+    返回 `synthetic: false`、`dataSource: "DATABASE"`。
+- **本轮处理**：同时修复 compare 前后端契约不一致（原后端返回 `categories` 对象/`series` 数组，
+  前端期望数组/`{base,compare}`），现对齐前端 `OverviewPage` 多时相对比消费结构。
+- **证据**：`backend/.../analytics/AnalyticsController.java`；API 实测 7d/previous 与 SQL
+  `4/39/4/16` 完全一致；浏览器多时相对比 **6 KPI + 2 图表**正常、无"演示数据"文案
+  （截图 `output/delivery-verify/analytics-compare-real.png`）；验收记录 §四十。
+- **待确认**：巡检报告是否急需真实误报/漏报统计（需先定义 ground truth 数据来源）。
 
 ### L-18 实时地图时间轴为演示刻度（已禁用交互）
 

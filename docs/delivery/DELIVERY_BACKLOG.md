@@ -131,11 +131,11 @@
 
 ### B6 Analytics 真实统计 — L-17
 
-| ID | 任务 | 验收标准 | 预估 |
+| ID | 任务 | 验收标准 | 状态 |
 |---|---|---|---|
-| B6-1 | 巡检报告真实统计 | 从巡检任务/事件表聚合，返回 `synthetic:false` | 0.7d |
-| B6-2 | 时间对比真实数据 | 按日期范围聚合事件/预警，非确定性模拟 | 0.7d |
-| B6-3 | 前端标识切换 | 数据真实后移除"演示数据"角标；保留 fallback 标识 | 0.2d |
+| B6-1 | 巡检报告真实统计 | 从巡检任务/事件表聚合，返回 `synthetic:false` | ⬜ 暂缓：缺少误报/漏报/混淆矩阵的 ground truth，不伪造；仍返回 `synthetic:true` 并保留"演示数据"标注 |
+| B6-2 ✅ | 时间对比真实数据 | 按日期范围聚合事件/预警，非确定性模拟 | ✅ 已改真实 SQL 聚合（unified_event/warning_event/hazard_point/operation_log/monitoring_device）；`synthetic:false`、`dataSource:DATABASE`；与前端契约对齐 |
+| B6-3 ✅ | 前端标识切换 | 数据真实后移除"演示数据"角标；保留 fallback 标识 | ✅ 对比页实测无"演示数据"文案，6 KPI + 2 图表正常；巡检报告仍保留标注 |
 
 ### B7 其他 P1 小项
 
