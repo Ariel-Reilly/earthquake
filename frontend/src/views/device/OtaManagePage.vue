@@ -23,6 +23,7 @@ import {
   X,
 } from "lucide-vue-next"
 import { dashboardApi } from "../../services/dashboardApi"
+import { normalizeList } from "../../api/client"
 import { getAuthUser, hasPermission } from "../../stores/auth"
 import ConfirmDialog from "../../components/common/ConfirmDialog.vue"
 
@@ -127,10 +128,9 @@ const filteredTasks = computed(() => {
   return taskList.value.filter((t) => t.status === filter.status)
 })
 
+// 三个接口（固件 / 升级任务 / 设备）历史形态不一，统一委托归一层。
 function toRecords(data) {
-  if (Array.isArray(data)) return data
-  const v = data?.records ?? data?.items ?? data?.list
-  return Array.isArray(v) ? v : []
+  return normalizeList(data)
 }
 
 async function loadAll() {
