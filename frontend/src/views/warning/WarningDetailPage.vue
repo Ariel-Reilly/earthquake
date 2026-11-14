@@ -479,19 +479,6 @@ onBeforeUnmount(() => {
   margin-left: 2px;
 }
 
-/* ═══════════════════════════════════════════════════════════
-   TAB NAVIGATION (新设计: 3个Tab)
-   ═══════════════════════════════════════════════════════════ */
-.tab-nav {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  padding: 0 0 var(--space-md);
-  border-bottom: 1px solid var(--color-border);
-  margin-bottom: var(--space-lg);
-  flex-wrap: wrap;
-}
-
 /* Tab 内容包装器: 逃离 .content-grid 的 Grid 控制 */
 .tab-content-wrapper {
   display: block;

@@ -1,4 +1,9 @@
 
+/* stylelint-disable no-duplicate-selectors */
+
+/* 说明：本文件末尾「SKELETON IOS-IFICATION」覆盖层有意复用选择器做同优先级后置覆盖，
+   逐条合并会改变层叠顺序与视觉效果；详见 docs/delivery/STYLELINT_BASELINE.md。 */
+
 /* 境外 Google Fonts 已移除：境内不可达且被 CSP style-src 拦截，改为下方 --font 系统字体栈。 */
 
 /* ═══════════════════════════════════════════════════════════

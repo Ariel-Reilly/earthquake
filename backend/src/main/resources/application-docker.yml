@@ -12,7 +12,7 @@ spring:
       password: ${REDIS_PASSWORD:}
 
 disasterguard:
-  frontend-origin: ${FRONTEND_ORIGIN:http://localhost:5173}
+  frontend-origin: ${FRONTEND_ORIGIN:http://localhost:5173,http://127.0.0.1:5173}
   file-base-url: ${FILE_BASE_URL:http://minio:9000}
   external-data:
     enabled: ${EXTERNAL_DATA_ENABLED:true}

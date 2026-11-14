@@ -1,50 +1,51 @@
 # Stylelint 存量基线与治理计划（B4）
 
-> 记录时间：2026-11-13 · 命令：`cd frontend; npx stylelint "src/**/*.{css,scss,vue}" --formatter compact`
-> 当前策略：**CI 中作为 advisory 报告（不阻断）+ 上传 artifact**；分批修复后再切为阻断门禁。
+> 记录时间：2026-11-14 · 命令：`cd frontend; npx stylelint "src/**/*.{css,scss,vue}" --formatter compact`
+> 当前状态：**0 error，CI 已切为阻断门禁**（例外仅 2 个有意覆盖层文件，见 §三）。
 
-## 一、基线与自动修复结果（2026-11-13 更新）
+## 一、治理结果
 
 | 阶段 | 数量 | 说明 |
 |---|---|---|
 | 最初基线 | 5,312 | 新增卫星对比页后重测（原 5,264） |
-| `stylelint --fix` 第一批 | 2,440 | 修复 2,872 条；86 个文件（格式/颜色写法） |
-| Prettier 只格式化 `<style>` 第二批 | **82** | 消除 2,358 条；85 个文件（每个声明独立一行） |
-| 剩余 | 82 | 全部为语义项，不再自动修复 |
+| 第一批 `stylelint --fix` | 2,440 | 修复 2,872 条；86 个文件（格式/颜色写法） |
+| 第二批 Prettier 样式块格式化 | 82 | 消除 2,358 条；85 个文件（每个声明独立一行） |
+| 第三批语义项人工修复 | **0** | 修复 5 处真实问题 + 合并 6 处重复块 + 2 处覆盖层豁免 |
 
-剩余规则分布（均为需人工确认的语义项）：
+> 第二批实现：`scripts/delivery/format-style-blocks.mjs`（默认 dry-run，`--write` 写入），
+> 仅对 Vue `<style>` 块与独立 `.css` 调用 `prettier.format(parser='css')`，不改模板/脚本。
 
-| 规则 | 数量 | 说明 | 处理方式 |
-|---|---|---|---|
-| `no-duplicate-selectors` | 71 | 同文件重复选择器（可能是有意覆盖/媒体查询） | 人工确认合并或保留并说明 |
-| `selector-type-no-unknown` | 2 | 未知选择器类型 | 人工核对 |
-| `declaration-property-value-keyword-no-deprecated` | 2 | 废弃关键字 | 人工替换 |
-| `declaration-property-value-no-unknown` | 1 | 未知属性值 | 人工核对 |
+## 二、第三批修复明细
 
-> 第二批实现：`scripts/delivery/format-style-blocks.mjs`（dry-run 默认，`--write` 写入），
-> 仅对 Vue `<style>` 块与独立 `.css` 调用 `prettier.format(parser='css')`，不改模板/脚本；
-> 随后 `stylelint --fix` 清理格式化产生的空行规则。
->
-> **回归证据**：eslint 0 / vitest **69 passed** / `vite build` 成功 / SFC **98/98** /
-> 真实浏览器 **37/37 PASS**（截图 `output/browser-verify/`，总览页/橙色弹窗抽查无变化）。
+| 问题 | 修复 |
+|---|---|
+| `ModelManagePage.vue` 选择器 `\3c style scoped > .model-manage-page`（CSS 转义残留，规则实际失效） | 改为 `.model-manage-page`，页面框架样式恢复生效 |
+| `word-break: break-word` ×2（`AiAssistant.vue`、`WelcomePage.vue`） | 改为标准 `overflow-wrap: break-word` |
+| `mask-composite: xor`（`WelcomePage.vue`，非标准值） | 删除无效值，保留标准 `exclude` |
+| 重复选择器（组件内可安全合并的 6 处） | 删除 `DamageAssessmentPage` / `ModelManagePage` / `HazardsListPage` / `WarningDetailPage` / `NotificationDrawer` 中重复且等价的块 |
 
-## 二、后续治理计划
+## 三、有意保留的覆盖层例外（已评审）
 
-1. ~~第一批（低风险自动修复）~~ ✅ 5,312 → 2,440。
-2. ~~第二批（单行多声明）~~ ✅ 2,440 → 82（Prettier 样式块格式化）。
-3. **第三批（82 条语义项）**：逐条确认重复选择器是否可合并、废弃关键字替换；
-   修复后把 CI 的 `continue-on-error` 去掉，改为阻断。
-4. 若确认重复选择器为合法分层覆盖，可在 `.stylelintrc.json` 对 `no-duplicate-selectors`
-   增加注释与例外（需 code review，不建议直接关闭规则）。
+以下 2 个文件存在"同选择器后置覆盖"的设计层，合并会改变层叠顺序；
+在文件内以 `/* stylelint-disable no-duplicate-selectors */` + 说明注释显式豁免，不全局关闭规则：
 
-## 三、当前 CI 行为
+| 文件 | 原因 |
+|---|---|
+| `src/styles.css` | 末尾「SKELETON IOS-IFICATION」覆盖层：不改上方原规则，只在末尾以同优先级后置覆盖 30+ 页面骨架 |
+| `src/views/WelcomePage.vue` | 末尾「视觉升级」覆盖层：对按钮/预览框/KPI 做后置精修 |
 
-`.github/workflows/frontend-ci.yml` 新增：
-- `Stylelint (advisory baseline)`：执行失败不阻断，输出报告；
-- `Upload stylelint report`：artifact `stylelint-report` 可供下载统计。
+> 如需彻底消除例外，应把覆盖层拆到独立文件并用 `@layer` 管理优先级，属独立重构，不在本次交付范围。
 
-## 四、风险与注意
+## 四、CI 门禁
 
-- `stylelint --fix` 会大范围改样式文件，必须单独分支、逐页视觉回归（深色模式/移动端）；
-- 不要与业务功能改动混在同一提交；
-- 修复期间保持 `npm run build` 与 37 项浏览器冒烟通过。
+`.github/workflows/frontend-ci.yml`：
+- `Stylelint (blocking)`：`npx stylelint "src/**/*.{css,scss,vue}"` **失败即阻断**；
+- `Upload stylelint report`：artifact `stylelint-report` 仍保留，便于失败时下载定位。
+
+## 五、回归证据
+
+- `npx eslint src/` **0 error**；
+- `npx vitest run` **69 passed / 7 文件**；
+- `npm run build` 成功；SFC 完整性 **98/98**；
+- 真实浏览器冒烟 **37/37 PASS**（截图 `output/browser-verify/`）；
+- `npx stylelint "src/**/*.{css,scss,vue}"` → **0 error**。

@@ -235,15 +235,6 @@ function handleBadgeRefresh() {
   overflow: hidden auto;
 }
 
-/* 动画 */
-.drawer-overlay {
-  animation: fade-in 0.2s ease-out;
-}
-
-.notification-drawer {
-  animation: slide-in-right 0.3s cubic-bezier(0.32, 0.72, 0, 1);
-}
-
 .drawer-overlay-enter-from {
   opacity: 0;
 }

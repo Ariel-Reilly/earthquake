@@ -99,16 +99,12 @@ jobs:
         shell: bash
         run: npx eslint src/ --format stylish
 
-      # ── 2.5) Stylelint：存量基线（报告不阻断，逐批清零） ───────────
-      # 当前存量约 5.2k 条（以 declaration-block-single-line / 空行 / 颜色写法为主），
-      # 先纳入 CI 可见化并上传报告，规则分批修复后再改为阻断门禁。
-      - name: Stylelint (advisory baseline)
-        continue-on-error: true
+      # ── 2.5) Stylelint：阻断门禁（存量已清零，例外见 docs/delivery/STYLELINT_BASELINE.md） ──
+      - name: Stylelint (blocking)
         shell: bash
         run: |
-          npx stylelint "src/**/*.{css,scss,vue}" --formatter compact > stylelint-report.txt || true
-          echo "stylelint report lines: $(wc -l < stylelint-report.txt)"
-          echo "stylelint errors: $(grep -c 'error -' stylelint-report.txt || true)"
+          set -o pipefail
+          npx stylelint "src/**/*.{css,scss,vue}" --formatter compact | tee stylelint-report.txt
 
       - name: Upload stylelint report
         if: always()

@@ -767,7 +767,7 @@ onBeforeUnmount(() => {
 .msg-text {
   display: block;
   white-space: pre-line;
-  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 /* 消息行动按钮 (iOS link) */

@@ -2169,19 +2169,6 @@ onBeforeUnmount(() => {
   padding: 0 20px 18px;
 }
 
-.event-state-tag {
-  display: inline-block;
-  margin-left: 8px;
-  padding: 2px 8px;
-  border-radius: var(--r-xs);
-  font-size: 10.5px;
-  font-weight: 600;
-  letter-spacing: 0.3px;
-  font-family: ui-monospace, monospace;
-  background: rgb(79 143 153 / 12%);
-  color: var(--c-brand);
-}
-
 @media (width <= 1300px) {
   .content-grid {
     grid-template-columns: 1fr;

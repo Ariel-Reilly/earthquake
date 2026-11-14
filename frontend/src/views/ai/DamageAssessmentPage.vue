@@ -994,12 +994,6 @@ onMounted(async () => {
   line-height: 1.5;
 }
 
-.dap-empty-sub {
-  font-size: 12px;
-  color: var(--c-text-4);
-  font-style: italic;
-}
-
 /* Disaster Type Grid */
 .dap-dt-grid {
   display: grid;

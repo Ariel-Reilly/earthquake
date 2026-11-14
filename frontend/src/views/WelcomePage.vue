@@ -1540,6 +1540,10 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+/* stylelint-disable no-duplicate-selectors */
+
+/* 说明：本页末尾「视觉升级」覆盖层有意复用选择器做同优先级后置覆盖，
+   合并会改变层叠顺序；详见 docs/delivery/STYLELINT_BASELINE.md。 */
 :root {
   --shadow-sm: 0 1px 2px rgb(15 34 24 / 4%), 0 1px 3px rgb(15 34 24 / 6%);
   --shadow-md: 0 4px 6px -1px rgb(15 34 24 / 6%), 0 12px 24px -8px rgb(15 34 24 / 12%);
@@ -3165,7 +3169,6 @@ onBeforeUnmount(() => {
   mask:
     linear-gradient(var(--c-overlay-ink) 0 0) content-box,
     linear-gradient(var(--c-overlay-ink) 0 0);
-  mask-composite: xor;
   mask-composite: exclude;
   pointer-events: none;
 }
@@ -5298,7 +5301,7 @@ onBeforeUnmount(() => {
 
 .code-line {
   margin-bottom: 4px;
-  word-break: break-word;
+  overflow-wrap: break-word;
   animation: log-in 0.5s cubic-bezier(0.2, 0.7, 0.3, 1);
 }
 

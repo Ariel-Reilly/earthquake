@@ -1026,7 +1026,7 @@ onMounted(async () => {
 
 <style scoped>
 /* ---- 页面框架 ---- */
-\3c style scoped > .model-manage-page {
+.model-manage-page {
   /* 日志控制台是「固定深色」的终端面板，不随浅色/深色主题反转；
      这里集中声明其专用色，避免在深色底上套用会反转的浅色令牌。 */
   --mm-log-bg: #0e1e22;
@@ -1652,12 +1652,6 @@ code {
   margin-bottom: 6px;
   color: var(--c-text-3);
   font-size: 9px;
-}
-
-.mini-svg {
-  width: 100%;
-  height: 60px;
-  overflow: visible;
 }
 
 .drawer-footer {

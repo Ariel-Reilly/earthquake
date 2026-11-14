@@ -829,3 +829,37 @@ Edge headless CDP 9222 → nginx(dist) 25173（Origin 改写 + Cesium CSP）
   - SFC 完整性 **98/98**；真实浏览器 **37/37 PASS**（截图 23 张，总览页/橙色弹窗抽查无变化）。
 - 后续：剩余 82 条均为语义项（重复选择器等），需人工确认是否合并或加例外；
   清零后再把 CI stylelint 从 advisory 改为阻断。详见 `STYLELINT_BASELINE.md`。
+
+---
+
+## 三十九、B4-3 Stylelint 清零 + 开发 CORS 双源修复（2026-11-14）
+
+### 39.1 Stylelint 第三批（82 → 0）
+
+- 修复 5 处真实问题：
+  - `ModelManagePage.vue` 选择器 `\3c style scoped > .model-manage-page`（转义残留、规则实际失效）
+    → 改为 `.model-manage-page`，页面框架样式恢复；
+  - `word-break: break-word` ×2 → `overflow-wrap: break-word`；
+  - `mask-composite: xor`（非标准值）删除，保留标准 `exclude`。
+- 合并 6 处可安全删除的重复选择器块（DamageAssessment / ModelManage / HazardsList /
+  WarningDetail / NotificationDrawer）。
+- 对 2 个有意覆盖层文件显式豁免 `no-duplicate-selectors`（文件内注释 + 文档说明）：
+  `styles.css`（末尾 iOS 覆盖层）、`WelcomePage.vue`（末尾视觉升级层）；合并会改变层叠顺序。
+- 结果：`npx stylelint "src/**/*.{css,scss,vue}"` → **0 error**；
+  CI 中 `Stylelint (advisory baseline)` 改为 **`Stylelint (blocking)`**（失败即阻断）。
+
+### 39.2 开发 CORS 双源修复
+
+- 冒烟复跑时发现：从 `http://127.0.0.1:5173` 访问时，部分直连 `http://localhost:8080/api`
+  的请求被 CORS 拦截（预检 403），页面显示 `Failed to fetch`。
+- 根因：开发默认 `frontend-origin` 只含 `http://localhost:5173`，而浏览器地址是 `127.0.0.1`。
+- 修复：`application.yml` / `application-docker.yml` / `.env.example` / `CorsConfig` 默认值
+  同时允许 `http://localhost:5173,http://127.0.0.1:5173`（生产仍按 FRONTEND_ORIGIN 注入）。
+- 复核：curl 预检 `Origin: http://127.0.0.1:5173` → **200 + Access-Control-Allow-Origin**；
+  浏览器冒烟恢复 **37/37 PASS**。
+
+### 39.3 门禁复核
+
+- 前端：eslint 0 / vitest **69 passed** / build 成功 / SFC **98/98** / stylelint **0** /
+  浏览器 **37/37 PASS**；
+- 后端：仅 CORS 默认值与配置注释改动，重启后健康、预检、登录均正常。

@@ -69,7 +69,7 @@ ai:
   forecast-cron: "${AI_FORECAST_CRON:0 0 2 * * *}"
 
 disasterguard:
-  frontend-origin: ${FRONTEND_ORIGIN:http://localhost:5173}
+  frontend-origin: ${FRONTEND_ORIGIN:http://localhost:5173,http://127.0.0.1:5173}
 
   # 现阶段投递边界：只有白名单内的「项目测试成员」允许进入通知发送链路。
   # 逗号 / 分号 / 换行分隔，可填手机号、邮箱、设备 Token 或用户名，须与请求里的 target 一致。
