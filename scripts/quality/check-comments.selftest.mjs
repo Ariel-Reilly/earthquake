@@ -5,8 +5,9 @@
  * 场景：
  *  A. allowlist 文件缺失 → --selfcheck 退出 1，并报「allowlist 失效」
  *  B. 片段重复命中     → --selfcheck 退出 1，并报「重复命中」
- *  C. 干净 fixture（9 条各命中一次）→ --warn --selfcheck 退出 0，输出 9/9
- *  D. 真实仓库：--warn --selfcheck 退出 0；--selfcheck 退出 1（仅因后端 6 处裸 TODO）
+ *  C. 干净 fixture（9 条各命中一次）→ --warn --selfcheck 退出 0，输出 9/9；严格模式亦退出 0
+ *  D. 真实仓库：--warn --selfcheck 退出 0；严格模式退出码与「裸标记数/自检」一致（状态无关）
+ *  E. 过期 TODO：昨天 → 默认仅提醒(退出 0) / --strict-stale 退出 1；未来日期不报过期
  *
  * 用法：node scripts/quality/check-comments.selftest.mjs
  * 退出码：0 = 全部通过，1 = 有失败。
@@ -106,6 +107,35 @@ try {
     rd2.status === (expectFail ? 1 : 0),
     `status=${rd2.status} bare=${bareCount} selfOk=${selfOk}`,
   )
+
+  // E. 过期 TODO：昨天应报过期（默认仅提醒 / --strict-stale 阻断），未来日期不报
+  const pad = (n) => String(n).padStart(2, '0')
+  const ymd = (dt) => `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}`
+  const yest = new Date()
+  yest.setDate(yest.getDate() - 1)
+  const fut = new Date()
+  fut.setDate(fut.getDate() + 30)
+
+  const E1 = join(base, 'e1')
+  mkdirSync(join(E1, 'backend/src'), { recursive: true })
+  writeFileSync(
+    join(E1, 'backend/src/Expired.java'),
+    `// TODO(backend-team, ${ymd(yest)}, #DELIVERY-C9): 过期测试\n`,
+  )
+  const re1 = run([], E1)
+  check('E1 过期 TODO 默认 → 退出 0', re1.status === 0, `status=${re1.status}`)
+  check('E1 过期 TODO 默认 → 报「过期 1 处」', /过期 TODO（date < [^）]+）：1 处/.test(out(re1)))
+  const re2 = run(['--strict-stale'], E1)
+  check('E1 过期 TODO --strict-stale → 退出 1', re2.status === 1, `status=${re2.status}`)
+
+  const E2 = join(base, 'e2')
+  mkdirSync(join(E2, 'backend/src'), { recursive: true })
+  writeFileSync(
+    join(E2, 'backend/src/Future.java'),
+    `// TODO(backend-team, ${ymd(fut)}, #DELIVERY-C9): 未来测试\n`,
+  )
+  const re3 = run([], E2)
+  check('E2 未来日期 → 不报过期（0 处）', /过期 TODO（date < [^）]+）：0 处/.test(out(re3)))
 } finally {
   rmSync(base, { recursive: true, force: true })
 }

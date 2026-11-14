@@ -168,14 +168,14 @@ node scripts/quality/check-comments.mjs --strict-stale
 **allowlist 自检**（防止 AI TODO 文案微调后「豁免悄悄失效」）：每条 allowlist 必须命中 1 行，失效/重复命中即报错并点名条目。
 
 ```bash
-# 仅校验 allowlist 完整性（忽略裸标记阻断），CI 可用
+# 过渡期：仅校验 allowlist 完整性（忽略裸标记阻断）
 node scripts/quality/check-comments.mjs --warn --selfcheck
 
-# 叠加到常规门禁：裸标记 + allowlist 一起校验
+# CI 实际使用（严格：裸标记 + allowlist 自检）
 node scripts/quality/check-comments.mjs --selfcheck
 ```
 
-自检本身也有回归（覆盖 文件缺失 / 片段重复 / 干净 fixture（含清零后严格模式）/ 真实仓库 4 类，9 个断言）：
+自检本身也有回归（覆盖 文件缺失 / 片段重复 / 干净 fixture（含清零后严格模式）/ 真实仓库 / 过期 TODO 5 类，13 个断言）：
 
 ```bash
 node scripts/quality/check-comments.selftest.mjs
