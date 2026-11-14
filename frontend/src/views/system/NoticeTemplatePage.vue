@@ -24,6 +24,7 @@ import {
   X,
 } from "lucide-vue-next"
 import { dashboardApi } from "../../services/dashboardApi"
+import { normalizeList } from "../../api/client"
 import { getAuthUser, hasPermission } from "../../stores/auth"
 import { HAZARD_TYPES, hazardTypeLabel } from "../../utils/hazardTypes"
 import ConfirmDialog from '../../components/common/ConfirmDialog.vue'
@@ -116,8 +117,10 @@ async function load() {
       channel: filter.channel || undefined,
       status: filter.status || undefined,
     })
-    const raw = data?.records ?? data?.items ?? []
-    list.value = Array.isArray(raw) ? raw : []
+    // listNoticeTemplates 是未归一的透传（直接 return request），后端当前返回
+    // PageResponse{records}；这里走归一层，兼容 records/items/list/裸数组，
+    // 避免后端换形态时表格静默变空。
+    list.value = normalizeList(data)
   } catch (e) {
     list.value = []
     loadError.value = e?.message ?? "加载模板失败"

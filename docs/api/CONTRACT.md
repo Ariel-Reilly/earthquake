@@ -11,13 +11,21 @@
 - **前端归一化实现**：`frontend/src/api/client.js` 的 `normalizePage() / normalizeList()`（纯函数 + 单测 14 例，覆盖 records/items/list/数组/空值/默认值/优先级/**pages 推导**）。
   - 缺 `pages` 时由 `total / size` 推导（`Math.ceil`），兼容只给 total/size 的不完整旧端点；显式 `pages` 优先；`size=0` 用列表长度兜底避免除零。
   - 迁移状态：`dashboardApi.normalizePaged` **已改为委托 `normalizePage`**（单点去重、行为等价，调用点不变）；页面层 `items/list` 兼容分支按页小步清理。
-  - **已迁移页面/组件（5）**：`DataSyncPage.toList` → `normalizeList`；`DataCatalogPage`（`loadAssets` / `loadUsage` / `openTrend` 三处 `records/裸数组` 分支）；`PersonnelManagePage.loadPersonnel`（`data.list ?? data` → `normalizeList`，**顺带修复潜在缺陷**：旧写法在 `{records}` 形态下把对象当数组 `.map`、在 `null` 下 `data.list` 直接 TypeError）；`WarningDeliveryTab.loadChannel`（`records → list → 裸数组` 三级嵌套三元，5 个渠道共用）；`OtaManagePage.toRecords`（本地 helper，固件/任务/设备三条数据源共用）。
+  - **已迁移页面/组件（6）**：`DataSyncPage.toList` → `normalizeList`；`DataCatalogPage`（`loadAssets` / `loadUsage` / `openTrend` 三处 `records/裸数组` 分支）；`PersonnelManagePage.loadPersonnel`（`data.list ?? data` → `normalizeList`，**顺带修复潜在缺陷**：旧写法在 `{records}` 形态下把对象当数组 `.map`、在 `null` 下 `data.list` 直接 TypeError）；`WarningDeliveryTab.loadChannel`（`records → list → 裸数组` 三级嵌套三元，5 个渠道共用）；`OtaManagePage.toRecords`（本地 helper，固件/任务/设备三条数据源共用）；`NoticeTemplatePage.load`（`records/items` → `normalizeList`，该端点 API 层未归一，旧写法遇 `{list}`/裸数组会**静默空表**）。
   - **迁移验收要求**：每迁一个页面必须附页面级回归，不能只靠纯函数单测；**一个页面有多处取数时逐路径覆盖**，不得只测主列表。
     - `dataSyncPage.spec.js`（6 例）：`records/items/list/裸数组/null/抛错`。
     - `dataCatalogPage.spec.js`（7 例）：`loadAssets`（records/裸数组/items/空）＋ `loadUsage`（Tab 切换）＋ `openTrend`（二次拉取 5 条趋势，与首次列表 3 条区分，证明走的是自身取数分支）＋ 抛错降级。
     - `personnelManagePage.spec.js`（5 例）：`{list}/{records}/裸数组/null/抛错`。
     - `warningDeliveryTab.spec.js`（5 例）：5 个渠道共用一处取数，故按**渠道**逐形态覆盖——sms=records、app=list、email=裸数组、空记录空态、单渠道失败降级。
     - `otaManagePage.spec.js`（4 例）：三条数据源（固件/任务/设备）分别投喂 `records`/`items`/`list`/裸数组/空，外加整页失败降级。
+    - `noticeTemplatePage.spec.js`（6 例）：`records`/`items`/`list`/裸数组/空态/抛错。该端点 API 层未归一，是「页面猜形态」里唯一有实际静默失败风险的一类。
+  - **判断某个形态分支要不要迁，先看 API 层是否已归一**（避免无效改动）：
+    | API 方法返回 | 页面读 `data.records` / `data.list` | 结论 |
+    |---|---|---|
+    | 已 `normalizePaged(...)` → 恒为 `{records,...}` | 是 | **无需迁移**（读的是 API 层契约，如 `getApplications`、`getHazards` 包装成 `{list}`） |
+    | 直接 `return request(...)` 透传 | 是 | **应迁移**（页面在猜后端形态，换形态即静默空表，如 `listNoticeTemplates`） |
+    | 内部 `ref` 读取（如 `results.value.items`） | — | **不是形态分支**，不迁 |
+    | 本地 helper（`toList`/`toRecords`）| — | **应委托给 `normalizeList`**（去重） |
   - **`fallback` 必须是数组**：历史 `normalizePaged(data, { items: [] })` 已全部改为 `[]`，否则空数据时 `records` 会变成对象（后续 `.map` 抛错）。单测已锁定该契约。
 
 ## 2. 时间
