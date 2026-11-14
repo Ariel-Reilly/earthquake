@@ -169,7 +169,7 @@ node scripts/quality/check-comments.mjs --warn --selfcheck
 node scripts/quality/check-comments.mjs --selfcheck
 ```
 
-自检本身也有回归（覆盖 文件缺失 / 片段重复 / 干净 fixture / 真实仓库 4 类，8 个断言）：
+自检本身也有回归（覆盖 文件缺失 / 片段重复 / 干净 fixture（含清零后严格模式）/ 真实仓库 4 类，9 个断言）：
 
 ```bash
 node scripts/quality/check-comments.selftest.mjs

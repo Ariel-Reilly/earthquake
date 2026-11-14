@@ -129,7 +129,7 @@ find frontend/src backend ai-service -type f \( -name '*.vue' -o -name '*.js' -o
 
 - **豁免范围**：仅 `drift.py`(4) / `multimodal.py`(3) / `sentinel.py`(2) 的这 9 行；这三个文件里**新增**的 TODO 仍会被判为裸标记。
 - **为何不选方案 A**：其中 4 处是 docstring/prose（`multimodal.py:184/220`、`sentinel.py:799/1177`），强改 `TODO(owner,date,issue)` 会破坏可读性；且后端 6 处若也要求「严格模式通过」需臆造团队/工单，风险更大。
-- **自检**：`--selfcheck` 逐条核对 allowlist 是否仍命中 1 行，失效/重复命中即报错并点名条目（已验证：人为改坏一条 → `8/9 命中` 并精确报出 `sentinel.py` 失效项）。CI 只查完整性用 `--warn --selfcheck`。并配套 `check-comments.selftest.mjs` 回归（8/8：文件缺失 / 片段重复 / 干净 fixture / 真实仓库）。
+- **自检**：`--selfcheck` 逐条核对 allowlist 是否仍命中 1 行，失效/重复命中即报错并点名条目（已验证：人为改坏一条 → `8/9 命中` 并精确报出 `sentinel.py` 失效项）。CI 只查完整性用 `--warn --selfcheck`。并配套 `check-comments.selftest.mjs` 回归（9/9：文件缺失 / 片段重复 / 干净 fixture / 清零后严格模式 / 真实仓库）。
 - **移除条件**：阶段 2 为这 9 处补 `TODO(ai-team, 日期, #L-01/#L-04)` 后，**删除对应 allowlist 条目**；届时裸标记应只剩后端 6（阶段 1 补 owner 后归零）。
 
 > ⚠ 方案里写的「TODO/FIXME/@Deprecated 211 处 / 52 文件」**不成立**（属宽匹配误报，如 `todo:view`、`toDouble`）。实测 `TODO` **15** + `@Deprecated` **6** = **21**。**任务 1「清裸 TODO」工作量很小（后端 6 处）；AI 9 处按 §4.2 豁免登记。**

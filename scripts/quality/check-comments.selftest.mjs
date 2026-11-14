@@ -90,12 +90,22 @@ try {
   const rc = run(['--warn', '--selfcheck'], C)
   check('C 干净 fixture → 退出 0', rc.status === 0, `status=${rc.status}`)
   check('C 干净 fixture → 9/9 命中', /9\/9 命中/.test(rc.stdout))
+  const rcStrict = run(['--selfcheck'], C)
+  check('C 干净 fixture 严格模式 → 0（模拟阶段1清零后）', rcStrict.status === 0, `status=${rcStrict.status}`)
 
-  // D. 真实仓库
+  // D. 真实仓库（状态无关：不硬编码「必须失败」）
   const rd1 = run(['--warn', '--selfcheck'], REAL_ROOT)
   check('D 真实仓库 --warn --selfcheck → 0', rd1.status === 0, `status=${rd1.status}`)
   const rd2 = run(['--selfcheck'], REAL_ROOT)
-  check('D 真实仓库 --selfcheck → 1（后端 6 裸）', rd2.status === 1, `status=${rd2.status}`)
+  const bareMatch = /裸标记 (\d+) 处/.exec(rd2.stdout || '')
+  const bareCount = Number(bareMatch ? bareMatch[1] : 0)
+  const selfOk = !/存在失效\/重复条目/.test(out(rd2))
+  const expectFail = bareCount > 0 || !selfOk
+  check(
+    'D 真实仓库严格模式退出码与「裸标记/自检」一致',
+    rd2.status === (expectFail ? 1 : 0),
+    `status=${rd2.status} bare=${bareCount} selfOk=${selfOk}`,
+  )
 } finally {
   rmSync(base, { recursive: true, force: true })
 }
