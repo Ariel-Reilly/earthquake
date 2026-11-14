@@ -11,7 +11,7 @@
 - **前端归一化实现**：`frontend/src/api/client.js` 的 `normalizePage() / normalizeList()`（纯函数 + 单测 14 例，覆盖 records/items/list/数组/空值/默认值/优先级/**pages 推导**）。
   - 缺 `pages` 时由 `total / size` 推导（`Math.ceil`），兼容只给 total/size 的不完整旧端点；显式 `pages` 优先；`size=0` 用列表长度兜底避免除零。
   - 迁移状态：`dashboardApi.normalizePaged` **已改为委托 `normalizePage`**（单点去重、行为等价，调用点不变）；页面层 `items/list` 兼容分支按页小步清理。
-  - **已迁移页面/组件（6）**：`DataSyncPage.toList` → `normalizeList`；`DataCatalogPage`（`loadAssets` / `loadUsage` / `openTrend` 三处 `records/裸数组` 分支）；`PersonnelManagePage.loadPersonnel`（`data.list ?? data` → `normalizeList`，**顺带修复潜在缺陷**：旧写法在 `{records}` 形态下把对象当数组 `.map`、在 `null` 下 `data.list` 直接 TypeError）；`WarningDeliveryTab.loadChannel`（`records → list → 裸数组` 三级嵌套三元，5 个渠道共用）；`OtaManagePage.toRecords`（本地 helper，固件/任务/设备三条数据源共用）；`NoticeTemplatePage.load`（`records/items` → `normalizeList`，该端点 API 层未归一，旧写法遇 `{list}`/裸数组会**静默空表**）。
+  - **已迁移页面/组件（9）**：`DataSyncPage.toList`；`DataCatalogPage`（`loadAssets` / `loadUsage` / `openTrend`）；`PersonnelManagePage.loadPersonnel`（**顺带修复**：旧写法在 `{records}` 下把对象当数组 `.map`、`null` 下 TypeError）；`WarningDeliveryTab.loadChannel`（5 渠道共用）；`OtaManagePage.toRecords`（三源共用）；`NoticeTemplatePage.load`（透传端点，旧写法遇 `{list}`/裸数组会静默空表）；`TodoCenterTab.loadTodos`（透传 `listMyOpenTasks`，原四形态猜测）；`ModelManagePage`（`listModels` + `getModelTrainingJobs` 两个透传端点，**顺带修复**：模板 4 处 `<PermissionButton>` 漏 import 导致按钮渲染为空）；`SettingsPage.loadSessions`（透传 `listActiveSessions` 返回裸数组，删掉 `items/records/sessions` 三个不可达分支）。
   - **迁移验收要求**：每迁一个页面必须附页面级回归，不能只靠纯函数单测；**一个页面有多处取数时逐路径覆盖**，不得只测主列表。
     - `dataSyncPage.spec.js`（6 例）：`records/items/list/裸数组/null/抛错`。
     - `dataCatalogPage.spec.js`（7 例）：`loadAssets`（records/裸数组/items/空）＋ `loadUsage`（Tab 切换）＋ `openTrend`（二次拉取 5 条趋势，与首次列表 3 条区分，证明走的是自身取数分支）＋ 抛错降级。
@@ -19,6 +19,9 @@
     - `warningDeliveryTab.spec.js`（5 例）：5 个渠道共用一处取数，故按**渠道**逐形态覆盖——sms=records、app=list、email=裸数组、空记录空态、单渠道失败降级。
     - `otaManagePage.spec.js`（4 例）：三条数据源（固件/任务/设备）分别投喂 `records`/`items`/`list`/裸数组/空，外加整页失败降级。
     - `noticeTemplatePage.spec.js`（6 例）：`records`/`items`/`list`/裸数组/空态/抛错。该端点 API 层未归一，是「页面猜形态」里唯一有实际静默失败风险的一类。
+    - `todoCenterTab.spec.js`（6 例）：`records`/`items`/`list`/裸数组/空态/抛错（`vue-router` 已 mock）。
+    - `modelManagePage.spec.js`（7 例）：版本库 `records`/`list`/裸数组 + 训练任务 裸数组/`items`/空态 + `PermissionButton` 真实解析断言。
+    - `settingsPage.spec.js`（6 例）：会话 裸数组/`records`/`items`/`list`/null 空态/抛错。
   - **判断某个形态分支要不要迁，先看 API 层是否已归一**（避免无效改动）：
     | API 方法返回 | 页面读 `data.records` / `data.list` | 结论 |
     |---|---|---|

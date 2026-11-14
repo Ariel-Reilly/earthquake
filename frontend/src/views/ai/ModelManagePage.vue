@@ -6,6 +6,8 @@ import {
   Settings, Square, Terminal, Trash2, TrendingUp,
 } from 'lucide-vue-next'
 import { dashboardApi } from '../../services/dashboardApi'
+import { normalizeList } from '../../api/client'
+import PermissionButton from '../../components/PermissionButton.vue'
 import {
   detectDrift,
   getDriftTrend,
@@ -85,7 +87,8 @@ async function loadVersions() {
   versionsLoading.value = true
   try {
     const data = await dashboardApi.listModels({})
-    versionsList.value = Array.isArray(data?.records) ? data.records : Array.isArray(data) ? data : []
+    // listModels 为透传端点，形态交归一层判断。
+    versionsList.value = normalizeList(data)
   } catch {
     versionsList.value = []
   } finally {
@@ -166,7 +169,8 @@ async function loadTrainingJobs() {
   jobsLoading.value = true
   try {
     const data = await dashboardApi.getModelTrainingJobs()
-    trainingJobs.value = Array.isArray(data) ? data : (data?.records ?? [])
+    // getModelTrainingJobs 同为透传端点。
+    trainingJobs.value = normalizeList(data)
   } catch {
     trainingJobs.value = []
   } finally {

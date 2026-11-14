@@ -195,7 +195,11 @@ find frontend/src backend ai-service -type f \( -name '*.vue' -o -name '*.js' -o
 - `common/api/PageResponse{records,total,page,size,pages}` **已存在**（Javadoc 已注明历史上两个 record 已合一），并已在 admin application 分页使用。
 - **任务 3 不是「新建 PageResponse」，而是「前端在 `api/client` 归一化一次 + 校验尚未遵循的端点 + 逐步消除页面层 `items/list` 兼容分支」。**
 - **归一化落点已建**：`frontend/src/api/client.js`（`normalizePage / normalizeList`，纯函数 + 单测 **14** 例）；`dashboardApi.normalizePaged` **已改为委托 `normalizePage`**（已去重、行为等价）；页面层 `items/list` 兼容分支待阶段 1 小步清理。
-- **已迁移页面/组件（6）**：`DataSyncPage.toList`；`DataCatalogPage` 三处（`loadAssets` / `loadUsage` / `openTrend`，原 `Array.isArray(data?.records) ? data.records : Array.isArray(data) ? data : []`）；`PersonnelManagePage.loadPersonnel`（原 `data.list ?? data ?? []`）；`WarningDeliveryTab.loadChannel`（原 `records → list → 裸数组 → []` 四级嵌套三元，5 渠道共用）；`OtaManagePage.toRecords`（本地 helper，固件/任务/设备三源共用）；`NoticeTemplatePage.load`（原 `data?.records ?? data?.items ?? []`，该端点 API 层未归一，遇 `{list}`/裸数组会静默空表）。
+- **已迁移页面/组件（9）**：`DataSyncPage.toList`；`DataCatalogPage` 三处（`loadAssets` / `loadUsage` / `openTrend`）；`PersonnelManagePage.loadPersonnel`；`WarningDeliveryTab.loadChannel`（5 渠道共用）；`OtaManagePage.toRecords`（三源共用）；`NoticeTemplatePage.load`；`TodoCenterTab.loadTodos`；`ModelManagePage`（`listModels` + `getModelTrainingJobs`）；`SettingsPage.loadSessions`。
+  - 其中 **4 个是「API 原样透传 + 页面猜形态」**（NoticeTemplate / TodoCenter / ModelManage ×2 / Settings sessions），这类才是真实风险点。
+- **顺带修复的真实缺陷（2）**：
+  1. `PersonnelManagePage`：`data.list ?? data ?? []` 在 `{records}` 形态把对象当数组 `.map`、在 `null` 下 `data.list` 直接 TypeError，被 catch 成「人员列表加载失败」。
+  2. `ModelManagePage`：模板 4 处 `<PermissionButton>`（行内「激活/下线」+ 抽屉「切换为当前激活模型」）**从未 import**，Vue 仅打 warn、渲染为空 —— 按钮在生产环境完全不可见。已补 import，并在组件测试中加「真实解析」断言防回归。
 - **页面迁移的验收基线**：迁移必须带页面级回归，不接受“纯函数绿 + 页面未验证”；**一页多处取数须逐路径覆盖**。
   - `dataSyncPage.spec.js`（6 例）：records/items/list/裸数组/null/抛错；变异验证：`toList` 返回 `[]` → 4 例失败。
   - `dataCatalogPage.spec.js`（7 例）：`loadAssets`（records/裸数组/items/空）+ `loadUsage`（Tab）+ `openTrend`（二次拉取趋势）+ 抛错降级。

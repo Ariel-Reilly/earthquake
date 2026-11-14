@@ -19,6 +19,7 @@ import {
 import { getAuthUser, getRoleLabel } from '../../stores/auth'
 import { useTheme } from '../../composables/useTheme'
 import { dashboardApi } from '../../services/dashboardApi'
+import { normalizeList } from '../../api/client'
 
 const emit = defineEmits(['notify'])
 const { setTheme, theme } = useTheme()
@@ -335,8 +336,8 @@ async function loadSessions() {
   sessionsError.value = ''
   try {
     const data = await dashboardApi.listActiveSessions()
-    const raw = Array.isArray(data) ? data : (data?.items ?? data?.records ?? data?.sessions ?? [])
-    sessions.value = (Array.isArray(raw) ? raw : []).map(normalizeSession)
+    const sessionsRaw = normalizeList(data)
+    sessions.value = sessionsRaw.map(normalizeSession)
   } catch (e) {
     sessions.value = []
     sessionsError.value = e?.message ?? '活跃会话加载失败'

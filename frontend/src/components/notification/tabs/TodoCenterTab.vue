@@ -19,6 +19,7 @@ import {
   AlertCircle,
 } from 'lucide-vue-next'
 import { dashboardApi } from '../../../services/dashboardApi'
+import { normalizeList } from '../../../api/client'
 
 const props = defineProps({
   compact: { type: Boolean, default: false },
@@ -85,8 +86,9 @@ async function loadTodos() {
   loading.value = true
   try {
     const data = await dashboardApi.listMyOpenTasks()
-    const raw = Array.isArray(data) ? data : (data?.list ?? data?.items ?? data?.records ?? [])
-    const items = (Array.isArray(raw) ? raw : []).map(normalizeTodo)
+    // listMyOpenTasks 是未归一的透传（直接 return request），形态由后端决定；
+    // 统一走归一层，避免再多一种返回形态时列表静默变空。
+    const items = normalizeList(data).map(normalizeTodo)
     todos.value = { items, total: items.length }
   } catch (e) {
     todos.value = { items: [], total: 0 }
