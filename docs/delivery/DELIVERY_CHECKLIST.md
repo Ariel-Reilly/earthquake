@@ -110,7 +110,12 @@
 
 - 构建/单测/浏览器冒烟全部通过；核心业务闭环（预警发布→确认→派发→关闭→审计）可演示。
 - 时相对比**生产形态端到端**已补做：网关 API 14/14 + 真实浏览器 15/15 PASS（见 `ACCEPTANCE_LOG` §三十三）。
-- A1 可自动化项已预检完成；纯人工项及两条 500 的重新部署复核见
-  [ONSITE_ACCEPTANCE_CHECKLIST.md](ONSITE_ACCEPTANCE_CHECKLIST.md)。
+- A1 可自动化项已预检完成；纯人工项见 [ONSITE_ACCEPTANCE_CHECKLIST.md](ONSITE_ACCEPTANCE_CHECKLIST.md)。
+- **2026-11-14 审查 P0/P1 修复已回归**：设备地图 500 / 静默 mock 假数据、灾害预测序列化 500、
+  admin 气象页 403、drift 路径与 0 值、预警空白 KPI、灾害列表首屏弹窗全部关闭；
+  真实接口 **12/12** + 真实浏览器 **14/14** PASS（7 页面、无意外 5xx / JS 异常 / 横向溢出）；
+  见 [REVIEW_FIX_REPORT.md](REVIEW_FIX_REPORT.md) 与 `ACCEPTANCE_LOG` §四十四。
 - 建议现场按 [DEMO_SCRIPT.md](DEMO_SCRIPT.md) 走一遍，并在试运行环境改密、配置真实地图/AI 服务地址。
+- 演示前若发现「0 在线 / 预警日期过期」，由演示负责人确认目标库并备份后执行
+  `scripts/delivery/refresh-demo-data.sql`（仅 UPDATE、幂等；**本轮只在隔离库验证，未在开发库执行**）。
 - 甲方签字：____________________　日期：____________________

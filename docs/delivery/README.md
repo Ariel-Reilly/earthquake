@@ -21,6 +21,7 @@
 | [SMOKE_TEST.md](SMOKE_TEST.md) | 冒烟清单与结果（SM-01~SM-19，含真机 CDP 自动化说明） | 测试、验收人 |
 | [ONSITE_ACCEPTANCE_CHECKLIST.md](ONSITE_ACCEPTANCE_CHECKLIST.md) | 现场人工验收记录表（听声/真机/彩排/真实影像，含已完成的自动化预检） | 测试、项目经理 |
 | [A1_PREFLIGHT_REPORT.md](A1_PREFLIGHT_REPORT.md) | A1 现场项自动化预检报告（4 脚本 / 34 项判定、现场剩余人工项、复现命令） | 测试、项目经理 |
+| [REVIEW_FIX_REPORT.md](REVIEW_FIX_REPORT.md) | 2026-11-14 审查 P0/P1 修复报告（8 个缺陷、真实接口 12/12 + 浏览器 14/14） | 项目经理、测试、甲方 |
 | [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md) | 已知限制与二期能力（诚实边界） | 甲方、项目经理 |
 | [ACCEPTANCE_LOG_20261112.md](ACCEPTANCE_LOG_20261112.md) | 每轮验收记录（问题、修复、证据、排障过程） | 所有人 |
 | [DELIVERY_BACKLOG.md](DELIVERY_BACKLOG.md) | 剩余任务清单（P0 交付前必做 / P1 试运行前 / P2 二期，含验收标准与工时） | 项目经理、开发、甲方 |
@@ -57,9 +58,9 @@ node scripts/delivery/browser-smoke.mjs
 
 ## 当前状态摘要（以本目录最新记录为准）
 
-- 前端：eslint 0 error、vitest **69 passed**（7 个测试文件；含时相对比 12 例、权限回归 1 例、
-  B5-4 组件测试 12 例）、vite build 成功、SFC/令牌完整性通过
-- 后端：`mvn compile` / `package` 通过（jar 127,455,144 B）；全量 `mvn test`（Testcontainers）**141 tests / 0 failures / 0 errors / 4 skipped**；
+- 前端：eslint 0 error、stylelint 全量 0、vitest **77 passed**（8 个测试文件；含时相对比 12 例、
+  权限回归 2 例、B5-4 组件测试 12 例、审查修复回归 7 例）、vite build 成功、SFC/令牌完整性通过
+- 后端：`mvn compile` / `package` 通过（jar 127,456,012 B）；全量 `mvn test`（Testcontainers）**141 tests / 0 failures / 0 errors / 4 skipped**；
   新增 `SignProxyPermissionTest`（2）、`SentinelCompareControllerTest`（4）、`EventStateMachineTest`（**11**，B5-1 状态机）全通过
 - ai-service：pytest 实跑 10 个测试文件 **102 passed / 4 skipped**（6.48s，仅 2 条第三方弃用警告）
 - 真实浏览器：37/37 PASS（四档告警、AI 分析详情、确认→派发、设置落库、API 宕机、WS 轮询降级、角色 403 等）；
@@ -83,9 +84,12 @@ node scripts/delivery/browser-smoke.mjs
 - **最终交付验收（2026-11-14）**：前端 eslint 0 / stylelint 0 / vitest 69 / build 成功 / SFC 98 / 令牌通过；
   后端全量 `mvn test` 141 通过 + `package` 成功；ai-service pytest 102 passed / 4 skipped；
   浏览器冒烟 37/37；生产配置检查器 21/21 + prod compose 解析通过。详见 `ACCEPTANCE_LOG` §四十三。
-- 源码提交：`release/delivery` 分支；交付快照 tag **`v1.8.5-delivery`**（最终交付验收轮次）；
-  源码包 `output/delivery-verify/DisasterGuard-v1.8.5-delivery.zip` + 同名 `.sha256`；
-  `v1.8.4` / `v1.8.3` / `v1.8.2` / `v1.8.1` / `v1.8.0-delivery` 保留为历史快照，不强制移动
+- **审查 P0/P1 修复（2026-11-14）**：设备地图 500 + 静默 mock 假设备、灾害预测序列化 500、
+  admin 气象页 403、drift 路径重复与 0 值、预警空白 KPI、灾害列表首屏弹窗全部修复；
+  真实接口 **12/12** + 真实浏览器 **14/14** PASS（7 页面）。详见 [REVIEW_FIX_REPORT.md](REVIEW_FIX_REPORT.md)。
+- 源码提交：`release/delivery` 分支；交付快照 tag **`v1.8.6-delivery`**（审查修复轮次）；
+  源码包 `output/delivery-verify/DisasterGuard-v1.8.6-delivery.zip` + 同名 `.sha256`；
+  `v1.8.5` / `v1.8.4` / `v1.8.3` / `v1.8.2` / `v1.8.1` / `v1.8.0-delivery` 保留为历史快照，不强制移动
 - 现场人工验收记录表：[ONSITE_ACCEPTANCE_CHECKLIST.md](ONSITE_ACCEPTANCE_CHECKLIST.md)（已纳入演示材料包）
 - 已知待现场确认：人耳真实听声、真机移动端触摸/网络、通知送达口径人工核对、
   按 `DEMO_SCRIPT.md` 完整彩排 2 遍计时 ≤20 分钟、时相对比真实影像凭证、AI 开启后 AI 洞察页完整渲染

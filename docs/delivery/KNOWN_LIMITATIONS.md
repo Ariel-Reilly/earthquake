@@ -250,6 +250,28 @@
 - **证据**：`frontend/src/views/monitor/RealTimeMapPage.vue:65-72,544-570`。
 - **待确认**：是否需要二期接入历史快照表/时序查询接口（约 3-5 人日）。
 
+### L-19 设备地图演示数据兜底（2026-11-14 已收紧）
+
+- **历史问题**：`/api/device-map` 500 时 `deviceMapService.js` 静默返回 12 台成都 mock 设备
+  （10 在线），与真实库 16 台全部离线矛盾。
+- **现状**：接口 500 已修复（`DeviceMapService.toOffsetDateTime` 兼容 `Instant`）；前端默认
+  **失败即抛错**并显示错误横幅，不展示任何设备；仅显式设置
+  `VITE_DEVICE_MAP_DEMO_FALLBACK=1` 才返回内置数据，且带 `demo:true`，页面必须显示「演示数据」横幅。
+- **证据**：`REVIEW_FIX_REPORT.md` §二/§三；`verify-review-api-fixes.mjs` 12/12、
+  `verify-review-browser-fixes.mjs` 14/14。
+
+### L-20 外部气象/地图资源与 AI 代理 501 的一致性
+
+- **外部资源**：NSMC/NMC 产品与部分地图瓦片存在 `ERR_BLOCKED_BY_ORB` 或超时；天气页已逐产品
+  显示失败原因（如 `no available slot … HTTP 404`），地图仍可渲染；未引入外链代理。
+- **drift / multimodal**：后端 `AiDeprecatedGapController` 对 `/api/ai/drift/**`、
+  `/api/ai/multimodal/**` 显式返回 501 + `deprecated:true`（L-01/L-08）。前端回退路径已修正为
+  `/ai${path}`，501 时页面显示「漂移监控能力未接入」，不再显示 0 值或泛化网络错误。
+  ai-service 直连 `8001` 的 drift 端点实测可用；生产形态要真正用上需补同源代理，属二期。
+- **演示数据新鲜度**：开发库设备全部离线、预警/灾害点时间停在 2026-11-06，属演示数据过期而非代码缺陷。
+  `scripts/delivery/refresh-demo-data.sql` 提供幂等刷新（只在隔离库验证过，**未在开发库执行**），
+  执行前须由演示负责人确认目标库并备份。
+
 ---
 
 ## 附：限制清单维护约定

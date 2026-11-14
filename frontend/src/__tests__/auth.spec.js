@@ -145,4 +145,12 @@ describe('角色判断', () => {
     expect(canAccessPath('maintenance', '/dashboard/satellite-compare')).toBe(false)
     expect(canAccessPath('system_admin', '/dashboard/satellite-compare')).toBe(false)
   })
+
+  it('气象分析页面 admin 可达（2026-11-14 审查 P0-4 回归）', () => {
+    // admin 菜单含 /dashboard/weather，但权限矩阵曾漏 weather:view，
+    // 路由守卫直接 403；这里同时锁定路径可达与权限码存在。
+    expect(canAccessPath('admin', '/dashboard/weather')).toBe(true)
+    expect(ROLE_PERMISSION_MAP.admin).toContain('weather:view')
+    expect(ROLE_PERMISSION_MAP.admin).toContain('weather:refresh')
+  })
 })

@@ -187,6 +187,9 @@ export const ROLE_PERMISSION_MAP = {
     // B1 时相对比页面（恢复路由 /dashboard/satellite-compare）专用权限码，
     // data.sql 中已存在定义，这里补进运行时权限表，避免页面被方法级鉴权挡住。
     'satellite:view',
+    // 2026-11-14 审查修复：admin 菜单含 /dashboard/weather，但权限矩阵漏了 weather:view，
+    // 路由守卫直接 403。refresh 是同一页「刷新气象产品」按钮所需，一并补齐。
+    'weather:view','weather:refresh',
   ],
   attendant: [
     'overview:view','overview:export','map:view','map:edit','zone:view',

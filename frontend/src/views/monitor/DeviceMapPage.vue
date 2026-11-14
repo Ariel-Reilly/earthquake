@@ -65,6 +65,9 @@ const statusFilter = ref('全部')  // 全部 | 在线 | 离线 | 故障
 const mobilityFilter = ref('全部') // 全部 | 固定 | 移动
 
 const deviceMap = ref(null)
+// 真实接口失败时展示显式错误态；演示数据仅在显式开启时允许，且必须有横幅标识。
+const loadError = ref('')
+const demoMode = ref(false)
 const selectedCode = ref('')
 const trajectory = ref(null)
 const trajectoryLoading = ref(false)
@@ -346,12 +349,19 @@ function drawTrajectory(points) {
 // 数据加载
 async function loadAll() {
   loading.value = true
+  loadError.value = ''
   try {
     const data = await fetchDeviceMap()
     deviceMap.value = data
+    demoMode.value = data.demo === true
     buildDeviceFeatures()
   } catch (e) {
-    emit?.('notify', '设备地图加载失败：' + (e?.message || e))
+    // 失败时清空真实/演示数据，绝不保留上一帧或静默塞入 mock 假设备。
+    deviceMap.value = null
+    demoMode.value = false
+    buildDeviceFeatures()
+    loadError.value = e?.message || '设备地图数据加载失败'
+    emit?.('notify', loadError.value)
   } finally {
     loading.value = false
   }
@@ -512,6 +522,18 @@ onBeforeUnmount(() => {
         </button>
       </div>
     </header>
+
+    <!-- 真实接口失败 / 演示数据 的诚实标识（避免与总览页真实库数据矛盾） -->
+    <div v-if="loadError" class="dm-notice dm-notice-error" role="alert">
+      <AlertCircle :size="16" />
+      <span>{{ loadError }}。为避免与真实设备库矛盾，此处不展示演示设备。</span>
+      <button class="dm-btn dm-btn-sm" :disabled="loading" @click="loadAll">重新加载</button>
+    </div>
+    <div v-else-if="demoMode" class="dm-notice dm-notice-demo">
+      <AlertCircle :size="16" />
+      <span><strong>演示数据</strong>：当前为内置 mock 设备，不代表真实库；正式交付请关闭
+        <code>VITE_DEVICE_MAP_DEMO_FALLBACK</code>。</span>
+    </div>
 
     <!-- Stat cards -->
     <section class="dm-stats">
@@ -757,6 +779,34 @@ onBeforeUnmount(() => {
   min-height: 100%;
   height: 100%;
   box-sizing: border-box;
+}
+
+/* ===== 数据状态提示（错误态 / 演示数据） ===== */
+.dm-notice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--c-separator);
+  background: var(--c-surface);
+  color: var(--c-scrim);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.dm-notice span { flex: 1; }
+.dm-notice code { font-size: 12px; }
+
+.dm-notice-error {
+  border-color: var(--c-danger-soft);
+  background: var(--c-danger-bg);
+  color: var(--c-danger-strong);
+}
+
+.dm-notice-demo {
+  border-color: var(--c-warning);
+  background: var(--c-warning-bg);
+  color: var(--c-warning-ink);
 }
 
 /* ===== Header ===== */

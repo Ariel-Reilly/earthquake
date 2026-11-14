@@ -1,9 +1,14 @@
 /**
  * 设备地图视图服务（v1.9.0 / P1 设备地图与轨迹回放）。
  *
- * 数据源优先级：
- *   1) 后端 Java /api/device-map/* （真实）
- *   2) 内置 mock 生成器（兜底演示）
+ * 数据源优先级（交付口径，2026-11-14 审查修复）：
+ *   1) 后端 Java /api/device-map/* （真实，唯一默认来源）
+ *   2) 内置 mock 生成器：**仅在显式设置 VITE_DEVICE_MAP_DEMO_FALLBACK=1 时启用**，
+ *      且返回值带 demo:true，页面必须显示「演示数据」标识。
+ *
+ * 历史缺陷：接口 500 时曾静默返回 generateMockDeviceMap()，
+ * 导致设备地图显示 12 台成都 mock 设备 / 10 在线，与真实库 16 台全部离线矛盾，
+ * 评审会把它当成真实数据。现在默认失败即抛错，绝不静默造假。
  *
  * 调用示例：
  *   const map = await fetchDeviceMap()
@@ -18,6 +23,9 @@
 import { withQuery } from '../../../utils/query.js'
 
 const DEFAULT_API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'
+
+// 演示数据兜底必须显式开启；默认关闭，避免真实接口故障时静默展示假设备。
+const ALLOW_DEMO_FALLBACK = import.meta.env.VITE_DEVICE_MAP_DEMO_FALLBACK === '1'
 
 const DEVICE_MAP_ENDPOINT = '/device-map'
 const TRAJECTORY_ENDPOINT = (code) => `/device-map/trajectory/${encodeURIComponent(code)}`
@@ -67,19 +75,33 @@ const REGENERATE_ENDPOINT = '/device-map/trajectory/regenerate'
  * @returns {Promise<DeviceMapResponse>}
  */
 export async function fetchDeviceMap(baseUrl) {
+  let failure = null
   try {
     const url = `${baseUrl || DEFAULT_API_BASE}${DEVICE_MAP_ENDPOINT}`
     const resp = await fetchWithAuth(url, { method: 'GET' })
-    if (resp.ok) {
-      const payload = await resp.json().catch(() => null)
-      if (payload && payload.code === 0 && payload.data) {
-        return payload.data
-      }
+    if (!resp.ok) {
+      throw new Error(`HTTP ${resp.status}`)
     }
-  } catch (_e) {
-    // ignore, fallback to mock
+    const payload = await resp.json().catch(() => null)
+    if (!payload || payload.code !== 0 || !payload.data) {
+      throw new Error(payload?.message || '响应体缺少 data')
+    }
+    return { ...payload.data, demo: false }
+  } catch (e) {
+    failure = e
   }
-  return generateMockDeviceMap()
+
+  if (ALLOW_DEMO_FALLBACK) {
+    // 显式演示模式：必须带 demo 标记，由页面展示「演示数据」横幅。
+    return {
+      ...generateMockDeviceMap(),
+      demo: true,
+      demoReason: failure?.message || '未知错误',
+    }
+  }
+  throw new Error(
+    `设备地图数据加载失败（不回退演示数据）：${failure?.message || '未知错误'}`,
+  )
 }
 
 /**

@@ -57,8 +57,11 @@ export function useHazardList(props) {
         total: data.total ?? hazards.value.length,
         pages: data.pages ?? 1,
       }
+      // 首屏只展示列表，不自动弹出第一个灾害点的详情抽屉。
+      // 历史实现 drawerOpen = Boolean(selected)，导致「歌乐山崩塌隐患」详情一进页面就遮挡列表。
+      // selected 仍保留为默认高亮，详情由用户点击行 / 调用 openDetail 再打开。
       selected.value = hazards.value[0] ?? null
-      drawerOpen.value = Boolean(selected.value)
+      drawerOpen.value = false
     } finally {
       loading.value = false
     }

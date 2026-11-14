@@ -436,3 +436,24 @@
   - 待甲方：A6-3 演示数据水印、A6-4 地图合规；
   - P1 决策：B6-1 巡检报告 ground truth、B7-1 通知/待办口径、事件状态机 409 契约、
     Vite/依赖升级评估；P2 C1~C8 为二期立项范围。
+
+## P. 本轮执行记录（2026-11-14，审查 P0/P1 修复）
+
+- **输入**：一份「功能实现 / 数据流转 / 页面美观」真实接口 + 真实浏览器审查结论
+  （证据 `output/review-endpoint-scan.json`、`output/review-menu-scan.json`、`output/review-ui/`）。
+  审查本身未改代码；本轮先复现再修复。
+- **P0 全部关闭**（5 项）：设备地图 500（`Instant` 强转 `Timestamp`）、前端静默 mock 假设备、
+  `ForecastResult` 序列化 500、admin 气象页 403（前后端权限同步）、drift 回退路径重复 + 501 显示 0。
+- **P1 可编码项已做**（5 项）：预警页空白 KPI → 「未接入」、灾害列表首屏自动弹窗、
+  演示数据刷新脚本 `scripts/delivery/refresh-demo-data.sql`（**仅隔离库验证，未动开发库**）、
+  AI 研判慢加载渐进提示、外部资源 ORB/超时登记 L-20。
+- **回归证据**（隔离环境 nginx(dist) `25173` → 新 jar 后端 `28084` → ai `28081`）：
+  `verify-review-api-fixes.mjs` **12/12**、`verify-review-browser-fixes.mjs` **14/14**（7 个页面）；
+  证据 `output/delivery-verify/review-fixes-*.json`、截图 `output/review-fixes/`。
+- **门禁**：eslint 0 / stylelint 全量 0 / vitest **77 passed**（8 文件）/ SFC 98 / 令牌 0 /
+  `vite build` 7.01s / 后端全量 `mvn test` **149 tests / 0 failures / 0 errors** / `mvn package` 成功；新增 5 组单测。
+- **详见** [REVIEW_FIX_REPORT.md](REVIEW_FIX_REPORT.md)、`ACCEPTANCE_LOG` §四十四。
+- **仍待人工**：演示数据刷新需演示负责人确认目标库并备份后执行；A1 纯人工项、A4 上线日注入、
+  A6-3/A6-4、B6-1/B7-1、状态机 409 契约、Vite 升级评估、P2 二期能力保持原状态。
+- **下一步**：D 节第 4 项（A1 纯人工现场验收）与第 5 项（甲方/上线日）；本机可继续推进的只剩
+  二期能力立项或甲方输入后的配置注入。

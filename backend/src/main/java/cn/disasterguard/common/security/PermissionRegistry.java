@@ -48,7 +48,8 @@ public final class PermissionRegistry {
           "tasks:view", "tasks:create", "tasks:edit", "tasks:delete",
           "tasks:export", "backup:view", "backup:manage", "plans:view",
           "plans:edit", "plans:launch", "reports:view", "reports:create",
-          "reports:delete", "sign:proxy", "satellite:view"
+          "reports:delete", "sign:proxy", "satellite:view", "weather:view",
+          "weather:refresh"
       ),
       "attendant", Set.of(
           "overview:view", "overview:export", "map:view", "map:edit",

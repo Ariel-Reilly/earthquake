@@ -16,7 +16,8 @@
 | Java 网关 API 全链路（含越权/参数负向） | ✅ **14/14 PASS** | `node scripts/delivery/verify-sentinel-e2e.mjs` |
 | A1-2 WS 断线重连计时 | ✅ **6/6 PASS**，阻断 32s，重连 **2013 ms**，轮询兜底持续 | `node scripts/delivery/verify-realtime-reconnect.mjs`；`output/delivery-verify/realtime-reconnect.json` |
 | A1-4 页面/按钮巡检预检 | 15 个路由 / **442** 个可点击按钮，无跳登录、无空白页、无 JS 异常 | `node scripts/delivery/verify-button-sweep.mjs`；`output/delivery-verify/button-sweep.json` |
-| 前端门禁 | eslint 0 error / vitest **69 passed**（7 个测试文件）/ SFC 98 / 令牌完整性 0 问题 / `vite build` 通过 | 含 B5-4 组件测试 12 例 |
+| 2026-11-14 审查 P0/P1 修复回归 | ✅ 真实接口 **12/12** + 真实浏览器 **14/14**（7 页面）PASS：设备地图真实 16 台 / 无 mock、气象页不再 403、灾害预测不再 500、预警 KPI 显示「未接入」、灾害列表不自动弹窗 | `node scripts/delivery/verify-review-api-fixes.mjs`；`node scripts/delivery/verify-review-browser-fixes.mjs`；详见 [REVIEW_FIX_REPORT.md](REVIEW_FIX_REPORT.md) |
+| 前端门禁 | eslint 0 error / stylelint 0 / vitest **77 passed**（8 个测试文件）/ SFC 98 / 令牌完整性 0 问题 / `vite build` 通过 | 含 B5-4 组件测试 12 例、审查修复回归 7 例 |
 | 后端门禁 | `mvn -q -DskipTests package` 通过，fat jar 127 MB；`EventStateMachineTest` **11/11 PASS** | B5-1 状态机单测 |
 | ai-service pytest | 10 个测试文件 **102 passed / 4 skipped**（6.48s） | `output/delivery-verify/pytest-20261113.log` |
 | A1-3 移动端响应式（CDP 设备模拟） | ✅ **8/8 PASS**：4 视口 × 5 路由 = 20 组，无横向溢出 / 空白页 / 5xx / 异常；360×800 红色弹窗不溢出、按钮全可点 | `node scripts/delivery/verify-mobile-responsive.mjs`；9 张 `mobile-*.png` |
@@ -27,6 +28,9 @@
 > 巡检中发现的两处后端 500 已用最新源码重启后端**实测 `code=0` 正式关闭**（见第 6 节），现场无需重做。
 > 上述 A1 预检详见 [A1_PREFLIGHT_REPORT.md](A1_PREFLIGHT_REPORT.md)；**A1 各子项并未整体关闭**，
 > 第 2/4/5/8 节列出的真人 / 真机 / 话术项仍须现场执行。
+> **演示数据新鲜度**：若现场看到「0 在线设备 / 预警日期过期」，由演示负责人确认目标库并备份后执行
+> `scripts/delivery/refresh-demo-data.sql`（仅 UPDATE、幂等；本轮只在隔离库验证，未在开发库执行）。
+> 该脚本会改写业务时间戳与设备状态，**生产/试运行环境禁用**。
 
 ---
 

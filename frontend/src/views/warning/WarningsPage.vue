@@ -197,7 +197,7 @@ const statCards = computed(() => {
       icon: MessageSquareText,
       value: notifyRate,
       unit: notifyRate != null ? '%' : '',
-      note: '全渠道触达',
+      note: notifyRate != null ? '全渠道触达' : '通知送达统计未接入',
     },
     {
       key: 'dept',
@@ -205,7 +205,7 @@ const statCards = computed(() => {
       icon: UsersRound,
       value: deptCount,
       unit: deptCount != null ? '个' : '',
-      note: '协同响应',
+      note: deptCount != null ? '协同响应' : '联动部门统计未接入',
     },
   ]
 })
@@ -599,14 +599,15 @@ onBeforeUnmount(() => {
     </div>
     <template v-else>
       <div class="stats-grid">
-        <article v-for="card in statCards" :key="card.key" class="stat-card">
+        <article v-for="card in statCards" :key="card.key" class="stat-card" :title="card.value == null ? `${card.label}：${card.note}` : undefined">
           <span class="stat-icon">
             <component :is="card.icon" :size="15" />
           </span>
           <div class="stat-copy">
             <span class="stat-label">{{ card.label }}</span>
-            <strong :class="{ 'is-empty': card.value === 0 || card.value == null }">
-              {{ card.value == null ? '—' : card.value }}<small v-if="card.value != null">{{ card.unit }}</small>
+            <strong :class="{ 'is-empty': card.value === 0 || card.value == null, 'is-unavailable': card.value == null }">
+              <template v-if="card.value == null">未接入</template>
+              <template v-else>{{ card.value }}<small>{{ card.unit }}</small></template>
             </strong>
           </div>
           <em class="stat-note">{{ card.note }}</em>
@@ -1020,6 +1021,12 @@ onBeforeUnmount(() => {
 /* 0 或「—」时降级为弱化色，避免大号数字抢戏 */
 .stat-copy strong.is-empty {
   color: var(--color-muted-foreground);
+}
+
+/* 未接入的指标用较小字号，避免被误读为「加载失败的空白值」 */
+.stat-copy strong.is-unavailable {
+  font-size: var(--text-base);
+  font-weight: 600;
 }
 
 .stat-note {

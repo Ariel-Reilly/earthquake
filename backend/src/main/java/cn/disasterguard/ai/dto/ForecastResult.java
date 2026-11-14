@@ -9,6 +9,12 @@ import com.fasterxml.jackson.annotation.JsonAlias;
  * 用 {@link JsonAlias} 做反序列化别名；序列化输出统一 camelCase。
  *
  * <p>此类为可变类（setDegraded），供 Java 控制器在合成数据场景下注入 degraded 标志。
+ *
+ * <p>2026-11-14 审查修复：原先只提供 record 风格访问器 {@code deviceCode()} 等，
+ * Jackson 默认只认 {@code getXxx()} / {@code isXxx()}，序列化时找不到任何属性，
+ * 导致 {@code GET /api/ai/forecast/auto} 抛
+ * {@code No serializer found for class ForecastResult} → HTTP 500。
+ * 这里补齐标准 getter（同时保留 record 风格访问器，避免影响现有调用方）。
  */
 public class ForecastResult {
 
@@ -45,6 +51,15 @@ public class ForecastResult {
   public double confidence() { return confidence; }
   public String model() { return model; }
   public boolean degraded() { return degraded; }
+
+  // Jackson 序列化用的标准 getter：输出 camelCase，与前端契约一致。
+  public String getDeviceCode() { return deviceCode; }
+  public String getMetric() { return metric; }
+  public int getHorizon() { return horizon; }
+  public java.util.List<Double> getPredictions() { return predictions; }
+  public double getConfidence() { return confidence; }
+  public String getModel() { return model; }
+  public boolean isDegraded() { return degraded; }
 
   public void setDeviceCode(String v) { this.deviceCode = v; }
   public void setMetric(String v) { this.metric = v; }

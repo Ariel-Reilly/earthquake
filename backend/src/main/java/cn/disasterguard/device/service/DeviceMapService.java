@@ -8,8 +8,11 @@ import cn.disasterguard.device.entity.DeviceTrajectory;
 import cn.disasterguard.device.entity.MonitoringDevice;
 import cn.disasterguard.device.repository.DeviceTrajectoryRepository;
 import cn.disasterguard.device.repository.MonitoringDeviceRepository;
+import java.time.Instant;
+import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -107,9 +110,10 @@ public class DeviceMapService {
         item.setSpeedKmh(toDouble(latest[3]));
         item.setHeadingDeg(toDouble(latest[4]));
       }
-      item.setLastReportAt(latest != null && latest[7] != null
-          ? ((java.sql.Timestamp) latest[7]).toInstant().atOffset(ZoneOffset.UTC)
-          : d.getLastReportAt());
+      // 原生查询返回的时间列类型随 JDBC 驱动 / PostgreSQL 版本变化：
+      // 可能是 Instant、java.sql.Timestamp、OffsetDateTime 或字符串，不能强转成 Timestamp。
+      OffsetDateTime reportedAt = latest != null ? toOffsetDateTime(latest[7]) : null;
+      item.setLastReportAt(reportedAt != null ? reportedAt : d.getLastReportAt());
       item.setMobile(mobile);
       items.add(item);
 
@@ -174,6 +178,44 @@ public class DeviceMapService {
     if (t.contains("vehicle") || t.contains("车")) return "vehicle";
     if (t.contains("handheld") || t.contains("手持")) return "handheld";
     return "mobile";
+  }
+
+  /**
+   * 原生查询时间列 → {@code OffsetDateTime(UTC)}，兼容多种 JDBC 返回类型。
+   *
+   * <p>历史缺陷：此处曾直接强转 {@code (java.sql.Timestamp) latest[7]}，
+   * 而 PostgreSQL 驱动对 {@code timestamptz} 会返回 {@link Instant}，导致
+   * {@code ClassCastException} → {@code GET /api/device-map} 500，
+   * 前端进而静默回退到 mock 设备数据（与真实库 16 台设备矛盾）。
+   *
+   * <p>无法识别的类型返回 {@code null} 并记 warn，由调用方回退到设备自身时间，
+   * 绝不抛异常拖垮整个设备地图接口。
+   */
+  static OffsetDateTime toOffsetDateTime(Object v) {
+    if (v == null) return null;
+    if (v instanceof OffsetDateTime odt) return odt;
+    if (v instanceof Instant instant) return instant.atOffset(ZoneOffset.UTC);
+    if (v instanceof java.sql.Timestamp ts) return ts.toInstant().atOffset(ZoneOffset.UTC);
+    if (v instanceof java.util.Date date) return date.toInstant().atOffset(ZoneOffset.UTC);
+    if (v instanceof LocalDateTime ldt) return ldt.atOffset(ZoneOffset.UTC);
+    if (v instanceof CharSequence cs) {
+      String s = cs.toString().trim();
+      if (s.isEmpty()) return null;
+      try {
+        return OffsetDateTime.parse(s);
+      } catch (DateTimeParseException ignored) { /* 继续尝试其它格式 */ }
+      try {
+        return Instant.parse(s).atOffset(ZoneOffset.UTC);
+      } catch (DateTimeParseException ignored) { /* 继续尝试 LocalDateTime */ }
+      try {
+        return LocalDateTime.parse(s.replace(' ', 'T')).atOffset(ZoneOffset.UTC);
+      } catch (DateTimeParseException e) {
+        log.warn("设备地图：无法解析最近上报时间字符串 {}", s);
+        return null;
+      }
+    }
+    log.warn("设备地图：无法识别最近上报时间类型 {}，回退到设备自身时间", v.getClass().getName());
+    return null;
   }
 
   private static Double toDouble(Object v) {

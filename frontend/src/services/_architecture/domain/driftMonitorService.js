@@ -15,6 +15,14 @@ const AI_SERVICE_BASE =
   import.meta.env.VITE_AI_SERVICE_URL ||
   "http://localhost:8001/api/ai";
 
+/**
+ * 后端代理回退路径（导出以便单测锁定，避免再拼出 /api/ai/drift/drift/*）。
+ * path 自带 /drift/... 前缀，API_BASE 是 /api，故正确结果为 /ai/drift/...。
+ */
+export function proxyPathFor(path) {
+  return `/ai${path}`;
+}
+
 async function aiServiceRequest(path, options = {}) {
   const url = `${AI_SERVICE_BASE}${path}`;
   const defaultOptions = {
@@ -32,8 +40,23 @@ async function aiServiceRequest(path, options = {}) {
     return response.json();
   } catch (error) {
     if (USE_BACKEND) {
-      // 通过后端代理调用AI服务
-      return request(`/ai/drift${path}`, options);
+      // 回退路径：path 本身已含 /drift/...，后端 API_BASE 是 /api，
+      // 所以正确拼法为 `/ai${path}` → /api/ai/drift/detect。
+      // 历史缺陷写成 `/ai/drift${path}`，实际请求 /api/ai/drift/drift/detect，
+      // 只会命中 501 兜底或 404，页面会把能力缺失误判成「检测到 0 漂移」。
+      try {
+        return await request(proxyPathFor(path), options);
+      } catch (proxyError) {
+        if (proxyError?.code === "501" || proxyError?.code === "404") {
+          // 后端 AiDeprecatedGapController 对 /api/ai/drift/** 显式返回 501（L-01）。
+          // 转成语义化错误，让页面显示「能力未接入」而不是 0 值或泛化网络错误。
+          throw createApiError(
+            "漂移监控能力未接入：后端代理端点已弃用（501）。请直连 ai-service /api/ai/drift/*，或按 KNOWN_LIMITATIONS L-01 视为二期能力。",
+            "DRIFT_NOT_IMPLEMENTED",
+          );
+        }
+        throw proxyError;
+      }
     }
     throw error;
   }

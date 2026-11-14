@@ -1022,3 +1022,52 @@ Edge headless CDP 9222 → nginx(dist) 25173（Origin 改写 + Cesium CSP）
 - A6-3/A6-4（演示数据清空/水印、地图合规）待甲方决策；
 - P1 决策项：B6-1（巡检报告 ground truth）、B7-1（通知/待办口径）、事件状态机 409 契约、
   Vite/依赖升级评估；P2 二期能力不在本次交付承诺内。
+
+## 四十四、审查 P0/P1 修复与回归（2026-11-14）
+
+### 44.1 输入与复现
+
+外部审查在 `b31501c` / `v1.8.5-delivery` 上做了 110 个 GET 接口扫描与 41 条 dashboard 路由扫描。
+本轮先在开发后端 8080 复现：`GET /api/device-map` → 500、`GET /api/ai/forecast/auto` → 500，
+并确认 admin 权限矩阵缺 `weather:view`。详细对照见 `REVIEW_FIX_REPORT.md` §一。
+
+### 44.2 修复
+
+| 优先级 | 文件 | 处理 |
+|---|---|---|
+| P0-1 | `DeviceMapService.java` | 新增 `toOffsetDateTime(Object)` 兼容 `Instant`/`Timestamp`/`OffsetDateTime`/`LocalDateTime`/`Date`/字符串，替换 `((Timestamp) latest[7])` 强转 |
+| P0-2 | `deviceMapService.js` / `DeviceMapPage.vue` | 真实接口失败默认抛错；演示数据仅 `VITE_DEVICE_MAP_DEMO_FALLBACK=1` 且带 `demo:true`；页面新增错误/演示横幅，失败时清空数据 |
+| P0-3 | `ai/dto/ForecastResult.java` | 补 7 个 Jackson 标准 getter，修复 `No serializer found` → 500 |
+| P0-4 | `auth.js` / `PermissionRegistry.java` | admin 补 `weather:view` + `weather:refresh`，重跑生成器（admin 123→125 项） |
+| P0-5 | `driftMonitorService.js` / `ModelManagePage.vue` | `proxyPathFor(path) = '/ai'+path`；501 → `DRIFT_NOT_IMPLEMENTED` → 页面「能力未接入」；KPI 失败显示「未接入」 |
+| P1 | `WarningsPage.vue` / `useHazardList.js` / `AiComprehensiveTab.vue` | 空白 KPI → 「未接入」；首屏不自动弹详情；AI 加载渐进提示 |
+| P1-8 | `scripts/delivery/refresh-demo-data.sql` | 幂等演示数据刷新脚本（只 UPDATE）；`hazard_point` 是视图故更新 `unified_event` 基表 |
+
+### 44.3 验证环境与结果
+
+隔离编排 `compose.delivery-verify.yml`：独立 Postgres/Redis/Minio（从开发库 dump 恢复）→
+新 jar 后端 `28084`（`AI_ENABLED=true`）→ ai-service `28081` → nginx(dist) `25173` →
+Edge headless CDP `9222`。仅使用编排文件内标注「仅本机隔离演练」的口令，未读取 `.env`。
+
+| 脚本 | 结果 |
+|---|---|
+| `verify-review-api-fixes.mjs` | **12/12 PASS** — device-map 200 / 16 台 / 统计自洽 / 无 mock；forecast GET+POST 200；气象非 403；drift 显式 501 |
+| `verify-review-browser-fixes.mjs` | **14/14 PASS** — 7 页面无 403、无 mock 设备、无演示横幅、无意外 5xx / 异常 / 溢出；drift 实测请求 `/api/ai/drift/detect` 与 `/api/ai/drift/trend/...` |
+
+证据：`output/delivery-verify/review-fixes-api.json`、`review-fixes-browser.json`；
+截图 `output/review-fixes/review-fix-*.png`。
+
+门禁：eslint 0 / stylelint 全量 0 / vitest **77 passed**（8 文件）/ SFC 98 / 令牌 0 /
+`vite build` 7.01s；后端定向单测 4 类全过、**全量 `mvn test`（Testcontainers）149 tests / 0 failures / 0 errors**
+（原 141 + 本轮新增 8）、`mvn -q -DskipTests package` 成功（jar 127,456,012 B）。
+新增单测：`DeviceMapTimeConversionTest`(5)、`ForecastResultSerializationTest`(2)、
+`PermissionRegistryTest` +1、`deviceMapFallback.spec.js`(7)、`auth.spec.js` +1。
+
+### 44.4 诚实边界
+
+- drift / multimodal 后端代理**仍是显式 501**（L-01/L-08），本轮只做到页面明确提示「能力未接入」，
+  没有把 501 包装成真实接口；ai-service 直连 8001 的 drift 端点可用，生产形态接入属二期。
+- 演示数据刷新脚本**只在隔离库验证**（结果：6 在线 / 16 台、预警与灾害点日期均为 2026-11-14），
+  **未在开发库或任何真实环境执行**；执行前须由演示负责人确认目标库并备份。
+- 外部 NSMC/NMC 天气源与地图外链仍有 ORB / 超时（登记 L-20）；页面已有逐产品失败文案，地图仍可渲染。
+- A1 纯人工项、A4 上线日注入、A6-3/A6-4、B6-1/B7-1、状态机 409 契约、Vite 升级及 P2 二期能力不变。

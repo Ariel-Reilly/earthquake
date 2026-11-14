@@ -52,6 +52,15 @@ class PermissionRegistryTest {
   }
 
   @Test
+  @DisplayName("admin 配齐气象分析页权限码（2026-11-14 审查 P0-4）")
+  void admin_has_weather_codes() {
+    Set<String> perms = new HashSet<>(PermissionRegistry.permissionsOf("admin"));
+    Set<String> missing = new HashSet<>(Set.of("weather:view", "weather:refresh"));
+    missing.removeAll(perms);
+    assertTrue(missing.isEmpty(), "admin 缺少气象分析权限码: " + missing);
+  }
+
+  @Test
   @DisplayName("未知角色 / null 返回空权限集，不会意外放行")
   void unknown_role_and_null_are_empty() {
     assertTrue(PermissionRegistry.permissionsOf("ghost").isEmpty());

@@ -18,6 +18,7 @@ const emit = defineEmits(['notify'])
 
 // 顶部 KPI
 const kpiLoading = ref(true)
+const kpiUnavailable = ref(false)
 const kpiData = ref({ onlineCount: 0, todayInferences: 0, avgLatency: 0,综合F1: 0 })
 
 // Tab 状态
@@ -58,6 +59,7 @@ const filteredVersions = computed(() => {
 
 async function loadKpi() {
   kpiLoading.value = true
+  kpiUnavailable.value = false
   try {
     const data = await dashboardApi.getModelFamilyStats()
     kpiData.value = {
@@ -67,7 +69,9 @@ async function loadKpi() {
       综合F1: data.综合F1 ?? 0,
     }
   } catch {
+    // 接口不可用时不把 0 当成真实统计展示：页面统一显示「未接入」。
     kpiData.value = { onlineCount: 0, todayInferences: 0, avgLatency: 0, 综合F1: 0 }
+    kpiUnavailable.value = true
   } finally {
     kpiLoading.value = false
   }
@@ -328,12 +332,14 @@ const driftModels = ref([
 const selectedDriftModel = ref(null)
 const driftResult = ref(null)
 const driftTrend = ref([])
+const driftUnavailable = ref('')
 const driftLoading = ref(false)
 const retrainJobs = ref([])
 const retrainLoading = ref(false)
 
 async function loadDriftMonitor() {
   driftLoading.value = true
+  driftUnavailable.value = ''
   try {
     if (selectedDriftModel.value) {
       const [drift, trend] = await Promise.all([
@@ -349,7 +355,10 @@ async function loadDriftMonitor() {
     // 本地随机数当成模型真实漂移，进而误触发重训。
     driftResult.value = null
     driftTrend.value = []
-    emit('notify', `漂移检测服务不可用：${e?.message ?? '请检查 AI 服务 /api/ai/drift 是否已接入'}`)
+    driftUnavailable.value = e?.code === 'DRIFT_NOT_IMPLEMENTED'
+      ? '漂移监控能力未接入（后端代理已弃用，返回 501）。此处不展示任何漂移数值，避免把 0 误读为「模型无漂移」。'
+      : `漂移检测服务不可用：${e?.message ?? '请检查 AI 服务 /api/ai/drift 是否已接入'}`
+    emit('notify', driftUnavailable.value)
   } finally {
     driftLoading.value = false
   }
@@ -428,32 +437,35 @@ onMounted(async () => {
       <div class="stat-card">
         <div class="stat-icon stat-icon--mint"><Box :size="20" /></div>
         <div class="stat-body">
-          <strong>{{ kpiLoading ? '—' : kpiData.onlineCount }}</strong>
+          <strong>{{ kpiLoading ? '—' : (kpiUnavailable ? '未接入' : kpiData.onlineCount) }}</strong>
           <span>在线模型数</span>
         </div>
       </div>
       <div class="stat-card">
         <div class="stat-icon stat-icon--violet"><Radar :size="20" /></div>
         <div class="stat-body">
-          <strong>{{ kpiLoading ? '—' : kpiData.todayInferences.toLocaleString() }}</strong>
+          <strong>{{ kpiLoading ? '—' : (kpiUnavailable ? '未接入' : kpiData.todayInferences.toLocaleString()) }}</strong>
           <span>总推理次数（今日）</span>
         </div>
       </div>
       <div class="stat-card">
         <div class="stat-icon stat-icon--amber"><Gauge :size="20" /></div>
         <div class="stat-body">
-          <strong>{{ kpiLoading ? '—' : kpiData.avgLatency + ' ms' }}</strong>
+          <strong>{{ kpiLoading ? '—' : (kpiUnavailable ? '未接入' : kpiData.avgLatency + ' ms') }}</strong>
           <span>平均推理时延</span>
         </div>
       </div>
       <div class="stat-card">
         <div class="stat-icon stat-icon--lime"><Cpu :size="20" /></div>
         <div class="stat-body">
-          <strong>{{ kpiLoading ? '—' : kpiData.综合F1 }}</strong>
+          <strong>{{ kpiLoading ? '—' : (kpiUnavailable ? '未接入' : kpiData.综合F1) }}</strong>
           <span>综合 F1 评分</span>
         </div>
       </div>
     </div>
+    <p v-if="kpiUnavailable" class="kpi-unavailable-note">
+      模型统计接口不可用：以上指标显示「未接入」，不把 0 当作真实统计。
+    </p>
 
     <!-- Tab 切换 -->
     <div class="tab-bar">
@@ -955,6 +967,13 @@ onMounted(async () => {
             </div>
           </template>
 
+          <div v-else-if="driftUnavailable" class="drift-empty drift-unavailable" role="status">
+            <AlertTriangle :size="32" />
+            <p>{{ driftUnavailable }}</p>
+            <button class="ghost-btn" :disabled="driftLoading" @click="loadDriftMonitor">
+              <RefreshCw :size="14" />重试
+            </button>
+          </div>
           <div v-else class="drift-empty">
             <TrendingUp :size="32" />
             <p>请从左侧选择一个模型查看漂移监控详情</p>
@@ -1072,6 +1091,27 @@ onMounted(async () => {
 .stat-icon--lime {
   background: var(--c-warning-bg);
   color: var(--c-warning-strong);
+}
+
+/* 统计接口不可用时的诚实提示（不把 0 伪装成真实指标） */
+.kpi-unavailable-note {
+  margin: -4px 0 4px;
+  padding: 8px 12px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--c-warning);
+  background: var(--c-warning-bg);
+  color: var(--c-warning-ink);
+  font-size: 12px;
+}
+
+.drift-unavailable {
+  border-color: var(--c-warning);
+  color: var(--c-warning-ink);
+}
+
+.drift-unavailable p {
+  max-width: 420px;
+  line-height: 1.6;
 }
 
 .stat-body {

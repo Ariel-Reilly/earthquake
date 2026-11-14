@@ -42,6 +42,21 @@ const confirmDialogRef = ref(null)
 // 评估报告数据
 const report = ref(null)
 const loading = ref(false)
+const loadingSeconds = ref(0)
+let loadingTimer = null
+
+function stopLoadingTimer() {
+  if (loadingTimer) {
+    clearInterval(loadingTimer)
+    loadingTimer = null
+  }
+}
+
+function startLoadingTimer() {
+  stopLoadingTimer()
+  loadingSeconds.value = 0
+  loadingTimer = setInterval(() => { loadingSeconds.value += 1 }, 1000)
+}
 const errorMsg = ref('')
 
 // 多模态融合状态
@@ -194,6 +209,8 @@ function fmtTime(iso) {
 async function loadReport() {
   if (!props.selectedHazardCode) return
   loading.value = true
+  loadingSeconds.value = 0
+  startLoadingTimer()
   errorMsg.value = ''
   try {
     report.value = await aiApi.disasterAssessment(props.selectedHazardCode)
@@ -202,6 +219,7 @@ async function loadReport() {
     report.value = null
   } finally {
     loading.value = false
+    stopLoadingTimer()
   }
 }
 
@@ -359,6 +377,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  stopLoadingTimer()
   stopFusionAutoRefresh()
 })
 </script>
@@ -368,7 +387,10 @@ onBeforeUnmount(() => {
     <!-- 加载状态 -->
     <div v-if="loading" class="loading-state">
       <Loader2 class="spin-icon" />
-      <p>正在分析灾害风险...</p>
+      <p>正在分析灾害风险...<template v-if="loadingSeconds > 0">（已等待 {{ loadingSeconds }} 秒）</template></p>
+      <p v-if="loadingSeconds >= 8" class="loading-hint">
+        AI 服务响应较慢，可先查看其它页面，稍后点「重新分析」；超过 30 秒仍无结果请检查 ai-service。
+      </p>
     </div>
 
     <!-- 错误状态 -->
@@ -606,6 +628,14 @@ onBeforeUnmount(() => {
 
 .spin-icon {
   animation: spin 1s linear infinite;
+}
+
+/* 慢加载时的渐进提示（演示节奏：避免用户误以为页面卡死） */
+.loading-hint {
+  max-width: 420px;
+  color: var(--c-warning-ink);
+  font-size: 12px;
+  line-height: 1.6;
 }
 
 @keyframes spin {
