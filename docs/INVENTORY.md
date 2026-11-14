@@ -194,8 +194,9 @@ find frontend/src backend ai-service -type f \( -name '*.vue' -o -name '*.js' -o
 
 - `common/api/PageResponse{records,total,page,size,pages}` **已存在**（Javadoc 已注明历史上两个 record 已合一），并已在 admin application 分页使用。
 - **任务 3 不是「新建 PageResponse」，而是「前端在 `api/client` 归一化一次 + 校验尚未遵循的端点 + 逐步消除页面层 `items/list` 兼容分支」。**
-- **归一化落点已建**：`frontend/src/api/client.js`（`normalizePage / normalizeList`，纯函数 + 单测 **14** 例）；`dashboardApi.normalizePaged` **已改为委托 `normalizePage`**（已去重、行为等价）；页面层 `items/list` 兼容分支待阶段 1 小步清理（**首个已迁移**：`DataSyncPage.toList` → `normalizeList`）。
-- **页面迁移的验收基线**：迁移必须带页面级回归，不接受“纯函数绿 + 页面未验证”。`dataSyncPage.spec.js` 为示范（挂载真实 SFC + `vi.mock` dashboardApi，覆盖 records/items/list/裸数组/null/抛错 6 例；已做**变异验证**：把 `toList` 改成返回 `[]`，4 个渲染用例全部失败，证明用例真的能挡回归）。
+- **归一化落点已建**：`frontend/src/api/client.js`（`normalizePage / normalizeList`，纯函数 + 单测 **14** 例）；`dashboardApi.normalizePaged` **已改为委托 `normalizePage`**（已去重、行为等价）；页面层 `items/list` 兼容分支待阶段 1 小步清理。
+- **已迁移页面（2）**：`DataSyncPage.toList`；`DataCatalogPage` 三处（`loadAssets` / `loadUsage` / `openTrend`，原 `Array.isArray(data?.records) ? data.records : Array.isArray(data) ? data : []`）。
+- **页面迁移的验收基线**：迁移必须带页面级回归，不接受“纯函数绿 + 页面未验证”。示范：`dataSyncPage.spec.js`（6 例）、`dataCatalogPage.spec.js`（6 例，含 Tab 切换 / usage 路径）；两个用例均做过**变异验证**（把归一层换成返回 `[]`，各自 4 例失败），证明能挡回归。
 
 ### 7.2 时间快照
 

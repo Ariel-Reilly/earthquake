@@ -10,6 +10,7 @@ import {
   Plus, RefreshCw, Search, Tag, Trash2,
 } from "lucide-vue-next"
 import { dashboardApi } from "../../services/dashboardApi"
+import { normalizeList } from "../../api/client"
 
 const props = defineProps({
   searchTerm: { type: String, default: "" },
@@ -154,7 +155,7 @@ async function loadAssets() {
       source: filters.value.source || undefined,
       keyword: filters.value.keyword || undefined,
     })
-    const list = Array.isArray(data?.records) ? data.records : Array.isArray(data) ? data : []
+    const list = normalizeList(data)
     assets.value = list.map((a) => ({
       ...a,
       tags: Array.isArray(a.tags) ? a.tags : [],
@@ -168,7 +169,7 @@ async function loadUsage() {
   usageLoading.value = true
   try {
     const data = await dashboardApi.listCatalogUsage()
-    const list = Array.isArray(data?.records) ? data.records : Array.isArray(data) ? data : []
+    const list = normalizeList(data)
     usageList.value = list.map((u) => ({ ...u, trend7d: Array.isArray(u.trend7d) ? u.trend7d : [] }))
   } catch { usageList.value = [] } finally { usageLoading.value = false }
 }
@@ -273,7 +274,7 @@ async function openTrend(item) {
   trendData.value = { ...item }
   try {
     const data = await dashboardApi.listCatalogUsage()
-    const list = Array.isArray(data?.records) ? data.records : Array.isArray(data) ? data : []
+    const list = normalizeList(data)
     const hit = list.find((u) => u.id === item.id)
     if (hit) trendData.value = { ...item, ...hit, trend7d: Array.isArray(hit.trend7d) ? hit.trend7d : item.trend7d ?? [] }
   } catch (e) {
