@@ -1,4 +1,4 @@
-﻿<script setup>
+<script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { getRuntimeMode } from './services/dashboardApi'
@@ -112,6 +112,22 @@ onMounted(async () => {
 
 .mode-unknown .mode-dot {
   background: var(--sys-gray);
+}
+
+/* 深色模式：底部运行模式徽标使用浅色前景，避免深绿字压在深底上 */
+html.theme-dark .mode-backend {
+  background: rgb(142 177 160 / 20%);
+  color: var(--c-brand-ink);
+}
+
+html.theme-dark .mode-mock {
+  background: rgb(224 196 154 / 16%);
+  color: var(--color-warning-ink);
+}
+
+html.theme-dark .mode-unknown {
+  background: rgb(142 142 147 / 18%);
+  color: var(--color-muted-foreground);
 }
 
 @keyframes pulse {

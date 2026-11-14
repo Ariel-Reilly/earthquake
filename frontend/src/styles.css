@@ -6859,6 +6859,30 @@ textarea {
   background: var(--c-brand);
 }
 
+/* ── 深色模式可读性修正（B3） ───────────────────────────────── */
+html.theme-dark .status-tab em {
+  color: var(--c-brand-ink);
+  background: var(--c-brand-soft);
+}
+
+html.theme-dark .pill.active {
+  color: var(--c-brand-ink);
+}
+
+html.theme-dark .action-chip {
+  color: var(--c-brand-ink) !important;
+  background: var(--c-brand-soft) !important;
+}
+
+/* OpenLayers 比例尺默认深灰字，深色底上几乎不可见 */
+html.theme-dark .ol-scale-step-text {
+  color: #d8e5de !important;
+}
+
+html.theme-dark .ol-scale-step-marker {
+  background-color: #d8e5de !important;
+}
+
 /* 归档态的预警条目 */
 .warning-item.archived {
   opacity: 0.78;

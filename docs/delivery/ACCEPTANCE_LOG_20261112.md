@@ -910,3 +910,38 @@ Edge headless CDP 9222 → nginx(dist) 25173（Origin 改写 + Cesium CSP）
 - 巡检报告仍为模拟（见 L-17）；如需真实误报/漏报，需先确定 ground truth 数据来源。
 - `disposalRate` / `falseAlarmRate` 是当前可用字段的近似口径，已在 `KNOWN_LIMITATIONS.md` 说明；
   不应在验收话术里表述为"官方统计口径"。
+
+---
+
+## 四十一、B3 深色模式可读性清理（2026-11-14）
+
+### 41.1 审计脚本
+
+- 新增 `scripts/delivery/verify-dark-mode.mjs`：
+  - 真实浏览器（Edge CDP）打开 7 个关键页：总览、预警中心、设备、实时地图、审计、AI 任务、设置；
+  - 逐页强制 `data-theme="dark"` 后计算**文字对比度**（WCAG 4.5:1 / 大字 3:1）
+    与**深色下的浅底块**（背景亮度 > 0.72 且面积 > 4% 视口）；
+  - 输出 `output/delivery-verify/dark-mode-audit.json` 与 7 张 `dark-*.png`。
+- 首轮结果：**24 个对比度问题 + 0 个浅底块**（含主题未生效的假阴性修正）。
+
+### 41.2 修复
+
+| 问题 | 修复 |
+|---|---|
+| 底部运行模式徽标深绿字压深底（2.65） | `App.vue` 深色覆盖：backend/mock/unknown 三态改用浅色前景 |
+| 品牌深色文字整体偏暗（4.37） | `tokens.css` 深色 `--color-primary-active` `#6F9180` → `#86A997`，同时改善分段控件/表格表头/预警标题/设置 Tab |
+| 预警状态 Tab 计数浅底浅字（1.96） | `html.theme-dark .status-tab em` 改 `--c-brand-soft` + `--c-brand-ink` |
+| 审计「全部操作」激活 pill 文字与底色相同（1.0） | `html.theme-dark .pill.active` 改浅色前景 |
+| OpenLayers 比例尺深灰字（1.2） | `html.theme-dark .ol-scale-step-text/.marker` 改浅色 |
+| 审计 action chip（3.28） | 深色下改 `--c-brand-ink` + `--c-brand-soft` |
+
+### 41.3 复测
+
+- 深色审计：7 页全部 **contrast=0 / light=0**，`TOTAL_ISSUES=0`；
+- 浅色回归：浏览器冒烟 **37/37 PASS**；stylelint **0**、eslint 0、vitest **69 passed**、build 成功；
+- 截图：`output/delivery-verify/dark-overview.png` 等 7 张。
+
+### 41.4 边界
+
+- 本轮覆盖 7 个高频业务页；其他低频页（如注册/管理类）尚未逐页审计，可复用脚本继续扩展；
+- 深色审计是"计算样式 + 对比度"检测，不能替代人工视觉验收；现场仍需抽查深色截图。

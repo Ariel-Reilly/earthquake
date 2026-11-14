@@ -452,7 +452,7 @@ html.theme-dark {
   /* ── 品牌色：深色下主色提亮，其上文字转深墨（与 styles.css 深色层一致）── */
   --color-primary: #8EB1A0;
   --color-primary-hover: #A5C4B5;
-  --color-primary-active: #6F9180;
+  --color-primary-active: #86a997;
   --color-on-primary: #1F2B25;
   --color-primary-soft: rgba(142, 177, 160, 0.16);
   --color-primary-mist: rgba(142, 177, 160, 0.08);
