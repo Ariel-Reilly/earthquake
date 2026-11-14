@@ -11,12 +11,14 @@
  *     默认只报告；`--strict-legacy` 时 >0 即失败。
  *  3) allowlist 自检：每条 allowlist 必须命中 1 行；失效/重复命中即告警，`--selfcheck` 时失败。
  *     （防止 AI TODO 文案微调后「豁免悄悄失效」。）
+ *  4) 过期 TODO：带 owner 的 TODO 若 date < 今天，报告为「过期」；`--strict-stale` 时失败。
  *
  * 用法：
  *  node scripts/quality/check-comments.mjs                 # 阻断模式（裸标记 > 0 失败）
  *  node scripts/quality/check-comments.mjs --warn          # 仅告警裸标记，退出 0
  *  node scripts/quality/check-comments.mjs --strict-legacy # 旧代码注释也阻断
  *  node scripts/quality/check-comments.mjs --selfcheck     # allowlist 失效即失败（供 CI）
+ *  node scripts/quality/check-comments.mjs --strict-stale  # 过期 TODO（date < 今天）也阻断
  */
 import { readdirSync, readFileSync } from 'node:fs'
 import { join, extname, relative, dirname, resolve } from 'node:path'
@@ -32,6 +34,7 @@ const SKIP_DIRS = new Set(['node_modules', '.venv', 'dist', 'target', '__pycache
 const WARN_MODE = process.argv.includes('--warn')
 const STRICT_LEGACY = process.argv.includes('--strict-legacy')
 const SELFCHECK = process.argv.includes('--selfcheck')
+const STRICT_STALE = process.argv.includes('--strict-stale')
 
 const TODO_RE = /\b(TODO|FIXME)\b/g
 const OWNED_RE = /\b(?:TODO|FIXME)\(\s*[^,()]+,\s*\d{4}-\d{2}-\d{2}\s*,\s*#?[^,()]+\s*\)/
@@ -71,7 +74,11 @@ const bare = []
 const allowlisted = []
 const owned = []
 const legacy = []
+const overdue = []
 let total = 0
+
+const now = new Date()
+const TODAY = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
 
 for (const t of TARGETS) {
   for (const abs of walk(join(ROOT, t))) {
@@ -94,6 +101,11 @@ for (const t of TARGETS) {
           allowlisted.push(rec)
         } else if (OWNED_RE.test(line)) {
           owned.push(rec)
+          const dm = /(?:TODO|FIXME)\(\s*[^,()]+,\s*(\d{4})-(\d{2})-(\d{2})\s*,/.exec(line)
+          if (dm) {
+            const d = `${dm[1]}-${dm[2]}-${dm[3]}`
+            if (d < TODAY) overdue.push({ file: rel, line: i + 1, date: d, text: line.trim() })
+          }
         } else {
           bare.push(rec)
         }
@@ -132,6 +144,12 @@ console.log(`[check-comments] 注释掉的旧代码：${legacy.length} 处（人
 for (const v of legacy.slice(0, 20)) console.log(`  ${v.file}:${v.line}  ${v.text}`)
 if (legacy.length > 20) console.log(`  ... 其余 ${legacy.length - 20} 处省略`)
 
+console.log(
+  `[check-comments] 过期 TODO（date < ${TODAY}）：${overdue.length} 处${STRICT_STALE ? '（本模式阻断）' : '（仅提醒）'}`,
+)
+for (const v of overdue.slice(0, 20)) console.log(`  ${v.file}:${v.line}  ${v.date}  ${v.text}`)
+if (overdue.length > 20) console.log(`  ... 其余 ${overdue.length - 20} 处省略`)
+
 let failed = false
 if (bare.length && !WARN_MODE) {
   console.error('[check-comments] 失败：存在裸 TODO/FIXME（缺 owner/date/issue）。阶段 1 可先用 --warn。')
@@ -143,6 +161,10 @@ if (legacy.length && STRICT_LEGACY) {
 }
 if (SELFCHECK && !selfOk) {
   console.error('[check-comments] 失败：allowlist 自检不通过（--selfcheck）。请更新失效条目或删除已完成项。')
+  failed = true
+}
+if (overdue.length && STRICT_STALE) {
+  console.error('[check-comments] 失败：存在过期 TODO（date < 今天，--strict-stale）。请更新日期或关闭。')
   failed = true
 }
 

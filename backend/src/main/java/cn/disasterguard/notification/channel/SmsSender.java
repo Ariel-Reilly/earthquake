@@ -36,7 +36,7 @@ public class SmsSender implements NotificationSender {
     }
 
     try {
-      // TODO(backend-team, 2026-12-31, #TRIAGE-BACKEND): 集成真实短信网关（如阿里云/腾讯云）
+      // TODO(backend-team, 2026-12-31, #DELIVERY-C9): 集成真实短信网关（如阿里云/腾讯云）
       // 这里实现 Mock 逻辑，便于开发测试
       String messageId = UUID.randomUUID().toString();
       log.info("[SMS Mock] 发送短信到 {}: {} - {}", target, title, content);

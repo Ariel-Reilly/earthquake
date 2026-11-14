@@ -186,3 +186,12 @@ jobs:
 
       - name: 前端 setInterval 定时器泄漏检查
         run: cd frontend && node scripts/audit/check-timer-leaks.mjs
+
+      # ── 注释卫生门禁（2026-11-14，阶段 1）──────────────────────────────
+      # 裸 TODO/FIXME（当前 0）+ AI allowlist 自检必须通过；过期 TODO 仅提醒不阻断。
+      # 说明：门禁绿只代表「注释治理」完成，不代表 C9 等能力已实现（见 INVENTORY §4.3）。
+      - name: Comment hygiene (TODO/FIXME + allowlist selfcheck)
+        run: node scripts/quality/check-comments.mjs --selfcheck
+
+      - name: Comment gate selftest
+        run: node scripts/quality/check-comments.selftest.mjs

@@ -160,6 +160,7 @@
 | C6 | 演示数据替换/全局水印 | data.sql 幂等种子不会自动清业务数据 | L-09 |
 | C7 | 地图时间轴历史回放 | 需历史快照表/时序查询接口（3–5 人日） | L-18 |
 | C8 | 地图/外部服务合规与商业授权 | 高德/天地图 Key、测绘资质 | L-16 |
+| C9 | 后端能力缺口（通知网关 / 规则回滚 / 区域字典） | 6 处 `TODO(backend-team, 2026-12-31, #DELIVERY-C9)`：4 个 Sender 仍 mock 发送、`RuleEngineService.rollback` 抛异常、`WarningService.resolveScope` 三镇硬编码；**注释门禁绿 ≠ 功能已实现**，详见 `INVENTORY §4.3` | L-21（通知）/ 待评估 |
 
 ---
 

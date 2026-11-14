@@ -135,7 +135,7 @@ find frontend/src backend ai-service -type f \( -name '*.vue' -o -name '*.js' -o
 
 ### 4.3 后端 6 处占位 owner（阶段 1 首项，2026-11-14）
 
-以下 6 处已从裸 TODO 改为占位格式 `TODO(backend-team, 2026-12-31, #TRIAGE-BACKEND)`，**仅注释、零逻辑改动**；`backend-team / 2026-12-31 / #TRIAGE-BACKEND` 为**占位值**，待正式负责人与工单确认后替换。
+以下 6 处已从裸 TODO 改为 `TODO(backend-team, 2026-12-31, #DELIVERY-C9)`（锚定 `DELIVERY_BACKLOG C9`），**仅注释、零逻辑改动**；`backend-team / 2026-12-31` 为**占位值**（团队级、非具体个人），工单已锚定 C9，待正式负责人确认后仅替换 owner。
 
 | 文件 | 行 | 内容 |
 |---|---|---|
@@ -146,8 +146,10 @@ find frontend/src backend ai-service -type f \( -name '*.vue' -o -name '*.js' -o
 | `ruleengine/RuleEngineService.java` | 401 | 实现版本回滚逻辑 |
 | `warning/service/WarningService.java` | 326 | 三镇硬编码兜底 → 注入 RegionRepository |
 
-- 一键定位：`grep -rn "TODO(backend-team, 2026-12-31, #TRIAGE-BACKEND)" backend/src`
-- 替换条件：拿到真实负责人/工单后批量替换该串；替换后重跑 `check-comments.mjs` 与 `selftest.mjs`。
+- 一键定位：`grep -rn "TODO(backend-team, 2026-12-31, #DELIVERY-C9)" backend/src`
+- 替换条件：拿到真实负责人后仅替换 `backend-team`（保持 `#DELIVERY-C9` 指向台账 C9）；替换后重跑 `check-comments.mjs` 与 `selftest.mjs`。
+
+> **边界（重要）：注释门禁绿 ≠ 功能已实现。** 这 6 项仍是真实能力缺口：4 个 Sender 仍 mock 发送（返回成功但未真实送达）、`RuleEngineService.rollback` 仍抛 `UnsupportedOperationException`、`WarningService.resolveScope` 仍为三镇硬编码。**功能完成率应看 `KNOWN_LIMITATIONS` / `DELIVERY_BACKLOG C9`，不能以「TODO 清零」判定功能完成。**
 
 > ⚠ 方案里写的「TODO/FIXME/@Deprecated 211 处 / 52 文件」**不成立**（属宽匹配误报，如 `todo:view`、`toDouble`）。实测 `TODO` **15** + `@Deprecated` **6** = **21**。**任务 1「清裸 TODO」工作量很小（后端 6 处）；AI 9 处按 §4.2 豁免登记。**
 

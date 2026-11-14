@@ -159,6 +159,12 @@ node scripts/quality/check-comments.mjs
 node scripts/quality/check-comments.mjs --strict-legacy
 ```
 
+**过期 TODO 提醒**：带 owner 的 TODO 若 `date < 今天` 会报告；`--strict-stale` 可阻断（CI 默认只提醒，不阻断，避免日期到点误红）。
+
+```bash
+node scripts/quality/check-comments.mjs --strict-stale
+```
+
 **allowlist 自检**（防止 AI TODO 文案微调后「豁免悄悄失效」）：每条 allowlist 必须命中 1 行，失效/重复命中即报错并点名条目。
 
 ```bash
