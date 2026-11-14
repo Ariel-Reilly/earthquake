@@ -416,3 +416,23 @@
 - **结论**：B2-2 ✅ 关闭（不是仅有建行，而是两个不同账号分别完成本人确认）。
 - **边界**：本验证在开发库执行并已清理测试会签行；审计日志保留属正常操作记录。
   admin 代签（`sign:proxy`）已由 A1 预检脚本覆盖。
+
+---
+
+## O. 最终交付验收（2026-11-14）
+
+- **交付快照**：tag **`v1.8.5-delivery`**；源码包
+  `output/delivery-verify/DisasterGuard-v1.8.5-delivery.zip` + `.sha256`。
+- **最终门禁**（详见 `ACCEPTANCE_LOG_20261112.md` §四十三）：
+  - 前端 eslint 0 / stylelint 0 / vitest **69** / build 成功 / SFC 98 / 令牌通过；
+  - 后端全量 `mvn test` **141 tests / 0 failures / 0 errors / 4 skipped**（Testcontainers）；
+    `mvn package` 成功（jar 127,455,144 B）；
+  - ai-service pytest **102 passed / 4 skipped**；
+  - 浏览器冒烟 **37/37**；生产配置检查 **21/21**；prod compose 解析退出码 0。
+- **代码类 P1 已完成**：B1、B2-1/2/3、B3、B4-1/2/3、B5-1~6、B6-2/3、B7-2/3 等。
+- **仍属外部/决策项（不阻塞"可交付"结论）**：
+  - P0 现场：A1 人耳听声/真机/彩排/SM-19 真实影像凭证；
+  - P0 上线日：A4 域名证书/改密/强密钥/审计留存；
+  - 待甲方：A6-3 演示数据水印、A6-4 地图合规；
+  - P1 决策：B6-1 巡检报告 ground truth、B7-1 通知/待办口径、事件状态机 409 契约、
+    Vite/依赖升级评估；P2 C1~C8 为二期立项范围。

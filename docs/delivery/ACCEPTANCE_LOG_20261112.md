@@ -980,3 +980,45 @@ Edge headless CDP 9222 → nginx(dist) 25173（Origin 改写 + Cesium CSP）
 - 运行需 Docker；首次使用/拉取 `postgis/postgis:15-3.4-alpine` 镜像；
 - 与生产数据库无关，测试数据落在一次性容器内，不污染开发库；
 - 文档门禁已从"跳过测试打包 + 指定单测"升级为 `mvn test` 可执行。
+
+---
+
+## 四十三、最终交付验收（2026-11-14）
+
+### 43.1 验收环境
+
+- 分支 `release/delivery`，起点提交 `e9c1539`（B5-6 后工作区干净）；
+- 服务：前端 5173、后端 8080、AI 8001、PostgreSQL/Redis/MinIO 正常；
+- Edge headless CDP 9222；Docker 可用；ai-service `.venv`。
+
+### 43.2 最终门禁结果
+
+| 门禁 | 命令 | 结果 |
+|---|---|---|
+| 前端 lint | `cd frontend; npx eslint src/` | ✅ 0 error |
+| 前端样式 | `npx stylelint "src/**/*.{css,scss,vue}"` | ✅ 0 error（CI 已阻断） |
+| 前端单测 | `npx vitest run` | ✅ **69 passed / 7 文件** |
+| 前端构建 | `npm run build` | ✅ 成功（4.86s） |
+| SFC / 令牌 | `verify-sfc-integrity.mjs` / `verify-token-integrity.mjs` | ✅ 98/98；令牌通过 |
+| 后端全量测试 | `cd backend; mvn test` | ✅ **141 tests / 0 failures / 0 errors / 4 skipped**（Testcontainers） |
+| 后端打包 | `mvn -q -DskipTests package` | ✅ `disasterguard-backend-0.0.1-SNAPSHOT.jar` **127,455,144 B** |
+| AI pytest | `ai-service\.venv\Scripts\python.exe -m pytest tests -q` | ✅ **102 passed / 4 skipped**（6.93s） |
+| 浏览器冒烟 | `node scripts/delivery/browser-smoke.mjs` | ✅ **37/37 PASS**（23 张截图） |
+| 生产配置检查 | `node scripts/delivery/prod-config-check.mjs output/prod-check-pass.env` | ✅ **21/21 PASS**（0 error / 0 warn） |
+| 生产 compose | `docker compose ... -f docker-compose.yml -f docker-compose.prod.yml config --quiet` | ✅ 退出码 0 |
+
+### 43.3 交付物
+
+- 文档：`docs/delivery/` 全套（部署手册、演示脚本、冒烟清单、已知限制、验收日志、检查表、运维加固、现场清单等）；
+- 源码：`release/delivery` 分支 + tag **`v1.8.5-delivery`**；
+- 源码包：`output/delivery-verify/DisasterGuard-v1.8.5-delivery.zip` + `.sha256`（不入库，随交付介质提供）；
+- 演示材料包：`output/delivery-materials/DisasterGuard-演示材料包-v1.0.zip`（19 PPTX + 脚本/文档 + SHA256）。
+
+### 43.4 边界（不影响"可交付"结论）
+
+- A1 纯人工现场项（人耳听声、真机、彩排计时、真实影像凭证）仍需现场完成，
+  见 `ONSITE_ACCEPTANCE_CHECKLIST.md`；
+- A4 上线日注入（真实域名证书、改密、强密钥、审计留存）需运维在目标环境执行；
+- A6-3/A6-4（演示数据清空/水印、地图合规）待甲方决策；
+- P1 决策项：B6-1（巡检报告 ground truth）、B7-1（通知/待办口径）、事件状态机 409 契约、
+  Vite/依赖升级评估；P2 二期能力不在本次交付承诺内。

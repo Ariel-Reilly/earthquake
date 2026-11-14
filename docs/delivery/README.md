@@ -59,8 +59,8 @@ node scripts/delivery/browser-smoke.mjs
 
 - 前端：eslint 0 error、vitest **69 passed**（7 个测试文件；含时相对比 12 例、权限回归 1 例、
   B5-4 组件测试 12 例）、vite build 成功、SFC/令牌完整性通过
-- 后端：`mvn compile` / `package` 通过；新增 `SignProxyPermissionTest`（2）、`SentinelCompareControllerTest`（4）、
-  `EventStateMachineTest`（**11**，B5-1 状态机）全通过
+- 后端：`mvn compile` / `package` 通过（jar 127,455,144 B）；全量 `mvn test`（Testcontainers）**141 tests / 0 failures / 0 errors / 4 skipped**；
+  新增 `SignProxyPermissionTest`（2）、`SentinelCompareControllerTest`（4）、`EventStateMachineTest`（**11**，B5-1 状态机）全通过
 - ai-service：pytest 实跑 10 个测试文件 **102 passed / 4 skipped**（6.48s，仅 2 条第三方弃用警告）
 - 真实浏览器：37/37 PASS（四档告警、AI 分析详情、确认→派发、设置落库、API 宕机、WS 轮询降级、角色 403 等）；
   时相对比新增页面 `verify-satellite-page.mjs` **10/10 PASS**（见 SM-19）
@@ -80,9 +80,12 @@ node scripts/delivery/browser-smoke.mjs
   详见 [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md) 〇节与 [DELIVERY_BACKLOG.md](DELIVERY_BACKLOG.md) §I
 - 演示材料包：`output/delivery-materials/DisasterGuard-演示材料包-v1.0.zip`（19 PPTX + 脚本/文档 + MANIFEST + SHA256，UTF-8 条目名，不入库）
 - 值班员一页纸：[OPERATOR_CARD.md](OPERATOR_CARD.md)；时相对比部署配置见 [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) §10
-- 源码提交：`release/delivery` 分支；交付快照 tag **`v1.8.4-delivery`**（A1 剩余项再压缩轮次）；
-  源码包 `output/delivery-verify/DisasterGuard-v1.8.4-delivery.zip` + 同名 `.sha256`；
-  `v1.8.3-delivery` / `v1.8.2-delivery` / `v1.8.1-delivery` / `v1.8.0-delivery` 保留为历史快照，不强制移动
+- **最终交付验收（2026-11-14）**：前端 eslint 0 / stylelint 0 / vitest 69 / build 成功 / SFC 98 / 令牌通过；
+  后端全量 `mvn test` 141 通过 + `package` 成功；ai-service pytest 102 passed / 4 skipped；
+  浏览器冒烟 37/37；生产配置检查器 21/21 + prod compose 解析通过。详见 `ACCEPTANCE_LOG` §四十三。
+- 源码提交：`release/delivery` 分支；交付快照 tag **`v1.8.5-delivery`**（最终交付验收轮次）；
+  源码包 `output/delivery-verify/DisasterGuard-v1.8.5-delivery.zip` + 同名 `.sha256`；
+  `v1.8.4` / `v1.8.3` / `v1.8.2` / `v1.8.1` / `v1.8.0-delivery` 保留为历史快照，不强制移动
 - 现场人工验收记录表：[ONSITE_ACCEPTANCE_CHECKLIST.md](ONSITE_ACCEPTANCE_CHECKLIST.md)（已纳入演示材料包）
 - 已知待现场确认：人耳真实听声、真机移动端触摸/网络、通知送达口径人工核对、
   按 `DEMO_SCRIPT.md` 完整彩排 2 遍计时 ≤20 分钟、时相对比真实影像凭证、AI 开启后 AI 洞察页完整渲染
