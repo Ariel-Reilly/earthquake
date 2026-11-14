@@ -159,6 +159,16 @@ node scripts/quality/check-comments.mjs
 node scripts/quality/check-comments.mjs --strict-legacy
 ```
 
+**allowlist 自检**（防止 AI TODO 文案微调后「豁免悄悄失效」）：每条 allowlist 必须命中 1 行，失效/重复命中即报错并点名条目。
+
+```bash
+# 仅校验 allowlist 完整性（忽略裸标记阻断），CI 可用
+node scripts/quality/check-comments.mjs --warn --selfcheck
+
+# 叠加到常规门禁：裸标记 + allowlist 一起校验
+node scripts/quality/check-comments.mjs --selfcheck
+```
+
 仅 `@Deprecated` 的替代方案说明仍建议人工抽查：
 
 ```bash
