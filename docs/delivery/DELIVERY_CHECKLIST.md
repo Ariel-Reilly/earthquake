@@ -1,6 +1,6 @@
 # 交付检查表（DisasterGuard · 御灾智巡）
 
-> 版本：v1.8.12 · 检查日期：2026-11-12/14 · 检查人：开发交付组
+> 版本：v1.8.13 · 检查日期：2026-11-12/15 · 检查人：开发交付组
 > 结论：**可进入现场演示 / 试运行**。已知限制与二期能力见 [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md)。
 
 ## 一、交付范围与环境
@@ -15,11 +15,11 @@
 | 检查项 | 命令 | 结果 |
 |---|---|---|
 | 前端 lint | `cd frontend; npx eslint src/` | ✅ 0 error |
-| 前端单测 | `cd frontend; npx vitest run` | ✅ **168 passed**（20 个测试文件；含分页归一层 14 例 + 9 个页面/组件级回归） |
+| 前端单测 | `cd frontend; npx vitest run` | ✅ **244 passed**（21 个测试文件；分页归一层 14 例 + 9 个页面/组件级回归 + **API 返回形态契约 76 例**） |
 | 后端状态机单测 | `cd backend; mvn -q "-Dtest=EventStateMachineTest" test` | ✅ **11 passed**（B5-1；真实 Spring StateMachine 工厂，无 DB 凭据依赖） |
-| 后端全量测试 | `cd backend; mvn test`（需 Docker） | ✅ **149 tests / 0 failures / 0 errors / 4 skipped**；Testcontainers 一次性 PostGIS 容器（B5-6） |
-| ai-service pytest | `cd ai-service; python -m pytest tests -q` | ✅ **102 passed / 4 skipped**（10 个文件，6.48s；B5-5） |
-| 前端生产构建 | `npm run build` | ✅ 成功（`dist/`） |
+| 后端全量测试 | `cd backend; mvn test`（需 Docker） | ✅ **149 tests / 0 failures / 0 errors / 4 skipped**（2026-11-14 基线）；⚠ **v1.8.13 本轮未复跑**：Docker daemon 未启动，Testcontainers 依赖，见 §50.3 |
+| ai-service pytest | `cd ai-service; .venv/Scripts/python.exe -m pytest tests -q` | ✅ **102 passed / 4 skipped**（v1.8.13 本轮实测 14.07s / B5-5） |
+| 前端生产构建 | `npm run build` | ✅ 成功（v1.8.13 本轮实测 10.43s，`dist/`） |
 | SFC 完整性 | `cd frontend; npm run check:sfc` | ✅ **98/98** 组件解析、脚本、模板、样式全部通过 |
 | 注释门禁 | `node scripts/quality/check-comments.mjs` | ✅ 退出 0：命中 15 / 已带 owner 6 / allowlist 9 / **裸标记 0** |
 | 注释门禁自检 | `node scripts/quality/check-comments.selftest.mjs` | ✅ **19/19**（含误报防护与 allowlist 完整性场景） |
@@ -27,6 +27,7 @@
 | 后端编译 | `cd backend; mvn -q -DskipTests compile` | ✅ 通过 |
 | AI 模型健康 | `GET /api/ai/health` | ✅ UP；模型加载状态可查 |
 | A1 现场项自动化预检 | 见 [A1_PREFLIGHT_REPORT.md](A1_PREFLIGHT_REPORT.md) | ✅ 隔离环境 4 脚本 / **34 项判定全通过**（移动端 8/8、音频链路 10/10、演示预演 5/5、有副作用按钮 11/11）；纯人工项仍见 `ONSITE_ACCEPTANCE_CHECKLIST.md` |
+| 源码交付包 | `git archive --format=zip --prefix=DisasterGuard-v1.8.13-delivery/ -o ... v1.8.13-delivery` | ✅ `output/delivery-verify/DisasterGuard-v1.8.13-delivery.zip` + 同名 `.sha256`（由 tag 生成，不含 `.git/` / `output/` / `dist/` / `target/`）；SHA256 以 `.sha256` 文件为准 |
 
 ## 三、接口与运行时验收
 

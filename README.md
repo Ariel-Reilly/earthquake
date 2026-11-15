@@ -408,6 +408,8 @@ DisasterGuard/
 | [ai-service/datasets/README.md](ai-service/datasets/README.md) | 检测数据集构成、来源与许可说明 |
 | [docs/CODE_STYLE.md](docs/CODE_STYLE.md) | 注释与契约规范、标记词与验收（阶段 0） |
 | [docs/INVENTORY.md](docs/INVENTORY.md) | 仓库实测盘点：大文件 / TODO / 501 / mock / 契约 |
+| [docs/api/CONTRACT.md](docs/api/CONTRACT.md) | API 契约红线：分页 / 时间 / ID / mock / 权限 |
+| [docs/api/API_INVENTORY.md](docs/api/API_INVENTORY.md) | 列表方法返回形态实测清单与统一批次施工图 |
 | [`docs/INDEX.md`](docs/INDEX.md) | 全项目文档总索引（按角色、子项目、主题分区） |
 
 ---

@@ -30,7 +30,8 @@ function fallbackPage(fallback) {
     records: fallback,
     total: fallback.length,
     page: 1,
-    size: fallback.length,
+    // 空 fallback 时 size 兜底为 1，避免下游分页器拿 0 做除数。
+    size: fallback.length || 1,
     pages: 1,
   }
 }

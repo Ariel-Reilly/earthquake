@@ -1311,3 +1311,57 @@ AI 落库评分日期旧）维持登记不改代码。仍未关闭同 §Q/§R。
 - 页面层「猜分页形态」已基本清零；**根因仍是 `dashboardApi` 三种返回风格并存**
   （`{records}` / `{list}` / 原样透传），统一需单开一轮并配契约测试。
 - tag **`v1.8.12-delivery`**（本地附注标签，沿用既有「仅本地归集、不推送」约定）。
+
+## 50. 2026-11-15 交付收尾轮（API 返回风格统一 · 批次 1）
+
+### 50.1 范围与性质
+
+- 基线 `v1.8.12-delivery`（`04b5217`）；本轮 tag **`v1.8.13-delivery`**（本地附注标签，沿用「仅本地归集、不推送」约定）。
+- 改动面：**前端 + 质量脚本 + 文档**，零 Java / SQL / AI 业务代码改动。
+- 承接 §49.3 登记的「`dashboardApi` 三种返回风格并存」，按
+  [`docs/api/API_INVENTORY.md`](../api/API_INVENTORY.md) 四象限施工图落地**批次 1**：
+  - `dashboardApi` 的 **18 个列表方法**（A 级零消费 11 + B 级消费点已归一 7）由裸透传改为
+    `return normalizePaged(await request(...))`，**mock 分支成对归一**；
+  - `AccountSecurityPage.vue` 活跃会话读取 `.items` → `.records`；
+  - `api/client.js#fallbackPage` 空 fallback 的 `size` 由 `0` 兜底为 `1`，避免下游分页器除零。
+- 新增 `frontend/src/__tests__/apiPagedContract.spec.js`（**76 例**）：18 方法 × 3 种后端形态
+  （`records` 真分页 / `items` Map 内嵌 / 裸数组）逐个断言恒返回 `{records,total,page,size,pages}`，
+  另覆盖 `items` 提升、裸数组补齐 `total/size/pages`、真分页原样透传、空响应不返回 `undefined`。
+- **实测抓到并修复 1 处漏改**：`listBackups` 的 `if (USE_BACKEND)` 分支仍 `return request(...)` 裸透传，
+  契约测试在 `items` 与「裸数组」形态下精确报出 2 例失败；补齐后全绿。
+  教训：改返回风格时两个分支必须成对归一，**只测 `records` 形态会假绿**。
+- 新增 4 个形态扫描脚本与 `docs/api/API_INVENTORY.md`（含 §7 执行记录）；同步
+  `CONTRACT.md` §1、`INVENTORY.md` §7.1、`INDEX.md`、根 `README.md` 导航。
+- 复扫口径（`_scan_api_shapes.mjs`）：`paged(records)` **15 → 33**、`list*` 裸透传 **23 → 5**。
+  **三形态尚未清零**：C 级 11 个、D 级 3 个 + 6 处 `{list:...}` 包装仍列批次 2/3（演示后），
+  不得以「批次 1 完成」当作 API 契约已统一。
+
+### 50.2 门禁实测（2026-11-15，本地）
+
+| 项 | 结果 |
+|---|---|
+| 前端 eslint / stylelint | 0 / 0 |
+| 前端单测 | **244 passed / 21 文件**（168 → 244，新增 76 例契约测试） |
+| SFC 完整性 | **98/98** |
+| 前端生产构建 | 成功 **10.43s** |
+| 注释门禁 / 自检 | 15 命中 / owner 6 / allowlist 9 / **裸 0**，退出 0；selftest **19/19** |
+| missing-imports / endpoint-parity | 缺失 import 0 / 5 个既有孤儿端点（`satelliteCompareApi.js`，非本轮引入） |
+| 后端编译 | `scripts/audit/mvn.sh -o -q -DskipTests clean compile` 通过 |
+| ai-service pytest | **102 passed / 4 skipped / 14.07s**（`ai-service/.venv/Scripts/python.exe`） |
+
+### 50.3 未执行与边界
+
+- **后端全量 `mvn test` 本轮未复跑**：Docker daemon 未启动，Testcontainers 需 PostGIS 容器；
+  已用 clean compile 验证编译，既有 149 tests 基线见 §49.2，演示前请补跑。
+- **浏览器冒烟 37/37 本轮未复跑**：5173 / 8080 / 8081 / 8001 均无监听且 Docker 未启动；
+  本轮无后端与路由改动，沿用既有基线，演示前请复跑。
+- **prettier**：3 个触碰文件报警属**存量 148 文件**（`HEAD` 版本同样报警）；仅格式化新增的
+  `apiPagedContract.spec.js`，未做全仓格式化 PR —— 全量格式化 `dashboardApi.js` 会产生 3207 行无关 diff。
+- **源码包**：`output/delivery-verify/DisasterGuard-v1.8.13-delivery.zip` + 同名 `.sha256`，
+  由 `git archive --prefix` 从 tag 生成；打包口径已用 `v1.8.10` 包逐条目比对验证一致（1251 条，
+  不含 `.git/` / `output/` / `dist/` / `target/`）。SHA256 以 `.sha256` 文件为准。
+- **演示材料包** `MANIFEST.md` 仍指向 `v1.8.10-delivery`（历史快照引用），本轮未重打 340 MB 材料包；
+  若对外分发需统一版本，另起一轮刷新 MANIFEST + zip + SHA256。
+- A1 现场人工项、A4 上线日注入、A6-3/A6-4 甲方决策、C9 / L-21 二期范围：边界不变，见
+  `ONSITE_ACCEPTANCE_CHECKLIST.md` / `DELIVERY_BACKLOG.md` / `KNOWN_LIMITATIONS.md`。
+- 演示前 5 分钟仍需 `APPLY=1` 重跑 `verify-demo-data-refresh.mjs`（心跳回落口径不变）。

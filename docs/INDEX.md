@@ -92,6 +92,7 @@
 | `docs/CODE_STYLE.md` | 注释与契约规范、标记词、可执行验收（阶段 0 新增）。 |
 | `docs/INVENTORY.md` | 仓库实测盘点：大文件 / TODO / 501 / mock / 契约不一致（阶段 0 新增）。 |
 | `docs/api/CONTRACT.md` | API 契约红线：分页 / 时间 / ID / mock / 权限。 |
+| `docs/api/API_INVENTORY.md` | 列表方法返回形态实测清单、风险四象限与统一批次施工图。 |
 | `docs/architecture/README.md` | 架构文档与 ADR 索引（迁移中，权威总览仍为 `docs/ARCHITECTURE.md`）。 |
 | `docs/data/DICTIONARY.md` | 数据字典（骨架，待补；以代码为准）。 |
 | `docs/operations/RUNBOOK.md` | 运维手册：启停 / 演示数据刷新 / 演示前检查。 |

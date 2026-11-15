@@ -199,16 +199,17 @@ async function kickSessionFromHistory(id) {
 }
 
 // Tab 3: 活跃会话
-const sessions = ref({ items: [], total: 0 })
+// listActiveSessions 已按 CONTRACT §1 统一返回 PageResponse，此处读 .records
+const sessions = ref({ records: [], total: 0 })
 const sessionsLoading = ref(false)
 
 async function loadActiveSessions() {
   sessionsLoading.value = true
   try {
     const data = await dashboardApi.listActiveSessions()
-    sessions.value = data ?? { items: [], total: 0 }
+    sessions.value = data ?? { records: [], total: 0 }
   } catch (e) {
-    sessions.value = { items: [], total: 0 }
+    sessions.value = { records: [], total: 0 }
     emit('notify', e?.message ?? '活跃会话加载失败')
   } finally {
     sessionsLoading.value = false
@@ -234,7 +235,7 @@ async function revokeOne(id) {
 }
 
 async function revokeAllOthers() {
-  const others = (sessions.value.items ?? []).filter((s) => !s.current)
+  const others = (sessions.value.records ?? []).filter((s) => !s.current)
   if (!others.length) return emit('notify', '没有其它活跃会话')
   const ok = await confirmDialogRef.value?.show({
     title: '确认操作',
@@ -280,7 +281,7 @@ const auditTypeColor = {
 // 活跃会话过滤
 const sessionFilter = ref('')
 const filteredSessions = computed(() => {
-  const list = sessions.value.items ?? []
+  const list = sessions.value.records ?? []
   if (sessionFilter.value === 'current') return list.filter((s) => s.current)
   if (sessionFilter.value === 'others') return list.filter((s) => !s.current)
   return list
@@ -314,7 +315,7 @@ const TABS = [
 function selectTab(id) {
   activeTab.value = id
   if (id === 'history' && !(loginHistory.value.items?.length || loginHistoryLoading.value)) loadLoginHistory()
-  if (id === 'sessions' && !(sessions.value.items?.length || sessionsLoading.value)) loadActiveSessions()
+  if (id === 'sessions' && !(sessions.value.records?.length || sessionsLoading.value)) loadActiveSessions()
   if (id === 'audit' && !(audit.value.items?.length || auditLoading.value)) loadAccountAudit()
 }
 

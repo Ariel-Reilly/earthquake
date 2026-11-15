@@ -786,7 +786,7 @@ export const dashboardApi = {
   },
 
   getSyncHistory: async (params = {}) => {
-    if (USE_BACKEND) {return request("/sync/history", { params });}
+    if (USE_BACKEND) {return normalizePaged(await request("/sync/history", { params }));}
     requireBackend("同步历史");
   },
 
@@ -1129,23 +1129,23 @@ export const dashboardApi = {
   },
 
   listMyConfirmations: async () => {
-    if (USE_BACKEND) {return request("/todo/confirmations");}
-    return response(mock.workflow.listMyConfirmationsMock());
+    if (USE_BACKEND) {return normalizePaged(await request("/todo/confirmations"));}
+    return normalizePaged(await response(mock.workflow.listMyConfirmationsMock()));
   },
 
   listMyApprovals: async () => {
-    if (USE_BACKEND) {return request("/todo/approvals");}
-    return response(mock.workflow.listMyApprovalsMock());
+    if (USE_BACKEND) {return normalizePaged(await request("/todo/approvals"));}
+    return normalizePaged(await response(mock.workflow.listMyApprovalsMock()));
   },
 
   listMyPendingWarnings: async () => {
-    if (USE_BACKEND) {return request("/todo/warnings");}
-    return response(mock.workflow.listMyPendingWarningsMock());
+    if (USE_BACKEND) {return normalizePaged(await request("/todo/warnings"));}
+    return normalizePaged(await response(mock.workflow.listMyPendingWarningsMock()));
   },
 
   listMyOpenTasks: async () => {
-    if (USE_BACKEND) {return request("/todo/tasks");}
-    return response(mock.workflow.listMyOpenTasksMock());
+    if (USE_BACKEND) {return normalizePaged(await request("/todo/tasks"));}
+    return normalizePaged(await response(mock.workflow.listMyOpenTasksMock()));
   },
 
 
@@ -1233,11 +1233,11 @@ export const dashboardApi = {
    */
   listModels: async ({ family, status } = {}) => {
     if (USE_BACKEND) {
-      return request(
-        `/ai/models${withQuery({ family, status })}`,
+      return normalizePaged(
+        await request(`/ai/models${withQuery({ family, status })}`),
       );
     }
-    return response(mock.system.modelsListMock);
+    return normalizePaged(await response(mock.system.modelsListMock));
   },
 
   /**
@@ -1259,9 +1259,9 @@ export const dashboardApi = {
 
   getModelTrainingJobs: async () => {
     if (USE_BACKEND) {
-      return request("/ai/models/training-jobs");
+      return normalizePaged(await request("/ai/models/training-jobs"));
     }
-    return response(mock.ai.trainingJobsMock);
+    return normalizePaged(await response(mock.ai.trainingJobsMock));
   },
 
   /**
@@ -1476,9 +1476,9 @@ export const dashboardApi = {
    */
   listNoticeTemplates: async (filters = {}) => {
     if (USE_BACKEND) {
-      return request(`/notice-templates${withQuery(filters)}`);
+      return normalizePaged(await request(`/notice-templates${withQuery(filters)}`));
     }
-    return response(mock.empty.emptyPaged);
+    return normalizePaged(await response(mock.empty.emptyPaged));
   },
 
   /**
@@ -1571,9 +1571,9 @@ export const dashboardApi = {
    */
   listPlans: async (filters = {}) => {
     if (USE_BACKEND) {
-      return request(`/plans${withQuery(filters)}`);
+      return normalizePaged(await request(`/plans${withQuery(filters)}`));
     }
-    return response(mock.empty.emptyPaged);
+    return normalizePaged(await response(mock.empty.emptyPaged));
   },
 
   /**
@@ -1656,9 +1656,9 @@ export const dashboardApi = {
 
   listPlanLaunches: async () => {
     if (USE_BACKEND) {
-      return request("/plans/launches");
+      return normalizePaged(await request("/plans/launches"));
     }
-    return response(mock.empty.emptyPaged);
+    return normalizePaged(await response(mock.empty.emptyPaged));
   },
 
   /**
@@ -1666,9 +1666,9 @@ export const dashboardApi = {
    */
   listBackups: async (filters = {}) => {
     if (USE_BACKEND) {
-      return request(`/backup/records${withQuery(filters)}`);
+      return normalizePaged(await request(`/backup/records${withQuery(filters)}`));
     }
-    return response(mock.empty.emptyPaged);
+    return normalizePaged(await response(mock.empty.emptyPaged));
   },
 
   /**
@@ -1722,9 +1722,9 @@ export const dashboardApi = {
 
   listBackupStrategies: async () => {
     if (USE_BACKEND) {
-      return request("/backup/strategies");
+      return normalizePaged(await request("/backup/strategies"));
     }
-    return response(mock.empty.emptyPaged);
+    return normalizePaged(await response(mock.empty.emptyPaged));
   },
 
   /**
@@ -1765,9 +1765,9 @@ export const dashboardApi = {
 
   listRestoreHistory: async () => {
     if (USE_BACKEND) {
-      return request("/backup/restores");
+      return normalizePaged(await request("/backup/restores"));
     }
-    return response(mock.empty.emptyPaged);
+    return normalizePaged(await response(mock.empty.emptyPaged));
   },
 
   getAccountSecurity: async () => {
@@ -1803,7 +1803,7 @@ export const dashboardApi = {
 
   listActiveSessions: async () => {
     requireBackend("listActiveSessions");
-    return request("/account/sessions");
+    return normalizePaged(await request("/account/sessions"));
   },
 
   /**
@@ -1827,9 +1827,9 @@ export const dashboardApi = {
    */
   listReportTemplates: async (filters = {}) => {
     if (USE_BACKEND) {
-      return request(`/reports/templates${withQuery(filters)}`);
+      return normalizePaged(await request(`/reports/templates${withQuery(filters)}`));
     }
-    return response(mock.empty.emptyPaged);
+    return normalizePaged(await response(mock.empty.emptyPaged));
   },
 
   /**
@@ -1887,9 +1887,9 @@ export const dashboardApi = {
    */
   listReportHistory: async (filters = {}) => {
     if (USE_BACKEND) {
-      return request(`/reports/history${withQuery(filters)}`);
+      return normalizePaged(await request(`/reports/history${withQuery(filters)}`));
     }
-    return response(mock.empty.emptyPaged);
+    return normalizePaged(await response(mock.empty.emptyPaged));
   },
 
   /**
@@ -1944,7 +1944,7 @@ export const dashboardApi = {
    */
   listDataAssets: async (filters = {}) => {
     requireBackend("listDataAssets");
-    return request(`/catalog/assets${withQuery(filters)}`);
+    return normalizePaged(await request(`/catalog/assets${withQuery(filters)}`));
   },
 
   createCatalogAsset: async (asset) => {
@@ -1989,7 +1989,7 @@ export const dashboardApi = {
 
   listCatalogUsage: async () => {
     requireBackend("listCatalogUsage");
-    return request("/catalog/usage");
+    return normalizePaged(await request("/catalog/usage"));
   },
 
   /**

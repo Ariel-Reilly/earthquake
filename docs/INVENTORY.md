@@ -195,6 +195,12 @@ find frontend/src backend ai-service -type f \( -name '*.vue' -o -name '*.js' -o
 - `common/api/PageResponse{records,total,page,size,pages}` **已存在**（Javadoc 已注明历史上两个 record 已合一），并已在 admin application 分页使用。
 - **任务 3 不是「新建 PageResponse」，而是「前端在 `api/client` 归一化一次 + 校验尚未遵循的端点 + 逐步消除页面层 `items/list` 兼容分支」。**
 - **归一化落点已建**：`frontend/src/api/client.js`（`normalizePage / normalizeList`，纯函数 + 单测 **14** 例）；`dashboardApi.normalizePaged` **已改为委托 `normalizePage`**（已去重、行为等价）；页面层 `items/list` 兼容分支待阶段 1 小步清理。
+- **根因治理批次 1（tag `v1.8.13-delivery`）**：`dashboardApi` 的 **18 个列表方法**由裸透传改为统一返回
+  `PageResponse`，mock 分支同步归一；新增 `apiPagedContract.spec.js`（76 例，18 方法 × 3 后端形态 + 边界），
+  全量 vitest **244（21 文件）**；`AccountSecurityPage` 会话读取改 `.records`，`client.js` 空 fallback 的
+  `size` 兜底 1。实测抓到并修复 `listBackups` 后端分支漏归一。
+  **三形态尚未清零**：C 级 11 个、D 级 3 个 + 6 处 `{list:...}` 包装仍待演示后处理，
+  完整风险分级与批次见 [`api/API_INVENTORY.md`](api/API_INVENTORY.md)。
 - **已迁移页面/组件（9）**：`DataSyncPage.toList`；`DataCatalogPage` 三处（`loadAssets` / `loadUsage` / `openTrend`）；`PersonnelManagePage.loadPersonnel`；`WarningDeliveryTab.loadChannel`（5 渠道共用）；`OtaManagePage.toRecords`（三源共用）；`NoticeTemplatePage.load`；`TodoCenterTab.loadTodos`；`ModelManagePage`（`listModels` + `getModelTrainingJobs`）；`SettingsPage.loadSessions`。
   - 其中 **4 个是「API 原样透传 + 页面猜形态」**（NoticeTemplate / TodoCenter / ModelManage ×2 / Settings sessions），这类才是真实风险点。
 - **顺带修复的真实缺陷（2）**：
