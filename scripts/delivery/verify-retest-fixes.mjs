@@ -238,8 +238,30 @@ async function main() {
   await client.screenshot('retest-ai-models-first-screen.png')
   check('AI 模型页首屏不再发 drift 501 请求', preDrift501.length === 0,
     `${preDrift501.length} 个`)
-  check('模型版本库空态写明「演示库尚未初始化」',
-    /演示库尚未初始化模型版本表/.test(emptyText || ''))
+  // 数据感知：演示库可能已导入模型版本（当前 7 条），也可能为空。
+  // 有数据时必须校验「表格行数 == 接口条数」且不得残留空态文案；仅空库时才要求空态文案。
+  // 旧断言无条件要求空态文案，在已导入版本的演示库上必然假失败（v1.8.10 基线遗留）。
+  const modelsResp = await api('/ai/models', { token })
+  const modelPayload = modelsResp.json?.data
+  const apiModels = Array.isArray(modelPayload?.items)
+    ? modelPayload.items
+    : (Array.isArray(modelPayload?.records) ? modelPayload.records : [])
+  const modelView = await client.eval(`(() => {
+    const panel = [...document.querySelectorAll('.panel')]
+      .find((p) => /模型版本列表/.test(p.querySelector('h2')?.innerText || ''))
+    if (!panel) return { found: false, rows: 0, text: '' }
+    return {
+      found: true,
+      rows: [...panel.querySelectorAll('tbody tr')].filter((tr) => tr.querySelector('td code')).length,
+      text: panel.innerText.slice(0, 800),
+    }
+  })()`)
+  const modelEmptyText = /演示库尚未初始化模型版本表/.test(modelView?.text || emptyText || '')
+  check('模型版本库与接口一致（有数据校验行数 / 空库校验空态文案）',
+    modelsResp.status === 200 && (apiModels.length > 0
+      ? modelView?.found === true && modelView.rows === apiModels.length && !modelEmptyText
+      : modelEmptyText),
+    `HTTP=${modelsResp.status} 接口=${apiModels.length} DOM=${modelView?.rows ?? '-'} 空态=${modelEmptyText}`)
   check('KPI 全 0 时写明是真实统计为空',
     /模型统计表为空/.test(emptyText || ''))
 

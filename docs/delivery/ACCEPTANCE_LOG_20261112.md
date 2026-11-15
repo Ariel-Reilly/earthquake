@@ -1365,3 +1365,71 @@ AI 落库评分日期旧）维持登记不改代码。仍未关闭同 §Q/§R。
 - A1 现场人工项、A4 上线日注入、A6-3/A6-4 甲方决策、C9 / L-21 二期范围：边界不变，见
   `ONSITE_ACCEPTANCE_CHECKLIST.md` / `DELIVERY_BACKLOG.md` / `KNOWN_LIMITATIONS.md`。
 - 演示前 5 分钟仍需 `APPLY=1` 重跑 `verify-demo-data-refresh.mjs`（心跳回落口径不变）。
+
+## 51. 2026-11-15 环境复跑收口（tag `v1.8.14-delivery`）
+
+### 51.1 触发与范围
+
+- 承接 §50.3：`v1.8.13` 交付时 Docker / 8080 / 5173 / CDP 均不可用，后端全量测试与浏览器验收登记为「未复跑」。
+- 用户手动启动 Docker Desktop 后补齐真实环境验收。**产品代码零改动**；仅改
+  `scripts/delivery/verify-retest-fixes.mjs` 一处陈旧断言，以及本日志与 `DELIVERY_CHECKLIST.md`。
+- 环境：Docker `28.2.2`；`disasterguard-postgres / redis / minio / emqx / tdengine` 5 容器全部
+  `healthy`（EMQX 无重启循环），`docker compose config --quiet` 通过；8080 / 5173 / 8001 / CDP 9222 全 200。
+- 说明：本次由工具发起的 Docker Desktop 启动曾被沙箱拦截（宿主 `wsl.exe` 在程序黑名单），
+  改由用户手动启动；拦截期间已先跑出不依赖 Docker 的 21 个测试类（137 run / 0 errors / BUILD SUCCESS），
+  并确认全量 12 个 error 全部来自 `PostgresTestBase` 的 Testcontainers 初始化失败，非业务逻辑缺陷。
+
+### 51.2 补跑实测（2026-11-15 10:27–10:38）
+
+| 项 | 命令 | 结果 |
+|---|---|---|
+| 后端全量测试 | `cd backend; mvn -o test` | ✅ **149 run / 0 failures / 0 errors / 4 skipped → BUILD SUCCESS**（34.23s，Testcontainers PostGIS 容器正常） |
+| 浏览器冒烟 | `node scripts/delivery/browser-smoke.mjs` | ✅ **37/37 PASS / 0 失败**（23 张截图） |
+| 演示数据刷新 | `APPLY=1 node scripts/delivery/verify-demo-data-refresh.mjs` | ✅ **9/9 PASS**（6/16 在线；`created_at` / `triggered_at` / `discovered_at` 全为今天；活跃预警 `triggeredAt` 无陈旧值） |
+| 综合复测 | `node scripts/delivery/verify-retest-fixes.mjs` | ✅ **57/57 PASS**（双时区、全站时间线、总览活跃过滤、AI 首屏、drift 懒加载） |
+| 前端门禁 | `vitest run` / eslint / stylelint | ✅ **244 passed（21 文件）** / 0 / 0（沿用 §50.2，本轮无前端产品代码改动） |
+
+证据：`output/browser-verify/`（截图 + 冒烟汇总）、`output/retest-fixes/`（复测截图）、
+`output/delivery-verify/demo-data-refresh.json`（9 项）、`output/delivery-verify/retest-fixes.json`（57 项）。
+
+### 51.3 陈旧断言修正（唯一代码改动，非产品代码）
+
+- 首次复测 **56/57**，唯一 FAIL：「模型版本库空态写明『演示库尚未初始化』」。
+- **归因**：该断言写于演示库 `ai_model` 为空时期（`v1.8.10` 基线里就是同一句）。当前演示库有
+  **7 条真实版本**（`min(created_at)=2026-10-24`），`/api/ai/models` 返回 7 条 `items`；首屏截图
+  `retest-ai-models-first-screen.png` 确认表格渲染 7 行、「激活 / 下线」按钮可见，空态文案本就不该出现。
+  与批次 1 的 `listModels` 归一**无关**（`normalizeList` 同时吃 `items` / `records`，组件级回归已覆盖）。
+- **修正**：改为**数据感知** —— 先取 `/api/ai/models`；有数据时断言 `HTTP 200`、
+  `DOM 表格行数 == 接口条数` 且不得残留空态文案；仅空库时才要求空态文案。属**加强而非放宽**。
+- 实测明细：`HTTP=200 接口=7 DOM=7 空态=false`；复跑 **57/57 PASS**，`retest-fixes.json` 无 FAIL。
+
+### 51.4 环境侧已绕开的三处问题（均未改产品代码）
+
+- 宿主注入 `SERVER__PORT=50167`（WorkBuddy CLI 本地端口），Spring Boot
+  `server.port: ${SERVER_PORT:8080}` 解析到该值并抢宿主端口 → `Port 50167 was already in use`。
+  启动会话内 `Remove-Item Env:SERVER__PORT` + `$env:SERVER_PORT='8080'` 后正常。
+- `start-dev.ps1 -Ai` 单服务模式未切到 `ai-service/` 目录，uvicorn 报
+  `ModuleNotFoundError: No module named 'app'`；改为在该目录直接
+  `python -m uvicorn app.main:app --host 0.0.0.0 --port 8001` 启动。
+- `start-dev.ps1 -All -Wait` 经 `Start-Process` 起的子进程会随后台任务结束被回收；
+  本轮改用三个常驻前台任务分别起 8080 / 5173 / 8001。
+- 以上属**运行方式**问题，建议演示后单开一轮修 `start-dev.ps1`（需重打 tag）。
+
+### 51.5 数据安全
+
+- `APPLY=1` 执行前已全库备份：`output/delivery-verify/dev-db-backup-before-demo-refresh-20261115.sql`
+  （3,601,906 B / 63 张表 / SHA256 `5fd1e6e9…c9633`，见同名 `.sha256`）。
+- 刷新后 6/16 在线、三列时间戳均为 2026-11-15。`DeviceOnlineChecker` 5 分钟心跳仍会把在线数打回 0，
+  **每场演示前 5 分钟仍需重跑 `APPLY=1`**。
+
+### 51.6 版本、产物与遗留
+
+- tag **`v1.8.14-delivery`**（本地附注标签，沿用「仅本地归集、不推送」约定）；
+  `v1.8.13-delivery` 保留为代码快照，不强制移动。
+- 源码包 `output/delivery-verify/DisasterGuard-v1.8.14-delivery.zip` + 同名 `.sha256`
+  （`git archive --prefix` 从 tag 生成，SHA256 以 `.sha256` 文件为准）。
+- **仍未闭环**：A1 现场人工项（真实听声 / 静音、WS 断网 ≥30s 重连、真机访问、全按钮点检、全流程彩排）、
+  A4 上线日注入、A6 甲方决策、C9 / L-21 二期、API 统一批次 2（C 级 11 个）与批次 3（D 级 3 个）、
+  340 MB 演示材料包版本刷新（`MANIFEST.md` 仍指 `v1.8.10`，包内 `DELIVERY_CHECKLIST` 快照仍是 v1.8）。
+- 批次 1 的 API 归一仍**未完成全域统一**：`paged(records)` 15→33、`list*` 裸透传 23→5，
+  C/D 级与 6 处 `{list:...}` 包装按 `docs/api/API_INVENTORY.md` 演示后排期。
