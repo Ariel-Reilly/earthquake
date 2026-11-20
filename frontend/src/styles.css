@@ -9334,6 +9334,284 @@ select:focus {
   font-size: 12.5px !important;
 }
 
+/* ───────────────────────────────────────────────────────────
+   页面级紧凑覆盖 · 灾损评估页 (.dap-*)
+   这两页大量 padding/height/gap 写死在 scoped 里，变量换不动，
+   紧凑模式须在此按选择器逐一收紧。仍需 !important 压过 scoped。
+   ─────────────────────────────────────────────────────────── */
+:root[data-density="compact"] .dap-root {
+  padding: 12px 16px !important;
+}
+
+:root[data-density="compact"] .dap-header,
+:root[data-density="compact"] .dap-tabs {
+  margin-bottom: 12px !important;
+}
+
+:root[data-density="compact"] .dap-tab {
+  padding: 5px 12px !important;
+}
+
+:root[data-density="compact"] .dap-control-bar {
+  padding: 10px 12px !important;
+  margin-bottom: 10px !important;
+}
+
+:root[data-density="compact"] .dap-select,
+:root[data-density="compact"] .dap-input {
+  padding: 5px 10px !important;
+}
+
+:root[data-density="compact"] .dap-run-btn {
+  padding: 6px 14px !important;
+}
+
+:root[data-density="compact"] .dap-refresh-btn {
+  padding: 6px 8px !important;
+}
+
+:root[data-density="compact"] .dap-error {
+  padding: 6px 10px !important;
+  margin-bottom: 10px !important;
+}
+
+:root[data-density="compact"] .dap-risk-hero {
+  padding: 12px 16px !important;
+  margin-bottom: 10px !important;
+}
+
+:root[data-density="compact"] .dap-risk-level {
+  margin-bottom: 3px !important;
+}
+
+:root[data-density="compact"] .dap-risk-score {
+  margin-bottom: 6px !important;
+}
+
+:root[data-density="compact"] .dap-score-num {
+  font-size: 40px !important;
+}
+
+:root[data-density="compact"] .dap-risk-meta {
+  margin-bottom: 6px !important;
+}
+
+:root[data-density="compact"] .dap-concern-badge,
+:root[data-density="compact"] .dap-type-badge,
+:root[data-density="compact"] .dap-no-device-badge {
+  padding: 2px 8px !important;
+}
+
+:root[data-density="compact"] .dap-results,
+:root[data-density="compact"] .dap-results-grid,
+:root[data-density="compact"] .dap-nationwide-layout,
+:root[data-density="compact"] .dap-nationwide-results {
+  gap: 10px !important;
+}
+
+:root[data-density="compact"] .dap-card {
+  padding: 10px 12px !important;
+}
+
+:root[data-density="compact"] .dap-card-header {
+  margin-bottom: 8px !important;
+}
+
+:root[data-density="compact"] .dap-radar-wrap {
+  margin-bottom: 8px !important;
+}
+
+:root[data-density="compact"] .dap-radar-svg {
+  width: 232px !important;
+  height: 208px !important;
+}
+
+:root[data-density="compact"] .dap-dim-bars,
+:root[data-density="compact"] .dap-reasoning,
+:root[data-density="compact"] .dap-actions {
+  gap: 5px !important;
+}
+
+:root[data-density="compact"] .dap-reason-num {
+  min-width: 17px !important;
+  height: 17px !important;
+}
+
+:root[data-density="compact"] .dap-divider {
+  margin: 7px 0 !important;
+}
+
+:root[data-density="compact"] .dap-dt-grid {
+  gap: 8px !important;
+}
+
+:root[data-density="compact"] .dap-nationwide-form {
+  gap: 8px !important;
+}
+
+:root[data-density="compact"] .dap-form-grid {
+  gap: 6px !important;
+}
+
+:root[data-density="compact"] .dap-form-section-title {
+  padding-top: 5px !important;
+}
+
+:root[data-density="compact"] .dap-points-list {
+  padding: 6px !important;
+  max-height: 140px !important;
+}
+
+:root[data-density="compact"] .dap-point-item {
+  padding: 4px 8px !important;
+}
+
+:root[data-density="compact"] .dap-nationwide-kpi {
+  gap: 8px !important;
+}
+
+:root[data-density="compact"] .dap-nkpi {
+  padding: 7px 10px !important;
+}
+
+:root[data-density="compact"] .dap-nkpi-val {
+  font-size: 20px !important;
+}
+
+:root[data-density="compact"] .dap-table th {
+  padding: 5px 8px !important;
+}
+
+:root[data-density="compact"] .dap-table td {
+  padding: 4px 8px !important;
+}
+
+:root[data-density="compact"] .dap-empty,
+:root[data-density="compact"] .dap-nationwide-empty {
+  padding: 40px 16px !important;
+}
+
+/* ───────────────────────────────────────────────────────────
+   页面级紧凑覆盖 · 会签页 (ConfirmationSignPage / SignTimeline)
+   队列项、详情头、时间线、意见表单的写死间距在此收紧；骨架态
+   (.sds-*) 同步收紧，保证加载中与加载后布局一致不跳动。
+   ─────────────────────────────────────────────────────────── */
+:root[data-density="compact"] .grid > .panel {
+  padding: 10px 12px !important;
+  gap: 7px !important;
+}
+
+:root[data-density="compact"] .panel h3 {
+  padding-bottom: 4px !important;
+}
+
+:root[data-density="compact"] .panel ul {
+  gap: 4px !important;
+}
+
+:root[data-density="compact"] .item,
+:root[data-density="compact"] .sign-queue-skeleton-row {
+  padding: 6px 10px !important;
+}
+
+:root[data-density="compact"] .sign-queue-skeleton {
+  gap: 4px !important;
+}
+
+:root[data-density="compact"] .meta {
+  margin-top: 2px !important;
+}
+
+:root[data-density="compact"] .detail-body {
+  gap: 7px !important;
+}
+
+:root[data-density="compact"] .sign-detail-skeleton {
+  gap: 8px !important;
+}
+
+:root[data-density="compact"] .sds-head-main {
+  gap: 5px !important;
+}
+
+:root[data-density="compact"] .sds-timeline {
+  gap: 8px !important;
+  padding: 7px 0 !important;
+}
+
+:root[data-density="compact"] .sds-node {
+  gap: 7px !important;
+}
+
+:root[data-density="compact"] .sds-node-body {
+  gap: 4px !important;
+  padding-top: 1px !important;
+}
+
+:root[data-density="compact"] .sds-form,
+:root[data-density="compact"] .sds-actions,
+:root[data-density="compact"] .sds-form-btns {
+  gap: 5px !important;
+}
+
+:root[data-density="compact"] .d-head h4 {
+  font-size: 16px !important;
+}
+
+:root[data-density="compact"] .d-head p {
+  margin-top: 2px !important;
+}
+
+:root[data-density="compact"] .d-actions {
+  gap: 4px !important;
+}
+
+:root[data-density="compact"] .sign-actions {
+  gap: 4px !important;
+  padding-top: 6px !important;
+}
+
+:root[data-density="compact"] .sign-actions textarea {
+  padding: 5px 8px !important;
+}
+
+/* SignTimeline 为独立 scoped 子组件，用 .timeline 前缀锁定，避免误伤同名 .state/.meta */
+:root[data-density="compact"] .timeline {
+  gap: 8px !important;
+}
+
+:root[data-density="compact"] .timeline ul {
+  gap: 5px !important;
+}
+
+:root[data-density="compact"] .timeline li {
+  gap: 8px !important;
+  padding: 2px 0 !important;
+}
+
+:root[data-density="compact"] .timeline .dot {
+  width: 20px !important;
+  height: 20px !important;
+}
+
+:root[data-density="compact"] .timeline .meta {
+  gap: 2px !important;
+}
+
+:root[data-density="compact"] .timeline .state {
+  padding: 1px 6px !important;
+}
+
+:root[data-density="compact"] .timeline .line {
+  left: 9px !important;
+  top: 23px !important;
+  bottom: -6px !important;
+}
+
+:root[data-density="compact"] .timeline .transfers {
+  padding-top: 6px !important;
+}
+
 /* ═══════════════════════════════════════════════════════════
    WEBKIT 自定义滚动条  (Mac 风格极简 · 莫兰迪绿)
    ─────────────────────────────────────────────────────────

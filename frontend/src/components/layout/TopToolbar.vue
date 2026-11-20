@@ -733,17 +733,53 @@ onBeforeUnmount(() => {
    · 新建按钮只留图标，文案与下拉箭头隐藏
    · 品牌只留图标（.brand-copy 在 900px 已隐藏） */
 @media (width <= 768px) {
+  /* 保留一级导航的现有样式：窄屏改成第二行横向可滚动，而不是取消导航。 */
+  .top-toolbar {
+    height: auto;
+    min-height: 64px;
+  }
+
   .top-toolbar-inner {
+    height: auto;
+    min-height: 64px;
+    flex-wrap: wrap;
+    align-items: center;
     padding: 0 var(--sp-8, 8px);
+    gap: var(--sp-8, 8px);
+    row-gap: 0;
+  }
+
+  :deep(.group-tabs) {
+    order: 3;
+    flex: 1 0 100%;
+    width: 100%;
+    height: 44px;
+    align-self: stretch;
+    border-top: 1px solid var(--border-color, #d1dcd5);
+    padding: 0 var(--sp-8, 8px);
+    scroll-behavior: smooth;
+    scroll-snap-type: x proximity;
+    overscroll-behavior-x: contain;
+    mask-image: linear-gradient(
+      to right,
+      transparent 0,
+      #000 12px,
+      #000 calc(100% - 12px),
+      transparent 100%
+    );
+  }
+
+  :deep(.group-tab) {
+    scroll-snap-align: center;
+  }
+
+  .toolbar-actions {
+    margin-left: auto;
     gap: var(--sp-8, 8px);
   }
 
   .toolbar-search {
     display: none;
-  }
-
-  .toolbar-actions {
-    gap: var(--sp-8, 8px);
   }
 
   .toolbar-brand {

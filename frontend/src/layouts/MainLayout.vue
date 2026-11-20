@@ -284,12 +284,45 @@ function notify(message) {
   }, 2600)
 }
 
+const routeLoading = ref(false)
+let routeLoadingTimer = null
+let removeBeforeRoute = null
+let removeAfterRoute = null
+
+function startRouteLoading() {
+  routeLoading.value = true
+  window.clearTimeout(routeLoadingTimer)
+  // 守卫异常/中止时 afterEach 可能不触发，避免进度条永久停留。
+  routeLoadingTimer = window.setTimeout(() => {
+    routeLoading.value = false
+    routeLoadingTimer = null
+  }, 10_000)
+}
+
+function endRouteLoading() {
+  routeLoading.value = false
+  window.clearTimeout(routeLoadingTimer)
+  routeLoadingTimer = null
+}
+
+removeBeforeRoute = router.beforeEach((to, from, next) => {
+  if (to.fullPath !== from.fullPath) startRouteLoading()
+  next()
+})
+removeAfterRoute = router.afterEach(() => endRouteLoading())
+
 onMounted(() => {
   refreshDynamicBadges()
   badgeTimer = window.setInterval(refreshDynamicBadges, 60_000)
 })
 
 onBeforeUnmount(() => {
+  removeBeforeRoute?.()
+  removeAfterRoute?.()
+  if (routeLoadingTimer !== null) {
+    window.clearTimeout(routeLoadingTimer)
+    routeLoadingTimer = null
+  }
   if (badgeTimer !== null) {
     window.clearInterval(badgeTimer)
     badgeTimer = null
@@ -334,6 +367,9 @@ onBeforeUnmount(() => {
       </aside>
 
       <main class="main-layout-content">
+        <div v-if="routeLoading" class="route-loading-bar" role="progressbar" aria-label="页面加载中">
+          <span></span>
+        </div>
         <ContentArea
           :show-search="false"
           :show-filter="false"
@@ -408,9 +444,40 @@ onBeforeUnmount(() => {
 
 /* ── 右侧内容区：flex:1，独立滚动 ── */
 .main-layout-content {
+  position: relative;
   flex: 1;
   min-width: 0;
   overflow: hidden auto;
+  scrollbar-gutter: stable;
+  scroll-behavior: smooth;
+}
+
+.route-loading-bar {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 60;
+  height: 2px;
+  overflow: hidden;
+  pointer-events: none;
+  background: rgb(111 158 127 / 16%);
+}
+
+.route-loading-bar > span {
+  display: block;
+  width: 36%;
+  height: 100%;
+  background: var(--c-brand);
+  animation: route-loading-slide 1.1s ease-in-out infinite;
+}
+
+@keyframes route-loading-slide {
+  from {
+    transform: translateX(-120%);
+  }
+
+  to {
+    transform: translateX(320%);
+  }
 }
 
 /* ── 全局轻提示 ──
@@ -431,6 +498,12 @@ onBeforeUnmount(() => {
   }
 }
 
+@media (width >= 769px) {
+  .main-layout-sidebar {
+    transition: width 0.24s var(--ease-ios, cubic-bezier(0.32, 0.72, 0, 1));
+  }
+}
+
 @media (width <= 768px) {
   /* ── 侧栏抽屉（修复：<=768px 侧栏 display:none 且全站无入口）──
      不再 display:none（那样二级页面在手机上彻底不可达），改为
@@ -438,7 +511,7 @@ onBeforeUnmount(() => {
      display 不可过渡，直接切换会「啪」地闪没。 */
   .main-layout-sidebar {
     position: fixed;
-    top: 64px; /* 顶栏高度：抽屉从顶栏下方滑出，不盖住汉堡按钮 */
+    top: 108px; /* 顶栏 64px + 一级导航第二行 44px；抽屉从导航下方滑出 */
     bottom: 0;
     left: 0;
     width: min(280px, 85vw);

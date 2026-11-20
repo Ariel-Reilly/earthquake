@@ -1,0 +1,173 @@
+/**
+ * 全站视觉收敛层（2026-11-18）。
+ *
+ * 目标：不改变信息架构和业务布局，只收敛重复的视觉语言：
+ * - 卡片：统一圆角、边框强度、悬停阴影，去掉“每个卡片都在动”的噪声；
+ * - 标题/数值：统一字重、字距和数字等宽；
+ * - 控件：按钮/输入框统一圆角、高度和过渡；
+ * - 表格：表头与行悬停统一；
+ * - 空态/焦点：统一可读性和键盘可访问性。
+ *
+ * 放在样式入口最后加载，只做低风险覆盖；页面级特殊布局仍由各自 SFC 负责。
+ */
+
+body {
+  font-synthesis: none;
+  text-rendering: optimizelegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ── 卡片：从“描边盒子”收敛为轻边框 + 微阴影 ── */
+.panel,
+.stat-card,
+.kpi-card,
+.metric-card,
+.fip-card,
+.fip-kpi,
+.fip-task-card {
+  border-color: var(--c-separator, #d1dcd5);
+  border-radius: var(--r-lg, 12px);
+  box-shadow: var(--shadow-xs, 0 1px 2px rgb(44 59 52 / 3.5%));
+}
+
+.panel {
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.panel:hover {
+  border-color: var(--c-border-hover, var(--c-separator, #b8c7be));
+  box-shadow: var(--shadow-hover, 0 6px 18px rgb(44 59 52 / 6%));
+  transform: none;
+}
+
+/* ── 面板头部：降低高度与视觉重量，给内容更多空间 ── */
+.panel-header {
+  min-height: 58px;
+  padding: 14px 16px 11px;
+}
+
+.panel-header h2 {
+  font-size: 14px;
+  letter-spacing: -0.01em;
+}
+
+.panel-header p {
+  margin-top: 4px;
+  font-size: 12px;
+}
+
+/* ── 数值：表格数字、统计数字等宽，避免跳动 ── */
+.stat-num,
+.kpi-value,
+.fip-kpi-value,
+.metric-value,
+.stat-card strong {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* ── 控件：统一圆角与交互过渡 ── */
+.primary-btn,
+.secondary-btn,
+.ghost-btn,
+.filter-btn,
+.op-btn,
+.toolbar-btn,
+.fip-fill-btn,
+.fip-task-detail-btn {
+  border-radius: var(--r-md, 8px);
+  transition:
+    background-color 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.primary-btn:active,
+.secondary-btn:active,
+.ghost-btn:active,
+.filter-btn:active,
+.op-btn:active,
+.toolbar-btn:active {
+  transform: translateY(1px);
+}
+
+.form-input,
+.settings-input,
+.toolbar-search .search-input,
+.fip-input,
+select,
+textarea {
+  border-radius: var(--r-md, 8px);
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    background-color 0.18s ease;
+}
+
+/* ── 表格：表头轻底色、行悬停统一 ── */
+.table thead th,
+.data-table thead th,
+table thead th {
+  background: var(--c-surface-2, #eef3f0);
+  color: var(--c-text-2, #5f6f68);
+  font-weight: 600;
+}
+
+.table tbody tr,
+.data-table tbody tr {
+  transition: background-color 0.16s ease;
+}
+
+.table tbody tr:hover,
+.data-table tbody tr:hover {
+  background: rgb(95 122 107 / 4.5%);
+}
+
+/* ── 空态：统一字号与行高，避免“空得刺眼” ── */
+.empty-state,
+.panel-empty,
+.fip-empty,
+.empty-row {
+  line-height: 1.7;
+  color: var(--c-text-3, #6b7a73);
+}
+
+.empty-state p,
+.panel-empty p,
+.fip-empty p {
+  color: var(--c-text-4, #8a9a90);
+}
+
+/* ── 键盘焦点：保留可见但不过度抢眼 ── */
+:where(button, a, input, select, textarea):focus-visible {
+  outline: 2px solid var(--c-brand, #5f7a6b);
+  outline-offset: 2px;
+}
+
+/* ── 低动态偏好：尊重系统设置 ── */
+@media (prefers-reduced-motion: reduce) {
+  .panel,
+  .panel *,
+  .primary-btn,
+  .secondary-btn,
+  .table tbody tr {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+

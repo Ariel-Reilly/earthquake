@@ -159,8 +159,9 @@ function handleCreate() {
   width: 100%;
   height: 100%;
 
-  /* 透明以透出 body 的网格背景 */
-  background: transparent;
+  /* 内容页使用纯色底：大面积网格 + 低信息密度会放大“空白/未完成”观感，
+     总览大屏仍保留品牌网格，不再让所有业务页都铺网格。 */
+  background: var(--c-bg);
 }
 
 /* ── 【维度二】顶部工具栏：64px 高度 ── */
@@ -336,6 +337,10 @@ function handleCreate() {
 /* ── 内容插槽 ── */
 .content-slot {
   width: 100%;
+
+  /* 2K/超宽屏不再让卡片和图表无限拉伸；桌面上限 1600px，窄屏仍占满。 */
+  max-width: 1600px;
+  margin: 0 auto;
 }
 
 /* ── 【维度二】数据列表行样式（供业务页面使用） ── */
