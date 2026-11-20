@@ -33,7 +33,12 @@
 > （执行前全库备份 `output/delivery-verify/dev-db-backup-before-demo-refresh-20261114.sql` + SHA256），
 > 结果 6/16 在线、预警/灾害点日期为当天，`verify-demo-data-refresh.mjs` 4/4 PASS。
 > ⚠ `DeviceOnlineChecker` 每 60s 把 5 分钟无上报的在线设备置离线，演示设备不会真的上报，
-> 所以**每场演示开始前 5 分钟内必须重跑刷新脚本**（幂等、只 UPDATE），长时间彩排每 4 分钟重跑。
+> 所以在线数会自然回落。**2026-11-20 起默认由 `DemoDevicePresenceScheduler` 自动保鲜**
+> （每 60s 刷新在线设备 `last_report_at`；dev compose / `start-dev.ps1` 默认开启，
+> 生产禁用，见 [DELIVERY_CHECKLIST.md](DELIVERY_CHECKLIST.md)「八、在线设备 0/16 数据修复」）：
+> 正常启动后端即在线数稳定，无需人工重跑。仅当保鲜开关被关闭
+> （`DEVICE_DEMO_PRESENCE_ENABLED=false`）或演示机跑的是旧代码时，才退回旧约定——
+> **每场演示开始前 5 分钟内重跑刷新脚本**（幂等、只 UPDATE），长时间彩排每 4 分钟重跑。
 > 该脚本会改写业务时间戳与设备状态，**生产/试运行环境禁用**。
 > **⚠ 刷新后须在页面确认**：预警列表时间显示「今天」而非「11-06」。2026-11-14 第三轮复测发现
 > 刷新脚本曾用 `COALESCE` 保留旧 `triggered_at`、验证只查 `created_at`，造成「脚本 PASS、页面旧日期」

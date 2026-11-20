@@ -63,6 +63,8 @@
 | `EMQX_ENABLED` | `true` | 设备 MQTT 接入开关 | 根 `.env.example:132` |
 | `EMQX_*` / MQTT 端口 | `1883` 等 | Broker 连接与端口 | 根 `.env.example:120-137`、`application.yml`（emqx 段） |
 | `DEV_USERS_ENABLED` | `true`（开发） | 允许内存兜底账号；**生产必须 `false`** | `application.yml:88`、`DbUserDetailsService` 类注释 |
+| `DEVICE_DEMO_PRESENCE_ENABLED` | `false`（代码默认） | 演示设备在线保鲜：定时刷新在线设备 `last_report_at`，抵消 `DeviceOnlineChecker` 的 5min 离线判定，让总览页在线数稳定。dev compose / `start-dev.ps1`（default/dev profile）默认注入 `true`；**生产必须 `false`**——`ProductionConfigValidator` 会对 prod 开启 fail-fast 拒绝启动（会掩盖真实设备断连） | 根 `.env.example`、`application.yml:171`、`docker-compose.yml:168`、`DemoDevicePresenceScheduler` 类注释、`ProductionConfigValidatorTest` |
+| `DEVICE_DEMO_PRESENCE_INTERVAL_SECONDS` | `60000` | 保鲜调度间隔（毫秒，须远小于 5min 离线阈值） | `application.yml:172`、`DemoDevicePresenceScheduler.refreshPresence()` |
 
 ### 2.3 AI 服务（`ai-service/.env`，模板见 `ai-service/.env.example`）
 

@@ -284,6 +284,10 @@
   结果 6/16 在线、预警/灾害点日期为当天；`verify-demo-data-refresh.mjs` 4/4 PASS。
   ⚠ `DeviceOnlineChecker` 每 60s 把 5 分钟无上报的在线设备置离线，演示设备不会真的上报，
   因此**约 5 分钟后自然衰减回 0 在线**；每场演示前 5 分钟内重跑脚本即可，长时间彩排每 4 分钟重跑。
+  **（2026-11-20 更新：该衰减默认已被 `DemoDevicePresenceScheduler` 自动保鲜抵消**——
+  每 60s 刷新在线设备 `last_report_at`，dev compose / `start-dev.ps1` 默认开启、生产禁用
+  （`ProductionConfigValidator` fail-fast，见 DELIVERY_CHECKLIST「八、在线设备 0/16 数据修复」）。
+  仅在开关关闭或演示机跑旧代码时才需按上述人工重跑约定操作。**）**
   「已记录轨迹 0」为真实统计（演示库无移动设备类型），未伪造。
 - **演示数据「预警时间」字段口径（2026-11-14 第三轮复测修正，见 L-20 附记 / RETEST_FIX_REPORT §五）**：
   页面列表 `time` / `triggeredAt`、列表排序与 24h 时间对比**都以 `warning_event.triggered_at` 为准**
