@@ -15,10 +15,17 @@ const props = defineProps({
   /** 是否显示表头 */
   showHeader: { type: Boolean, default: true }
 })
+
+// 基于行列索引的稳定伪随机：同一单元格每次渲染宽度一致，
+// 避免组件重渲染时 Math.random() 造成骨架宽度跳动。
+const CELL_WIDTHS = ['70%', '80%', '90%', '100%']
+function cellWidth(row, col) {
+  return CELL_WIDTHS[(row * 7 + col * 3) % CELL_WIDTHS.length]
+}
 </script>
 
 <template>
-  <div class="skeleton-table">
+  <div class="skeleton-table" role="status" aria-label="表格加载中" aria-busy="true">
     <!-- 表头 -->
     <div v-if="showHeader" class="skeleton-table-header">
       <SkeletonBar 
@@ -38,20 +45,12 @@ const props = defineProps({
       <SkeletonBar 
         v-for="col in columns" 
         :key="'cell-' + row + '-' + col"
-        :width="getRandomWidth()"
+        :width="cellWidth(row, col)"
         height="14px"
       />
     </div>
   </div>
 </template>
-
-<script>
-// 生成随机宽度，让骨架屏更自然
-function getRandomWidth() {
-  const widths = ['70%', '80%', '90%', '100%']
-  return widths[Math.floor(Math.random() * widths.length)]
-}
-</script>
 
 <style scoped>
 .skeleton-table {

@@ -5,6 +5,7 @@
   UX_Audit_Report P1-1: 展示与实际内容结构相似的占位
 -->
 <script setup>
+import { computed } from 'vue'
 import SkeletonBar from './SkeletonBar.vue'
 
 const props = defineProps({
@@ -15,12 +16,18 @@ const props = defineProps({
   /** grid 模式下的列数 */
   gridColumns: { type: Number, default: 3 }
 })
+
+// CSS 变量名须小写（stylelint value-keyword-case），用别名桥接驼峰 prop
+const gridcolumns = computed(() => props.gridColumns)
 </script>
 
 <template>
-  <div 
+  <div
     class="skeleton-list"
     :class="{ 'skeleton-list-grid': layout === 'grid' }"
+    role="status"
+    aria-label="列表加载中"
+    aria-busy="true"
   >
     <div 
       v-for="i in count" 
@@ -58,9 +65,9 @@ const props = defineProps({
 
 .skeleton-card {
   padding: 20px;
-  border: 1px dashed var(--c-separator);
+  border: 1px solid var(--c-separator);
   border-radius: var(--r-lg);
-  background: var(--c-surface-2);
+  background: var(--c-surface);
 }
 
 .skeleton-card-details {
