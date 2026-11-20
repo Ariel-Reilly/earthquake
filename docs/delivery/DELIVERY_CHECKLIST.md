@@ -181,10 +181,18 @@
 - 错误重试态：`errorstate-taskdetail.png`、`errorstate-devicedetail.png`
 - 2K：`gate-2k-taskdetail.png`；响应式：`gate-detail-375.png`
 
+### v1.8.15 源码交付包（2026-11-20 已生成）
+
+- `output/delivery-verify/DisasterGuard-v1.8.15-delivery.zip` + 同名 `.sha256`：
+  `git archive --prefix` 从 tag 生成，SHA256 `38a17f27633e88a6ce90999ae89f0bf7716760619ec4dd0226ffc68511cc615d`，`sha256sum -c` **OK**。
+- **1305 files**（v1.8.14 为 1284；增量 21 项 = 16 骨架组件 + `uiTiming.js` + `visual-refresh.css` + 正式门禁脚本，无删减）；排除 `.git/` / `output/` / PPTX / `dist/` / `target/`（包内命中 0）。
+
 ### 交付时仍需执行（非代码待确认项）
 
-1. **演示数据刷新**：现场演示前 5 分钟内重跑 `APPLY=1 node scripts/delivery/verify-demo-data-refresh.mjs`（需后端 8080 + Docker 起库；本轮后端未起故未执行）。
-2. **正式浏览器冒烟**：`browser-smoke.mjs` 37 项需后端 8080；本批骨架相关改动已由正式骨架门禁 41/41、错误态 14/14、正常态 2/2、2K 2/2 等价覆盖。
-3. **门禁复跑入口**：`cd frontend && npm run verify:skeleton`（需先启动前端 5173 与 Chrome/Edge CDP）。
+1. **推送远端（需明确授权）**：`origin` = GitHub `https://github.com/Ariel-Reilly/earthquake.git`。远端当前**无** `release/delivery` 分支，`v1.8.x` 系列 tag 也从未推送（远端仅 `pre-cleanup-2015eef`）——
+   `git push origin release/delivery --tags` 属首次上传整条交付分支 + 全部 delivery tag，影响面大，本轮未执行。
+2. **演示数据刷新**：现场演示前 5 分钟内重跑 `APPLY=1 node scripts/delivery/verify-demo-data-refresh.mjs`（需后端 8080 + Docker 起库；本轮后端未起故未执行）。
+3. **正式浏览器冒烟**：`browser-smoke.mjs` 37 项需后端 8080；本批骨架相关改动已由正式骨架门禁 41/41、错误态 14/14、正常态 2/2、2K 2/2 等价覆盖。
+4. **门禁复跑入口**：`cd frontend && npm run verify:skeleton`（需先启动前端 5173 与 Chrome/Edge CDP）。
 
 - 甲方签字：____________________　日期：____________________
