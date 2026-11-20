@@ -290,5 +290,12 @@
   已完成首次推送**：`release/delivery`（= `660cac7`）+ 全部 24 个 `v1.8.*-delivery` tag，
   远端 `ls-remote` 复核与本地一致（tag v1.8.23 剥离 commit = `85980c5`）。
   本地 `main` 与远端 `main`（public_snapshot）已分叉（ahead 159 / behind 1），**未推送、未强推**。
+- **2026-11-20 18:37 后续（用户反馈 GitHub 首页仍是旧快照 + CI 红 ❌）**：
+  ① 经确认后把远端 `main` 强制更新为交付内容（`570c992 → 317e3ce`，public_snapshot 副本仍保留在本地
+  `public_snapshot` 分支），GitHub 首页现在显示最新交付；② 随推送引爆的三处 CI 门禁当场修复
+  （对账解析器 `*_BASE` 前缀 + prettier 无分号兼容并加 5 条前端自检断言；frontend-ci 变更文件
+  剥 `frontend/` 前缀；AI job 移除无意义的 GB 级 pip 缓存），`1ab8e23` 起 **CI 与 Frontend CI
+  双工作流 success**；③ prettier 曾把 108 个 .vue 重排并打破内联多语句处理器（vitest 2 文件
+  编译失败），已回滚并把 .vue 移出 prettier 管辖（64 个 js/css/json/md 对齐保留）。
 
 - 甲方签字：____________________　日期：____________________
