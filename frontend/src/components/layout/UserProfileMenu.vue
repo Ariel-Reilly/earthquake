@@ -17,7 +17,7 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
-import { User, Shield, Settings, LogOut, ChevronDown } from 'lucide-vue-next'
+import { User, Shield, Settings, LogOut, ChevronDown, HelpCircle } from 'lucide-vue-next'
 import { getAuthUser, clearAuthSession } from '../../stores/auth'
 
 const router = useRouter()
@@ -142,6 +142,16 @@ onBeforeUnmount(() => {
         >
           <Shield :size="16" />
           <span>账号安全</span>
+        </button>
+
+        <!-- 帮助中心 -->
+        <button 
+          type="button" 
+          class="dropdown-item"
+          @click="navigateTo('/dashboard/help')"
+        >
+          <HelpCircle :size="16" />
+          <span>帮助中心</span>
         </button>
 
         <!-- 系统设置 -->

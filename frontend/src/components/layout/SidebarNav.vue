@@ -10,14 +10,14 @@
  *
  * @component
  */
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import {
   Activity, BarChart3, Bot, BellRing, Boxes, Camera, ClipboardCheck, Cloud,
-  CloudRain, Cpu, Database, FileBarChart, FileText, FileWarning, Flame,
+  CloudRain, Cpu, Database, Ellipsis, FileBarChart, FileText, FileWarning, Flame,
   GitBranch, HardDrive, HardHat, HelpCircle, History, Inbox, Landmark, Layers,
   LayoutDashboard, LayoutList, ListChecks, Map as MapIcon, MapPin, MessageCircle,
   MountainSnow, Package, Radar, Radio, Route, Satellite, ScrollText, Settings, ShieldAlert,
-  ShieldCheck, Siren, Sparkles, UserCheck, UserCircle, Users,
+  ShieldCheck, Siren, Sparkles, UserCheck, UserCircle, Users, ChevronDown,
 } from 'lucide-vue-next'
 
 const props = defineProps({
@@ -68,8 +68,16 @@ function getIcon(iconName) {
  * 父布局已按角色过滤过一次，这里再过滤是为了组件单独使用时不越权展示。
  */
 const items = computed(() =>
-  (props.group?.items ?? []).filter((item) => props.allowedPaths.includes(item.path))
+  (props.group?.items ?? []).filter(
+    (item) => props.allowedPaths.includes(item.path) && !item.hidden,
+  ),
 )
+
+/** 主入口：保持侧栏首屏只展示高频功能 */
+const primaryItems = computed(() => items.value.filter((item) => !item.secondary))
+/** 低频入口：收进「更多功能」，路由和权限不变 */
+const secondaryItems = computed(() => items.value.filter((item) => item.secondary))
+const moreOpen = ref(false)
 
 /**
  * 判断路径是否命中某个菜单项。
@@ -95,6 +103,14 @@ function isActive(path) {
   return path === activePath.value
 }
 
+// 切换到低频页时自动展开「更多」，避免高亮项藏在折叠区里。
+watch(activePath, () => {
+  if (secondaryItems.value.some((item) => isActive(item.path))) moreOpen.value = true
+})
+watch(() => props.group?.id, () => {
+  moreOpen.value = false
+})
+
 function getBadgeCount(path) {
   const count = parseInt(props.badges[path], 10)
   return Number.isFinite(count) && count > 0 ? count : 0
@@ -118,7 +134,7 @@ function navigateTo(path) {
     </h2>
 
     <ul v-if="items.length > 0" class="sidebar-list">
-      <li v-for="item in items" :key="item.path">
+      <li v-for="item in primaryItems" :key="item.path">
         <button
           type="button"
           class="sidebar-item"
@@ -135,6 +151,43 @@ function navigateTo(path) {
             :class="{ 'badge-danger': item.danger }"
           >{{ formatBadge(getBadgeCount(item.path)) }}</span>
         </button>
+      </li>
+
+      <li v-if="secondaryItems.length" class="sidebar-more">
+        <button
+          type="button"
+          class="sidebar-item sidebar-more-toggle"
+          :aria-expanded="moreOpen"
+          aria-controls="sidebar-more-list"
+          @click="moreOpen = !moreOpen"
+        >
+          <span class="sidebar-item-indicator" aria-hidden="true" />
+          <Ellipsis :size="16" class="sidebar-item-icon" />
+          <span class="sidebar-item-label">更多功能</span>
+          <span class="sidebar-more-count">{{ secondaryItems.length }}</span>
+          <ChevronDown :size="14" class="sidebar-more-chevron" :class="{ 'is-open': moreOpen }" />
+        </button>
+
+        <ul v-show="moreOpen" id="sidebar-more-list" class="sidebar-sublist">
+          <li v-for="item in secondaryItems" :key="item.path">
+            <button
+              type="button"
+              class="sidebar-item sidebar-subitem"
+              :class="{ 'is-active': isActive(item.path) }"
+              :aria-current="isActive(item.path) ? 'page' : undefined"
+              @click="navigateTo(item.path)"
+            >
+              <span class="sidebar-item-indicator" aria-hidden="true" />
+              <component :is="getIcon(item.icon)" :size="15" class="sidebar-item-icon" />
+              <span class="sidebar-item-label">{{ item.label }}</span>
+              <span
+                v-if="getBadgeCount(item.path) > 0"
+                class="sidebar-item-badge"
+                :class="{ 'badge-danger': item.danger }"
+              >{{ formatBadge(getBadgeCount(item.path)) }}</span>
+            </button>
+          </li>
+        </ul>
       </li>
     </ul>
 
@@ -273,6 +326,60 @@ function navigateTo(path) {
 
   /* 白字在 #C48B8B 上对比度仅 2.83，深字 5.18 */
   color: var(--alert-on, #1f2b25);
+}
+
+/* ── 低频入口：更多功能 ── */
+.sidebar-more {
+  margin-top: 4px;
+  padding-top: 5px;
+  border-top: 1px dashed var(--border-color, #d1dcd5);
+}
+
+.sidebar-more-toggle {
+  color: var(--text-muted, #6b7a73);
+  font-size: 12.5px;
+}
+
+.sidebar-more-count {
+  flex-shrink: 0;
+  min-width: 20px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: var(--r-pill, 9999px);
+  background: var(--bg-hover, rgb(95 122 107 / 8%));
+  color: var(--text-muted, #6b7a73);
+  font-size: 11px;
+  line-height: 18px;
+  text-align: center;
+}
+
+.sidebar-more-chevron {
+  flex-shrink: 0;
+  transition: transform 0.2s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.sidebar-more-chevron.is-open {
+  transform: rotate(180deg);
+}
+
+.sidebar-sublist {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 4px 0 0;
+  padding: 0 0 0 10px;
+  list-style: none;
+  border-left: 1px solid var(--border-color, #d1dcd5);
+}
+
+.sidebar-subitem {
+  padding: 6px 10px;
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+.sidebar-subitem .sidebar-item-icon {
+  opacity: 0.78;
 }
 
 .sidebar-empty {

@@ -4,13 +4,18 @@
  * 设计原则：
  * - 每个菜单项带 group（导航分组）、order（组内排序）、icon（lucide 名称）、badge（静态徽标）、danger（红点告警样式）
  * - moduleMeta 提供 topbar 的 eyebrow（标题），key 为路由 path
- * - NAV_GROUPS 定义 6 大导航分组，按业务域划分：态势 / 研判 / 预警 / 设备数据 / 分析 / 系统
+ * - NAV_GROUPS 定义 5 大导航分组，按业务域划分：态势 / 研判 / 预警 / 设备数据 / 系统
  *
  * v1.8.0 变更：
  * - 新增「预警与处置」组，原 AI 组 18 项过载拆散到 研判 / 设备数据 / 分析 三组
  * - 补入 5 个「有路由有权限但从未挂菜单」的页面：数据源接入 / 数据同步 / 通知模板 / 预案管理 / 规则引擎
  * - 徽标只保留 NEW（版本新增标记）；P0/P1 属于开发待办优先级，不进用户界面
  * - order 改为规整的整数（1,2,3…），不再用小数插队
+ *
+ * 2026-11-20 入口收敛：
+ * - 撤销只有 1 项的「分析与报表」一级组，统计分析并入「监测与态势」
+ * - secondary: true 的项收进侧栏「更多」，路由和权限保持不变
+ * - hidden: true 的项不再进侧栏，改从右上角头像菜单进入
  */
 
 export const NAV_GROUPS = [
@@ -18,8 +23,7 @@ export const NAV_GROUPS = [
   { id: 'ai',       label: '灾害研判',   order: 2, icon: 'Bot' },
   { id: 'action',   label: '预警与处置', order: 3, icon: 'Siren' },
   { id: 'data',     label: '设备与数据', order: 4, icon: 'Database' },
-  { id: 'analytics', label: '分析与报表', order: 5, icon: 'BarChart3' },
-  { id: 'system',   label: '系统管理',   order: 6, icon: 'Settings' },
+  { id: 'system',   label: '系统管理',   order: 5, icon: 'Settings' },
 ]
 
 export const dashboardMenu = [
@@ -31,21 +35,22 @@ export const dashboardMenu = [
   // 可见性由 stores/auth.js 的 ROLE_MENU_MAP + satellite:view 权限码共同控制。
   { path: '/dashboard/satellite-compare',    label: '时相对比',     icon: 'Satellite',       group: 'monitor', order: 4, badge: 'NEW' },
   { path: '/dashboard/weather',              label: '气象分析',     icon: 'CloudRain',       group: 'monitor', order: 5 },
+  { path: '/dashboard/analytics',            label: '统计分析',     icon: 'BarChart3',       group: 'monitor', order: 6 },
 
   // ── 灾害研判 ──────────────────────────────────────────────────
   { path: '/dashboard/hazards',                   label: '灾害事件',       icon: 'MountainSnow',   group: 'ai', order: 1, badge: 'NEW' },
-  { path: '/dashboard/events',                    label: '统一事件中心',   icon: 'GitBranch',      group: 'ai', order: 2, badge: 'NEW' },
-  { path: '/dashboard/ai-tasks',                  label: 'AI 巡检任务',    icon: 'Bot',            group: 'ai', order: 3 },
-  { path: '/dashboard/ai-results',                label: 'AI 推理结果',    icon: 'Activity',       group: 'ai', order: 4 },
+  { path: '/dashboard/events',                    label: '统一事件中心',   icon: 'GitBranch',      group: 'ai', order: 2, badge: 'NEW', secondary: true },
+  { path: '/dashboard/ai-tasks',                  label: 'AI 巡检任务',    icon: 'Bot',            group: 'ai', order: 3, secondary: true },
+  { path: '/dashboard/ai-results',                label: 'AI 推理结果',    icon: 'Activity',       group: 'ai', order: 4, secondary: true },
   { path: '/dashboard/ai-insight',                label: 'AI 综合研判',    icon: 'ShieldAlert',    group: 'ai', order: 5 },
   { path: '/dashboard/disaster-forecast',         label: '灾害预测',       icon: 'Flame',          group: 'ai', order: 6 },
-  { path: '/dashboard/damage-assessment',         label: '灾损评估',       icon: 'FileWarning',    group: 'ai', order: 7 },
+  { path: '/dashboard/damage-assessment',         label: '灾损评估',       icon: 'FileWarning',    group: 'ai', order: 7, secondary: true },
   // R6 撤下菜单项与 stores/auth.js 的 ROLE_MENU_MAP 路径；R7 又移除了 router/index.js 里
   // 「redirect 到 hazards」的假入口 —— 该模块从未有页面实现，直接访问旧地址也不该跳到无关页面。
   // 需要恢复时先补齐页面与真实路由，再同时放开这三处。
   // { path: '/dashboard/social-media', label: '社交媒体舆情', icon: 'MessageCircle', group: 'ai', order: 8 },
   { path: '/dashboard/confirmation-workbench',    label: '人工确认工作台', icon: 'ClipboardCheck', group: 'ai', order: 9, danger: true },
-  { path: '/dashboard/confirmation-sign',         label: '会签与转派',     icon: 'FileText',       group: 'ai', order: 10 },
+  { path: '/dashboard/confirmation-sign',         label: '会签与转派',     icon: 'FileText',       group: 'ai', order: 10, secondary: true },
   { path: '/dashboard/field-inspection',          label: '现场巡检',       icon: 'HardHat',        group: 'ai', order: 11 },
 
   // ── 预警与处置 ────────────────────────────────────────────────
@@ -57,33 +62,30 @@ export const dashboardMenu = [
   // ── 设备与数据 ────────────────────────────────────────────────
   { path: '/dashboard/devices',           label: '设备管理',     icon: 'Radio',      group: 'data', order: 1 },
   { path: '/dashboard/device-map',        label: '设备地图',     icon: 'MapPin',     group: 'data', order: 2 },
-  { path: '/dashboard/devices/ota',       label: 'OTA 升级',     icon: 'Package',    group: 'data', order: 3 },
+  { path: '/dashboard/devices/ota',       label: 'OTA 升级',     icon: 'Package',    group: 'data', order: 3, secondary: true },
   { path: '/dashboard/data-manage',       label: '数据管理',     icon: 'Database',   group: 'data', order: 4, badge: 'NEW' },
-  { path: '/dashboard/data-catalog',      label: '数据资产目录', icon: 'Layers',     group: 'data', order: 5 },
-  { path: '/dashboard/data-sources',      label: '数据源接入',   icon: 'Cloud',      group: 'data', order: 6 },
-  { path: '/dashboard/data-sync',         label: '数据同步监控', icon: 'History',    group: 'data', order: 7 },
+  { path: '/dashboard/data-catalog',      label: '数据资产目录', icon: 'Layers',     group: 'data', order: 5, secondary: true },
+  { path: '/dashboard/data-sources',      label: '数据源接入',   icon: 'Cloud',      group: 'data', order: 6, secondary: true },
+  { path: '/dashboard/data-sync',         label: '数据同步监控', icon: 'History',    group: 'data', order: 7, secondary: true },
   { path: '/dashboard/ai-models',         label: 'AI 模型管理',  icon: 'Cpu',        group: 'data', order: 8 },
-
-  // ── 分析与报表 ────────────────────────────────────────────────
-  { path: '/dashboard/analytics',         label: '统计分析',     icon: 'BarChart3',   group: 'analytics', order: 1 },
 
   // ── 系统管理 ──────────────────────────────────────────────────
   { path: '/dashboard/workbench',            label: '我的工作台',   icon: 'LayoutList',  group: 'system', order: 1 },
   // 待办中心、审批中心、消息中心已迁移至全局通知抽屉，不在左侧菜单显示
-  { path: '/dashboard/notification-channels', label: '通知渠道配置', icon: 'BellRing',   group: 'system', order: 5 },
-  { path: '/dashboard/notice-templates',     label: '通知模板',     icon: 'FileText',    group: 'system', order: 6 },
-  { path: '/dashboard/rule-engine',          label: '规则引擎',     icon: 'Sparkles',    group: 'system', order: 7 },
-  { path: '/dashboard/personnel',            label: '人员管理',     icon: 'UserCheck',   group: 'system', order: 8 },
+  { path: '/dashboard/notification-channels', label: '通知渠道配置', icon: 'BellRing',   group: 'system', order: 5, secondary: true },
+  { path: '/dashboard/notice-templates',     label: '通知模板',     icon: 'FileText',    group: 'system', order: 6, secondary: true },
+  { path: '/dashboard/rule-engine',          label: '规则引擎',     icon: 'Sparkles',    group: 'system', order: 7, secondary: true },
+  { path: '/dashboard/personnel',            label: '人员管理',     icon: 'UserCheck',   group: 'system', order: 8, secondary: true },
   { path: '/dashboard/user-management',      label: '用户与权限',   icon: 'Users',       group: 'system', order: 9 },
   // 注册申请审核：只有 ROLE_MENU_MAP.admin 含此路径，MainLayout 按 allowedPaths 过滤后
   // 仅 admin 侧栏可见。紧邻「用户与权限」，与账号管理是同一件事的两半。
-  { path: '/admin/applications',             label: '注册审核',     icon: 'ClipboardCheck', group: 'system', order: 9.5 },
+  { path: '/admin/applications',             label: '注册审核',     icon: 'ClipboardCheck', group: 'system', order: 9.5, secondary: true },
   { path: '/dashboard/audit-log',            label: '日志审计',     icon: 'ScrollText',  group: 'system', order: 10 },
   { path: '/dashboard/system-monitor',       label: '系统监控',     icon: 'Radar',       group: 'system', order: 11 },
-  { path: '/dashboard/account-security',     label: '账号安全',     icon: 'ShieldCheck', group: 'system', order: 12 },
+  { path: '/dashboard/account-security',     label: '账号安全',     icon: 'ShieldCheck', group: 'system', order: 12, hidden: true },
   { path: '/dashboard/settings',             label: '系统设置',     icon: 'Settings',    group: 'system', order: 14 },
-  { path: '/dashboard/help',                 label: '帮助中心',     icon: 'HelpCircle',  group: 'system', order: 15 },
-  { path: '/dashboard/profile',              label: '个人中心',     icon: 'UserCircle',  group: 'system', order: 16 },
+  { path: '/dashboard/help',                 label: '帮助中心',     icon: 'HelpCircle',  group: 'system', order: 15, hidden: true },
+  { path: '/dashboard/profile',              label: '个人中心',     icon: 'UserCircle',  group: 'system', order: 16, hidden: true },
 ]
 
 /**
