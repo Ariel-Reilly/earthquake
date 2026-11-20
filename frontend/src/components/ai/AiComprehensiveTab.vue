@@ -179,6 +179,12 @@ const dimensions = computed(() => report.value?.dimensions ?? {})
 const geographicDim = computed(() => dimensions.value.geographic ?? {})
 const precipDim = computed(() => dimensions.value.precipitation ?? {})
 const deviceDim = computed(() => dimensions.value.device ?? {})
+/** 缓存评分不代表当前气象实况；降雨字段缺失时不能把 0.0 当成真实值展示。 */
+const weatherAvailable = computed(() => {
+  if (cacheStale.value) return false
+  const p = precipDim.value
+  return !!p && (typeof p.rainfall_24h === 'number' || typeof p.rainfall_7d === 'number' || !!p.details)
+})
 
 const disasterType = computed(() => report.value?.disasterType ?? null)
 const disasterTypeBadge = computed(() => {
@@ -444,6 +450,9 @@ async function submitAiFeedback(outcome, occurred) {
 
 onMounted(() => {
   loadModelInfo()
+  // 父页可能在子组件挂载前就选好了灾害点；此时 watch 不会再触发，
+  // 必须补一次初始加载，否则右侧会一直停在“请选择灾害点”。
+  if (props.selectedHazardCode) loadReport()
 })
 
 onBeforeUnmount(() => {
@@ -588,8 +597,10 @@ onBeforeUnmount(() => {
               <small>Precipitation Score</small>
             </div>
           </header>
-          <div class="dim-score">{{ fmtNum(precipDim.score, 1) }}</div>
-          <ul class="dim-meta">
+          <div class="dim-score" :class="{ 'is-unavailable': !weatherAvailable }">
+            {{ weatherAvailable ? fmtNum(precipDim.score, 1) : '—' }}
+          </div>
+          <ul v-if="weatherAvailable" class="dim-meta">
             <li>
               <span>24h 降雨</span> <strong>{{ fmtNum(precipDim.rainfall_24h, 1) }}mm</strong>
             </li>
@@ -603,6 +614,9 @@ onBeforeUnmount(() => {
               <span>持续天数</span> <strong>{{ fmtNum(precipDim._derived_rain_duration_days, 0) }}</strong>
             </li>
           </ul>
+          <p v-else class="dim-empty">
+            当前为旧缓存评估，气象数据未刷新；不展示 0.0 以免误导，等待后台实时研判后自动替换。
+          </p>
         </div>
 
         <!-- 设备告警 -->
@@ -1083,6 +1097,17 @@ onBeforeUnmount(() => {
   font-weight: 700;
   color: var(--c-text);
   margin-bottom: 8px;
+}
+
+.dim-score.is-unavailable {
+  color: var(--c-text-4);
+}
+
+.dim-empty {
+  margin: 0;
+  color: var(--c-warning-ink-deep);
+  font-size: 11px;
+  line-height: 1.6;
 }
 
 .dim-meta {
