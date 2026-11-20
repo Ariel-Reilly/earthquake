@@ -120,6 +120,11 @@ function formatBadge(n) {
   return n > 99 ? '99+' : n
 }
 
+function badgeTone(item) {
+  if (item?.badgeTone) return item.badgeTone
+  return item?.danger ? 'danger' : 'neutral'
+}
+
 function navigateTo(path) {
   emit('navigate', path)
 }
@@ -148,7 +153,7 @@ function navigateTo(path) {
           <span
             v-if="getBadgeCount(item.path) > 0"
             class="sidebar-item-badge"
-            :class="{ 'badge-danger': item.danger }"
+            :class="`badge-${badgeTone(item)}`"
           >{{ formatBadge(getBadgeCount(item.path)) }}</span>
         </button>
       </li>
@@ -183,7 +188,7 @@ function navigateTo(path) {
               <span
                 v-if="getBadgeCount(item.path) > 0"
                 class="sidebar-item-badge"
-                :class="{ 'badge-danger': item.danger }"
+                :class="`badge-${badgeTone(item)}`"
               >{{ formatBadge(getBadgeCount(item.path)) }}</span>
             </button>
           </li>
@@ -311,8 +316,8 @@ function navigateTo(path) {
   height: 20px;
   padding: 0 5px;
   border-radius: var(--r-pill, 9999px);
-  background: var(--primary, #5f7a6b);
-  color: var(--primary-on, #fff);
+  background: var(--c-brand-soft, rgb(95 122 107 / 12%));
+  color: var(--c-brand-deep, #385f49);
 
   /* 10px 数字在 1x 屏几乎不可读，统一提到 12px 并同步放大胶囊 */
   font-size: 12px;
@@ -321,11 +326,25 @@ function navigateTo(path) {
   font-variant-numeric: tabular-nums;
 }
 
+/* 与顶部角标同一套语义色：浅底深字，保持莫兰迪低饱和 */
 .sidebar-item-badge.badge-danger {
-  background: var(--alert-high, #c48b8b);
+  background: var(--c-danger-bg);
+  color: var(--c-danger-ink, #8e4444);
+}
 
-  /* 白字在 #C48B8B 上对比度仅 2.83，深字 5.18 */
-  color: var(--alert-on, #1f2b25);
+.sidebar-item-badge.badge-warning {
+  background: var(--c-warning-bg);
+  color: var(--c-warning-ink-deep, #7a5c10);
+}
+
+.sidebar-item-badge.badge-info {
+  background: var(--c-info-bg);
+  color: #3e5f7a;
+}
+
+.sidebar-item-badge.badge-neutral {
+  background: var(--c-brand-soft);
+  color: var(--c-brand-deep);
 }
 
 /* ── 低频入口：更多功能 ── */

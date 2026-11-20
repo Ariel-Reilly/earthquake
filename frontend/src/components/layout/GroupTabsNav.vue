@@ -73,7 +73,11 @@ function formatBadge(n) {
     >
       <component :is="getIcon(group.icon)" :size="16" class="group-tab-icon" aria-hidden="true" />
       <span class="group-tab-label">{{ group.label }}</span>
-      <span v-if="groupBadges[group.id] > 0" class="group-tab-badge">{{ formatBadge(groupBadges[group.id]) }}</span>
+      <span
+        v-if="groupBadges[group.id] > 0"
+        class="group-tab-badge"
+        :class="`tone-${group.badgeTone || 'neutral'}`"
+      >{{ formatBadge(groupBadges[group.id]) }}</span>
     </button>
   </nav>
 </template>
@@ -167,14 +171,36 @@ function formatBadge(n) {
   height: 20px;
   padding: 0 5px;
   border-radius: var(--r-pill, 9999px);
-  background: var(--primary, #5f7a6b);
-  color: var(--primary-on, #fff);
+  background: var(--c-brand-soft, rgb(95 122 107 / 12%));
+  color: var(--c-brand-deep, #385f49);
 
   /* 10px 数字在 1x 屏几乎不可读，统一提到 12px 并同步放大胶囊 */
   font-size: 12px;
   font-weight: 700;
   line-height: 1;
   font-variant-numeric: tabular-nums;
+}
+
+/* 角标按业务语义分色：危险红、预警橙、AI/信息蓝、普通中性绿。
+   只做浅底深字，避免顶部导航出现大面积高饱和色块。 */
+.group-tab-badge.tone-danger {
+  background: var(--c-danger-bg);
+  color: var(--c-danger-ink, #8e4444);
+}
+
+.group-tab-badge.tone-warning {
+  background: var(--c-warning-bg);
+  color: var(--c-warning-ink-deep, #7a5c10);
+}
+
+.group-tab-badge.tone-info {
+  background: var(--c-info-bg);
+  color: #3e5f7a;
+}
+
+.group-tab-badge.tone-neutral {
+  background: var(--c-brand-soft);
+  color: var(--c-brand-deep);
 }
 
 .group-tab:focus-visible {

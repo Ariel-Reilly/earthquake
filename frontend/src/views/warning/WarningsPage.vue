@@ -633,7 +633,7 @@ onBeforeUnmount(() => {
             <div class="status-tabs">
               <button
                 type="button"
-                class="status-tab"
+                class="status-tab status-tab-danger"
                 :class="{ active: statusTab === 'active' }"
                 @click="switchTab('active')"
               >
@@ -643,7 +643,7 @@ onBeforeUnmount(() => {
               </button>
               <button
                 type="button"
-                class="status-tab"
+                class="status-tab status-tab-neutral"
                 :class="{ active: statusTab === 'archived' }"
                 @click="switchTab('archived')"
               >
@@ -1696,6 +1696,17 @@ onBeforeUnmount(() => {
 
 .system-actions .action-primary {
   margin-left: auto;
+}
+
+/* Tab 计数按语义分色：活跃=危险红、归档=中性绿 */
+.status-tab-danger em {
+  background: var(--c-danger-bg);
+  color: var(--c-danger-ink);
+}
+
+.status-tab-neutral em {
+  background: var(--c-brand-soft);
+  color: var(--c-brand-deep);
 }
 
 /* ═══════════════════════════════════════════════════════════

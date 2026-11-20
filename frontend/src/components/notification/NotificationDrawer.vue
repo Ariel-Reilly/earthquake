@@ -24,9 +24,9 @@ const emit = defineEmits(['close', 'badge-refresh'])
 const activeTab = ref('messages')
 
 const TABS = [
-  { id: 'messages', label: '消息', icon: Mail, path: '/dashboard/message-center' },
-  { id: 'todos', label: '待办', icon: CheckSquare, path: '/dashboard/todo' },
-  { id: 'approvals', label: '审批', icon: FileText, path: '/dashboard/approvals' },
+  { id: 'messages', label: '消息', icon: Mail, path: '/dashboard/message-center', tone: 'info' },
+  { id: 'todos', label: '待办', icon: CheckSquare, path: '/dashboard/todo', tone: 'warning' },
+  { id: 'approvals', label: '审批', icon: FileText, path: '/dashboard/approvals', tone: 'danger' },
 ]
 
 // 从红点数据中提取每个 Tab 的计数
@@ -75,7 +75,11 @@ function handleBadgeRefresh() {
         >
           <component :is="tab.icon" size="16" />
           <span>{{ tab.label }}</span>
-          <span v-if="tabBadges[tab.id]" class="tab-badge">{{ tabBadges[tab.id] }}</span>
+          <span
+            v-if="tabBadges[tab.id]"
+            class="tab-badge"
+            :class="`tone-${tab.tone || 'neutral'}`"
+          >{{ tabBadges[tab.id] }}</span>
         </button>
       </div>
 
@@ -221,13 +225,28 @@ function handleBadgeRefresh() {
 .tab-badge {
   padding: 2px 5px;
   border-radius: 4px;
-  background: var(--c-danger-light);
-  color: var(--c-danger-ink);
+  background: var(--c-brand-soft);
+  color: var(--c-brand-deep);
   font-size: 12px;
   font-weight: 700;
   line-height: 1.3;
   min-width: 18px;
   text-align: center;
+}
+
+.tab-badge.tone-danger {
+  background: var(--c-danger-light);
+  color: var(--c-danger-ink);
+}
+
+.tab-badge.tone-warning {
+  background: var(--c-warning-light);
+  color: var(--c-warning-ink-deep);
+}
+
+.tab-badge.tone-info {
+  background: var(--c-info-bg);
+  color: #3e5f7a;
 }
 
 .drawer-content {

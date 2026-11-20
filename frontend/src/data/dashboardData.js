@@ -19,11 +19,11 @@
  */
 
 export const NAV_GROUPS = [
-  { id: 'monitor',  label: '监测与态势', order: 1, icon: 'Radar' },
-  { id: 'ai',       label: '灾害研判',   order: 2, icon: 'Bot' },
-  { id: 'action',   label: '预警与处置', order: 3, icon: 'Siren' },
-  { id: 'data',     label: '设备与数据', order: 4, icon: 'Database' },
-  { id: 'system',   label: '系统管理',   order: 5, icon: 'Settings' },
+  { id: 'monitor',  label: '监测与态势', order: 1, icon: 'Radar', badgeTone: 'info' },
+  { id: 'ai',       label: '灾害研判',   order: 2, icon: 'Bot', badgeTone: 'warning' },
+  { id: 'action',   label: '预警与处置', order: 3, icon: 'Siren', badgeTone: 'danger' },
+  { id: 'data',     label: '设备与数据', order: 4, icon: 'Database', badgeTone: 'info' },
+  { id: 'system',   label: '系统管理',   order: 5, icon: 'Settings', badgeTone: 'neutral' },
 ]
 
 export const dashboardMenu = [
@@ -38,26 +38,26 @@ export const dashboardMenu = [
   { path: '/dashboard/analytics',            label: '统计分析',     icon: 'BarChart3',       group: 'monitor', order: 6 },
 
   // ── 灾害研判 ──────────────────────────────────────────────────
-  { path: '/dashboard/hazards',                   label: '灾害事件',       icon: 'MountainSnow',   group: 'ai', order: 1, badge: 'NEW' },
-  { path: '/dashboard/events',                    label: '统一事件中心',   icon: 'GitBranch',      group: 'ai', order: 2, badge: 'NEW', secondary: true },
-  { path: '/dashboard/ai-tasks',                  label: 'AI 巡检任务',    icon: 'Bot',            group: 'ai', order: 3, secondary: true },
-  { path: '/dashboard/ai-results',                label: 'AI 推理结果',    icon: 'Activity',       group: 'ai', order: 4, secondary: true },
-  { path: '/dashboard/ai-insight',                label: 'AI 综合研判',    icon: 'ShieldAlert',    group: 'ai', order: 5 },
-  { path: '/dashboard/disaster-forecast',         label: '灾害预测',       icon: 'Flame',          group: 'ai', order: 6 },
-  { path: '/dashboard/damage-assessment',         label: '灾损评估',       icon: 'FileWarning',    group: 'ai', order: 7, secondary: true },
+  { path: '/dashboard/hazards',                   label: '灾害事件',       icon: 'MountainSnow',   group: 'ai', order: 1, badge: 'NEW', badgeTone: 'warning' },
+  { path: '/dashboard/events',                    label: '统一事件中心',   icon: 'GitBranch',      group: 'ai', order: 2, badge: 'NEW', badgeTone: 'warning', secondary: true },
+  { path: '/dashboard/ai-tasks',                  label: 'AI 巡检任务',    icon: 'Bot',            group: 'ai', order: 3, badgeTone: 'info', secondary: true },
+  { path: '/dashboard/ai-results',                label: 'AI 推理结果',    icon: 'Activity',       group: 'ai', order: 4, badgeTone: 'info', secondary: true },
+  { path: '/dashboard/ai-insight',                label: 'AI 综合研判',    icon: 'ShieldAlert',    group: 'ai', order: 5, badgeTone: 'info' },
+  { path: '/dashboard/disaster-forecast',         label: '灾害预测',       icon: 'Flame',          group: 'ai', order: 6, badgeTone: 'info' },
+  { path: '/dashboard/damage-assessment',         label: '灾损评估',       icon: 'FileWarning',    group: 'ai', order: 7, badgeTone: 'warning', secondary: true },
   // R6 撤下菜单项与 stores/auth.js 的 ROLE_MENU_MAP 路径；R7 又移除了 router/index.js 里
   // 「redirect 到 hazards」的假入口 —— 该模块从未有页面实现，直接访问旧地址也不该跳到无关页面。
   // 需要恢复时先补齐页面与真实路由，再同时放开这三处。
   // { path: '/dashboard/social-media', label: '社交媒体舆情', icon: 'MessageCircle', group: 'ai', order: 8 },
-  { path: '/dashboard/confirmation-workbench',    label: '人工确认工作台', icon: 'ClipboardCheck', group: 'ai', order: 9, danger: true },
-  { path: '/dashboard/confirmation-sign',         label: '会签与转派',     icon: 'FileText',       group: 'ai', order: 10, secondary: true },
+  { path: '/dashboard/confirmation-workbench',    label: '人工确认工作台', icon: 'ClipboardCheck', group: 'ai', order: 9, danger: true, badgeTone: 'danger' },
+  { path: '/dashboard/confirmation-sign',         label: '会签与转派',     icon: 'FileText',       group: 'ai', order: 10, badgeTone: 'info', secondary: true },
   { path: '/dashboard/field-inspection',          label: '现场巡检',       icon: 'HardHat',        group: 'ai', order: 11 },
 
   // ── 预警与处置 ────────────────────────────────────────────────
-  { path: '/dashboard/warnings',          label: '预警中心',     icon: 'Siren',       group: 'action', order: 1 },
-  { path: '/dashboard/emergency',         label: '应急事件',     icon: 'Flame',       group: 'action', order: 3 },
-  { path: '/dashboard/resource-dispatch', label: '资源调度指挥', icon: 'Boxes',       group: 'action', order: 4 },
-  { path: '/dashboard/route-planning',    label: '路径规划',     icon: 'Route',       group: 'action', order: 5 },
+  { path: '/dashboard/warnings',          label: '预警中心',     icon: 'Siren',       group: 'action', order: 1, badgeTone: 'danger' },
+  { path: '/dashboard/emergency',         label: '应急事件',     icon: 'Flame',       group: 'action', order: 3, badgeTone: 'warning' },
+  { path: '/dashboard/resource-dispatch', label: '资源调度指挥', icon: 'Boxes',       group: 'action', order: 4, badgeTone: 'info' },
+  { path: '/dashboard/route-planning',    label: '路径规划',     icon: 'Route',       group: 'action', order: 5, badgeTone: 'info' },
 
   // ── 设备与数据 ────────────────────────────────────────────────
   { path: '/dashboard/devices',           label: '设备管理',     icon: 'Radio',      group: 'data', order: 1 },
