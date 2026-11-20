@@ -285,8 +285,10 @@
     `backend/src/test/.../device/scheduler/`；两 tag 间 git diff 实测 2 新增 + 7 修改，
     排除项命中 0），sha256 校验 OK。
   - SHA256：`82269eaab1dbc9316bc46bdec12624b338aaaef54870e49d10801ab7ba3a262a`。
-- ⚠ 推送注意事项（与 v1.8.15 补记口径一致）：origin = GitHub `Ariel-Reilly/earthquake.git`，
-  远端**无** `release/delivery` 分支，v1.8.x tag 均未推送；`git push origin release/delivery --tags`
-  会首次上传整条分支 + 全部 delivery tag，影响面大，**本轮决策暂不推送**，留待现场演示确认后单独授权。
+- ⚠ 推送记录：origin = GitHub `Ariel-Reilly/earthquake.git`，此前远端无 `release/delivery` 分支、
+  v1.8.x tag 均未推送（首轮决策暂不推送，留待现场演示确认后授权）。**2026-11-20 16:38 用户明确授权后
+  已完成首次推送**：`release/delivery`（= `660cac7`）+ 全部 24 个 `v1.8.*-delivery` tag，
+  远端 `ls-remote` 复核与本地一致（tag v1.8.23 剥离 commit = `85980c5`）。
+  本地 `main` 与远端 `main`（public_snapshot）已分叉（ahead 159 / behind 1），**未推送、未强推**。
 
 - 甲方签字：____________________　日期：____________________
