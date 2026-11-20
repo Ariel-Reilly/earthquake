@@ -18,7 +18,7 @@
 <script setup>
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ShieldCheck } from 'lucide-vue-next'
+import { ShieldCheck, X } from 'lucide-vue-next'
 import TopToolbar from '../components/layout/TopToolbar.vue'
 import SidebarNav from '../components/layout/SidebarNav.vue'
 import ContentArea from '../components/layout/ContentArea.vue'
@@ -356,6 +356,16 @@ onBeforeUnmount(() => {
         class="main-layout-sidebar"
         :class="{ 'is-mobile-open': mobileSidebarOpen }"
       >
+        <!-- 移动端抽屉关闭：仅 ≤768px 显示，避免用户只能点遮罩 -->
+        <button
+          type="button"
+          class="sidebar-close-btn"
+          aria-label="关闭导航菜单"
+          aria-controls="app-sidebar"
+          @click="closeMobileSidebar"
+        >
+          <X :size="18" aria-hidden="true" />
+        </button>
         <!-- 平铺显示当前大类的子菜单 -->
         <SidebarNav
           :group="activeGroup"
@@ -440,6 +450,10 @@ onBeforeUnmount(() => {
   background: var(--bg-card, #fff);
   border-right: 1px solid var(--border-color, #d1dcd5);
   overflow: hidden;
+}
+
+.sidebar-close-btn {
+  display: none;
 }
 
 /* ── 右侧内容区：flex:1，独立滚动 ── */
@@ -532,6 +546,28 @@ onBeforeUnmount(() => {
     visibility: visible;
     transform: translateX(0);
     box-shadow: 8px 0 40px rgb(10 50 25 / 28%);
+  }
+
+  .sidebar-close-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: 1px solid var(--border-color, #d1dcd5);
+    border-radius: var(--r-sm, 6px);
+    background: var(--bg-card, #fff);
+    color: var(--text-muted, #6b7a73);
+    cursor: pointer;
+  }
+
+  .sidebar-close-btn:hover {
+    color: var(--text-main, #2c3b34);
+    background: var(--bg-hover, rgb(95 122 107 / 8%));
   }
 
   .main-layout-content {
