@@ -298,4 +298,21 @@
   双工作流 success**；③ prettier 曾把 108 个 .vue 重排并打破内联多语句处理器（vitest 2 文件
   编译失败），已回滚并把 .vue 移出 prettier 管辖（64 个 js/css/json/md 对齐保留）。
 
+## 十、文案与提示裁剪批次（2026-11-20，UX/DX/AX 同向）
+
+> 原则：页面不靠标语 / 说明文字 / 次要标签才看得懂；删完仍看不懂的，改布局而不是加文字。
+
+- 删除 **38 处**纯静态页头副标题 + **3 处**装饰性英文 eyebrow（18 个文件，覆盖
+  Overview / Warnings / Emergency / Analytics / Hazards / Devices / TaskDetail /
+  DeviceDetail / HazardDetail / ModelManage / DataManage / Workbench / Weather /
+  ZoneDashboard 与 2 个弹窗组件）。
+- **保留 15 处动态数据型副标题**（更新时间、坐标、在线人数、条数统计）——是数据不是文案。
+- 布局修复示范：灾种分布两张饼图原本仅靠「左：基准 / 右：对比」文字区分
+  → 按区域分布图既有模式补可见列标题「基准时段 / 对比时段」。
+- 新增可复跑门禁 `scripts/delivery/verify-copy-audit.mjs`：
+  `DG_APP=http://127.0.0.1:5174 node scripts/delivery/verify-copy-audit.mjs`
+  ——真实登录 token，6 页 × 1440/1024/375 断言「残留副标题仅动态数据、无横向溢出」并截图。
+- 验证：eslint 0 / stylelint 0 / vitest 244 / build ✓ / 骨架门禁 41/41 PASS。
+- 未动：`WelcomePage`（公开营销落地页，口号是其职责，如需一并裁剪另行确认）。
+
 - 甲方签字：____________________　日期：____________________
