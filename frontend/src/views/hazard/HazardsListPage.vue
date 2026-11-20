@@ -1242,8 +1242,10 @@ onBeforeUnmount(() => {
 }
 
 .warning-title span.blue {
-  background: rgb(93 180 134 / 15%);
-  color: var(--c-brand-deep);
+  /* 正常状态是列表里的默认态，降低绿色填充权重，异常级别才承担视觉焦点。 */
+  background: var(--c-bg);
+  border: 1px solid var(--c-separator);
+  color: var(--c-text-3);
 }
 
 .source-badge {

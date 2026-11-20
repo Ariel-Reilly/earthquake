@@ -9,7 +9,6 @@ import {
   Clock,
   ClipboardCheck,
   History,
-  Loader2,
   MapPin,
   RefreshCw,
   Send,
@@ -23,6 +22,8 @@ import {
 import { dashboardApi } from '../../services/dashboardApi'
 import { hasPermission, getAuthUser } from '../../stores/auth'
 import ConfirmDialog from '../../components/common/ConfirmDialog.vue'
+import SkeletonBar from '../../components/common/SkeletonBar.vue'
+import { waitForSkeleton } from '../../utils/uiTiming'
 
 const emit = defineEmits(['notify', 'open-task-modal', 'create-task'])
 defineProps({ searchTerm: { type: String, default: '' }, userRole: { type: String, default: 'admin' } })
@@ -37,10 +38,17 @@ const filterStatus = ref('待确认')
 const filterType = ref('')
 const filterLevel = ref('')
 const searchKeyword = ref('')
-const loading = ref(false)
+const loading = ref(true)
 const queue = ref({ items: [], total: 0, pending: 0 })
 const selected = ref(null)
+// 后端队列接口不一定回传 pending；缺失时按当前列表兜底，避免出现“共 9 条 · 待确认 0 条”。
+const pendingCount = computed(() => {
+  const reported = Number(queue.value.pending)
+  if (Number.isFinite(reported) && reported > 0) return reported
+  return (queue.value.items ?? []).filter((item) => item.status === '待确认').length
+})
 const detailLoading = ref(false)
+const detailSlow = ref(false)
 const detailContent = ref(null)
 const detailAnalysis = ref(null)
 const claimAction = reactive({ loading: false })
@@ -123,6 +131,7 @@ async function loadQueue() {
   } catch (e) {
     emit('notify', e.message ?? '加载待确认队列失败')
   } finally {
+    await waitForSkeleton()
     loading.value = false
   }
 }
@@ -153,14 +162,30 @@ async function selectItem(item) {
   detailContent.value = item
   detailAnalysis.value = null
   detailLoading.value = true
-  const [assessment, hazard] = await Promise.allSettled([
-    dashboardApi.getDisasterAssessment(item.hazardCode, { allowMock: false }),
-    fetchHazardDetailByCode(item.hazardCode),
-  ])
-  if (requestId !== detailRequestId || selected.value?.id !== item.id) return
-  detailAnalysis.value = assessment.status === 'fulfilled' ? assessment.value : null
-  detailContent.value = hazard.status === 'fulfilled' ? hazard.value ?? item : item
-  detailLoading.value = false
+  detailSlow.value = false
+  // AI 评估偶发慢于 8s；3s 先给出可操作提示，8s 释放 loading，避免永久转圈。
+  const slowHintTimer = setTimeout(() => {
+    if (requestId === detailRequestId) detailSlow.value = true
+  }, 3000)
+  const slowTimer = setTimeout(() => {
+    if (requestId === detailRequestId) detailLoading.value = false
+  }, 8000)
+  try {
+    const [assessment, hazard] = await Promise.allSettled([
+      dashboardApi.getDisasterAssessment(item.hazardCode, { allowMock: false }),
+      fetchHazardDetailByCode(item.hazardCode),
+    ])
+    if (requestId !== detailRequestId || selected.value?.id !== item.id) return
+    detailAnalysis.value = assessment.status === 'fulfilled' ? assessment.value : null
+    detailContent.value = hazard.status === 'fulfilled' ? hazard.value ?? item : item
+  } finally {
+    clearTimeout(slowHintTimer)
+    clearTimeout(slowTimer)
+    if (requestId === detailRequestId) {
+      detailLoading.value = false
+      detailSlow.value = false
+    }
+  }
 }
 
 /**
@@ -374,9 +399,12 @@ onBeforeUnmount(() => {
         <input v-model="searchKeyword" placeholder="搜索灾害名 / 编号" />
       </div>
 
-      <div v-if="loading && !queue.items.length" class="empty-state">
-        <Loader2 :size="22" class="spin" />
-        <p>正在加载待确认事件…</p>
+      <div v-if="loading && !queue.items.length" class="queue-skeleton" aria-label="待确认队列加载中">
+        <div v-for="i in 6" :key="i" class="queue-skeleton-row">
+          <SkeletonBar width="62%" height="14px" />
+          <SkeletonBar width="42%" height="11px" />
+          <SkeletonBar width="78%" height="11px" />
+        </div>
       </div>
       <div v-else-if="!filteredItems.length" class="empty-state">
         <ShieldCheck :size="22" />
@@ -409,7 +437,7 @@ onBeforeUnmount(() => {
       </ul>
 
       <footer class="panel-foot">
-        <span>共 {{ queue.total ?? queue.items.length }} 条 · 待确认 {{ queue.pending ?? 0 }} 条</span>
+        <span>共 {{ queue.total ?? queue.items.length }} 条 · 待确认 {{ pendingCount }} 条</span>
         <span>每 30 秒自动刷新</span>
       </footer>
     </section>
@@ -445,7 +473,9 @@ onBeforeUnmount(() => {
 
           <h4 class="mt"><ShieldAlert :size="14" />AI 综合推理</h4>
           <div class="reason-card">
-            <p v-if="detailLoading">正在获取该灾害点的最新评估…</p>
+            <p v-if="detailLoading">
+              {{ detailSlow ? 'AI 评估较慢，可先根据左侧证据判断；结果返回后会自动替换。' : '正在获取该灾害点的最新评估…' }}
+            </p>
             <ul v-else-if="detailAnalysis?.reasoning?.length" class="reason-list">
               <li v-for="r in detailAnalysis.reasoning" :key="r"><Bot :size="11" />{{ r }}</li>
             </ul>
@@ -466,22 +496,22 @@ onBeforeUnmount(() => {
             <article class="ev-card">
               <div class="ev-head"><span class="ev-dot orange"></span><strong>InSAR 形变</strong></div>
               <p>最近 30 天最大形变速率 {{ ((selected.aiScore ?? 0) / 4).toFixed(1) }} mm/年</p>
-              <div class="ev-thumb" />
+              <div class="ev-thumb empty">暂无影像</div>
             </article>
             <article class="ev-card">
               <div class="ev-head"><span class="ev-dot blue"></span><strong>卫星影像</strong></div>
               <p>Sentinel-2 最近过境 9 月 9 日</p>
-              <div class="ev-thumb" />
+              <div class="ev-thumb empty">暂无影像</div>
             </article>
             <article class="ev-card">
               <div class="ev-head"><span class="ev-dot green"></span><strong>降雨数据</strong></div>
               <p>过去 24h 累计降雨 {{ ((selected.aiScore ?? 0) / 1.8).toFixed(0) }} mm</p>
-              <div class="ev-thumb chart" />
+              <div class="ev-thumb chart empty">暂无图表</div>
             </article>
             <article class="ev-card">
               <div class="ev-head"><span class="ev-dot purple"></span><strong>传感器</strong></div>
               <p>点位位移 + 倾角双指标异常</p>
-              <div class="ev-thumb chart" />
+              <div class="ev-thumb chart empty">暂无图表</div>
             </article>
           </div>
 
@@ -725,6 +755,23 @@ onBeforeUnmount(() => {
   padding: 0;
   max-height: 540px;
   overflow: auto;
+}
+
+.queue-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 2px 0;
+}
+
+.queue-skeleton-row {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 11px 12px;
+  border: 1px solid var(--c-brand-soft);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
 }
 
 .queue-list li {
@@ -1002,6 +1049,18 @@ onBeforeUnmount(() => {
   background: linear-gradient(180deg, #d2e1f6, #adc8ef);
 }
 
+/* 无真实证据时显示明确空态，而不是看起来像加载失败的渐变块。 */
+.ev-thumb.empty {
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--c-bg);
+  border: 1px dashed var(--c-separator);
+  color: var(--c-text-4);
+  font-size: 10px;
+}
+
 .coord-card {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1259,3 +1318,4 @@ onBeforeUnmount(() => {
   }
 }
 </style>
+

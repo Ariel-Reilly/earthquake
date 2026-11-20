@@ -5,9 +5,11 @@
  * 查看 AI 模型推理出的疑似灾害结果，按置信度排序后可一键推送至人工确认或归档为误报。
  */
 import { computed, onMounted, reactive, ref, watch } from "vue"
-import { BarChart3, Bot, Clock, Cpu, Eye, Filter, Loader2, Send, TrendingUp, X } from "lucide-vue-next"
+import { BarChart3, Bot, Clock, Cpu, Eye, Filter, Send, TrendingUp, X } from "lucide-vue-next"
 import { dashboardApi } from "../../services/dashboardApi"
 import AiHealthBadge from "../../components/AiHealthBadge.vue"
+import AiResultsSkeleton from "../../components/common/AiResultsSkeleton.vue"
+import { waitForSkeleton } from "../../utils/uiTiming"
 
 const props = defineProps({
   searchTerm: { type: String, default: "" },
@@ -15,7 +17,7 @@ const props = defineProps({
 })
 const emit = defineEmits(["notify", "open-task-modal"])
 
-const loading = ref(false)
+const loading = ref(true)
 const submittingId = ref(null)
 const results = ref({ items: [], total: 0 })
 const selected = ref(null)
@@ -49,6 +51,8 @@ const confidenceBuckets = computed(() => {
 })
 
 const totalResults = computed(() => results.value.items?.length ?? 0)
+// 用当前最大桶做相对高度，避免只有 1-2 条结果时柱子贴在底部、整张图看起来是空的。
+const maxBucketCount = computed(() => Math.max(1, ...confidenceBuckets.value.map((b) => b.count)))
 /** 已评估 = 后端给了 detection_confidence；null 表示该点从未被模型打过置信度，不能编一个。 */
 const evaluatedCount = computed(() =>
   (results.value.items ?? []).filter((r) => typeof r.confidence === "number").length,
@@ -111,6 +115,7 @@ async function loadResults() {
     results.value = { items: [], total: 0 }
     emit("notify", e.message ?? "加载推理结果失败")
   } finally {
+    await waitForSkeleton()
     loading.value = false
   }
 }
@@ -176,6 +181,8 @@ onMounted(() => loadResults())
   <div class="ai-results-shell">
     <header class="page-header">
       <div>
+        <h2><Bot :size="18" />AI 推理结果</h2>
+        <p>展示模型推理输出、置信度分布与人工确认入口</p>
       </div>
       <div class="actions">
         <AiHealthBadge />
@@ -185,6 +192,9 @@ onMounted(() => loadResults())
       </div>
     </header>
 
+    <AiResultsSkeleton v-if="loading" />
+
+    <template v-else>
     <section class="stat-grid">
       <div class="stat-card"><strong>{{ totalResults }}</strong><span>推理结果总数</span></div>
       <div class="stat-card"><strong class="stat-num--brand">{{ evaluatedCount }}</strong><span>已评估（有置信度）</span></div>
@@ -196,7 +206,13 @@ onMounted(() => loadResults())
       <h3><BarChart3 :size="14" />置信度分布</h3>
       <div class="bars">
         <div v-for="b in confidenceBuckets" :key="b.range" class="bar-col">
-          <div class="bar" :style="{ height: Math.max(8, b.count * 16) + 'px', background: b.color }">
+          <div
+            class="bar"
+            :style="{
+              height: Math.max(10, Math.round((b.count / maxBucketCount) * 96)) + 'px',
+              background: b.color,
+            }"
+          >
             <span class="bar-count">{{ b.count }}</span>
           </div>
           <span class="bar-label">{{ b.range }}</span>
@@ -216,10 +232,7 @@ onMounted(() => loadResults())
       <span class="filter-hint">仅显示模型已给出置信度的记录</span>
     </section>
 
-    <div v-if="loading" class="loading-row">
-      <Loader2 :size="16" class="spin" />加载 AI 推理结果…
-    </div>
-    <div v-else-if="filteredResults.length === 0" class="empty-row">
+    <div v-if="filteredResults.length === 0" class="empty-row">
       当前筛选下没有推理结果
     </div>
     <ul v-else class="result-list">
@@ -270,6 +283,7 @@ onMounted(() => loadResults())
         </div>
       </li>
     </ul>
+    </template>
 
     <div v-if="detailDialog && selected" class="modal-mask" @click.self="detailDialog = false">
       <div class="modal-card large">

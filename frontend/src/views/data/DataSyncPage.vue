@@ -31,6 +31,8 @@ import {
 import { dashboardApi } from "../../services/dashboardApi.js";
 import { normalizeList } from "../../api/client.js";
 import { computed, onMounted, ref } from "vue";
+import DataSyncSkeleton from "../../components/common/DataSyncSkeleton.vue";
+import { waitForSkeleton } from "../../utils/uiTiming.js";
 
 const props = defineProps({
   searchTerm: { type: String, default: "" },
@@ -100,6 +102,7 @@ async function loadTasks() {
     loadError.value = e?.message ?? "加载同步状态失败";
     emit("notify", loadError.value);
   } finally {
+    await waitForSkeleton();
     loading.value = false;
   }
 }
@@ -233,6 +236,8 @@ async function toggleTask(taskId, currentStatus) {
 
 <template>
   <div class="ds-page">
+    <DataSyncSkeleton v-if="loading" />
+    <template v-else>
     <!-- ── 统计卡片 ── -->
     <div class="ds-stats">
       <div class="ds-stat-card">
@@ -302,14 +307,8 @@ async function toggleTask(taskId, currentStatus) {
       </button>
     </div>
 
-    <!-- ── 加载中 ── -->
-    <div v-if="loading" class="ds-loading">
-      <Loader2 :size="32" class="spin" />
-      <span>加载同步状态…</span>
-    </div>
-
     <!-- ── 错误态 ── -->
-    <div v-else-if="loadError" class="ds-empty">
+    <div v-if="loadError" class="ds-empty">
       <XCircle :size="48" />
       <p>同步状态加载失败</p>
       <small>{{ loadError }}</small>
@@ -383,6 +382,7 @@ async function toggleTask(taskId, currentStatus) {
         </tbody>
       </table>
     </div>
+    </template>
 
     <!-- ── 详情抽屉 ── -->
     <Transition name="slide-right">

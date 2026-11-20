@@ -42,15 +42,20 @@ import {
 } from 'lucide-vue-next'
 import { dashboardApi } from '../../services/dashboardApi'
 import { safeMin, safeMax } from '../../utils/safeMinMax'
+import InspectionSkeleton from '../../components/common/InspectionSkeleton.vue'
+import { waitForSkeleton } from '../../utils/uiTiming'
 
 // Tab
 const activeTab = ref('tasks') // tasks | fence | record | example
 
 // Tasks
-const loading = ref(false)
+const loading = ref(true)
 const errorMsg = ref('')
 const tasks = ref([])
 const selectedTaskCode = ref('')
+const selectedTask = computed(() =>
+  tasks.value.find((t) => (t.taskCode ?? t.code) === selectedTaskCode.value) ?? null,
+)
 
 async function loadTasks() {
   loading.value = true
@@ -65,6 +70,7 @@ async function loadTasks() {
     errorMsg.value = '任务加载失败：' + (e?.message || '后端不可达')
     tasks.value = []
   } finally {
+    await waitForSkeleton()
     loading.value = false
   }
 }
@@ -383,7 +389,7 @@ onMounted(async () => {
 
     <!-- ═══ TASKS ═══ -->
     <div v-if="activeTab === 'tasks'" class="fip-section">
-      <div v-if="loading" class="fip-loading"><Loader2 :size="20" class="spin" /> 任务加载中…</div>
+      <InspectionSkeleton v-if="loading" />
       <div v-else-if="tasks.length === 0" class="fip-empty">
         <ClipboardCheck :size="40" style="color:#c8d5d5" />
         <p>暂无巡检任务</p>
@@ -421,6 +427,33 @@ onMounted(async () => {
           </button>
         </article>
       </div>
+
+      <!-- 选中任务摘要：把“选中后去哪操作”收敛到当前页，减少跨 Tab 查找 -->
+      <section v-if="selectedTask" class="fip-task-detail">
+        <div class="fip-task-detail-main">
+          <div class="fip-task-detail-head">
+            <span class="fip-task-detail-badge">当前任务</span>
+            <strong>{{ selectedTask.name ?? '巡检任务' }}</strong>
+            <span class="fip-task-detail-code">{{ selectedTask.taskCode ?? selectedTask.code }}</span>
+          </div>
+          <div class="fip-task-detail-meta">
+            <span><MapPin :size="12" />{{ selectedTask.hazardCode ?? selectedTask.relatedHazardCode ?? '—' }}</span>
+            <span><HardHat :size="12" />{{ selectedTask.executor ?? selectedTask.inspector ?? '未分配' }}</span>
+            <span><Clock :size="12" />{{ selectedTask.scheduledAt ? new Date(selectedTask.scheduledAt).toLocaleString('zh-CN', { hour12: false }).slice(0, 16) : selectedTask.dueDate ?? '未排期' }}</span>
+          </div>
+        </div>
+        <div class="fip-task-detail-actions">
+          <button class="fip-task-detail-btn" @click="activeTab = 'fence'; fillFenceFromTask()">
+            <Gauge :size="13" />GPS 围栏
+          </button>
+          <button class="fip-task-detail-btn" @click="activeTab = 'record'; loadRecords(selectedTaskCode)">
+            <PencilLine :size="13" />上报记录
+          </button>
+          <button class="fip-task-detail-btn" @click="activeTab = 'trajectory'">
+            <Navigation :size="13" />轨迹回放
+          </button>
+        </div>
+      </section>
     </div>
 
     <!-- ═══ GPS FENCE ═══ -->
@@ -931,6 +964,97 @@ onMounted(async () => {
 .fip-task-card.active {
   border-color: var(--c-brand);
   background: var(--c-surface-2);
+}
+
+.fip-task-detail {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-top: 14px;
+  padding: 14px 16px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-brand-soft);
+  border-radius: var(--r-lg);
+}
+
+.fip-task-detail-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.fip-task-detail-badge {
+  padding: 2px 7px;
+  border-radius: var(--r-pill);
+  background: var(--c-brand-mist);
+  color: var(--c-brand-deep);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.fip-task-detail-head strong {
+  font-size: 14px;
+  color: var(--c-text);
+}
+
+.fip-task-detail-code {
+  font-family: monospace;
+  font-size: 11px;
+  color: var(--c-text-3);
+}
+
+.fip-task-detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  font-size: 12px;
+  color: var(--c-text-3);
+}
+
+.fip-task-detail-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.fip-task-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.fip-task-detail-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--c-separator);
+  border-radius: var(--r-sm);
+  background: var(--c-surface);
+  color: var(--c-text-2);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.fip-task-detail-btn:hover {
+  border-color: var(--c-brand);
+  color: var(--c-brand-deep);
+}
+
+@media (width <= 720px) {
+  .fip-task-detail {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .fip-task-detail-actions {
+    width: 100%;
+  }
 }
 
 .fip-task-head {

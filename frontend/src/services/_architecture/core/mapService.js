@@ -240,6 +240,9 @@ function createWeatherOverlayLayers() {
   }
   return {
     satellite: makeLayer('satellite'),
+    // 全圆盘与区域云图是两个独立产品。WeatherPage 会按 kind 调用
+    // refreshWeatherOverlay('satelliteDisk')；缺层会抛 Unknown overlay 并击穿 ErrorBoundary。
+    satelliteDisk: makeLayer('satelliteDisk'),
     radar: makeLayer('radar'),
     precip24h: makeLayer('precip24h'),
     snow24h: makeLayer('snow24h'),
@@ -255,6 +258,8 @@ function makeTransparentPlaceholderDataUrl() {
 const WEATHER_EXTENTS = {
   // 风云四号 A 中国区域：约 0-60°N, 70-140°E
   satellite: [70, 0, 140, 60],
+  // 风云四号 A 全圆盘：约 60°S-60°N, 60°E-220°E（与 WeatherProductKind 的 extent 对齐）
+  satelliteDisk: [60, -60, 220, 60],
   // NMC 全国雷达 / 24h 降水 / 积雪 / 干旱：覆盖行政区划
   radar: [73, 16, 135, 54],
   precip24h: [73, 16, 135, 54],
@@ -310,6 +315,7 @@ export function createOpenLayersController(container, { center = [107.21, 30.61]
       baseLayers.satelliteAnno,
       baseLayers.vectorAnno,
       weatherOverlayLayers.satellite,
+      weatherOverlayLayers.satelliteDisk,
       weatherOverlayLayers.radar,
       weatherOverlayLayers.precip24h,
       weatherOverlayLayers.snow24h,

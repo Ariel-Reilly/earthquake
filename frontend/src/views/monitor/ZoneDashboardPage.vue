@@ -9,6 +9,8 @@ import { useRoute, useRouter } from "vue-router";
 import { Activity, AlertTriangle, ChevronLeft, ChevronRight, Crosshair, Filter, Layers3, ListChecks, Loader2, MapPin, Mountain, MountainSnow, Pause, Play, Radio, RefreshCcw, Send, TrendingUp } from 'lucide-vue-next';
 import { dashboardApi } from "../../services/dashboardApi";
 import { formatWarningTime } from "../../utils/warningTime";
+import ZoneDashboardSkeleton from "../../components/common/ZoneDashboardSkeleton.vue";
+import { waitForSkeleton } from "../../utils/uiTiming";
 
 const props = defineProps({
   currentTime: { type: String, default: "" },
@@ -289,6 +291,7 @@ async function loadAll() {
     loadError.value =
       error instanceof Error ? error.message : "加载专项大屏失败";
   } finally {
+    await waitForSkeleton();
     loading.value = false;
   }
 }
@@ -396,12 +399,7 @@ watch(
       </div>
     </div>
 
-    <div v-if="loading" class="panel loading-panel">
-      <div class="loading-row">
-        <Loader2 :size="14" class="spin" />
-        正在加载专项大屏数据…
-      </div>
-    </div>
+    <ZoneDashboardSkeleton v-if="loading" />
 
     <div v-else-if="loadError && !summary" class="panel error-panel">
       <strong>加载失败</strong>
@@ -429,13 +427,13 @@ watch(
       <!-- 主体内容 -->
       <section class="content-grid zone-grid">
         <!-- 折线趋势图 -->
-        <section class="panel system-panel chart-panel">
+        <section class="panel system-panel chart-panel" :class="{ 'chart-empty': !trendPath.line }">
           <div class="panel-header compact">
             <div>
               <h2>{{ kindLabel }}专项 · 近 14 天风险趋势</h2>
               <p>每日综合风险评分均值（区域：{{ regionLabel }}）</p>
             </div>
-            <div class="trend-stat">
+            <div v-if="trendPath.line" class="trend-stat">
               <strong>{{ trendLatest }}</strong>
               <span :class="trendDelta >= 0 ? 'trend-up' : 'trend-down'">
                 {{ trendDelta >= 0 ? '+' : '' }}{{ trendDelta }}%
@@ -443,14 +441,14 @@ watch(
             </div>
           </div>
           <div class="chart-body">
-            <svg viewBox="0 0 560 200" preserveAspectRatio="none" class="trend-svg">
+            <svg v-if="trendPath.line" viewBox="0 0 560 200" preserveAspectRatio="none" class="trend-svg">
               <defs>
                 <linearGradient id="trend-area" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stop-color="#6f9e7f" stop-opacity="0.32" />
                   <stop offset="100%" stop-color="#6f9e7f" stop-opacity="0" />
                 </linearGradient>
               </defs>
-              <g v-if="trendPath.line">
+              <g>
                 <path :d="trendPath.area" fill="url(#trend-area)" />
                 <path
                   :d="trendPath.line"
@@ -463,16 +461,16 @@ watch(
                   <circle :cx="c.x" :cy="c.y" r="3" fill="#fff" stroke="#6f9e7f" stroke-width="1.6" />
                 </g>
               </g>
-              <g v-else>
-                <text x="280" y="100" text-anchor="middle" fill="rgba(60,60,67,.52)" font-size="12">
-                  暂无趋势数据
-                </text>
-              </g>
             </svg>
-            <div class="trend-axis">
+            <div v-if="trendPath.line" class="trend-axis">
               <span v-for="(c, i) in trendPath.coords" :key="i" :title="c.date">
                 {{ i === 0 || i === trendPath.coords.length - 1 || i % 3 === 0 ? c.date : '' }}
               </span>
+            </div>
+            <div v-else class="trend-empty-compact">
+              <Activity :size="18" />
+              <span>当前筛选范围暂无每日风险评分</span>
+              <small>可扩大时间范围，或直接查看右侧风险点</small>
             </div>
           </div>
         </section>
@@ -771,6 +769,32 @@ watch(
 .chart-panel {
   display: flex;
   flex-direction: column;
+}
+
+/* 无趋势数据时不再撑满整行，避免 2K 演示屏出现大面积空白。 */
+.chart-panel.chart-empty {
+  align-self: start;
+}
+
+.chart-panel.chart-empty .chart-body {
+  padding-bottom: 16px;
+}
+
+.trend-empty-compact {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 22px 12px;
+  border: 1px dashed var(--c-separator);
+  border-radius: var(--r-md);
+  color: var(--c-text-3);
+  font-size: 12px;
+}
+
+.trend-empty-compact small {
+  color: var(--c-text-4);
+  font-size: 11px;
 }
 
 .chart-body {

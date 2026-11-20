@@ -46,6 +46,10 @@ async function mountWith(tasksPayload) {
   api.getSyncAnomalies.mockResolvedValue({ records: [] })
   const wrapper = mount(DataSyncPage)
   await flushPromises()
+  // loadTasks 的 finally 里有 waitForSkeleton()（280ms 最短骨架展示），
+  // flushPromises 只冲 Promise 队列、不等真实定时器，这里补等它落地再断言 DOM。
+  await new Promise((resolve) => setTimeout(resolve, 320))
+  await flushPromises()
   return wrapper
 }
 
@@ -98,6 +102,8 @@ describe('DataSyncPage 异常与空态', () => {
     api.getSyncStats.mockResolvedValue(null)
     api.getSyncAnomalies.mockResolvedValue(null)
     const wrapper = mount(DataSyncPage)
+    await flushPromises()
+    await new Promise((resolve) => setTimeout(resolve, 320))
     await flushPromises()
 
     expect(wrapper.text()).toContain('同步状态加载失败')

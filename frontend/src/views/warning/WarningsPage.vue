@@ -9,12 +9,13 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { AlertTriangle, Archive, ArchiveRestore, ArrowRight, Bell, Check, Download, FileText, Layers3, MapPin, MessageSquareText, ShieldCheck, UsersRound, Send, CheckCircle2, RotateCcw, ShieldAlert, Inbox, Zap } from 'lucide-vue-next'
 import PermissionButton from '../../components/PermissionButton.vue'
-import SkeletonList from '../../components/common/SkeletonList.vue'
+import WarningsSkeleton from '../../components/common/WarningsSkeleton.vue'
 import WarningCreateModal from '../../components/WarningCreateModal.vue'
 import { dashboardApi } from '../../services/dashboardApi'
 import { useEscapeClose } from '../../composables/useEscapeClose'
 import { useRealtimeStore } from '../../stores/realtime'
 import { formatWarningTime } from '../../utils/warningTime'
+import { waitForSkeleton } from '../../utils/uiTiming'
 
 const emit = defineEmits(['notify'])
 const props = defineProps({ userRole: { type: String, default: 'admin' } })
@@ -281,6 +282,7 @@ async function loadData(page = 1) {
     console.warn('[WarningsPage] 预警列表加载失败:', error)
     loadError.value = error instanceof Error ? error.message : '预警列表加载失败'
   } finally {
+    await waitForSkeleton()
     loading.value = false
   }
 }
@@ -588,9 +590,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div>
-    <div v-if="loading" class="panel loading-container">
-      <SkeletonList :count="3" layout="vertical" />
-    </div>
+    <WarningsSkeleton v-if="loading" />
     <!-- 取数失败必须显式报错，绝不能把"加载失败"渲染成"态势平稳"（安全误导） -->
     <div v-else-if="loadError" class="panel warning-load-error">
       <p class="warning-load-error-title">预警列表加载失败</p>

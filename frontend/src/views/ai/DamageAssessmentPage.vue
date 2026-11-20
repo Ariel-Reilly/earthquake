@@ -15,6 +15,8 @@ import { computed, onMounted, ref, reactive } from 'vue'
 import { AlertTriangle, ArrowRight, BarChart3, Bot, CheckCircle2, CloudRain, FileText, Globe, Image, Loader2, MapPin, Mountain, MountainSnow, Newspaper, Radar, Radio, RefreshCw, Snowflake, Target, Thermometer, TreePine, Waves, XCircle } from 'lucide-vue-next'
 import { dashboardApi } from '../../services/dashboardApi'
 import AiHealthBadge from '../../components/AiHealthBadge.vue'
+import DamageAssessmentSkeleton from '../../components/common/DamageAssessmentSkeleton.vue'
+import { waitForSkeleton } from '../../utils/uiTiming'
 
 // ── Tab ──────────────────────────────────────────────
 const activeTab = ref('single') // 'single' | 'nationwide'
@@ -58,6 +60,8 @@ async function runSingleAssessment() {
   } catch (e) {
     errorMsg.value = '评估失败：' + (e?.message || '后端 AI 服务不可达')
   } finally {
+    // 接口过快返回时让骨架至少停留一瞬，避免「闪一下」的抖动
+    await waitForSkeleton()
     loading.value = false
   }
 }
@@ -119,6 +123,7 @@ async function runNationwideAssessment() {
   } catch (e) {
     nationwideError.value = '测算失败：' + (e?.message || '后端 AI 服务不可达')
   } finally {
+    await waitForSkeleton()
     nationwideLoading.value = false
   }
 }
@@ -422,8 +427,11 @@ onMounted(async () => {
         </div>
       </div>
 
+      <!-- 评估加载中：按真实结果布局显示骨架，避免空白等待 -->
+      <DamageAssessmentSkeleton v-else-if="loading" mode="single" />
+
       <!-- Empty -->
-      <div v-else-if="!loading" class="dap-empty">
+      <div v-else class="dap-empty">
         <BarChart3 :size="48" class="dap-empty-icon" />
         <p>选择一个灾害点并点击「开始评估」</p>
       </div>
@@ -588,8 +596,11 @@ onMounted(async () => {
           </div>
         </div>
 
+        <!-- 测算加载中：3 KPI + 结果表格骨架 -->
+        <DamageAssessmentSkeleton v-else-if="nationwideLoading" mode="nationwide" />
+
         <!-- Nationwide Empty -->
-        <div v-else-if="!nationwideLoading" class="dap-nationwide-empty">
+        <div v-else class="dap-nationwide-empty">
           <Globe :size="48" class="dap-empty-icon" />
           <p>在左侧输入坐标添加评估点，点击「开始全国测算」</p>
           <p class="dap-empty-sub">不依赖已知灾害点档案，基于坐标 + 可选因子快速评估全国任意位置</p>

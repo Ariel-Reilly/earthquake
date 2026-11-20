@@ -11,6 +11,8 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import ConfirmDialog from '../common/ConfirmDialog.vue'
 import AiHealthBadge from '../AiHealthBadge.vue'
+import SkeletonBar from '../common/SkeletonBar.vue'
+import SkeletonSlowHint from '../common/SkeletonSlowHint.vue'
 import { HazardSelector, createDebouncedHazardSelector } from '../../utils/hazardEventBus'
 import { safeMax } from '../../utils/safeMinMax'
 import { aiApi } from '../../services/aiApi'
@@ -247,6 +249,9 @@ async function loadReport() {
   fromCache.value = false
   cachedAt.value = ''
   report.value = null
+  // 清空旧报告后立即进入骨架态：切换灾害点时，避免「旧报告已清、新缓存未回」
+  // 这段时间里 loading=false && !report，模板三个分支都不命中而露出空白。
+  loading.value = true
 
   // 1) 先读落库评分（毫秒级，不触发 AI 推理），让首屏立刻有可解释内容。
   try {
@@ -449,10 +454,45 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="comprehensive-tab">
-    <!-- 加载状态 -->
-    <div v-if="loading" class="loading-state">
-      <Loader2 class="spin-icon" />
-      <p>正在分析灾害风险...<template v-if="loadingSeconds > 0">（已等待 {{ loadingSeconds }} 秒）</template></p>
+    <!-- 加载状态：无缓存、无报告时按报告区真实布局显示骨架，灰块 + 微光扫过 -->
+    <div v-if="loading && !report" class="report-skeleton" role="status" aria-label="AI 综合研判加载中">
+      <div class="rs-banner"><SkeletonBar width="54%" height="12px" /></div>
+
+      <div class="rs-risk">
+        <div class="rs-risk-head">
+          <SkeletonBar width="160px" height="15px" />
+          <SkeletonBar width="96px" height="26px" radius="var(--r-pill)" />
+        </div>
+        <div class="rs-risk-body">
+          <SkeletonBar width="96px" height="44px" />
+          <div class="rs-risk-tags">
+            <SkeletonBar width="104px" height="26px" radius="var(--r-pill)" />
+            <SkeletonBar width="120px" height="26px" radius="var(--r-pill)" />
+          </div>
+          <SkeletonBar width="104px" height="34px" radius="var(--r-md)" />
+        </div>
+      </div>
+
+      <div class="rs-dims">
+        <div v-for="i in 3" :key="i" class="rs-dim">
+          <div class="rs-dim-head">
+            <SkeletonBar width="56%" height="13px" />
+            <SkeletonBar width="30%" height="10px" />
+          </div>
+          <SkeletonBar width="64px" height="30px" />
+          <div class="rs-dim-lines">
+            <SkeletonBar v-for="j in 4" :key="j" width="100%" height="10px" />
+          </div>
+        </div>
+      </div>
+
+      <p class="rs-note">
+        正在分析灾害风险<template v-if="loadingSeconds > 0">（已等待 {{ loadingSeconds }} 秒）</template>
+      </p>
+      <SkeletonSlowHint
+        v-if="loadingSeconds < 8"
+        message="研判较慢，可先查看左侧清单与其它模块；结果返回后会自动替换。"
+      />
       <p v-if="loadingSeconds >= 8" class="loading-hint">
         AI 服务响应较慢，可先查看其它页面，稍后点「重新分析」；超过 30 秒仍无结果请检查 ai-service。
       </p>
@@ -701,6 +741,93 @@ onBeforeUnmount(() => {
   text-align: center;
 }
 
+/* ── 报告区骨架：对齐 source-banner → 综合风险卡 → 三维度卡 ── */
+.report-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.rs-banner {
+  padding: 10px 12px;
+  border-radius: var(--r-sm);
+  background: var(--c-surface-2);
+}
+
+.rs-risk {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  border: 1px solid var(--c-separator);
+  border-left: 4px solid var(--c-brand);
+  border-radius: var(--r-lg);
+  background: var(--c-surface);
+}
+
+.rs-risk-head,
+.rs-risk-body {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.rs-risk-head {
+  justify-content: space-between;
+}
+
+.rs-risk-tags {
+  display: flex;
+  gap: 8px;
+  flex: 1;
+}
+
+.rs-dims {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.rs-dim {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--c-separator);
+  border-radius: var(--r-lg);
+  background: var(--c-surface);
+}
+
+.rs-dim-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.rs-dim-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rs-note {
+  margin: 2px 0 0;
+  color: var(--c-text-3);
+  font-size: 12px;
+  text-align: center;
+}
+
+@media (width <= 900px) {
+  .rs-dims {
+    grid-template-columns: 1fr;
+  }
+
+  .rs-risk-body {
+    flex-wrap: wrap;
+  }
+}
+
 .spin-icon {
   animation: spin 1s linear infinite;
 }
@@ -749,7 +876,7 @@ onBeforeUnmount(() => {
 }
 
 .overall-card {
-  padding: 16px;
+  padding: 14px 16px;
   border: 1px solid var(--c-brand-soft);
   border-radius: var(--r-lg);
   background: var(--c-surface);
@@ -776,7 +903,7 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 
 .card-header svg {
@@ -803,12 +930,13 @@ onBeforeUnmount(() => {
 .card-body {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
 }
 
 .risk-score {
   font-family: "JetBrains Mono", monospace;
-  font-size: 28px;
+  font-size: 30px;
+  line-height: 1.1;
   font-weight: 700;
   color: var(--c-text);
   flex-shrink: 0;
@@ -817,7 +945,7 @@ onBeforeUnmount(() => {
 .risk-info {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   flex: 1;
 }
 

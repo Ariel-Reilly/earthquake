@@ -13,7 +13,6 @@ import {
   Clock,
   FileSignature,
   Inbox,
-  Loader2,
   Plus,
   Send,
   ShieldCheck,
@@ -27,6 +26,9 @@ import { dashboardApi } from '../../services/dashboardApi'
 // SIGN_MODE_OPTIONS 是纯 UI 枚举（并行/串行），非业务数据，保留静态定义。
 import { SIGN_MODE_OPTIONS } from '../../services/mock/runtime'
 import { getAuthUser, hasPermission } from '../../stores/auth'
+import SkeletonBar from '../../components/common/SkeletonBar.vue'
+import SkeletonSlowHint from '../../components/common/SkeletonSlowHint.vue'
+import { waitForSkeleton } from '../../utils/uiTiming'
 
 const emit = defineEmits(['notify'])
 defineProps({ searchTerm: { type: String, default: '' }, userRole: { type: String, default: 'admin' } })
@@ -54,7 +56,8 @@ function currentSignerId() {
 const tab = ref('inbox')
 const events = ref([])
 const records = ref([])
-const loading = ref(false)
+const loading = ref(true)
+const detailLoading = ref(false)
 const selectedRecord = ref(null)
 const dialog = ref(false)
 const transferDialog = ref(false)
@@ -121,6 +124,7 @@ async function loadRecords() {
     } catch { /* ignore */ }
     records.value = all
   } finally {
+    await waitForSkeleton()
     loading.value = false
   }
 }
@@ -141,6 +145,7 @@ watch(
   () => route.params.id,
   async (id) => {
     if (!id) return
+    detailLoading.value = true
     try {
       const list = await dashboardApi.listSignRecords(id)
       if (Array.isArray(list) && list.length) {
@@ -148,6 +153,10 @@ watch(
         tab.value = 'mine'
       }
     } catch { /* ignore */ }
+    finally {
+      await waitForSkeleton()
+      detailLoading.value = false
+    }
   },
   { immediate: true },
 )
@@ -264,6 +273,10 @@ const fmt = (iso) => iso ? new Date(iso).toLocaleString('zh-CN', { hour12: false
 
 onMounted(async () => {
   await Promise.all([reloadAll(), loadExperts()])
+  // 首次进入没有 :id 时默认打开待我确认的第一条事件，避免右侧详情整块空白。
+  if (!route.params.id && !selectedRecord.value && draftsEvents.value.length) {
+    selectEvent(draftsEvents.value[0])
+  }
   tabTimer.value = window.setInterval(reloadAll, 15_000)
 })
 onBeforeUnmount(() => { if (tabTimer.value) window.clearInterval(tabTimer.value) })
@@ -291,7 +304,13 @@ onBeforeUnmount(() => { if (tabTimer.value) window.clearInterval(tabTimer.value)
       <!-- 左侧：事件 / 会签列表 -->
       <section class="panel list">
         <h3>队列</h3>
-        <div v-if="loading" class="loading"><Loader2 :size="14" class="spin" /> 加载中…</div>
+        <div v-if="loading" class="sign-queue-skeleton" aria-label="会签队列加载中">
+          <div v-for="i in 6" :key="i" class="sign-queue-skeleton-row">
+            <SkeletonBar width="48%" height="13px" />
+            <SkeletonBar width="64%" height="10px" />
+            <SkeletonBar width="40%" height="10px" />
+          </div>
+        </div>
         <div v-else>
           <template v-if="tab === 'inbox'">
             <p class="hint">从 AI 巡检的疑似事件中挑选发起的会签；下面是当前"待二次确认"队列。</p>
@@ -357,7 +376,38 @@ onBeforeUnmount(() => { if (tabTimer.value) window.clearInterval(tabTimer.value)
       <!-- 右侧：会签详情 -->
       <section class="panel detail">
         <h3>会签详情</h3>
-        <div v-if="!selectedRecord" class="placeholder">
+        <!-- 详情加载中：按右侧真实结构放灰色占位块，微光扫过 -->
+        <div v-if="detailLoading" class="sign-detail-skeleton" aria-label="会签详情加载中">
+          <div class="sds-head">
+            <div class="sds-head-main">
+              <SkeletonBar width="140px" height="16px" />
+              <SkeletonBar width="72%" height="11px" />
+            </div>
+            <SkeletonBar width="52px" height="22px" radius="var(--r-pill)" />
+          </div>
+          <div class="sds-actions">
+            <SkeletonBar width="72px" height="28px" radius="var(--r-sm)" />
+          </div>
+          <div class="sds-timeline">
+            <div v-for="i in 4" :key="i" class="sds-node">
+              <SkeletonBar width="16px" height="16px" radius="50%" />
+              <div class="sds-node-body">
+                <SkeletonBar :width="(52 + ((i * 11) % 30)) + '%'" height="12px" />
+                <SkeletonBar width="46%" height="10px" />
+              </div>
+            </div>
+          </div>
+          <div class="sds-form">
+            <SkeletonBar width="88px" height="11px" />
+            <SkeletonBar width="100%" height="52px" radius="var(--r-sm)" />
+            <div class="sds-form-btns">
+              <SkeletonBar width="88px" height="30px" radius="var(--r-sm)" />
+              <SkeletonBar width="88px" height="30px" radius="var(--r-sm)" />
+            </div>
+          </div>
+          <SkeletonSlowHint message="会签记录加载较慢，可先查看左侧队列；结果返回后会自动填充。" />
+        </div>
+        <div v-else-if="!selectedRecord" class="placeholder">
           选择左侧事件发起会签，或点击已有会签查看时间线。
         </div>
         <div v-else class="detail-body">
@@ -573,6 +623,22 @@ onBeforeUnmount(() => { if (tabTimer.value) window.clearInterval(tabTimer.value)
   text-align: center;
 }
 
+.sign-queue-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sign-queue-skeleton-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--dashboard-border, var(--c-brand-mist));
+  border-radius: var(--r-md);
+  background: var(--dashboard-card-bg, var(--c-surface));
+}
+
 .hint {
   font-size: 12px;
   color: var(--dashboard-muted, var(--c-text-2));
@@ -651,6 +717,62 @@ ul {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+/* ── 右侧详情骨架：结构与真实 detail-body 对齐 ── */
+.sign-detail-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.sds-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.sds-head-main {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+
+.sds-actions,
+.sds-form-btns {
+  display: flex;
+  gap: 8px;
+}
+
+.sds-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 12px 0;
+  border-top: 1px solid var(--c-separator);
+  border-bottom: 1px solid var(--c-separator);
+}
+
+.sds-node {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.sds-node-body {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  flex: 1;
+  padding-top: 2px;
+}
+
+.sds-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .d-head {

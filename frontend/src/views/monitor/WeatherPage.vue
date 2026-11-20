@@ -39,6 +39,7 @@ import {
   WEATHER_LEGENDS,
 } from '../../services/_architecture/domain/weatherService'
 import { createOpenLayersController } from '../../services/mapService'
+import SkeletonBar from '../../components/common/SkeletonBar.vue'
 
 const props = defineProps({
   currentTime: { type: String, default: '' },
@@ -84,19 +85,42 @@ const KIND_LOADERS = {
 
 const availableCount = computed(() => Object.values(products).filter((p) => p && p.ok).length)
 const totalCount = computed(() => KIND_CARDS.length)
+// 外部 NMC 产品不可用时，不把 4 张红色错误卡直接铺在演示页上；
+// 隐藏已失败的卡片，用一条可重试的提示说明外部源状态。
+const unavailableCards = computed(() =>
+  KIND_CARDS.filter((card) => products[card.kind]?.error && !products[card.kind]?.loading),
+)
+const visibleCards = computed(() =>
+  KIND_CARDS.filter((card) => {
+    const product = products[card.kind]
+    return !product || product.loading || product.ok || !product.error
+  }),
+)
 
-async function bootstrap() {
-  loading.value = true
-  try {
-    // 一次性预热：六个产品的最新帧（缓存友好，失败项标记 ok=false）
-    const data = await getAllProducts()
-    Object.assign(products, data.products)
-    fetchedAt.value = data.fetchedAt
-  } catch (e) {
-    emit('notify', e?.message || '气象数据加载失败')
-  } finally {
-    loading.value = false
+function bootstrap() {
+  // 外部 NMC/NSMC 探测可能很慢；页面主体（地图 + 卡片骨架）先渲染，
+  // 产品数据在后台补齐，避免演示时整页长时间停在“正在拉取”。
+  loading.value = false
+  for (const card of KIND_CARDS) {
+    products[card.kind] = { loading: true, ok: false, error: '' }
   }
+  getAllProducts()
+    .then((data) => {
+      Object.assign(products, data.products)
+      fetchedAt.value = data.fetchedAt
+    })
+    .catch((e) => {
+      // 整体请求失败时结束所有骨架，避免演示页永久停在“加载中”。
+      for (const card of KIND_CARDS) {
+        products[card.kind] = {
+          ...products[card.kind],
+          loading: false,
+          ok: false,
+          error: e?.message || '气象数据加载失败',
+        }
+      }
+      emit('notify', e?.message || '气象数据加载失败')
+    })
 }
 
 async function createMainMap() {
@@ -134,10 +158,17 @@ async function toggleMainOverlay(kind) {
       emit('notify', `${kind} 加载失败：${products[kind].error}`)
     }
   }
-  await mainMapController.refreshWeatherOverlay(kind, () => products[kind])
-  mainMapController.setWeatherOverlay(kind, true)
-  mainMapController.setWeatherOverlayOpacity(kind, opacities[kind])
-  emit('notify', `${KIND_CARDS.find((c) => c.kind === kind)?.label} 已叠加`)
+  // 防御：后端新增产品而 mapService 尚未注册图层时，不能让异常冒到 ErrorBoundary。
+  try {
+    await mainMapController.refreshWeatherOverlay(kind, () => products[kind])
+    mainMapController.setWeatherOverlay(kind, true)
+    mainMapController.setWeatherOverlayOpacity(kind, opacities[kind])
+    emit('notify', `${KIND_CARDS.find((c) => c.kind === kind)?.label} 已叠加`)
+  } catch (e) {
+    activeKinds.value = activeKinds.value.filter((k) => k !== kind)
+    products[kind] = { ...products[kind], error: e?.message || '图层叠加失败' }
+    emit('notify', `${KIND_CARDS.find((c) => c.kind === kind)?.label || kind} 叠加失败：${products[kind].error}`)
+  }
 }
 
 function onOpacity(kind, ev) {
@@ -278,10 +309,20 @@ onBeforeUnmount(() => {
         </div>
       </div>
 
-      <!-- 右侧：六个产品卡片 -->
+      <!-- 右侧：可用产品卡片（不可用项折叠为一条外部源提示） -->
       <div class="wp-grid">
+        <div v-if="unavailableCards.length" class="wp-unavailable-note">
+          <AlertTriangle :size="14" />
+          <span>
+            外部数据源暂不可用：{{ unavailableCards.map((c) => c.label).join('、') }}。
+            已隐藏失败卡片，不影响已加载的卫星云图。
+          </span>
+          <button class="wp-mini" :disabled="refreshingAll" @click="refreshAll">
+            {{ refreshingAll ? '重试中…' : '重试全部' }}
+          </button>
+        </div>
         <article
-          v-for="card in KIND_CARDS"
+          v-for="card in visibleCards"
           :key="card.kind"
           class="wp-card panel"
           :class="{ 'is-on': activeKinds.includes(card.kind) }"
@@ -309,8 +350,11 @@ onBeforeUnmount(() => {
               referrerpolicy="no-referrer"
             />
             <div v-else-if="products[card.kind]?.loading" class="wp-card-skeleton">
-              <Loader2 :size="20" class="spin" />
-              <small>正在探测最新一帧</small>
+              <SkeletonBar width="100%" height="86px" radius="var(--r-sm)" />
+              <div class="wp-card-skeleton-lines">
+                <SkeletonBar width="58%" height="10px" />
+                <SkeletonBar width="38%" height="10px" />
+              </div>
             </div>
             <div v-else-if="products[card.kind]?.error" class="wp-card-error">
               <AlertTriangle :size="22" />
@@ -634,6 +678,24 @@ onBeforeUnmount(() => {
   align-content: start;
 }
 
+.wp-unavailable-note {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--c-separator);
+  border-radius: var(--r-md);
+  background: var(--c-surface-2, #f6f7f4);
+  color: var(--c-text-3);
+  font-size: 12px;
+}
+
+.wp-unavailable-note .wp-mini {
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+
 .wp-card {
   display: flex;
   flex-direction: column;
@@ -753,6 +815,19 @@ onBeforeUnmount(() => {
   gap: 8px;
   color: var(--c-text-3);
   font-size: 11px;
+}
+
+/* 卡片加载态按缩略图 + 两行说明占位，避免转圈造成布局跳动 */
+.wp-card-skeleton {
+  width: 100%;
+  align-items: stretch;
+  gap: 7px;
+}
+
+.wp-card-skeleton-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .wp-card-error {

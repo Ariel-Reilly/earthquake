@@ -32,6 +32,8 @@ import {
 import { createOpenLayersController } from "../../services/mapService"
 import { dashboardApi } from "../../services/dashboardApi"
 import { onRealtimeUpdate, startRealtimeSync, stopRealtimeSync } from "../../services/realtimeService"
+import RealTimeMapSkeleton from "../../components/common/RealTimeMapSkeleton.vue"
+import { waitForSkeleton } from "../../utils/uiTiming"
 
 defineProps({
   currentTime: { type: String, default: "" },
@@ -89,6 +91,7 @@ async function bootstrapMap() {
     mapError.value = e?.message || "地图初始化失败"
     emit("notify", mapError.value)
   } finally {
+    await waitForSkeleton()
     loading.value = false
   }
 }
@@ -283,10 +286,15 @@ async function loadTrackData() {
     })
     trackPoints.value = Array.isArray(data) ? data : []
     if (trackPoints.value.length === 0) {
-      trackError.value = "未找到该设备在指定时间范围内的轨迹数据"
+      const device = trackDevices.value.find((d) => d.id === trackDeviceId.value)
+      trackError.value = `该设备${device?.state ? `（${device.state}）` : ''}在所选时间范围内没有轨迹（可能离线或未上报），请切换设备或调整时间范围`
     }
   } catch (e) {
-    trackError.value = e?.message || "加载轨迹数据失败"
+    const msg = String(e?.message || '')
+    // 后端 500/超时时不要显示模糊的「系统繁忙」；明确告诉值班员下一步怎么做。
+    trackError.value = /系统繁忙|50[0-9]|timeout|network|failed/i.test(msg)
+      ? '轨迹服务暂时不可用（设备可能离线），请切换设备或稍后重试'
+      : `轨迹加载失败：${msg || '未知错误'}`
     trackPoints.value = []
   } finally {
     trackLoading.value = false
@@ -443,10 +451,7 @@ watch([trackFrom, trackTo], () => {
 
       <div class="map-stage" v-if="!trackTabActive">
         <!-- 加载中状态 -->
-        <div v-if="loading" class="map-loading">
-          <Loader2 :size="24" class="spin" />
-          <span>地图加载中...</span>
-        </div>
+        <RealTimeMapSkeleton v-if="loading" />
         <!-- 加载失败状态 -->
         <div v-else-if="mapError" class="map-error">
           <AlertCircle :size="28" />
@@ -482,18 +487,18 @@ watch([trackFrom, trackTo], () => {
         <div class="track-toolbar">
           <label class="track-label">
             设备
-            <select v-model="trackDeviceId">
+            <select v-model="trackDeviceId" :disabled="trackLoading || !trackDevices.length">
               <option :value="null" disabled>选择设备</option>
               <option v-for="d in trackDevices" :key="d.id" :value="d.id">{{ d.name }} ({{ d.state ?? '未知' }})</option>
             </select>
           </label>
           <label class="track-label">
             开始时间
-            <input type="datetime-local" v-model="trackFrom" />
+            <input type="datetime-local" v-model="trackFrom" :disabled="trackLoading" />
           </label>
           <label class="track-label">
             结束时间
-            <input type="datetime-local" v-model="trackTo" />
+            <input type="datetime-local" v-model="trackTo" :disabled="trackLoading" />
           </label>
           <label class="track-label">
             速度
@@ -522,7 +527,7 @@ watch([trackFrom, trackTo], () => {
           <!-- 错误/空状态 -->
           <div v-else-if="trackError || trackPoints.length === 0" class="track-map-status track-empty">
             <Map :size="28" />
-            <strong>{{ trackError ? '加载失败' : '暂无轨迹' }}</strong>
+            <strong>{{ trackError ? '暂无可用轨迹' : '暂无轨迹' }}</strong>
             <p>{{ trackError || '请选择设备与时间范围后重新加载' }}</p>
             <button v-if="trackError" class="op-btn" @click="loadTrackData">
               <RefreshCw :size="14" />重试

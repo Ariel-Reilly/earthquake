@@ -28,7 +28,9 @@ import { useOverviewSearch } from "../composables/useOverviewSearch";
 import PersonnelTooltip from "../components/PersonnelTooltip.vue";
 import PersonnelRouteDrawer from "../components/PersonnelRouteDrawer.vue";
 import WeatherOverlayLegend from "../components/WeatherOverlayLegend.vue";
+import OverviewSkeleton from "../components/common/OverviewSkeleton.vue";
 import { formatWarningTime } from "../utils/warningTime";
+import { waitForSkeleton } from "../utils/uiTiming";
 
 const props = defineProps({
   currentTime: { type: String, default: () => new Date().toLocaleString('zh-CN') },
@@ -749,9 +751,11 @@ async function loadData() {
   } catch (err) {
     console.warn("[OverviewPage] 态势数据加载失败:", err);
     loadError.value = err instanceof Error ? err.message : "态势数据加载失败";
+    await waitForSkeleton();
     loading.value = false;
     return;
   }
+  await waitForSkeleton();
   loading.value = false;
   await nextTick();
   createOrResizeMap();
@@ -1573,9 +1577,7 @@ function toggleCompareLegend(which) {
 
 <template>
   <div class="overview-page">
-    <div v-if="loading" class="panel" style="padding: 24px">
-      正在加载态势数据...
-    </div>
+    <OverviewSkeleton v-if="loading" />
     <div v-else-if="loadError" class="panel overview-load-error">
       <p class="overview-load-error-title">态势数据加载失败</p>
       <p class="overview-load-error-desc">{{ loadError }}</p>

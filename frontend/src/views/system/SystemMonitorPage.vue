@@ -20,6 +20,8 @@ import {
   Wifi,
 } from "lucide-vue-next"
 import { dashboardApi } from "../../services/dashboardApi"
+import SystemMonitorSkeleton from "../../components/common/SystemMonitorSkeleton.vue"
+import { waitForSkeleton } from "../../utils/uiTiming"
 
 const props = defineProps({
   searchTerm: { type: String, default: "" },
@@ -39,6 +41,7 @@ async function load() {
   } catch (e) {
     emit("notify", e.message ?? "加载监控数据失败")
   } finally {
+    await waitForSkeleton()
     loading.value = false
   }
 }
@@ -110,9 +113,7 @@ const levelColor = {
       </div>
     </header>
 
-    <div v-if="!data && loading" class="loading-row">
-      <Loader2 :size="16" class="spin" />加载监控…
-    </div>
+    <SystemMonitorSkeleton v-if="!data && loading" />
     <template v-else-if="data">
       <section class="services-grid">
         <article

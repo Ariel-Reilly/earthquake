@@ -247,7 +247,7 @@ onMounted(() => loadTasks())
     </section>
 
     <template v-if="loading">
-      <SkeletonList :rows="6" />
+      <SkeletonList :count="6" />
     </template>
     <div v-else-if="filteredTasks.length === 0" class="empty-row">
       当前条件下没有任务 —— 点击右上角「新建任务」或上方触发卡片开始

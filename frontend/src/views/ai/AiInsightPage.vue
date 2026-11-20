@@ -13,7 +13,9 @@
  */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import ConfirmDialog from '../../components/common/ConfirmDialog.vue'
+import AiInsightSkeleton from '../../components/common/AiInsightSkeleton.vue'
 import AiComprehensiveTab from '../../components/ai/AiComprehensiveTab.vue'
+import { waitForSkeleton } from '../../utils/uiTiming'
 import AiForecastTab from '../../components/ai/AiForecastTab.vue'
 import AiHealthBadge from '../../components/AiHealthBadge.vue'
 import {
@@ -39,7 +41,7 @@ const confirmDialogRef = ref(null)
 // 灾害点列表
 const hazards = ref([])
 const selectedCode = ref('')
-const hazardsLoading = ref(false)
+const hazardsLoading = ref(true)
 const hazardsError = ref('')
 const batchLoading = ref(false)
 
@@ -67,6 +69,7 @@ async function loadHazards() {
     hazardsError.value = '灾害点加载失败：' + (e?.message || '后端不可达')
     hazards.value = []
   } finally {
+    await waitForSkeleton()
     hazardsLoading.value = false
   }
 }
@@ -155,8 +158,21 @@ function fmtTime(iso) {
       </div>
     </div>
 
+    <!-- 移动端：左侧清单被隐藏后，保留灾害点切换入口 -->
+    <label class="mobile-hazard-picker">
+      <span>当前灾害点</span>
+      <select :value="selectedCode" @change="selectHazard($event.target.value)">
+        <option v-for="h in hazards" :key="h.hazardCode" :value="h.hazardCode">
+          {{ h.name }} · {{ h.hazardCode }}
+        </option>
+      </select>
+    </label>
+
+    <!-- 首次进入且清单为空：按左右两栏布局显示骨架，避免空白等待 -->
+    <AiInsightSkeleton v-if="hazardsLoading && !hazards.length" />
+
     <!-- 主布局：左侧灾害点列表 + 右侧 Tab 面板 -->
-    <div class="ai-layout">
+    <div v-else class="ai-layout">
       <!-- 左侧：灾害点列表 -->
       <aside class="hazard-list-panel">
         <div class="panel-header">
@@ -557,6 +573,11 @@ function fmtTime(iso) {
   position: relative;
 }
 
+/* 移动端灾害点选择器：桌面用左侧列表，移动端用下拉，避免切换入口消失 */
+.mobile-hazard-picker {
+  display: none;
+}
+
 /* 响应式 */
 @media (width <= 1024px) {
   .ai-layout {
@@ -565,6 +586,30 @@ function fmtTime(iso) {
 }
 
 @media (width <= 768px) {
+  .mobile-hazard-picker {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 16px 10px;
+    padding: 8px 10px;
+    border: 1px solid var(--c-separator);
+    border-radius: var(--r-md);
+    background: var(--c-surface);
+    font-size: 12px;
+    color: var(--c-text-3);
+  }
+
+  .mobile-hazard-picker select {
+    flex: 1;
+    min-width: 0;
+    height: 32px;
+    border: 1px solid var(--c-separator);
+    border-radius: var(--r-xs);
+    background: var(--c-bg);
+    color: var(--c-text);
+    padding: 0 8px;
+  }
+
   .ai-layout {
     grid-template-columns: 1fr;
   }

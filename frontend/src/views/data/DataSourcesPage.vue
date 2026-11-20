@@ -19,6 +19,8 @@ import {
 } from "lucide-vue-next"
 import { dashboardApi } from "../../services/dashboardApi"
 import { getAuthUser, hasPermission } from "../../stores/auth"
+import DataSourcesSkeleton from "../../components/common/DataSourcesSkeleton.vue"
+import { waitForSkeleton } from "../../utils/uiTiming"
 
 const props = defineProps({
   searchTerm: { type: String, default: "" },
@@ -78,6 +80,7 @@ async function loadSources() {
   } catch (e) {
     emit("notify", e.message ?? "加载数据源失败")
   } finally {
+    await waitForSkeleton()
     loading.value = false
   }
 }
@@ -201,6 +204,8 @@ onMounted(() => loadSources())
       </div>
     </header>
 
+    <DataSourcesSkeleton v-if="loading" />
+    <template v-else>
     <section class="stat-grid">
       <div class="stat-card"><strong>{{ stats.total }}</strong><span>数据源总数</span></div>
       <div class="stat-card"><strong class="ds-kpi-on">{{ stats.enabled }}</strong><span>已启用</span></div>
@@ -218,10 +223,7 @@ onMounted(() => loadSources())
       </div>
     </section>
 
-    <div v-if="loading" class="loading-row">
-      <Loader2 :size="16" class="spin" />加载数据源…
-    </div>
-    <table v-else class="src-table">
+    <table class="src-table">
       <thead>
         <tr>
           <th>数据源</th>
@@ -263,6 +265,7 @@ onMounted(() => loadSources())
         </tr>
       </tbody>
     </table>
+    </template>
 
     <div v-if="editDialog && editing" class="modal-mask" @click.self="editDialog = false">
       <div class="modal-card">

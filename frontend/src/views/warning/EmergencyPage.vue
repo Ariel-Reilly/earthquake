@@ -3,7 +3,9 @@ import { computed, onMounted, ref } from 'vue'
 import { ShieldCheck, UsersRound, MapPin, MessageSquareText, FileText, Clock3, ListChecks, XCircle, Send, ShieldAlert, Bot, X, Loader2 } from 'lucide-vue-next'
 import PermissionButton from '../../components/PermissionButton.vue'
 import StatCard from '../../components/ui/StatCard.vue'
+import EmergencySkeleton from '../../components/common/EmergencySkeleton.vue'
 import { dashboardApi } from '../../services/dashboardApi'
+import { waitForSkeleton } from '../../utils/uiTiming'
 
 const emit = defineEmits(['notify'])
 const incidents = ref([])
@@ -118,6 +120,7 @@ async function loadData() {
       } catch (_) { /* AI 不可用 */ }
     }
   } finally {
+    await waitForSkeleton()
     loading.value = false
   }
 }
@@ -186,7 +189,7 @@ onMounted(loadData)
 
 <template>
   <div>
-    <div v-if="loading" class="panel" style="padding: var(--space-lg);">应急数据加载中...</div>
+    <EmergencySkeleton v-if="loading" />
     <template v-else>
       <div class="stats-grid">
         <StatCard

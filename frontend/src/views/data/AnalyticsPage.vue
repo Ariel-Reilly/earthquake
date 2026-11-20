@@ -12,6 +12,8 @@ import { useRouter } from 'vue-router'
 import { Radar, AlertTriangle, CalendarDays, Database, Gauge, Radio, BarChart3, LineChart, PieChart, RefreshCcw, ShieldAlert } from 'lucide-vue-next'
 import { dashboardApi } from '../../services/dashboardApi'
 import { safeMax } from '../../utils/safeMinMax'
+import AnalyticsSkeleton from '../../components/common/AnalyticsSkeleton.vue'
+import { waitForSkeleton } from '../../utils/uiTiming'
 
 const router = useRouter()
 
@@ -48,6 +50,7 @@ async function loadInspectionReport() {
   } catch {
     inspectionReport.value = {}
   } finally {
+    await waitForSkeleton()
     inspectionLoading.value = false
   }
 }
@@ -128,6 +131,7 @@ async function loadData() {
     overviewStats.value = []
     charts.value = {}
   } finally {
+    await waitForSkeleton()
     loading.value = false
   }
   try {
@@ -162,7 +166,7 @@ onMounted(() => {
 
     <!-- AI 综合分析 Tab -->
     <template v-if="!inspectionTabActive">
-    <div v-if="loading" class="panel" style="padding: 24px;">统计分析数据加载中...</div>
+    <AnalyticsSkeleton v-if="loading" mode="analysis" />
     <template v-else>
       <div class="stats-grid">
         <div class="stat-card">
@@ -347,7 +351,8 @@ onMounted(() => {
 
     <!-- ========== AI 巡检报告 Tab ========== -->
     <template v-if="inspectionTabActive">
-      <div class="inspection-report">
+      <AnalyticsSkeleton v-if="inspectionLoading && !inspectionReport" mode="inspection" />
+      <div v-else class="inspection-report">
         <!-- 数据来源标注：后端未接入真实巡检统计时必须明确告知，避免误当真实运营指标 -->
         <p v-if="inspectionSynthetic" class="data-source-note">
           当前为演示数据：后端尚未接入真实巡检统计，以下指标按查询参数模拟生成，请勿用于真实考核。
