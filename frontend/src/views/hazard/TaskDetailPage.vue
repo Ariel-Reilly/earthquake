@@ -19,6 +19,7 @@ const router = useRouter()
 // 基础信息 & 编辑（保留原有交互）
 const task = ref(null)
 const loading = ref(true)
+const loadError = ref('')
 const editMode = ref(false)
 const form = ref({})
 
@@ -113,6 +114,7 @@ function formatDuration(seconds) {
 // 数据加载
 async function loadBasic() {
   loading.value = true
+  loadError.value = ''
   try {
     const data = await dashboardApi.getTaskDetail(route.params.id)
     task.value = data.item
@@ -127,7 +129,8 @@ async function loadBasic() {
       trigger: data.item?.trigger ?? '周期',
     }
   } catch (err) {
-    emit('notify', err instanceof Error ? err.message : '任务详情加载失败')
+    loadError.value = err instanceof Error ? err.message : '任务详情加载失败'
+    emit('notify', loadError.value)
     task.value = null
   } finally {
     await waitForSkeleton()
@@ -288,6 +291,10 @@ onMounted(async () => {
 <template>
   <div>
     <TaskDetailSkeleton v-if="loading && !task" />
+    <div v-else-if="loadError" class="detail-load-error" role="alert">
+      <p>{{ loadError }}</p>
+      <button class="text-btn" @click="refreshDetail"><History :size="15" />重试加载</button>
+    </div>
     <div v-else class="content-grid task-detail-grid">
       <!-- 左列：基本信息 + 运行时 + 实时日志 -->
       <div class="detail-main-col">
@@ -632,6 +639,22 @@ onMounted(async () => {
   padding: 0 20px 18px;
   color: var(--c-text-2);
   font-size: 11px;
+}
+
+.detail-load-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 220px;
+  padding: 24px;
+  color: var(--c-text-2);
+}
+
+.detail-load-error p {
+  margin: 0;
+  font-size: 13px;
 }
 
 /* 运行时指标 */

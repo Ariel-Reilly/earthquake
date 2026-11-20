@@ -61,6 +61,9 @@ async function mountWith({ fw, task, dev } = {}) {
     global: { stubs: { ConfirmDialog: true } },
   })
   await flushPromises()
+  // loadAll 的 finally 里有 waitForSkeleton(280ms)，需越过最短展示时间再断言
+  await new Promise((r) => setTimeout(r, 320))
+  await flushPromises()
   return wrapper
 }
 
@@ -108,16 +111,21 @@ describe('OtaManagePage 三类数据源的返回形态', () => {
     expect(wrapper.text()).toContain('暂无固件包')
   })
 
-  it('任务接口抛错时整页降级为空态并 emit notify', async () => {
+  it('接口抛错时显示可重试错误态并 emit notify', async () => {
     api.listFirmware.mockResolvedValue({ records: [FW] })
     api.listOtaTasks.mockRejectedValue(new Error('boom'))
     api.getDevices.mockResolvedValue([DEV])
     wrapper = mount(OtaManagePage, { global: { stubs: { ConfirmDialog: true } } })
     await flushPromises()
+    await new Promise((r) => setTimeout(r, 320))
+    await flushPromises()
 
-    // Promise.all 整体失败 → 三个列表清空
+    // Promise.all 整体失败 → 三个列表清空，落到持久错误态（role=alert + 重试按钮）
     expect(wrapper.findAll('.task-table tbody tr').length).toBe(0)
-    expect(wrapper.text()).toContain('暂无固件包')
+    const errBox = wrapper.find('[role="alert"]')
+    expect(errBox.exists()).toBe(true)
+    expect(errBox.text()).toContain('boom')
+    expect(errBox.find('button').text()).toContain('重试')
     expect(wrapper.emitted('notify')).toBeTruthy()
     expect(String(wrapper.emitted('notify')[0][0])).toContain('boom')
   })

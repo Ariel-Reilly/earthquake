@@ -12,7 +12,6 @@ import {
   FileSignature,
   Filter,
   GitBranch,
-  Loader2,
   Package,
   PlayCircle,
   Plus,
@@ -26,6 +25,8 @@ import { dashboardApi } from "../../services/dashboardApi"
 import { normalizeList } from "../../api/client"
 import { getAuthUser, hasPermission } from "../../stores/auth"
 import ConfirmDialog from "../../components/common/ConfirmDialog.vue"
+import SkeletonTable from "../../components/common/SkeletonTable.vue"
+import { waitForSkeleton } from "../../utils/uiTiming"
 
 const props = defineProps({
   searchTerm: { type: String, default: "" },
@@ -38,6 +39,7 @@ const operator = getAuthUser() ?? { name: "李晨曦", role: "admin" }
 const has = (perm) => hasPermission(operator.role, perm)
 
 const loading = ref(false)
+const loadError = ref("")
 const activeTab = ref("firmware")
 const firmwareList = ref([])
 const taskList = ref([])
@@ -133,8 +135,11 @@ function toRecords(data) {
   return normalizeList(data)
 }
 
+// 固件 / 升级任务 / 设备三个接口由一次 loadAll 统一加载（两个 tab 共用），
+// try/catch/finally 保证任一失败都收起 loading，并给持久错误态 + 重试入口。
 async function loadAll() {
   loading.value = true
+  loadError.value = ""
   try {
     const [fw, tk, dev] = await Promise.all([
       dashboardApi.listFirmware(),
@@ -145,11 +150,13 @@ async function loadAll() {
     taskList.value = toRecords(tk)
     devices.value = toRecords(dev)
   } catch (e) {
+    loadError.value = `加载 OTA 数据失败：${e?.message ?? e}`
     firmwareList.value = []
     taskList.value = []
     devices.value = []
-    emit("notify", `加载 OTA 数据失败：${e?.message ?? e}`)
+    emit("notify", loadError.value)
   } finally {
+    await waitForSkeleton()
     loading.value = false
   }
 }
@@ -387,8 +394,10 @@ onMounted(loadAll)
 
     <section v-if="activeTab === 'firmware'" class="panel-card">
       <div class="firmware-hint">固件下载：后端暂未提供固件下载接口，下载按钮已禁用。</div>
-      <div v-if="loading" class="loading-row">
-        <Loader2 :size="16" class="spin" />加载固件包…
+      <SkeletonTable v-if="loading && firmwareList.length === 0" :rows="5" :columns="7" />
+      <div v-else-if="loadError && firmwareList.length === 0" class="detail-load-error" role="alert">
+        <p>{{ loadError }}</p>
+        <button class="text-btn" @click="loadAll"><RefreshCcw :size="15" />重试加载</button>
       </div>
       <div v-else-if="firmwareList.length === 0" class="empty-row">
         暂无固件包 —— 点击右上角「上传固件」开始
@@ -448,8 +457,10 @@ onMounted(loadAll)
         </button>
       </div>
 
-      <div v-if="loading" class="loading-row">
-        <Loader2 :size="16" class="spin" />加载升级任务…
+      <SkeletonTable v-if="loading && taskList.length === 0" :rows="5" :columns="7" />
+      <div v-else-if="loadError && taskList.length === 0" class="detail-load-error" role="alert">
+        <p>{{ loadError }}</p>
+        <button class="text-btn" @click="loadAll"><RefreshCcw :size="15" />重试加载</button>
       </div>
       <div v-else-if="filteredTasks.length === 0" class="empty-row">
         当前筛选下没有升级任务
@@ -910,6 +921,23 @@ onMounted(loadAll)
   padding: 28px;
   text-align: center;
   color: var(--c-text-2);
+  font-size: 13px;
+}
+
+.detail-load-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 200px;
+  padding: 24px;
+  color: var(--c-text-2);
+  text-align: center;
+}
+
+.detail-load-error p {
+  margin: 0;
   font-size: 13px;
 }
 

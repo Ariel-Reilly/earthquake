@@ -25,6 +25,7 @@ import {
 } from "lucide-vue-next";
 import PermissionButton from "../../components/PermissionButton.vue";
 import EventStatusTimeline from "../../components/EventStatusTimeline.vue";
+import HazardDetailSkeleton from "../../components/common/HazardDetailSkeleton.vue";
 import { dashboardApi } from "../../services/dashboardApi";
 import { aiApi } from "../../services/aiApi";
 import { hasPermission, getAuthUser } from "../../stores/auth";
@@ -449,8 +450,9 @@ onBeforeUnmount(() => {
 <template>
   <div>
     <!-- P1 统一事件中心：在详情页顶部嵌入全生命周期时间线 -->
+    <HazardDetailSkeleton v-if="loading && !point" section="timeline" />
     <EventStatusTimeline
-      v-if="point"
+      v-else-if="point"
       :hazard-id="point.id"
       :hazard-code="point.hazardCode ?? point.code"
       @notify="(msg) => $emit('notify', msg)"
@@ -586,9 +588,7 @@ onBeforeUnmount(() => {
             </button>
           </div>
         </div>
-        <div v-if="loading" class="u-hint-block">
-          加载中...
-        </div>
+        <HazardDetailSkeleton v-if="loading && !point" section="info" />
         <div v-else-if="loadError" class="u-hint-block load-error">
           <span>{{ loadError }}</span>
           <button class="text-btn" @click="refreshDetail">
@@ -842,6 +842,7 @@ onBeforeUnmount(() => {
             <p>查看完整历史轨迹、附件与联动信息</p>
           </div>
         </div>
+        <HazardDetailSkeleton v-if="loading && !point" section="evidence" />
         <div v-if="point" class="warning-list">
           <article
             v-for="record in point.history"
