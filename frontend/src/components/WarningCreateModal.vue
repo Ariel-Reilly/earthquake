@@ -232,7 +232,6 @@ defineExpose({ reset })
       <header class="modal-header">
         <div>
           <h2>发布预警</h2>
-          <p>4 步向导：基本信息 → 发布范围 → 渠道与内容 → 确认发布</p>
         </div>
         <button class="close-btn" @click="emit('close')"><X :size="18" /></button>
       </header>

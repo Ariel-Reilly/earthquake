@@ -228,7 +228,6 @@ onMounted(loadData)
     <header class="workbench-header">
       <div class="workbench-title">
         <h2>我的工作台</h2>
-        <p>个人待办与任务概览（数据来自任务中心与待办汇总接口）</p>
       </div>
       <button type="button" class="refresh-btn" :disabled="loading" @click="loadData">
         {{ loading ? '加载中…' : '刷新' }}

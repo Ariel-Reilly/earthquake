@@ -174,7 +174,6 @@ onMounted(loadData)
           <div class="panel-header compact">
             <div>
               <h2>设备列表（按 AI 健康分）</h2>
-              <p>异常在前 · 在线/电量/AI 健康一目了然</p>
             </div>
             <div class="heading-actions">
               <PermissionButton permission="ai:insight:refresh" :icon="Cpu" @click="async ({ allowed, reason }) => {
@@ -224,7 +223,6 @@ onMounted(loadData)
           <div class="panel-header compact">
             <div>
               <h2>设备详情</h2>
-              <p>单台设备的运行概况和接入情况</p>
             </div>
             <span class="health-label"><i></i>{{ selectedDevice?.state }}</span>
           </div>

@@ -628,7 +628,6 @@ onBeforeUnmount(() => {
           <div class="panel-header compact">
             <div>
               <h2>预警列表</h2>
-              <p>{{ statusTab === 'archived' ? '历史解除与归档，关闭原因可追溯' : '确认、升级和关闭一体化处理' }}</p>
             </div>
             <div class="status-tabs">
               <button
@@ -731,7 +730,6 @@ onBeforeUnmount(() => {
           <header class="panel-header compact system-head">
             <div class="system-head-title">
               <h2>预警处置</h2>
-              <p>当前预警的闭环状态</p>
             </div>
             <div class="system-head-tools">
               <span class="health-label"><i></i>{{ selectedWarning?.status ?? '—' }}</span>

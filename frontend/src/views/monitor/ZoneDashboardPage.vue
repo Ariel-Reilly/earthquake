@@ -512,7 +512,6 @@ watch(
         <div class="panel-header compact">
           <div>
             <h2>{{ kindLabel }}专项 · Top 5 风险灾害点</h2>
-            <p>综合风险评分较高的前 5 个灾害点</p>
           </div>
         </div>
         <div v-if="!topHazards.length" class="panel-empty">

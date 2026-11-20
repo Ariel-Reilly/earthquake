@@ -265,7 +265,6 @@ onBeforeUnmount(() => {
         <header class="wp-map-head">
           <div>
             <h2>主图叠加</h2>
-            <p>勾选下方卡片，把对应产品的最新一帧叠加到主图</p>
           </div>
           <div class="wp-map-tools">
             <span class="wp-pill">

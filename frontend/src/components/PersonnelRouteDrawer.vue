@@ -17,7 +17,6 @@ useEscapeClose(() => emit('close'), () => props.visible)
     <div class="modal modal-wide">
       <div class="modal-head">
         <div>
-          <span class="eyebrow">PERSONNEL ROUTE</span>
           <h2>{{ person.name }}</h2>
           <p class="modal-subtitle">{{ person.role }} · {{ person.team }} · {{ person.state }}</p>
         </div>

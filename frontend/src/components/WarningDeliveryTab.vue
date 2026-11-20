@@ -437,7 +437,6 @@ watch(() => props.warningId, () => loadData());
         <header class="delivery-panel-head">
           <div class="delivery-panel-title">
             <h2>分渠道明细</h2>
-            <p>查看每个渠道的目标、状态与失败原因</p>
           </div>
           <div class="delivery-panel-actions">
             <button class="ghost-action" @click="exportReport('csv')">

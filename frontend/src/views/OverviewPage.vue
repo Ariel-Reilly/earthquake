@@ -1918,7 +1918,6 @@ function toggleCompareLegend(which) {
             <div class="panel-header compact">
               <div>
                 <h2>实时预警</h2>
-                <p>需重点关注的风险变化</p>
               </div>
               <button
                 class="text-btn"
@@ -2060,7 +2059,6 @@ function toggleCompareLegend(which) {
           <div class="panel-header compact">
             <div>
               <h2>巡检任务进度</h2>
-              <p>今日任务执行情况</p>
             </div>
             <button class="text-btn" @click="router.push('/dashboard/ai-tasks')">
               进入任务中心 <ChevronRight :size="14" />
@@ -2100,7 +2098,6 @@ function toggleCompareLegend(which) {
           <div class="panel-header compact">
             <div>
               <h2>系统运行状态</h2>
-              <p>平台及数据服务健康度</p>
             </div>
             <span class="health-label"><i></i>运行良好</span>
           </div>
@@ -2373,7 +2370,6 @@ function toggleCompareLegend(which) {
             <header class="panel-header compact">
               <div>
                 <h2>事件趋势对比</h2>
-                <p>基准时段 vs 对比时段 · 折线 / 虚线切换</p>
               </div>
               <div class="compare-chart-legend">
                 <button
@@ -2437,11 +2433,11 @@ function toggleCompareLegend(which) {
             <header class="panel-header compact">
               <div>
                 <h2>灾种分布对比</h2>
-                <p>左：基准时段 · 右：对比时段</p>
               </div>
             </header>
             <div class="compare-pie-row">
               <div class="compare-pie-block">
+                <h4>基准时段</h4>
                 <div
                   class="compare-pie"
                   :style="{ background: compareCategorySlices.base }"
@@ -2456,6 +2452,7 @@ function toggleCompareLegend(which) {
                 </ul>
               </div>
               <div class="compare-pie-block">
+                <h4>对比时段</h4>
                 <div
                   class="compare-pie"
                   :style="{ background: compareCategorySlices.compare }"
@@ -2477,7 +2474,6 @@ function toggleCompareLegend(which) {
             <header class="panel-header compact">
               <div>
                 <h2>区域分布对比</h2>
-                <p>横向柱图，左基准 / 右对比</p>
               </div>
             </header>
             <div class="compare-region-grid">
@@ -2523,7 +2519,6 @@ function toggleCompareLegend(which) {
             <header class="panel-header compact">
               <div>
                 <h2>KPI 差异率</h2>
-                <p>对比时段相对基准的偏差幅度（按绝对值排序）</p>
               </div>
             </header>
             <ul class="compare-diff-list">
@@ -2550,7 +2545,6 @@ function toggleCompareLegend(which) {
           <header class="panel-header compact compare-diff-header">
             <div>
               <h2>差异 Top 5 卡片</h2>
-              <p>自动汇总维度差异，附"深入分析"占位入口</p>
             </div>
           </header>
           <div class="compare-diff-cards">
@@ -2596,7 +2590,6 @@ function toggleCompareLegend(which) {
           <div class="modal modal-wide people-directory">
             <div class="modal-head">
               <div>
-                <span class="eyebrow">DUTY DIRECTORY</span>
                 <h2>值班人员通讯录</h2>
                 <p class="modal-subtitle">
                   在岗人员 {{ personnel.length || 0 }} 人 · 在线

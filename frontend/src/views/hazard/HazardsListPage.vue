@@ -512,7 +512,6 @@ onBeforeUnmount(() => {
           <div class="panel-header compact">
             <div>
               <h2>灾害点列表</h2>
-              <p>支持搜索、筛选和快速查看</p>
             </div>
             <div class="heading-actions">
               <PermissionButton v-if="userRole !== 'maintenance'" permission="hazards:create" :icon="PencilLine" @click="({ allowed, reason }) => allowed ? emit('notify', '新增灾害点表单已打开') : emit('notify', reason)">新增</PermissionButton>
@@ -601,7 +600,6 @@ onBeforeUnmount(() => {
           <div class="panel-header compact">
             <div>
               <h2>灾害点详情</h2>
-              <p>档案、风险和空间信息</p>
             </div>
             <span class="health-label"><i></i>{{ selected?.level || '未选择' }}</span>
           </div>

@@ -196,7 +196,6 @@ const onTabClick = (tab) => {
         <!-- Header -->
         <header class="ed-header" :style="{ background: stateMeta?.color ?? '#6f9e7f' }">
           <div class="ed-header-meta">
-            <span class="eyebrow">UNIFIED EVENT</span>
             <h2>
               <component :is="stateMeta?.icon ?? GitBranch" :size="22" />
               {{ event.title }}

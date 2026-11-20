@@ -31,7 +31,6 @@ function onNotify(msg) {
     <header class="dm-header">
       <div class="dm-title">
         <h2>数据管理</h2>
-        <p>管理数据源接入、同步监控和数据资产目录</p>
       </div>
     </header>
 

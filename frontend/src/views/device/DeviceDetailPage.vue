@@ -125,7 +125,6 @@ onBeforeUnmount(() => {
         <div class="panel-header compact">
           <div>
             <h2>监测设备详情</h2>
-            <p>接入信息、编辑与运行概况</p>
           </div>
           <div class="heading-actions">
             <button class="text-btn" @click="router.back()"><ArrowLeft :size="15" />返回</button>
@@ -212,7 +211,6 @@ onBeforeUnmount(() => {
         <div class="panel-header compact">
           <div>
             <h2>数据上报曲线</h2>
-            <p>最近一段时间的监测上报趋势</p>
           </div>
         </div>
         <div v-if="device" class="warning-list">

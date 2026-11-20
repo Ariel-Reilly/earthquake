@@ -861,7 +861,6 @@ onMounted(async () => {
         <div class="drift-model-list">
           <div class="panel-header compact">
             <h2>监控模型</h2>
-            <p>选择要监控的模型</p>
           </div>
           <div class="model-items">
             <button
@@ -902,7 +901,6 @@ onMounted(async () => {
               <div class="panel-header compact">
                 <div>
                   <h2>特征漂移详情</h2>
-                  <p>各输入特征的分布漂移程度</p>
                 </div>
                 <button class="text-btn" :disabled="driftLoading" @click="loadDriftMonitor">
                   <RefreshCw :size="14" />刷新
@@ -932,7 +930,6 @@ onMounted(async () => {
               <div class="panel-header compact">
                 <div>
                   <h2>漂移趋势（近30天）</h2>
-                  <p>PSI 指标随时间变化</p>
                 </div>
               </div>
               <div class="drift-trend-chart">

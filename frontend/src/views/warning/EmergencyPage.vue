@@ -266,7 +266,6 @@ onMounted(loadData)
           <div class="panel-header compact">
             <div>
               <h2>处置工单</h2>
-              <p>转移、研判、抢险和复盘的流程清单</p>
             </div>
             <button class="text-btn" @click="openDetailDrawer"><ListChecks :size="15" />查看工单</button>
           </div>
@@ -293,7 +292,6 @@ onMounted(loadData)
           <div class="panel-header compact">
             <div>
               <h2>应急步骤</h2>
-              <p>可一键推动转移和警戒</p>
             </div>
             <span class="health-label"><i></i>流程联动</span>
           </div>
@@ -343,7 +341,6 @@ onMounted(loadData)
         <aside class="incident-drawer" role="complementary">
           <header class="id-header">
             <div class="id-header-meta">
-              <span class="eyebrow">EMERGENCY INCIDENT</span>
               <h2>
                 <ShieldAlert :size="22" />
                 {{ selectedIncident.title }}

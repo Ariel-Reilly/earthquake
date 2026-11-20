@@ -567,7 +567,6 @@ onBeforeUnmount(() => {
         <div class="panel-header compact">
           <div>
             <h2>灾害点详情</h2>
-            <p>基础档案、编辑与空间信息</p>
           </div>
           <div class="heading-actions">
             <button class="text-btn" @click="router.back()">
@@ -839,7 +838,6 @@ onBeforeUnmount(() => {
         <div class="panel-header compact">
           <div>
             <h2>历史记录与附件</h2>
-            <p>查看完整历史轨迹、附件与联动信息</p>
           </div>
         </div>
         <HazardDetailSkeleton v-if="loading && !point" section="evidence" />

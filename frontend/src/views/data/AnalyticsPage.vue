@@ -210,7 +210,6 @@ onMounted(() => {
           <div class="panel-header compact">
             <div>
               <h2>AI 综合风险分布</h2>
-              <p>按 AI 综合分析（图像+降水+地理+设备）评分倒序</p>
             </div>
             <button class="text-btn" @click="loadData"><RefreshCcw :size="15" />刷新</button>
           </div>
@@ -262,7 +261,6 @@ onMounted(() => {
           <div class="panel-header compact">
             <div>
               <h2>预警分布与设备在线趋势</h2>
-              <p>按类型分布与在线变化</p>
             </div>
             <span class="health-label"><i></i>数据正常</span>
           </div>
@@ -301,7 +299,6 @@ onMounted(() => {
           <div class="panel-header compact">
             <div>
               <h2>区域风险热力</h2>
-              <p>区域风险强度分布</p>
             </div>
             <span class="health-label"><i></i>热力已更新</span>
           </div>
@@ -319,7 +316,6 @@ onMounted(() => {
           <div class="panel-header compact">
             <div>
               <h2>风险区域图</h2>
-              <p>风险分区与覆盖范围</p>
             </div>
             <button class="text-btn" @click="loadData"><RefreshCcw :size="15" />刷新</button>
           </div>

@@ -303,7 +303,6 @@ onMounted(async () => {
           <div class="panel-header compact">
             <div>
               <h2>巡检任务详情</h2>
-              <p>任务信息、编辑与执行监控</p>
             </div>
             <div class="heading-actions">
               <button class="text-btn" @click="router.back()"><ArrowLeft :size="15" />返回</button>
@@ -376,7 +375,6 @@ onMounted(async () => {
           <div class="panel-header compact">
             <div>
               <h2>运行时指标</h2>
-              <p>CPU / GPU / 内存占用与执行耗时，5 秒自动刷新</p>
             </div>
             <div class="heading-actions">
               <button class="text-btn" :disabled="runtimeLoading" @click="loadRuntime">
@@ -442,7 +440,6 @@ onMounted(async () => {
           <div class="panel-header compact">
             <div>
               <h2>实时执行日志</h2>
-              <p>滚动查看最新 200 条，5 秒自动拉取增量</p>
             </div>
             <div class="heading-actions">
               <span class="log-meta">
@@ -501,7 +498,6 @@ onMounted(async () => {
           <div class="panel-header compact">
             <div>
               <h2>执行控制</h2>
-              <p>失败重试、手动终止与关联跳转</p>
             </div>
           </div>
           <div v-if="!task" class="loading-row">暂无任务数据</div>
@@ -572,7 +568,6 @@ onMounted(async () => {
           <div class="panel-header compact">
             <div>
               <h2>任务过程记录</h2>
-              <p>执行轨迹、附件与关联联动</p>
             </div>
           </div>
           <div v-if="task" class="warning-list">
