@@ -9696,3 +9696,18 @@ select:focus {
 [data-scrollable]::-webkit-scrollbar-corner {
   background: transparent;
 }
+
+/* ── 1180px 内容断点：视口宽度不等于内容可用宽度 ──
+   侧栏占 260px，1045~1180 视口下内容只剩约 780~920px；
+   原来的 1024 断点会让两栏详情挤成 442+280，列表标题和 Tab 竖排。
+   这里以“内容能否舒适放下两栏”为准提前收为单栏/两列。 */
+@media (width <= 1180px) {
+  .content-grid,
+  .bottom-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

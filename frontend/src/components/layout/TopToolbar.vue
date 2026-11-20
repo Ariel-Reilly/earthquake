@@ -717,13 +717,25 @@ onBeforeUnmount(() => {
   }
 }
 
+/* 1280 以下优先保证一级导航完整可见；菜单搜索让位。
+   1045~1180 下导航只剩约 570px，再收紧 Tab 内边距，避免第五组被裁切。 */
+@media (width <= 1280px) {
+  .toolbar-search {
+    display: none;
+  }
+}
+
+@media (width <= 1180px) {
+  :deep(.group-tab) {
+    gap: 4px;
+    padding: 0 7px;
+    font-size: 13px;
+  }
+}
+
 @media (width <= 900px) {
   .brand-copy {
     display: none;
-  }
-
-  .toolbar-search {
-    width: 140px;
   }
 }
 

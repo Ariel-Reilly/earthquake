@@ -280,7 +280,12 @@ async function loadData(page = 1) {
 
     warnings.value = enriched
     paging.value = { page: data.page ?? page, size: data.size ?? paging.value.size, total: data.total ?? enriched.length, pages: data.pages ?? 1 }
-    selectedWarningId.value = warnings.value[0]?.id ?? null
+    // 右侧处置面板必须跟随当前 Tab：不能因为整表第一条是归档记录，
+    // 就让「活跃」Tab 右侧显示一条「已解除」预警。
+    const pool = statusTab.value === 'archived' ? archivedWarnings.value : activeWarnings.value
+    if (!pool.some((w) => w.id === selectedWarningId.value)) {
+      selectedWarningId.value = pool[0]?.id ?? null
+    }
   } catch (error) {
     console.warn('[WarningsPage] 预警列表加载失败:', error)
     loadError.value = error instanceof Error ? error.message : '预警列表加载失败'
@@ -957,6 +962,7 @@ onBeforeUnmount(() => {
    1. 顶部统计卡片（压扁版）
    ═══════════════════════════════════════════════════════════ */
 .stats-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--space-md);
 }
 
@@ -1698,6 +1704,29 @@ onBeforeUnmount(() => {
 @media (width <= 1180px) {
   .stat-note {
     display: none;
+  }
+
+  /* 内容区实际宽度约 780~920：预警列表与处置面板改为上下排列，
+     标题栏允许 Tab 换行，Tab 文案不竖排。 */
+  .content-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .panel-header.compact {
+    flex-wrap: wrap;
+    row-gap: var(--space-sm);
+  }
+
+  .status-tabs {
+    flex-shrink: 0;
+  }
+
+  .status-tab {
+    white-space: nowrap;
   }
 }
 
