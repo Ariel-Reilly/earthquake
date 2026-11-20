@@ -53,13 +53,13 @@ function onNotify(msg) {
     <div class="dm-content">
       <Transition name="fade-slide" mode="out-in">
         <div v-if="activeTab === 'sources'" key="sources" class="dm-tab-panel">
-          <DataSourcesPage @notify="onNotify" :user-role="'admin'" />
+          <DataSourcesPage @notify="onNotify" :user-role="'admin'" embedded />
         </div>
         <div v-else-if="activeTab === 'sync'" key="sync" class="dm-tab-panel">
           <DataSyncPage @notify="onNotify" :user-role="'admin'" />
         </div>
         <div v-else-if="activeTab === 'catalog'" key="catalog" class="dm-tab-panel">
-          <DataCatalogPage @notify="onNotify" :user-role="'admin'" />
+          <DataCatalogPage @notify="onNotify" :user-role="'admin'" embedded />
         </div>
       </Transition>
     </div>

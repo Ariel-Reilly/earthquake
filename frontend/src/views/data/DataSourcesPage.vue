@@ -25,6 +25,8 @@ import { waitForSkeleton } from "../../utils/uiTiming"
 const props = defineProps({
   searchTerm: { type: String, default: "" },
   userRole: { type: String, default: "admin" },
+  /** 作为「数据管理」Tab 内嵌时隐藏子页头，操作按钮并入筛选栏 */
+  embedded: { type: Boolean, default: false },
 })
 const emit = defineEmits(["notify"])
 
@@ -192,9 +194,11 @@ onMounted(() => loadSources())
 </script>
 
 <template>
-  <div class="data-sources-shell">
-    <header class="page-header">
+  <div class="data-sources-shell" :class="{ 'is-embedded': embedded }">
+    <header v-if="!embedded" class="page-header">
       <div>
+        <h2><Database :size="18" />数据源接入</h2>
+        <p>管理遥感、气象、水文、地震等外部数据源的接入、认证与启停。</p>
       </div>
       <div class="actions">
         <button class="op-btn" @click="loadSources">
@@ -220,6 +224,12 @@ onMounted(() => loadSources())
         <button v-for="c in categories" :key="c.id" :class="{ active: filter.category === c.id }" @click="filter.category = c.id">
           {{ c.label }}
         </button>
+      </div>
+      <div v-if="embedded" class="filter-actions">
+        <button class="op-btn" @click="loadSources">
+          <RefreshCw :size="14" />刷新
+        </button>
+        <button class="op-btn" @click="openNewDialog"><Plug :size="14" />新增数据源</button>
       </div>
     </section>
 
@@ -360,6 +370,18 @@ onMounted(() => loadSources())
 <style scoped>
 .data-sources-shell {
   padding: 24px 28px;
+}
+
+/* 作为数据管理 Tab 内嵌时由父级负责页头与间距，子页只保留内容 */
+.data-sources-shell.is-embedded {
+  padding: 0;
+}
+
+.filter-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-left: auto;
 }
 
 .page-header {

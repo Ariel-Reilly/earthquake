@@ -15,6 +15,8 @@ import { normalizeList } from "../../api/client"
 const props = defineProps({
   searchTerm: { type: String, default: "" },
   userRole: { type: String, default: "admin" },
+  /** 作为「数据管理」Tab 内嵌时隐藏子页头，操作按钮并入筛选栏 */
+  embedded: { type: Boolean, default: false },
 })
 const emit = defineEmits(["notify"])
 
@@ -357,9 +359,11 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="data-catalog-shell">
-    <header class="page-header">
+  <div class="data-catalog-shell" :class="{ 'is-embedded': embedded }">
+    <header v-if="!embedded" class="page-header">
       <div>
+        <h2><Database :size="18" />数据资产目录</h2>
+        <p>查看数据资源、字段规模、来源与权限申请入口。</p>
       </div>
       <div class="actions">
         <button class="op-btn" :disabled="refreshing" @click="refreshAll">
@@ -414,6 +418,14 @@ onMounted(async () => {
         <button class="ghost-btn small" @click="resetFilters">
           <Trash2 :size="12" />重置
         </button>
+        <div v-if="embedded" class="filter-actions">
+          <button class="op-btn" :disabled="refreshing" @click="refreshAll">
+            <RefreshCw :size="14" :class="{ spin: refreshing }" />刷新
+          </button>
+          <button class="primary-btn" @click="openNewDialog">
+            <Plus :size="14" />新增资源
+          </button>
+        </div>
       </div>
     </section>
 
@@ -751,6 +763,18 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   gap: 18px;
+}
+
+.data-catalog-shell.is-embedded {
+  padding: 0;
+  gap: 14px;
+}
+
+.filter-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-left: auto;
 }
 
 .page-header {
