@@ -8,6 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "check:random": "node ../scripts/audit/check-math-random.mjs",
+    "verify:skeleton": "node ../scripts/delivery/verify-skeleton-gate.mjs",
     "pretest": "npm run check:random",
     "test": "vitest run",
     "lint": "eslint src/",

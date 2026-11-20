@@ -141,4 +141,50 @@
   在线数自然打回 0，**每场演示前 5 分钟内**重跑
   `APPLY=1 node scripts/delivery/verify-demo-data-refresh.mjs`（幂等、只 UPDATE，默认只读不改写），
   长时间彩排每 4 分钟重跑；须确认「6 在线 + **页面**预警时间今天」，生产/试运行环境不要这样保活。
+## 七、UI 骨架屏与加载容错批次（2026-11-20，已纳入 `v1.8.15-delivery`）
+
+> 基线 tag：`v1.8.14-delivery`；本批收口 tag：`v1.8.15-delivery`。
+> 分支：`release/delivery`。工作区仅 `hardware-sandbox/` 11 项刻意未跟踪（非交付物）。
+
+### 提交链
+
+| Commit | 内容 |
+|---|---|
+| `c7190f0` | 建立统一骨架屏体系（灰块 + 微光 + 慢提示 + 280ms 防闪） |
+| `8f7ddd9` | 19 个页面接入骨架屏与 `waitForSkeleton` |
+| `241855e` | 全局视觉刷新与响应式导航收口 |
+| `00e4fda` | 详情页骨架与加载容错（Task / Device） |
+| `22f993e` | OTA / 灾害详情骨架与错误态对齐（P2） |
+| 本收口提交 | 固化骨架门禁脚本、登记 `npm run verify:skeleton`、补交付记录 |
+
+本批新增（已纳入 `v1.8.15-delivery`）：
+- `scripts/delivery/verify-skeleton-gate.mjs` — 正式骨架防回归门禁（从 `output/` 临时脚本固化；路径自推导、CDP 自动探测 9222/9223、`DG_CDP`/`DG_APP` 可覆盖、token 动态 exp）
+- `frontend/package.json` — 新增 `npm run verify:skeleton` 入口
+
+### 本批验证矩阵（2026-11-20 实测，均全绿）
+
+| 检查项 | 命令 | 结果 |
+|---|---|---|
+| 前端 lint | `npm run lint` | ✅ 0 error |
+| 样式检查 | `npm run lint:css` | ✅ 0 error |
+| 前端单测 | `npm test` | ✅ **244 passed**（21 文件） |
+| 生产构建 | `npx vite build --outDir <临时>` | ✅ 成功 |
+| 骨架门禁（正式入口） | `npm run verify:skeleton` | ✅ **41/41 PASS**（四页骨架 role/aria、失败收起、错误重试、3s/8s 提示互斥、width 稳定、三档无溢出） |
+| 错误态冒烟 | `node output/verify-detail-errorstate-9223.mjs` | ✅ **14/14 PASS**（Task/Device 接口失败→骨架撤掉→role=alert+重试可见） |
+| 正常态渲染 | `node output/shot-detail-normal-9223.mjs` | ✅ 2/2（CDP 注入演示数据，Task/Device 真实内容渲染无破版） |
+| 2K 缩放 | CDP 2560×1440 @100%/@150% | ✅ **2/2 PASS**（无横向溢出） |
+
+### 关键截图（`output/video-review/`）
+
+- 正常态：`normal-taskdetail.png`、`normal-devicedetail.png`（⚠ 注入演示数据）
+- 骨架态：`gate-taskdetail.png`、`gate-devicedetail.png`、`gate-ota-skeleton.png`、`gate-hazard-skeleton.png`
+- 错误重试态：`errorstate-taskdetail.png`、`errorstate-devicedetail.png`
+- 2K：`gate-2k-taskdetail.png`；响应式：`gate-detail-375.png`
+
+### 交付时仍需执行（非代码待确认项）
+
+1. **演示数据刷新**：现场演示前 5 分钟内重跑 `APPLY=1 node scripts/delivery/verify-demo-data-refresh.mjs`（需后端 8080 + Docker 起库；本轮后端未起故未执行）。
+2. **正式浏览器冒烟**：`browser-smoke.mjs` 37 项需后端 8080；本批骨架相关改动已由正式骨架门禁 41/41、错误态 14/14、正常态 2/2、2K 2/2 等价覆盖。
+3. **门禁复跑入口**：`cd frontend && npm run verify:skeleton`（需先启动前端 5173 与 Chrome/Edge CDP）。
+
 - 甲方签字：____________________　日期：____________________
