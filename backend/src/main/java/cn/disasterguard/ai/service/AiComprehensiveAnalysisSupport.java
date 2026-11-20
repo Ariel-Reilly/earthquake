@@ -228,12 +228,17 @@ public class AiComprehensiveAnalysisSupport {
         factors.put("temperature", meteo.temperature());
         factors.put("humidity", meteo.humidity());
         factors.put("rainfall_24h", meteo.rainfall24hSum());
+        // 7d/30d 直接使用 Open-Meteo 日累计；GPM 仅作为缺失时的兜底，
+        // 避免卫星端点无权限时把真实 7d 累计覆盖成 0。
+        factors.put("rainfall_7d", meteo.rainfall7dSum());
+        factors.put("rainfall_30d", meteo.rainfall30dSum());
         // ERA5-Land 土壤湿度（0-1cm + 3-9cm 真实观测，不是湿度推算）
         factors.put("soil_moisture", meteo.soilMoisture());
-        if (!factors.containsKey("rainfall_7d") && lat != null && lon != null) {
-          // 接入真实 NASA GPM IMERG 24h 降雨
+        if (meteo.rainfall7dSum() <= 0) {
           var gpm = externalDataService.getGpmRainfall(lat, lon);
-          factors.put("rainfall_7d", gpm != null && gpm.precipitationMm() > 0 ? gpm.precipitationMm() : meteo.rainfall24hSum() * 3.0);
+          if (gpm != null && gpm.precipitationMm() > 0) {
+            factors.put("rainfall_7d", gpm.precipitationMm());
+          }
         }
         if (!factors.containsKey("soil_moisture_smap") && lat != null && lon != null) {
           // 接入真实 NASA SMAP 土壤湿度作为对比维度

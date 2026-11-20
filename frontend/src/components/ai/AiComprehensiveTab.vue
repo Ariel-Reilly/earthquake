@@ -64,12 +64,13 @@ const cacheStale = computed(() => {
 })
 
 function mapCachedToReport(cached) {
+  const snapshotAt = cached.updatedAt || cached.analyzedAt || null
   return {
     overall: {
       riskLevel: cached.riskLevel || 'LOW',
       riskScore: Number(cached.riskScore ?? 0),
       concernLabel: RISK_TO_CONCERN[cached.riskLevel] || '未知',
-      analyzedAt: cached.analyzedAt || null,
+      analyzedAt: snapshotAt,
     },
     dimensions: cached.dimensions || {},
     reasoning: cached.reasoning || [],
@@ -178,6 +179,7 @@ const overallLevel = computed(() => {
 const dimensions = computed(() => report.value?.dimensions ?? {})
 const geographicDim = computed(() => dimensions.value.geographic ?? {})
 const precipDim = computed(() => dimensions.value.precipitation ?? {})
+const weatherDim = computed(() => dimensions.value.meteorology ?? {})
 const deviceDim = computed(() => dimensions.value.device ?? {})
 /** 缓存评分不代表当前气象实况；降雨字段缺失时不能把 0.0 当成真实值展示。 */
 const weatherAvailable = computed(() => {
@@ -265,7 +267,7 @@ async function loadReport() {
     if (props.selectedHazardCode !== code) return // 期间用户切了灾害点
     report.value = mapCachedToReport(cached)
     fromCache.value = true
-    cachedAt.value = cached.analyzedAt || ''
+    cachedAt.value = cached.updatedAt || cached.analyzedAt || ''
   } catch (_e) {
     // 没有落库评分（等待 5 分钟落库周期）时，回退到实时推理加载态。
   }
@@ -607,10 +609,19 @@ onBeforeUnmount(() => {
             <li>
               <span>7d 累计</span> <strong>{{ fmtNum(precipDim.rainfall_7d, 1) }}mm</strong>
             </li>
-            <li>
+            <li v-if="Number.isFinite(Number(weatherDim.rainfall_30d))">
+              <span>30d 累计</span> <strong>{{ fmtNum(weatherDim.rainfall_30d, 1) }}mm</strong>
+            </li>
+            <li v-if="Number.isFinite(Number(weatherDim.temperature))">
+              <span>气温</span> <strong>{{ fmtNum(weatherDim.temperature, 1) }}℃</strong>
+            </li>
+            <li v-if="Number.isFinite(Number(weatherDim.humidity))">
+              <span>湿度</span> <strong>{{ Math.round(Number(weatherDim.humidity) * 100) }}%</strong>
+            </li>
+            <li v-if="Number.isFinite(Number(precipDim._derived_rain_intensity_ratio))">
               <span>强度比</span> <strong>{{ fmtNum(precipDim._derived_rain_intensity_ratio, 2) }}</strong>
             </li>
-            <li>
+            <li v-if="Number.isFinite(Number(precipDim._derived_rain_duration_days))">
               <span>持续天数</span> <strong>{{ fmtNum(precipDim._derived_rain_duration_days, 0) }}</strong>
             </li>
           </ul>

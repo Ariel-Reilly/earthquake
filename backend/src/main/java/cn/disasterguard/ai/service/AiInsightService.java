@@ -343,9 +343,9 @@ public class AiInsightService {
     entity.setDimensionsJson(toJson(result.dimensions()));
     entity.setReasoningJson(toJson(result.reasoning()));
     entity.setSuggestedActionsJson(toJson(result.suggestedActions()));
-    if (entity.getAnalyzedAt() == null) {
-      entity.setAnalyzedAt(now);
-    }
+    // 每次刷新都是一次新的评估快照；不能只在首次插入时写 analyzedAt，
+    // 否则手动刷新后前端仍把新数据判成旧缓存。
+    entity.setAnalyzedAt(now);
     if (entity.getCreatedAt() == null) {
       entity.setCreatedAt(now);
     }
@@ -445,7 +445,9 @@ public class AiInsightService {
     m.put("riskScore", s.getRiskScore());
     m.put("confidence", s.getConfidence());
     m.put("model", s.getModel());
+    m.put("source", s.getSource());
     m.put("analyzedAt", s.getAnalyzedAt());
+    m.put("updatedAt", s.getUpdatedAt());
     m.put("dimensions", readJsonMap(s.getDimensionsJson()));
     m.put("reasoning", readJsonList(s.getReasoningJson()));
     m.put("suggestedActions", readJsonList(s.getSuggestedActionsJson()));

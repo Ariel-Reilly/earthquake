@@ -71,6 +71,8 @@ public class ExternalDataService {
           + "&longitude=" + lon
           + "&current=temperature_2m,relative_humidity_2m,precipitation,surface_pressure,wind_speed_10m,soil_moisture_0_to_1cm,soil_moisture_3_to_9cm"
           + "&hourly=precipitation"
+          + "&daily=precipitation_sum"
+          + "&past_days=30"
           + "&timezone=auto"
           + "&forecast_days=1";
 
@@ -350,21 +352,39 @@ public class ExternalDataService {
 
   private MeteorologyResult parseMeteorology(String body, double lat, double lon) {
     try {
-      double temperature = extractDouble(body, "temperature_2m", 15.0);
-      double humidity = extractDouble(body, "relative_humidity_2m", 65.0) / 100.0;
-      double rainfall = extractDouble(body, "precipitation", 0.0);
-      double pressure = extractDouble(body, "surface_pressure", 1013.25);
-      double windSpeed = extractDouble(body, "wind_speed_10m", 0.0);
-      double soil0 = extractDouble(body, "soil_moisture_0_to_1cm", -1.0);
-      double soil1 = extractDouble(body, "soil_moisture_3_to_9cm", -1.0);
+      // JSON 中存在 current_units / hourly_units / daily_units，同名 key 会先命中单位对象。
+      // 必须限定到 current / hourly / daily 各自的对象后再取值，否则会读成 15℃/65%/0mm。
+      String currentSection = jsonSection(body, "current");
+      double temperature = extractDouble(currentSection, "temperature_2m", 15.0);
+      double humidity = extractDouble(currentSection, "relative_humidity_2m", 65.0) / 100.0;
+      double rainfall = extractDouble(currentSection, "precipitation", 0.0);
+      double pressure = extractDouble(currentSection, "surface_pressure", 1013.25);
+      double windSpeed = extractDouble(currentSection, "wind_speed_10m", 0.0);
+      double soil0 = extractDouble(currentSection, "soil_moisture_0_to_1cm", -1.0);
+      double soil1 = extractDouble(currentSection, "soil_moisture_3_to_9cm", -1.0);
       double soilMoisture = (soil0 > 0 && soil1 > 0) ? (soil0 + soil1) / 2.0
           : (soil0 > 0 ? soil0 : (soil1 > 0 ? soil1 : 0.3));
-      double rainfall24h = extractHourlyPrecipitation(body, 24);
-      return new MeteorologyResult(temperature, humidity, rainfall, rainfall24h, pressure, windSpeed, soilMoisture);
+      double[] daily = extractDailyPrecipitation(body);
+      double rainfall24h = daily.length > 0 ? daily[daily.length - 1] : extractHourlyPrecipitation(body, 24);
+      double rainfall7d = sumTail(daily, 7);
+      double rainfall30d = sumTail(daily, 30);
+      return new MeteorologyResult(temperature, humidity, rainfall, rainfall24h,
+          rainfall7d, rainfall30d, pressure, windSpeed, soilMoisture);
     } catch (Exception e) {
       log.warn("[ExternalData] Open-Meteo 解析失败 lat={} lon={} msg={}", lat, lon, e.getMessage());
       return null;
     }
+  }
+
+  /** 截取顶层 JSON 对象（current/hourly/daily）内容，避免命中 *_units 的同名 key。 */
+  private String jsonSection(String body, String key) {
+    int keyIdx = body.indexOf("\"" + key + "\"");
+    if (keyIdx < 0) return "";
+    int colon = body.indexOf(':', keyIdx);
+    int start = colon < 0 ? -1 : body.indexOf('{', colon);
+    if (start < 0) return "";
+    int end = body.indexOf('}', start);
+    return body.substring(start + 1, end < 0 ? body.length() : end);
   }
 
   private EarthquakeResult parseEarthquake(String body, double lat, double lon) {
@@ -602,14 +622,46 @@ public class ExternalDataService {
     return (q1 > 0 && q2 > q1) ? body.substring(q1 + 1, q2) : null;
   }
 
+  /** 解析 daily.precipitation_sum（过去 30 天 + 今天），保持数组顺序。 */
+  private double[] extractDailyPrecipitation(String body) {
+    String daily = jsonSection(body, "daily");
+    int keyIdx = daily.indexOf("\"precipitation_sum\"");
+    if (keyIdx < 0) return new double[0];
+    int arrStart = daily.indexOf('[', keyIdx);
+    if (arrStart < 0) return new double[0];
+    int arrEnd = daily.indexOf(']', arrStart);
+    if (arrEnd < 0) return new double[0];
+    String[] tokens = daily.substring(arrStart + 1, arrEnd).split(",");
+    double[] values = new double[tokens.length];
+    int count = 0;
+    for (String token : tokens) {
+      try {
+        values[count++] = Double.parseDouble(token.trim());
+      } catch (NumberFormatException ignored) {
+        // 跳过 null 等非数值
+      }
+    }
+    return java.util.Arrays.copyOf(values, count);
+  }
+
+  /** 取数组末尾 N 项之和；用于 7d / 30d 累计。 */
+  private double sumTail(double[] values, int n) {
+    double sum = 0.0;
+    for (int i = Math.max(0, values.length - n); i < values.length; i++) {
+      sum += values[i];
+    }
+    return sum;
+  }
+
   private double extractHourlyPrecipitation(String body, int hours) {
-    int hourlyIdx = body.indexOf("\"precipitation\"");
+    String hourly = jsonSection(body, "hourly");
+    int hourlyIdx = hourly.indexOf("\"precipitation\"");
     if (hourlyIdx < 0) return 0.0;
-    int arrStart = body.indexOf('[', hourlyIdx);
+    int arrStart = hourly.indexOf('[', hourlyIdx);
     if (arrStart < 0) return 0.0;
-    int arrEnd = body.indexOf(']', arrStart);
+    int arrEnd = hourly.indexOf(']', arrStart);
     if (arrEnd < 0) return 0.0;
-    String arr = body.substring(arrStart + 1, arrEnd);
+    String arr = hourly.substring(arrStart + 1, arrEnd);
     double sum = 0.0;
     int count = 0;
     for (String token : arr.split(",")) {
@@ -693,7 +745,8 @@ public class ExternalDataService {
 
   public record MeteorologyResult(
       double temperature, double humidity, double rainfallMmPerHour,
-      double rainfall24hSum, double pressure, double windSpeed, double soilMoisture) {}
+      double rainfall24hSum, double rainfall7dSum, double rainfall30dSum,
+      double pressure, double windSpeed, double soilMoisture) {}
 
   public record GpmResult(double precipitationMm) {}
 
