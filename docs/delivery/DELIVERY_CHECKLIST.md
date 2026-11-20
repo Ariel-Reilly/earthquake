@@ -138,9 +138,14 @@
   现场换机器演示前须确认演示机时区，页面预警时间应为本地时间（不再是 UTC 早 8 小时）。
 - 建议现场按 [DEMO_SCRIPT.md](DEMO_SCRIPT.md) 走一遍，并在试运行环境改密、配置真实地图/AI 服务地址。
 - 演示数据已在开发演示库刷新（执行前全库备份 + SHA256）。⚠ `DeviceOnlineChecker` 5 分钟心跳会把
-  在线数自然打回 0，**每场演示前 5 分钟内**重跑
-  `APPLY=1 node scripts/delivery/verify-demo-data-refresh.mjs`（幂等、只 UPDATE，默认只读不改写），
-  长时间彩排每 4 分钟重跑；须确认「6 在线 + **页面**预警时间今天」，生产/试运行环境不要这样保活。
+  在线数自然打回 0。**2026-11-20 起默认由 `DemoDevicePresenceScheduler` 自动保鲜**
+  （见下「八、在线设备 0/16 数据修复」，dev 环境默认开启，prod 禁用）：
+  dev compose / `start-dev.ps1` 启动后在线数持续稳定，无需人工重跑刷新脚本；
+  仅当保鲜调度被显式关闭（`DEVICE_DEMO_PRESENCE_ENABLED=false`）时，才退回旧约定——
+  **每场演示前 5 分钟内**重跑 `APPLY=1 node scripts/delivery/verify-demo-data-refresh.mjs`
+  （幂等、只 UPDATE，默认只读不改写），长时间彩排每 4 分钟重跑。
+  仍须确认「6 在线 + **页面**预警时间今天」，生产/试运行环境不要这样保活。
+
 ## 七、UI 骨架屏与加载容错批次（2026-11-20，已纳入 `v1.8.15-delivery`）
 
 > 基线 tag：`v1.8.14-delivery`；本批收口 tag：`v1.8.15-delivery`。
@@ -268,5 +273,20 @@
 - 后端单测：`DemoDevicePresenceSchedulerTest` 4/4 + `ProductionConfigValidatorTest` 9/9 = **13 passed**。
 - 前端回归：lint 0 / stylelint 0 / vitest **244** / build 成功；正式骨架门禁 **41/41 PASS**（5174 + CDP 9223）。
 - 生产安全：prod 下 `DEVICE_DEMO_PRESENCE_ENABLED=true` 会阻断启动（单测覆盖）。
+
+### 交付记录（v1.8.23）
+
+- 提交：`85980c5 fix(device): 演示设备在线保鲜，修复总览在线数 5 分钟回落 0`（9 文件 / +250 行，
+  含本检查表本章、调度器及单测、compose 与 start-dev 注入）。
+- Tag：`v1.8.23-delivery`（annotated，指向 `85980c5`；v1.8.16~22 已被其它批次占用故顺延）。
+- 本地源码包（沿用 v1.8.9~v1.8.22 惯例，`git archive` 排除 output/dist/target/pptx）：
+  - `output/delivery-verify/DisasterGuard-v1.8.23-delivery.zip`：**1309 files**
+    （较 v1.8.22 包 1306 增 3 = 调度器 + 调度器单测两个新文件 + 新增测试目录项
+    `backend/src/test/.../device/scheduler/`；两 tag 间 git diff 实测 2 新增 + 7 修改，
+    排除项命中 0），sha256 校验 OK。
+  - SHA256：`82269eaab1dbc9316bc46bdec12624b338aaaef54870e49d10801ab7ba3a262a`。
+- ⚠ 推送注意事项（与 v1.8.15 补记口径一致）：origin = GitHub `Ariel-Reilly/earthquake.git`，
+  远端**无** `release/delivery` 分支，v1.8.x tag 均未推送；`git push origin release/delivery --tags`
+  会首次上传整条分支 + 全部 delivery tag，影响面大，**本轮决策暂不推送**，留待现场演示确认后单独授权。
 
 - 甲方签字：____________________　日期：____________________
