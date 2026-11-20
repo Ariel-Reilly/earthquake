@@ -129,6 +129,18 @@ function collectFrontendCalls() {
     const rel = path.relative(ROOT, abs);
     if (!existsSync(abs)) continue;
     const src = readFileSync(abs, 'utf8');
+    // 2026-11-20：部分服务文件的 request() 帮助函数会拼接文件内定义的 *_BASE
+    // 前缀（如 satelliteCompareApi.js 的
+    //   const SENTINEL_BASE = `${API_BASE.replace(/\/$/, "")}/ai/sentinel`;
+    // 真实请求是 /api/ai/sentinel/compose）。此前一律硬拼 '/api'，
+    // 把这些调用误报成「后端缺失」缺口（POST /api/compose 等 5 条）。
+    // 这里解析文件内 `const *_BASE = \`...${...}静态后缀\`` 的静态尾部作为前缀；
+    // 仅匹配反引号模板（普通字符串赋值如 API_BASE = import.meta.env... 不受影响），
+    // 且要求后缀至少一段 /seg 路径，纯 `${API_BASE}` 无后缀的情况不会命中。
+    const baseDefM = src.match(
+      /const\s+\w*_BASE\s*=\s*`[^`]*?(\/(?:[\w-]+\/)*[\w-]+)`\s*;/
+    );
+    const basePrefix = baseDefM ? baseDefM[1] : '';
     let m;
     while ((m = callRe.exec(src)) !== null) {
       const raw = m[2]; // captured path inside the quotes
@@ -161,7 +173,7 @@ function collectFrontendCalls() {
       // 其余 ${...} 是查询串变量（前端普遍写成 `${qs}`，${qs} 自带 ? 前缀），
       // 静态无法求值，直接截断；用 [\s\S]*$ 避免 ${qs({...})} 这类嵌套括号残留。
       path = path.replace(/\$\{[\s\S]*$/, '');
-      const normalized = normalizePath('/api' + path);
+      const normalized = normalizePath('/api' + basePrefix + path);
       calls.push({ method, path: normalized, file: rel, snippet: raw });
     }
   }
