@@ -33,8 +33,12 @@ const DEFAULT_AI_SERVICE_BASE = (() => {
     import.meta.env.VITE_AI_SERVICE_BASE_URL ||
     'http://localhost:8001/api/ai'
   const base = String(raw).replace(/\/$/, '')
-  if (/\/api\/ai$/.test(base)) {return base}
-  if (/\/api$/.test(base)) {return base + '/ai'}
+  if (/\/api\/ai$/.test(base)) {
+    return base
+  }
+  if (/\/api$/.test(base)) {
+    return base + '/ai'
+  }
   return base + '/api/ai'
 })()
 const COMPOSE_PATH = '/sentinel/compose'
@@ -76,7 +80,9 @@ export async function composeSentinelScene(req) {
   }
   const payload = await resp.json().catch(() => ({}))
   if (!payload || !payload.jobId) {
-    throw new Error('Sentinel 合成服务未返回 jobId，请确认 AI Service 已升级到带 /sentinel/compose 路由的版本')
+    throw new Error(
+      'Sentinel 合成服务未返回 jobId，请确认 AI Service 已升级到带 /sentinel/compose 路由的版本'
+    )
   }
   return /** @type {SentinelJob} */ ({
     jobId: payload.jobId,
@@ -90,7 +96,9 @@ export async function composeSentinelScene(req) {
  * 拉取一次任务状态。失败时抛 Error。
  */
 export async function fetchSentinelJob(jobId) {
-  if (!jobId) {throw new Error('fetchSentinelJob: jobId 必填')}
+  if (!jobId) {
+    throw new Error('fetchSentinelJob: jobId 必填')
+  }
   const url = `${DEFAULT_AI_SERVICE_BASE}${STATUS_PATH(jobId)}`
   const resp = await fetch(url, { headers: { Accept: 'application/json' } })
   if (!resp.ok) {
@@ -125,8 +133,12 @@ export async function pollSentinelJob(jobId, onProgress, options = {}) {
 
   // 第一次立即拉取，给 UI 立刻一个反馈
   let job = await fetchSentinelJob(jobId)
-  if (onProgress) {safeCallback(onProgress, job)}
-  if (isTerminalStatus(job.status)) {return job}
+  if (onProgress) {
+    safeCallback(onProgress, job)
+  }
+  if (isTerminalStatus(job.status)) {
+    return job
+  }
 
   while (Date.now() - startedAt < timeoutMs) {
     if (signal && signal.aborted) {
@@ -134,8 +146,12 @@ export async function pollSentinelJob(jobId, onProgress, options = {}) {
     }
     await sleep(intervalMs)
     job = await fetchSentinelJob(jobId)
-    if (onProgress) {safeCallback(onProgress, job)}
-    if (isTerminalStatus(job.status)) {return job}
+    if (onProgress) {
+      safeCallback(onProgress, job)
+    }
+    if (isTerminalStatus(job.status)) {
+      return job
+    }
   }
   throw new Error(`Sentinel 合成任务超时（>${Math.round(timeoutMs / 1000)}s）`)
 }
@@ -144,7 +160,9 @@ export async function pollSentinelJob(jobId, onProgress, options = {}) {
  * 取消一个 Sentinel 合成任务。已处于终态时静默成功。
  */
 export async function cancelSentinelJob(jobId) {
-  if (!jobId) {return false}
+  if (!jobId) {
+    return false
+  }
   const url = `${DEFAULT_AI_SERVICE_BASE}${STATUS_PATH(jobId)}/cancel`
   try {
     const resp = await fetch(url, { method: 'POST' })
@@ -164,7 +182,9 @@ export async function cancelSentinelJob(jobId) {
  * @returns {string}
  */
 export function resolveSentinelTileUrl(url) {
-  if (!url) {return ''}
+  if (!url) {
+    return ''
+  }
   return String(url)
 }
 
@@ -192,12 +212,20 @@ function sanitizeComposeRequest(req) {
 }
 
 function sanitizeBbox(bbox) {
-  if (!Array.isArray(bbox) || bbox.length !== 4) {return null}
+  if (!Array.isArray(bbox) || bbox.length !== 4) {
+    return null
+  }
   const [minLon, minLat, maxLon, maxLat] = bbox.map(Number)
-  if (![minLon, minLat, maxLon, maxLat].every(Number.isFinite)) {return null}
-  if (minLon >= maxLon || minLat >= maxLat) {return null}
+  if (![minLon, minLat, maxLon, maxLat].every(Number.isFinite)) {
+    return null
+  }
+  if (minLon >= maxLon || minLat >= maxLat) {
+    return null
+  }
   // 简单合法性：经度 -180..180，纬度 -85..85（WMS/WMTS 限制）
-  if (minLon < -180 || maxLon > 180 || minLat < -85 || maxLat > 85) {return null}
+  if (minLon < -180 || maxLon > 180 || minLat < -85 || maxLat > 85) {
+    return null
+  }
   return [minLon, minLat, maxLon, maxLat]
 }
 
@@ -235,7 +263,9 @@ async function safeReadText(resp) {
  * UI 用：把"当前合成状态"映射成展示文案。
  */
 export function describeJobStatus(job) {
-  if (!job) {return { label: '空闲', tone: 'idle', percent: 0 }}
+  if (!job) {
+    return { label: '空闲', tone: 'idle', percent: 0 }
+  }
   const percent = Math.max(0, Math.min(100, Math.round(job.progress || 0)))
   switch (job.status) {
     case 'queued':

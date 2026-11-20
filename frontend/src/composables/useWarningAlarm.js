@@ -21,10 +21,7 @@ import { nextTick, onBeforeUnmount, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useRealtimeStore } from '../stores/realtime'
 import { startRealtimeSync, stopRealtimeSync } from '../services/realtimeService'
-import {
-  extractWarnings,
-  pickNewAlarmWarnings,
-} from '../utils/alarmWarning'
+import { extractWarnings, pickNewAlarmWarnings } from '../utils/alarmWarning'
 
 /** 已见 ID 的保留上限，避免长时间挂机内存无限增长。 */
 const KNOWN_ID_LIMIT = 1000

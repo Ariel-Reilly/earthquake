@@ -33,7 +33,9 @@ const NSMC_MANIFEST_BASE = 'http://img.nsmc.org.cn/PORTAL/NSMC/XML'
 const USE_BACKEND = (() => {
   try {
     const v = import.meta.env?.VITE_USE_BACKEND
-    if (v == null) {return false}
+    if (v == null) {
+      return false
+    }
     return String(v).toLowerCase() === 'true' || v === true || v === 1
   } catch (_) {
     return false
@@ -42,7 +44,11 @@ const USE_BACKEND = (() => {
 const BACKEND_BASE = (() => {
   try {
     const base = import.meta.env?.VITE_API_BASE_URL || '/api'
-    return String(base).replace(/\/$/, '').replace(/\/api$/, '') + '/api/weather'
+    return (
+      String(base)
+        .replace(/\/$/, '')
+        .replace(/\/api$/, '') + '/api/weather'
+    )
   } catch (_) {
     return '/api/weather'
   }
@@ -60,7 +66,9 @@ const _cache = new Map()
 
 function cacheGet(key) {
   const entry = _cache.get(key)
-  if (!entry) {return null}
+  if (!entry) {
+    return null
+  }
   if (Date.now() - entry.ts > entry.ttl) {
     _cache.delete(key)
     return null
@@ -76,7 +84,7 @@ function cacheSet(key, value, ttl = 5 * 60 * 1000) {
 async function fetchTextWithCorsFallback(url) {
   let lastErr
   for (const proxy of CORS_PROXIES) {
-    const target = proxy ? (proxy + encodeURIComponent(url)) : url
+    const target = proxy ? proxy + encodeURIComponent(url) : url
     try {
       const res = await fetch(target, { mode: 'cors', credentials: 'omit' })
       if (!res.ok) {
@@ -104,7 +112,9 @@ async function fetchXmlViaProxyThenDirect(manifestUrl) {
   } catch (_e) {
     // 退路：直接 fetch（无 CORS 头会被拒，但试一下也无妨）
     const res = await fetch(manifestUrl, { mode: 'cors', credentials: 'omit' })
-    if (!res.ok) {throw new Error(`HTTP ${res.status}`)}
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}`)
+    }
     const text = await res.text()
     return new DOMParser().parseFromString(text, 'text/xml')
   }
@@ -116,11 +126,15 @@ async function fetchXmlViaProxyThenDirect(manifestUrl) {
 async function fetchNsmcLatest(manifestPath) {
   const cacheKey = `nsmc:${manifestPath}`
   const cached = cacheGet(cacheKey)
-  if (cached) {return cached}
+  if (cached) {
+    return cached
+  }
   const xmlUrl = `${NSMC_MANIFEST_BASE}/${manifestPath}`
   const doc = await fetchXmlViaProxyThenDirect(xmlUrl)
   const node = doc.querySelector('image')
-  if (!node) {throw new Error('NSMC manifest empty')}
+  if (!node) {
+    throw new Error('NSMC manifest empty')
+  }
   const url = node.getAttribute('url')
   const time = node.getAttribute('time') || ''
   const result = { url, time, fetchedAt: new Date().toISOString() }
@@ -135,7 +149,9 @@ async function fetchNsmcLatest(manifestPath) {
 async function fetchNmcProductLatest(kind) {
   const cacheKey = `nmc:product:${kind}`
   const cached = cacheGet(cacheKey)
-  if (cached) {return cached}
+  if (cached) {
+    return cached
+  }
   const now = new Date()
   for (let i = 0; i < 96; i++) {
     const t = new Date(now.getTime() - i * 6 * 60 * 1000)
@@ -145,7 +161,9 @@ async function fetchNmcProductLatest(kind) {
     const hh = String(t.getHours()).padStart(2, '0')
     const mn = String(t.getMinutes()).padStart(2, '0')
     const candidate = buildNmcProductUrl(kind, yy, mo, dd, hh, mn)
-    if (!candidate) {throw new Error(`Unknown NMC product kind: ${kind}`)}
+    if (!candidate) {
+      throw new Error(`Unknown NMC product kind: ${kind}`)
+    }
     // 对纯图片的探测直接 fetch 走图片模式（用 HEAD，但 mode:no-cors 让浏览器不校验 CORS）
     try {
       // <img> 探测是最稳的（浏览器天然容忍跨域图片，且能判断尺寸是否有效）
@@ -153,7 +171,9 @@ async function fetchNmcProductLatest(kind) {
         const img = new Image()
         let resolved = false
         const done = (v) => {
-          if (resolved) {return}
+          if (resolved) {
+            return
+          }
           resolved = true
           resolve(v)
         }
@@ -207,7 +227,6 @@ function buildNmcProductUrl(kind, yy, mm, dd, hh, mn) {
       return null
   }
 }
-
 
 /**
  * 卫星云图：风云四号 A 星 中国区域 多通道合成图。
@@ -288,10 +307,12 @@ function wrapResult(settled) {
  *  - VITE_USE_BACKEND=true 时优先走 /api/weather/products
  *  - 后端返回结构与前端"自拉"模式兼容：每个 product 含 url/timestamp / 等字段
  *  - 图片源仍由官方域提供；前端 <img> 直连，与 NSMC/NMC 一致
-  */
+ */
 
 function normalizeBackendProduct(p) {
-  if (!p) {return p}
+  if (!p) {
+    return p
+  }
   return {
     ok: !!p.ok,
     url: p.url || '',
@@ -302,7 +323,12 @@ function normalizeBackendProduct(p) {
     label: p.label || '',
     description: p.description || '',
     extent: p.extent
-      ? [p.extent.minLon ?? p.extent[0], p.extent.minLat ?? p.extent[1], p.extent.maxLon ?? p.extent[2], p.extent.maxLat ?? p.extent[3]]
+      ? [
+          p.extent.minLon ?? p.extent[0],
+          p.extent.minLat ?? p.extent[1],
+          p.extent.maxLon ?? p.extent[2],
+          p.extent.maxLat ?? p.extent[3],
+        ]
       : null,
     refreshIntervalMinutes: p.refreshIntervalMinutes ?? 0,
   }
@@ -318,7 +344,9 @@ async function readBackendProducts() {
   const list = Array.isArray(payload?.data?.products) ? payload.data.products : []
   const products = {}
   for (const p of list) {
-    if (p && p.kind) {products[p.kind] = normalizeBackendProduct(p)}
+    if (p && p.kind) {
+      products[p.kind] = normalizeBackendProduct(p)
+    }
   }
   return {
     products,
@@ -331,7 +359,9 @@ async function readBackendProducts() {
 async function readBackendLatest(kind) {
   const url = `${BACKEND_BASE}/products/latest?kind=${encodeURIComponent(kind)}`
   const res = await fetch(url, { credentials: 'include' })
-  if (!res.ok) {throw new Error(`weather backend HTTP ${res.status}`)}
+  if (!res.ok) {
+    throw new Error(`weather backend HTTP ${res.status}`)
+  }
   const payload = await res.json()
   return normalizeBackendProduct(payload?.data)
 }
@@ -367,7 +397,12 @@ export async function getAllProducts() {
     snow24h: wrapResult(snow24h),
     drought: wrapResult(drought),
   }
-  return { products, fetchedAt: new Date().toISOString(), total: 6, available: Object.values(products).filter((p) => p.ok).length }
+  return {
+    products,
+    fetchedAt: new Date().toISOString(),
+    total: 6,
+    available: Object.values(products).filter((p) => p.ok).length,
+  }
 }
 
 /** 拉取单个产品最新帧。后端模式下走 /api/weather/products/latest；否则走原有探测函数。 */
@@ -380,13 +415,20 @@ export async function getProductLatest(kind) {
     }
   }
   switch (kind) {
-    case 'satellite': return getSatelliteCloudLatest()
-    case 'satelliteDisk': return getSatelliteCloudDiskLatest()
-    case 'radar': return getRadarLatest()
-    case 'precip24h': return getPrecipitation24hLatest()
-    case 'snow24h': return getSnow24hLatest()
-    case 'drought': return getDroughtLatest()
-    default: throw new Error(`unknown weather product kind: ${kind}`)
+    case 'satellite':
+      return getSatelliteCloudLatest()
+    case 'satelliteDisk':
+      return getSatelliteCloudDiskLatest()
+    case 'radar':
+      return getRadarLatest()
+    case 'precip24h':
+      return getPrecipitation24hLatest()
+    case 'snow24h':
+      return getSnow24hLatest()
+    case 'drought':
+      return getDroughtLatest()
+    default:
+      throw new Error(`unknown weather product kind: ${kind}`)
   }
 }
 
@@ -403,7 +445,7 @@ export function isWeatherBackendEnabled() {
  *  - NMC 雷达/降水/降雪/干旱：中国大陆及周边，标准等经纬度
  *
  *  这些范围用于 OpenLayers ImageLayer 的 imageExtent 配置。
-  */
+ */
 
 export const EXTENT_CHINA_FY4A = [70, 0, 140, 60]
 export const EXTENT_FY4A_DISK = [60, -60, 220, 60]
@@ -412,7 +454,7 @@ export const EXTENT_CHINA_NMC = [73, 16, 135, 54]
 /*
  *  图例配置
  *  各 overlay 的色档说明，给 UI 上的图例渲染用。
-  */
+ */
 export const WEATHER_LEGENDS = {
   radar: {
     title: '雷达回波',

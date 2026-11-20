@@ -3,10 +3,9 @@
  *
  * 前端不直接访问 ai-service，统一走后端网关（后端在 AI 不可用时自动降级）。
  */
-import { getAuthToken, redirectToLogin } from "../../../stores/auth.js";
+import { getAuthToken, redirectToLogin } from '../../../stores/auth.js'
 
-const API_BASE =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'
 
 /**
  * 统一的 fetch 包装（P2-4）：AI 页面此前 13 处裸 fetch 各自处理错误，
@@ -14,31 +13,31 @@ const API_BASE =
  * 这里统一拦截 401，其余状态码仍由各调用点自行判断。
  */
 async function fetchApi(url, init) {
-  const resp = await globalThis.fetch(url, init);
+  const resp = await globalThis.fetch(url, init)
   if (resp.status === 401) {
-    redirectToLogin();
-    throw new Error("登录已过期，请重新登录");
+    redirectToLogin()
+    throw new Error('登录已过期，请重新登录')
   }
-  return resp;
+  return resp
 }
 
 async function request(path, options = {}) {
-  const token = getAuthToken();
+  const token = getAuthToken()
   const headers = {
-    "Content-Type": "application/json",
+    'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...(options.headers || {}),
-  };
-  const resp = await fetchApi(`${API_BASE}${path}`, { ...options, headers });
+  }
+  const resp = await fetchApi(`${API_BASE}${path}`, { ...options, headers })
   // 401 已在 fetchApi 内统一处理（跳登录 + 抛中文提示），这里只处理其它失败码
   if (!resp.ok) {
-    throw new Error(`AI API ${resp.status}: ${resp.statusText}`);
+    throw new Error(`AI API ${resp.status}: ${resp.statusText}`)
   }
-  const payload = await resp.json().catch(() => null);
+  const payload = await resp.json().catch(() => null)
   if (payload?.code !== 0) {
-    throw new Error(payload?.message || "AI 服务返回异常");
+    throw new Error(payload?.message || 'AI 服务返回异常')
   }
-  return payload.data;
+  return payload.data
 }
 
 export const aiApi = {
@@ -48,22 +47,25 @@ export const aiApi = {
    * @param {string} [modelType='yolo'] 模型类型，预留扩展
    * @returns {Promise<{detections, model, mock, detection_count}>}
    */
-  async detect(file, modelType = "yolo") {
-    const token = getAuthToken();
-    const form = new FormData();
-    form.append("file", file);
-    form.append("modelType", modelType);
-    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+  async detect(file, modelType = 'yolo') {
+    const token = getAuthToken()
+    const form = new FormData()
+    form.append('file', file)
+    form.append('modelType', modelType)
+    const headers = token ? { Authorization: `Bearer ${token}` } : {}
     const resp = await fetchApi(`${API_BASE}/ai/detect`, {
-      method: "POST",
+      method: 'POST',
       headers,
       body: form,
-    });
-    if (!resp.ok) {throw new Error(`AI detect ${resp.status}`);}
-    const payload = await resp.json();
-    if (payload?.code !== 0)
-      {throw new Error(payload?.message || "AI detect failed");}
-    return payload.data;
+    })
+    if (!resp.ok) {
+      throw new Error(`AI detect ${resp.status}`)
+    }
+    const payload = await resp.json()
+    if (payload?.code !== 0) {
+      throw new Error(payload?.message || 'AI detect failed')
+    }
+    return payload.data
   },
 
   /**
@@ -74,10 +76,10 @@ export const aiApi = {
    * @param {number[]} history 历史值序列
    */
   async forecast(deviceCode, metric, horizon = 7, history) {
-    return request("/ai/forecast", {
-      method: "POST",
+    return request('/ai/forecast', {
+      method: 'POST',
       body: JSON.stringify({ deviceCode, metric, horizon, history }),
-    });
+    })
   },
 
   /**
@@ -86,10 +88,10 @@ export const aiApi = {
    * @param {number[]} data
    */
   async anomaly(deviceCode, data) {
-    return request("/ai/anomaly", {
-      method: "POST",
+    return request('/ai/anomaly', {
+      method: 'POST',
       body: JSON.stringify({ deviceCode, data }),
-    });
+    })
   },
 
   /**
@@ -98,10 +100,10 @@ export const aiApi = {
    * @param {Record<string, number>} factors 风险因子字典
    */
   async fusionRisk(hazardCode, factors) {
-    return request("/ai/fusion-risk", {
-      method: "POST",
+    return request('/ai/fusion-risk', {
+      method: 'POST',
       body: JSON.stringify({ hazardCode, factors }),
-    });
+    })
   },
 
   /**
@@ -109,16 +111,19 @@ export const aiApi = {
    * @param {string} hazardCode 灾害点编码
    */
   async fusionRiskAuto(hazardCode) {
-    const token = getAuthToken();
+    const token = getAuthToken()
     const resp = await fetchApi(
       `${API_BASE}/ai/fusion-risk/auto?hazardCode=${encodeURIComponent(hazardCode)}`,
-      { headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) } },
-    );
-    if (!resp.ok) {throw new Error(`AI fusion-risk/auto ${resp.status}`);}
-    const payload = await resp.json();
-    if (payload?.code !== 0)
-      {throw new Error(payload?.message || "AI fusion failed");}
-    return payload.data;
+      { headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) } }
+    )
+    if (!resp.ok) {
+      throw new Error(`AI fusion-risk/auto ${resp.status}`)
+    }
+    const payload = await resp.json()
+    if (payload?.code !== 0) {
+      throw new Error(payload?.message || 'AI fusion failed')
+    }
+    return payload.data
   },
 
   /**
@@ -128,34 +133,32 @@ export const aiApi = {
    * @param {number} [horizon=7] 预测步数
    * @param {number} [historyLimit=30] 拉取历史条数
    */
-  async forecastAuto(
-    deviceCode,
-    metric = "displacement",
-    horizon = 7,
-    historyLimit = 30,
-  ) {
-    const token = getAuthToken();
+  async forecastAuto(deviceCode, metric = 'displacement', horizon = 7, historyLimit = 30) {
+    const token = getAuthToken()
     const params = new URLSearchParams({
       deviceCode,
       metric,
       horizon,
       historyLimit,
-    });
+    })
     const resp = await fetchApi(`${API_BASE}/ai/forecast/auto?${params}`, {
       headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-    });
-    if (!resp.ok) {throw new Error(`AI forecast/auto ${resp.status}`);}
-    const payload = await resp.json();
-    if (payload?.code !== 0)
-      {throw new Error(payload?.message || "AI forecast failed");}
-    return payload.data;
+    })
+    if (!resp.ok) {
+      throw new Error(`AI forecast/auto ${resp.status}`)
+    }
+    const payload = await resp.json()
+    if (payload?.code !== 0) {
+      throw new Error(payload?.message || 'AI forecast failed')
+    }
+    return payload.data
   },
 
   /** 查询 AI 分析历史（针对某个 deviceCode/hazardCode）。 */
   async listRecords(businessType, businessCode) {
     return request(
-      `/ai/analysis?businessType=${businessType}&businessCode=${encodeURIComponent(businessCode)}`,
-    );
+      `/ai/analysis?businessType=${businessType}&businessCode=${encodeURIComponent(businessCode)}`
+    )
   },
 
   /**
@@ -172,16 +175,19 @@ export const aiApi = {
    * }>}
    */
   async comprehensiveAnalysis(hazardCode) {
-    const token = getAuthToken();
+    const token = getAuthToken()
     const resp = await fetchApi(
       `${API_BASE}/ai/comprehensive-analysis?hazardCode=${encodeURIComponent(hazardCode)}`,
-      { headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) } },
-    );
-    if (!resp.ok) {throw new Error(`AI comprehensive-analysis ${resp.status}`);}
-    const payload = await resp.json();
-    if (payload?.code !== 0)
-      {throw new Error(payload?.message || "AI 综合分析失败");}
-    return payload.data;
+      { headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) } }
+    )
+    if (!resp.ok) {
+      throw new Error(`AI comprehensive-analysis ${resp.status}`)
+    }
+    const payload = await resp.json()
+    if (payload?.code !== 0) {
+      throw new Error(payload?.message || 'AI 综合分析失败')
+    }
+    return payload.data
   },
 
   /**
@@ -193,29 +199,35 @@ export const aiApi = {
    * }>>}
    */
   async comprehensiveAnalysisAll() {
-    const token = getAuthToken();
+    const token = getAuthToken()
     const resp = await fetchApi(`${API_BASE}/ai/comprehensive-analysis/all`, {
       headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-    });
-    if (!resp.ok) {throw new Error(`AI comprehensive-analysis/all ${resp.status}`);}
-    const payload = await resp.json();
-    if (payload?.code !== 0)
-      {throw new Error(payload?.message || "AI 综合分析列表失败");}
-    return payload.data ?? [];
+    })
+    if (!resp.ok) {
+      throw new Error(`AI comprehensive-analysis/all ${resp.status}`)
+    }
+    const payload = await resp.json()
+    if (payload?.code !== 0) {
+      throw new Error(payload?.message || 'AI 综合分析列表失败')
+    }
+    return payload.data ?? []
   },
 
   /** 强制刷新所有 hazard 的综合分析（管理端"一键分析"按钮）。 */
   async comprehensiveAnalysisRefresh() {
-    const token = getAuthToken();
+    const token = getAuthToken()
     const resp = await fetchApi(`${API_BASE}/ai/comprehensive-analysis/refresh`, {
-      method: "POST",
+      method: 'POST',
       headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-    });
-    if (!resp.ok) {throw new Error(`AI refresh ${resp.status}`);}
-    const payload = await resp.json();
-    if (payload?.code !== 0)
-      {throw new Error(payload?.message || "AI 刷新失败");}
-    return payload.data;
+    })
+    if (!resp.ok) {
+      throw new Error(`AI refresh ${resp.status}`)
+    }
+    const payload = await resp.json()
+    if (payload?.code !== 0) {
+      throw new Error(payload?.message || 'AI 刷新失败')
+    }
+    return payload.data
   },
 
   /**
@@ -229,20 +241,23 @@ export const aiApi = {
    * @returns {Promise<{ intent, reply, attachment }>}
    */
   async chat(message) {
-    const token = getAuthToken();
+    const token = getAuthToken()
     const resp = await fetchApi(`${API_BASE}/ai/chat`, {
-      method: "POST",
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
+        'Content-Type': 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body: JSON.stringify({ message }),
-    });
-    if (!resp.ok) {throw new Error(`AI chat ${resp.status}`);}
-    const payload = await resp.json();
-    if (payload?.code !== 0)
-      {throw new Error(payload?.message || "AI 聊天失败");}
-    return payload.data;
+    })
+    if (!resp.ok) {
+      throw new Error(`AI chat ${resp.status}`)
+    }
+    const payload = await resp.json()
+    if (payload?.code !== 0) {
+      throw new Error(payload?.message || 'AI 聊天失败')
+    }
+    return payload.data
   },
 
   /**
@@ -255,16 +270,19 @@ export const aiApi = {
    * @param {string} hazardCode 灾害点编码
    */
   async disasterAssessment(hazardCode) {
-    const token = getAuthToken();
+    const token = getAuthToken()
     const resp = await fetchApi(
       `${API_BASE}/ai/disaster-assessment?hazardCode=${encodeURIComponent(hazardCode)}`,
-      { headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) } },
-    );
-    if (!resp.ok) {throw new Error(`AI disaster-assessment ${resp.status}`);}
-    const payload = await resp.json();
-    if (payload?.code !== 0)
-      {throw new Error(payload?.message || "AI 灾害评估失败");}
-    return payload.data;
+      { headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) } }
+    )
+    if (!resp.ok) {
+      throw new Error(`AI disaster-assessment ${resp.status}`)
+    }
+    const payload = await resp.json()
+    if (payload?.code !== 0) {
+      throw new Error(payload?.message || 'AI 灾害评估失败')
+    }
+    return payload.data
   },
 
   /**
@@ -279,27 +297,32 @@ export const aiApi = {
    * @returns {Promise<object>} 落库评分（riskLevel/riskScore/analyzedAt/dimensions/...）
    */
   async disasterAssessmentCached(hazardCode) {
-    const token = getAuthToken();
+    const token = getAuthToken()
     const resp = await fetchApi(
       `${API_BASE}/ai/comprehensive-analysis/cached?hazardCode=${encodeURIComponent(hazardCode)}`,
-      { headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) } },
-    );
-    if (!resp.ok) {throw new Error(`AI comprehensive-analysis/cached ${resp.status}`);}
-    const payload = await resp.json();
-    if (payload?.code !== 0 || !payload?.data)
-      {throw new Error(payload?.message || "暂无落库评分");}
-    return payload.data;
+      { headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) } }
+    )
+    if (!resp.ok) {
+      throw new Error(`AI comprehensive-analysis/cached ${resp.status}`)
+    }
+    const payload = await resp.json()
+    if (payload?.code !== 0 || !payload?.data) {
+      throw new Error(payload?.message || '暂无落库评分')
+    }
+    return payload.data
   },
 
   /** 获取灾害评估字典（六大类型 + 关注度标签 + 风险等级） */
   async disasterAssessmentStatus() {
-    const token = getAuthToken();
+    const token = getAuthToken()
     const resp = await fetchApi(`${API_BASE}/ai/disaster-assessment/status`, {
       headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-    });
-    if (!resp.ok) {throw new Error(`AI disaster-assessment/status ${resp.status}`);}
-    const payload = await resp.json();
-    return payload.data ?? {};
+    })
+    if (!resp.ok) {
+      throw new Error(`AI disaster-assessment/status ${resp.status}`)
+    }
+    const payload = await resp.json()
+    return payload.data ?? {}
   },
 
   /**
@@ -317,19 +340,23 @@ export const aiApi = {
    * @param {string} [payload.note]
    */
   async submitFeedback(payload) {
-    const token = getAuthToken();
+    const token = getAuthToken()
     const resp = await fetchApi(`${API_BASE}/ai/feedback`, {
-      method: "POST",
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
+        'Content-Type': 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body: JSON.stringify(payload),
-    });
-    if (!resp.ok) {throw new Error(`AI feedback ${resp.status}`);}
-    const json = await resp.json();
-    if (json?.code !== 0) {throw new Error(json?.message || "AI 反馈提交失败");}
-    return json.data;
+    })
+    if (!resp.ok) {
+      throw new Error(`AI feedback ${resp.status}`)
+    }
+    const json = await resp.json()
+    if (json?.code !== 0) {
+      throw new Error(json?.message || 'AI 反馈提交失败')
+    }
+    return json.data
   },
 
   /**
@@ -341,11 +368,13 @@ export const aiApi = {
     const AI_BASE =
       import.meta.env.VITE_AI_SERVICE_BASE ||
       import.meta.env.VITE_AI_SERVICE_BASE_URL ||
-      "http://localhost:8001/api/ai";
-    const resp = await fetchApi(`${AI_BASE}/feedback/stats`);
-    if (!resp.ok) {throw new Error(`AI feedback/stats ${resp.status}`);}
-    const json = await resp.json();
-    return json.data ?? {};
+      'http://localhost:8001/api/ai'
+    const resp = await fetchApi(`${AI_BASE}/feedback/stats`)
+    if (!resp.ok) {
+      throw new Error(`AI feedback/stats ${resp.status}`)
+    }
+    const json = await resp.json()
+    return json.data ?? {}
   },
 
   /**
@@ -354,30 +383,38 @@ export const aiApi = {
    * @returns {Promise<{model_loaded, model_path, version, trained_at, val_metrics, feature_importance, history_files, ...}>}
    */
   async getModelInfo() {
-    const token = getAuthToken();
+    const token = getAuthToken()
     const resp = await fetchApi(`${API_BASE}/ai/model/info`, {
       headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-    });
-    if (!resp.ok) {throw new Error(`AI model/info ${resp.status}`);}
-    const json = await resp.json();
-    if (json?.code !== 0) {throw new Error(json?.message || "AI 模型信息查询失败");}
-    return json.data ?? {};
+    })
+    if (!resp.ok) {
+      throw new Error(`AI model/info ${resp.status}`)
+    }
+    const json = await resp.json()
+    if (json?.code !== 0) {
+      throw new Error(json?.message || 'AI 模型信息查询失败')
+    }
+    return json.data ?? {}
   },
 
   /** 重载磁盘模型（训练后热加载）。 */
   async reloadModel() {
-    const token = getAuthToken();
+    const token = getAuthToken()
     const resp = await fetchApi(`${API_BASE}/ai/model/reload`, {
-      method: "POST",
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
+        'Content-Type': 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-    });
-    if (!resp.ok) {throw new Error(`AI model/reload ${resp.status}`);}
-    const json = await resp.json();
-    if (json?.code !== 0) {throw new Error(json?.message || "AI 模型重载失败");}
-    return json.data ?? {};
+    })
+    if (!resp.ok) {
+      throw new Error(`AI model/reload ${resp.status}`)
+    }
+    const json = await resp.json()
+    if (json?.code !== 0) {
+      throw new Error(json?.message || 'AI 模型重载失败')
+    }
+    return json.data ?? {}
   },
 
   /**
@@ -399,21 +436,29 @@ export const aiApi = {
    * @param {{bbox?:number[], timeRangeHours?:number}} options
    */
   async analyzeSocialMedia(texts, options = {}) {
-    const token = getAuthToken();
-    const body = { texts };
-    if (options.bbox) {body.bbox = options.bbox;}
-    if (options.timeRangeHours) {body.time_range_hours = options.timeRangeHours;}
+    const token = getAuthToken()
+    const body = { texts }
+    if (options.bbox) {
+      body.bbox = options.bbox
+    }
+    if (options.timeRangeHours) {
+      body.time_range_hours = options.timeRangeHours
+    }
     const resp = await fetchApi(`${API_BASE}/ai/social-media/analyze`, {
-      method: "POST",
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
+        'Content-Type': 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body: JSON.stringify(body),
-    });
-    if (!resp.ok) {throw new Error(`AI social-media ${resp.status}`);}
-    const json = await resp.json();
-    if (json?.code !== 0) {throw new Error(json?.message || "AI 舆情分析失败");}
-    return json.data ?? {};
+    })
+    if (!resp.ok) {
+      throw new Error(`AI social-media ${resp.status}`)
+    }
+    const json = await resp.json()
+    if (json?.code !== 0) {
+      throw new Error(json?.message || 'AI 舆情分析失败')
+    }
+    return json.data ?? {}
   },
-};
+}

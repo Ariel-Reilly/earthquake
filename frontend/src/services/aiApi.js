@@ -1,1 +1,1 @@
-export * from './_architecture/domain/aiApi.js';
+export * from './_architecture/domain/aiApi.js'

@@ -99,9 +99,7 @@ export async function fetchDeviceMap(baseUrl) {
       demoReason: failure?.message || '未知错误',
     }
   }
-  throw new Error(
-    `设备地图数据加载失败（不回退演示数据）：${failure?.message || '未知错误'}`,
-  )
+  throw new Error(`设备地图数据加载失败（不回退演示数据）：${failure?.message || '未知错误'}`)
 }
 
 /**
@@ -144,7 +142,9 @@ export async function regenerateTrajectories(baseUrl) {
     const resp = await fetchWithAuth(url, { method: 'POST' })
     if (resp.ok) {
       const payload = await resp.json().catch(() => null)
-      if (payload && payload.code === 0) {return payload.data}
+      if (payload && payload.code === 0) {
+        return payload.data
+      }
     }
   } catch (_e) {
     // ignore
@@ -156,9 +156,15 @@ export async function regenerateTrajectories(baseUrl) {
  * 把设备列表按在线状态着色。返回给前端用于 marker 颜色选择。
  */
 export function statusColor(onlineStatus) {
-  if (onlineStatus === '在线') {return '#16a34a'}
-  if (onlineStatus === '离线') {return '#94a3b8'}
-  if (onlineStatus === '故障') {return '#dc2626'}
+  if (onlineStatus === '在线') {
+    return '#16a34a'
+  }
+  if (onlineStatus === '离线') {
+    return '#94a3b8'
+  }
+  if (onlineStatus === '故障') {
+    return '#dc2626'
+  }
   return '#64748b'
 }
 
@@ -177,7 +183,7 @@ export function statusColor(onlineStatus) {
  */
 export function deviceMarkerVisual(d = {}, isSelected = false) {
   const color = statusColor(d.onlineStatus)
-  const radius = isSelected ? 10 : (d.mobile ? 7 : 6)
+  const radius = isSelected ? 10 : d.mobile ? 7 : 6
   const label = (d.deviceName || d.deviceCode || '').toString()
   return {
     color,
@@ -194,9 +200,15 @@ export function deviceMarkerVisual(d = {}, isSelected = false) {
  * 把移动子类型映射为图标。返回 SVG 字符串或 emoji，UI 自行渲染。
  */
 export function mobilityIcon(mobilityKind) {
-  if (mobilityKind === 'drone') {return 'UAV'}
-  if (mobilityKind === 'vehicle') {return 'CAR'}
-  if (mobilityKind === 'handheld') {return 'HAND'}
+  if (mobilityKind === 'drone') {
+    return 'UAV'
+  }
+  if (mobilityKind === 'vehicle') {
+    return 'CAR'
+  }
+  if (mobilityKind === 'handheld') {
+    return 'HAND'
+  }
   return 'DEV'
 }
 
@@ -204,7 +216,11 @@ export function mobilityIcon(mobilityKind) {
 
 function fetchWithAuth(url, options = {}) {
   const token = (() => {
-    try { return localStorage.getItem('disasterguard_token') || '' } catch (_e) { return '' }
+    try {
+      return localStorage.getItem('disasterguard_token') || ''
+    } catch (_e) {
+      return ''
+    }
   })()
   const headers = {
     Accept: 'application/json',
@@ -220,18 +236,143 @@ function generateMockDeviceMap() {
   const nowIso = new Date().toISOString()
   // 12 台设备，4 台移动（drone/vehicle/handheld/vehicle）
   const presets = [
-    { deviceCode: 'GPS-001', deviceName: '北斗一号 监测站', deviceType: '固定倾斜仪', onlineStatus: '在线', region: 'CHENGDU-N', lon: 104.0612, lat: 30.5728, battery: 95, signal: '强' },
-    { deviceCode: 'GPS-002', deviceName: '北斗二号 监测站', deviceType: '固定雨量计', onlineStatus: '在线', region: 'CHENGDU-S', lon: 104.0809, lat: 30.5493, battery: 88, signal: '强' },
-    { deviceCode: 'GPS-003', deviceName: '北斗三号 监测站', deviceType: '固定GNSS', onlineStatus: '离线', region: 'CHENGDU-W', lon: 104.0321, lat: 30.5801, battery: 12, signal: '弱' },
-    { deviceCode: 'DRONE-001', deviceName: '巡查无人机-01', deviceType: '固定翼无人机', mobilityKind: 'drone', onlineStatus: '在线', region: 'MOBILE', lon: 104.068, lat: 30.567, battery: 76, signal: '强' },
-    { deviceCode: 'DRONE-002', deviceName: '巡查无人机-02', deviceType: '四旋翼无人机', mobilityKind: 'drone', onlineStatus: '在线', region: 'MOBILE', lon: 104.075, lat: 30.580, battery: 62, signal: '中' },
-    { deviceCode: 'VEHICLE-001', deviceName: '应急通信车-A', deviceType: '应急通信车', mobilityKind: 'vehicle', onlineStatus: '在线', region: 'MOBILE', lon: 104.052, lat: 30.556, battery: 90, signal: '强' },
-    { deviceCode: 'VEHICLE-002', deviceName: '指挥车-B', deviceType: '现场指挥车', mobilityKind: 'vehicle', onlineStatus: '在线', region: 'MOBILE', lon: 104.069, lat: 30.594, battery: 84, signal: '强' },
-    { deviceCode: 'HANDHELD-001', deviceName: '手持终端-技术员甲', deviceType: '手持巡检终端', mobilityKind: 'handheld', onlineStatus: '在线', region: 'MOBILE', lon: 104.058, lat: 30.572, battery: 45, signal: '中' },
-    { deviceCode: 'RAIN-001', deviceName: '翻斗雨量计', deviceType: '固定翻斗雨量', onlineStatus: '在线', region: 'CHENGDU-E', lon: 104.1102, lat: 30.5918, battery: 100, signal: '强' },
-    { deviceCode: 'RAIN-002', deviceName: '翻斗雨量计', deviceType: '固定翻斗雨量', onlineStatus: '故障', region: 'CHENGDU-W', lon: 104.0301, lat: 30.5420, battery: 0, signal: '无' },
-    { deviceCode: 'CAMERA-001', deviceName: '高位监控-岷江边', deviceType: '固定摄像机', onlineStatus: '在线', region: 'CHENGDU-N', lon: 104.0901, lat: 30.6012, battery: null, signal: '强' },
-    { deviceCode: 'CAMERA-002', deviceName: '高位监控-龙泉山', deviceType: '固定摄像机', onlineStatus: '在线', region: 'CHENGDU-S', lon: 104.0212, lat: 30.5301, battery: null, signal: '中' },
+    {
+      deviceCode: 'GPS-001',
+      deviceName: '北斗一号 监测站',
+      deviceType: '固定倾斜仪',
+      onlineStatus: '在线',
+      region: 'CHENGDU-N',
+      lon: 104.0612,
+      lat: 30.5728,
+      battery: 95,
+      signal: '强',
+    },
+    {
+      deviceCode: 'GPS-002',
+      deviceName: '北斗二号 监测站',
+      deviceType: '固定雨量计',
+      onlineStatus: '在线',
+      region: 'CHENGDU-S',
+      lon: 104.0809,
+      lat: 30.5493,
+      battery: 88,
+      signal: '强',
+    },
+    {
+      deviceCode: 'GPS-003',
+      deviceName: '北斗三号 监测站',
+      deviceType: '固定GNSS',
+      onlineStatus: '离线',
+      region: 'CHENGDU-W',
+      lon: 104.0321,
+      lat: 30.5801,
+      battery: 12,
+      signal: '弱',
+    },
+    {
+      deviceCode: 'DRONE-001',
+      deviceName: '巡查无人机-01',
+      deviceType: '固定翼无人机',
+      mobilityKind: 'drone',
+      onlineStatus: '在线',
+      region: 'MOBILE',
+      lon: 104.068,
+      lat: 30.567,
+      battery: 76,
+      signal: '强',
+    },
+    {
+      deviceCode: 'DRONE-002',
+      deviceName: '巡查无人机-02',
+      deviceType: '四旋翼无人机',
+      mobilityKind: 'drone',
+      onlineStatus: '在线',
+      region: 'MOBILE',
+      lon: 104.075,
+      lat: 30.58,
+      battery: 62,
+      signal: '中',
+    },
+    {
+      deviceCode: 'VEHICLE-001',
+      deviceName: '应急通信车-A',
+      deviceType: '应急通信车',
+      mobilityKind: 'vehicle',
+      onlineStatus: '在线',
+      region: 'MOBILE',
+      lon: 104.052,
+      lat: 30.556,
+      battery: 90,
+      signal: '强',
+    },
+    {
+      deviceCode: 'VEHICLE-002',
+      deviceName: '指挥车-B',
+      deviceType: '现场指挥车',
+      mobilityKind: 'vehicle',
+      onlineStatus: '在线',
+      region: 'MOBILE',
+      lon: 104.069,
+      lat: 30.594,
+      battery: 84,
+      signal: '强',
+    },
+    {
+      deviceCode: 'HANDHELD-001',
+      deviceName: '手持终端-技术员甲',
+      deviceType: '手持巡检终端',
+      mobilityKind: 'handheld',
+      onlineStatus: '在线',
+      region: 'MOBILE',
+      lon: 104.058,
+      lat: 30.572,
+      battery: 45,
+      signal: '中',
+    },
+    {
+      deviceCode: 'RAIN-001',
+      deviceName: '翻斗雨量计',
+      deviceType: '固定翻斗雨量',
+      onlineStatus: '在线',
+      region: 'CHENGDU-E',
+      lon: 104.1102,
+      lat: 30.5918,
+      battery: 100,
+      signal: '强',
+    },
+    {
+      deviceCode: 'RAIN-002',
+      deviceName: '翻斗雨量计',
+      deviceType: '固定翻斗雨量',
+      onlineStatus: '故障',
+      region: 'CHENGDU-W',
+      lon: 104.0301,
+      lat: 30.542,
+      battery: 0,
+      signal: '无',
+    },
+    {
+      deviceCode: 'CAMERA-001',
+      deviceName: '高位监控-岷江边',
+      deviceType: '固定摄像机',
+      onlineStatus: '在线',
+      region: 'CHENGDU-N',
+      lon: 104.0901,
+      lat: 30.6012,
+      battery: null,
+      signal: '强',
+    },
+    {
+      deviceCode: 'CAMERA-002',
+      deviceName: '高位监控-龙泉山',
+      deviceType: '固定摄像机',
+      onlineStatus: '在线',
+      region: 'CHENGDU-S',
+      lon: 104.0212,
+      lat: 30.5301,
+      battery: null,
+      signal: '中',
+    },
   ]
   const devices = presets.map((p, index) => {
     const mobile = !!p.mobilityKind
@@ -273,8 +414,8 @@ function generateMockDeviceMap() {
 
 function generateMockTrajectory(deviceCode, samples = 60) {
   const seed = hash(deviceCode)
-  const baseLon = 104.06 + ((seed >>> 16) & 0xFF) / 255 * 0.08
-  const baseLat = 30.57 + ((seed >>> 8) & 0xFF) / 255 * 0.06
+  const baseLon = 104.06 + (((seed >>> 16) & 0xff) / 255) * 0.08
+  const baseLat = 30.57 + (((seed >>> 8) & 0xff) / 255) * 0.06
   const now = Date.now()
   const stepMs = (24 * 3600 * 1000) / samples
 
@@ -305,7 +446,7 @@ function generateMockTrajectory(deviceCode, samples = 60) {
 function hash(s) {
   let h = 0
   for (let i = 0; i < (s || '').length; i++) {
-    h = ((h << 5) - h) + s.charCodeAt(i)
+    h = (h << 5) - h + s.charCodeAt(i)
     h |= 0
   }
   return h >>> 0

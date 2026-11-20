@@ -10,10 +10,10 @@
  * 任何 *_Service 文件需要构造错误时请 import 自本模块。
  */
 
-export function createApiError(message, code = "API_ERROR") {
-  const error = new Error(message);
-  error.code = code;
-  return error;
+export function createApiError(message, code = 'API_ERROR') {
+  const error = new Error(message)
+  error.code = code
+  return error
 }
 
-export default createApiError;
+export default createApiError

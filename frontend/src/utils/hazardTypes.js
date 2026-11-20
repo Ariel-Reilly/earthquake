@@ -17,37 +17,35 @@
 
 /** @type {ReadonlyArray<{value: string, label: string}>} */
 export const HAZARD_TYPES = Object.freeze([
-  { value: "landslide", label: "滑坡" },
-  { value: "collapse", label: "崩塌" },
-  { value: "debris_flow", label: "泥石流" },
-  { value: "subsidence", label: "地面沉降" },
-  { value: "ground_fissure", label: "地裂缝" },
-  { value: "earthquake", label: "地震" },
-  { value: "flood", label: "洪水" },
-  { value: "fire", label: "火灾" },
-  { value: "typhoon", label: "台风" },
-  { value: "drought", label: "干旱" },
-  { value: "waterlogging", label: "内涝" },
+  { value: 'landslide', label: '滑坡' },
+  { value: 'collapse', label: '崩塌' },
+  { value: 'debris_flow', label: '泥石流' },
+  { value: 'subsidence', label: '地面沉降' },
+  { value: 'ground_fissure', label: '地裂缝' },
+  { value: 'earthquake', label: '地震' },
+  { value: 'flood', label: '洪水' },
+  { value: 'fire', label: '火灾' },
+  { value: 'typhoon', label: '台风' },
+  { value: 'drought', label: '干旱' },
+  { value: 'waterlogging', label: '内涝' },
 ])
 
 /** value → label，供展示层使用；未知码原样返回（不要静默吞掉）。 */
 export const HAZARD_TYPE_LABELS = Object.freeze(
-  Object.fromEntries(HAZARD_TYPES.map((o) => [o.value, o.label])),
+  Object.fromEntries(HAZARD_TYPES.map((o) => [o.value, o.label]))
 )
 
 /**
  * 中文标签 → 英文码。用于归一化后端 / 存量数据中可能残留的中文值。
  * 已是英文码时原样返回，未收录时返回 fallback。
  */
-const LABEL_TO_CODE = Object.freeze(
-  Object.fromEntries(HAZARD_TYPES.map((o) => [o.label, o.value])),
-)
+const LABEL_TO_CODE = Object.freeze(Object.fromEntries(HAZARD_TYPES.map((o) => [o.label, o.value])))
 
 /** 兼容历史写法：'地面塌陷' 曾与 '地面沉降' 混用。 */
 const ALIASES = Object.freeze({
-  地面塌陷: "subsidence",
-  塌陷: "collapse",
-  城市内涝: "waterlogging",
+  地面塌陷: 'subsidence',
+  塌陷: 'collapse',
+  城市内涝: 'waterlogging',
 })
 
 /**
@@ -57,8 +55,8 @@ const ALIASES = Object.freeze({
  * @param {string} [fallback=''] 无法识别时的回退值
  * @returns {string}
  */
-export function normalizeHazardType(v, fallback = "") {
-  if (typeof v !== "string") {
+export function normalizeHazardType(v, fallback = '') {
+  if (typeof v !== 'string') {
     return fallback
   }
   const raw = v.trim()
@@ -80,8 +78,8 @@ export function normalizeHazardType(v, fallback = "") {
  * 未知码原样返回，避免界面出现空白或 undefined。
  */
 export function hazardTypeLabel(v) {
-  if (typeof v !== "string" || !v) {
-    return v ?? "—"
+  if (typeof v !== 'string' || !v) {
+    return v ?? '—'
   }
   return HAZARD_TYPE_LABELS[v] ?? v
 }

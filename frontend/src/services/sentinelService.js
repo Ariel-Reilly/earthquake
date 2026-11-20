@@ -1,1 +1,1 @@
-export * from './_architecture/core/sentinelService.js';
+export * from './_architecture/core/sentinelService.js'

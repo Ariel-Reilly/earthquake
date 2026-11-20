@@ -1,14 +1,14 @@
 /**
  * 通知服务 API 封装
  */
-import { request, createApiError, USE_BACKEND } from "../../dashboardApi.js";
-import { withQuery } from "../../../utils/query.js";
+import { request, createApiError, USE_BACKEND } from '../../dashboardApi.js'
+import { withQuery } from '../../../utils/query.js'
 
 async function apiRequest(path, options = {}) {
   if (!USE_BACKEND) {
-    throw createApiError("需要后端服务", "BACKEND_REQUIRED");
+    throw createApiError('需要后端服务', 'BACKEND_REQUIRED')
   }
-  return request(path, options);
+  return request(path, options)
 }
 
 /**
@@ -16,10 +16,10 @@ async function apiRequest(path, options = {}) {
  * @param {Object} payload - 通知请求体
  */
 export async function sendNotification(payload) {
-  return apiRequest("/notification/send", {
-    method: "POST",
+  return apiRequest('/notification/send', {
+    method: 'POST',
     body: JSON.stringify(payload),
-  });
+  })
 }
 
 /**
@@ -27,8 +27,10 @@ export async function sendNotification(payload) {
  * @param {Object} filters - 过滤条件
  */
 export async function getNotificationRecords(filters = {}) {
-  const { bizType, disasterType, level, status, page = 1, size = 10 } = filters;
-  return apiRequest(`/notification/records${withQuery({ bizType, disasterType, level, status, page, size })}`);
+  const { bizType, disasterType, level, status, page = 1, size = 10 } = filters
+  return apiRequest(
+    `/notification/records${withQuery({ bizType, disasterType, level, status, page, size })}`
+  )
 }
 
 /**
@@ -36,7 +38,7 @@ export async function getNotificationRecords(filters = {}) {
  * @param {number} recordId - 记录 ID
  */
 export async function getNotificationReceipts(recordId) {
-  return apiRequest(`/notification/receipts/${recordId}`);
+  return apiRequest(`/notification/receipts/${recordId}`)
 }
 
 /**
@@ -44,10 +46,10 @@ export async function getNotificationReceipts(recordId) {
  * @param {Object} request - 测试请求
  */
 export async function testSend(request) {
-  return apiRequest("/notification/test", {
-    method: "POST",
+  return apiRequest('/notification/test', {
+    method: 'POST',
     body: JSON.stringify(request),
-  });
+  })
 }
 
 /**
@@ -56,7 +58,7 @@ export async function testSend(request) {
  * @param {string} level - 级别
  */
 export async function getChannelConfigs(disasterType, level) {
-  return apiRequest(`/notification/channel-config${withQuery({ disasterType, level })}`);
+  return apiRequest(`/notification/channel-config${withQuery({ disasterType, level })}`)
 }
 
 /**
@@ -64,10 +66,10 @@ export async function getChannelConfigs(disasterType, level) {
  * @param {Object} config - 渠道配置
  */
 export async function updateChannelConfig(config) {
-  return apiRequest("/notification/channel-config", {
-    method: "PUT",
+  return apiRequest('/notification/channel-config', {
+    method: 'PUT',
     body: JSON.stringify(config),
-  });
+  })
 }
 
 /**
@@ -76,6 +78,6 @@ export async function updateChannelConfig(config) {
  */
 export async function retryNotification(recordId) {
   return apiRequest(`/notification/retry/${recordId}`, {
-    method: "POST",
-  });
+    method: 'POST',
+  })
 }

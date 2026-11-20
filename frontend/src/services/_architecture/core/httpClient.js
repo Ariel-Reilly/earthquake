@@ -13,19 +13,17 @@
  *   - 超时不强制(交给浏览器默认)
  */
 
-import { getAuthToken, redirectToLogin } from "../../../stores/auth.js";
-import { API_BASE, getUseBackend } from "./runtime.js";
-import { createApiError } from "./errors.js";
+import { getAuthToken, redirectToLogin } from '../../../stores/auth.js'
+import { API_BASE, getUseBackend } from './runtime.js'
+import { createApiError } from './errors.js'
 
 function isBackendCompatibleToken(token) {
-  return typeof token === "string" && token.split(".").length === 3;
+  return typeof token === 'string' && token.split('.').length === 3
 }
 
 function authHeader() {
-  const token = getAuthToken();
-  return isBackendCompatibleToken(token)
-    ? { Authorization: `Bearer ${token}` }
-    : {};
+  const token = getAuthToken()
+  return isBackendCompatibleToken(token) ? { Authorization: `Bearer ${token}` } : {}
 }
 
 /**
@@ -34,7 +32,7 @@ function authHeader() {
  * 它会被 authHeader() 静默丢弃，导致请求裸奔 → 后端返回 403。
  */
 function hasBackendCompatibleToken() {
-  return isBackendCompatibleToken(getAuthToken());
+  return isBackendCompatibleToken(getAuthToken())
 }
 
 /**
@@ -45,56 +43,50 @@ function hasBackendCompatibleToken() {
  * @returns {Promise<any>} 后端 payload.data
  */
 export async function request(path, options = {}) {
-  const { body, headers: extraHeaders, auth = true, ...rest } = options;
+  const { body, headers: extraHeaders, auth = true, ...rest } = options
   const headers = {
-    "Content-Type": "application/json",
+    'Content-Type': 'application/json',
     // 匿名接口（注册申请 / 图形验证码）显式传 auth:false，避免把一个可能已过期
     // 或无效的 token 送到后端。后端对这些端点是 permitAll，带不带头都能过，
     // 但不带更干净，也不会因为坏 token 触发一次无意义的鉴权失败。
     ...(auth ? authHeader() : {}),
     ...(extraHeaders ?? {}),
-  };
+  }
   const init = {
     // 统一禁用浏览器/HTTP 缓存,确保每次进入页面或参数变化时拿到最新数据。
     // 否则用户在各页面间跳转时,会因为 fetch 默认缓存导致"需要手动刷新"。
-    cache: "no-store",
+    cache: 'no-store',
     headers,
-    credentials: "include",
+    credentials: 'include',
     ...rest,
-  };
-  if (body !== undefined) {
-    init.body = typeof body === "string" ? body : JSON.stringify(body);
   }
-  const response = await fetch(`${API_BASE}${path}`, init);
-  const payload = await response.json().catch(() => null);
+  if (body !== undefined) {
+    init.body = typeof body === 'string' ? body : JSON.stringify(body)
+  }
+  const response = await fetch(`${API_BASE}${path}`, init)
+  const payload = await response.json().catch(() => null)
 
-  if (response.status === 401 && !path.startsWith("/auth/")) {
-    redirectToLogin();
-    throw createApiError(payload?.message || "登录已过期,请重新登录", "401");
+  if (response.status === 401 && !path.startsWith('/auth/')) {
+    redirectToLogin()
+    throw createApiError(payload?.message || '登录已过期,请重新登录', '401')
   }
 
   // 403 的两种成因必须区分，否则用户会卡在「请求失败:403」上无法自救：
   //   a) 未携带凭据 / 凭据格式不被后端接受 → 应清凭据并回登录页；
   //   b) 已认证但权限不足（角色不含该 permission）→ 属业务拒绝，不应踢出登录。
   // 判据：本地是否存在后端可用的 JWT。存在则说明是 (b)，保留会话。
-  if (response.status === 403 && !path.startsWith("/auth/")) {
+  if (response.status === 403 && !path.startsWith('/auth/')) {
     if (!hasBackendCompatibleToken()) {
-      redirectToLogin();
-      throw createApiError("登录凭据已失效,请重新登录", "403");
+      redirectToLogin()
+      throw createApiError('登录凭据已失效,请重新登录', '403')
     }
-    throw createApiError(
-      payload?.message || "当前账号无权访问该资源",
-      "403",
-    );
+    throw createApiError(payload?.message || '当前账号无权访问该资源', '403')
   }
 
   if (!response.ok || payload?.code !== 0) {
-    throw createApiError(
-      payload?.message || `请求失败:${response.status}`,
-      String(response.status),
-    );
+    throw createApiError(payload?.message || `请求失败:${response.status}`, String(response.status))
   }
-  return payload?.data;
+  return payload?.data
 }
 
 /**
@@ -106,35 +98,29 @@ export async function request(path, options = {}) {
  */
 export async function downloadFile(path, fileName) {
   if (!getUseBackend()) {
-    throw createApiError(
-      "导出需要后端服务。请启动后端后重试。",
-      "BACKEND_REQUIRED",
-    );
+    throw createApiError('导出需要后端服务。请启动后端后重试。', 'BACKEND_REQUIRED')
   }
   const response = await fetch(`${API_BASE}${path}`, {
-    method: "POST",
+    method: 'POST',
     headers: authHeader(),
-    credentials: "include",
-  });
+    credentials: 'include',
+  })
   if (response.status === 401) {
-    redirectToLogin();
-    throw createApiError("登录已过期,请重新登录", "401");
+    redirectToLogin()
+    throw createApiError('登录已过期,请重新登录', '401')
   }
   if (!response.ok) {
-    const payload = await response.json().catch(() => null);
-    throw createApiError(
-      payload?.message || `导出失败:${response.status}`,
-      String(response.status),
-    );
+    const payload = await response.json().catch(() => null)
+    throw createApiError(payload?.message || `导出失败:${response.status}`, String(response.status))
   }
-  const blob = await response.blob();
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = fileName;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
-  return { downloaded: true, fileName };
+  const blob = await response.blob()
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = fileName
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(url)
+  return { downloaded: true, fileName }
 }

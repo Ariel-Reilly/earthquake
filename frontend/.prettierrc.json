@@ -6,15 +6,8 @@
   "printWidth": 100,
   "arrowParens": "always",
   "endOfLine": "lf",
-  "vueIndentScriptAndStyle": false,
   "htmlWhitespaceSensitivity": "strict",
   "overrides": [
-    {
-      "files": "*.vue",
-      "options": {
-        "parser": "vue"
-      }
-    },
     {
       "files": "*.md",
       "options": {

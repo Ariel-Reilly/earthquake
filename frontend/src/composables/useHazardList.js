@@ -14,7 +14,11 @@ export function useHazardList(props) {
     const keyword = normalizedSearch.value
     return hazards.value.filter((item) => {
       const matchLevel = levelFilter.value === '全部' || item.level === levelFilter.value
-      const matchKeyword = !keyword || [item.name, item.type, item.level, item.owner, item.status, item.hazardCode].some((value) => String(value).toLowerCase().includes(keyword))
+      const matchKeyword =
+        !keyword ||
+        [item.name, item.type, item.level, item.owner, item.status, item.hazardCode].some((value) =>
+          String(value).toLowerCase().includes(keyword)
+        )
       return matchLevel && matchKeyword
     })
   })
@@ -46,7 +50,9 @@ export function useHazardList(props) {
               aiAnalyzedAt: h.aiAnalyzedAt ?? ai?.analyzedAt ?? null,
             }
           })
-        } catch (_) { /* 忽略，AI 不可用 */ }
+        } catch (_) {
+          /* 忽略，AI 不可用 */
+        }
       }
       // 按 AI 综合分排序（高 → 低），无 AI 分的排最后
       list.sort((a, b) => (b.aiScore ?? -1) - (a.aiScore ?? -1))
@@ -80,7 +86,10 @@ export function useHazardList(props) {
     levelFilter.value = level
   }
 
-  watch(() => props.searchTerm, () => loadData(1))
+  watch(
+    () => props.searchTerm,
+    () => loadData(1)
+  )
 
   return {
     levelFilter,

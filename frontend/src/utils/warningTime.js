@@ -32,8 +32,12 @@ export function formatWarningTime(warning, timeZone) {
     if (!Number.isNaN(d.getTime())) {
       if (timeZone) {
         const parts = new Intl.DateTimeFormat('en-US', {
-          timeZone, hourCycle: 'h23',
-          month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit',
+          timeZone,
+          hourCycle: 'h23',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
         }).formatToParts(d)
         const get = (type) => parts.find((p) => p.type === type)?.value ?? ''
         return `${get('month')}-${get('day')} ${get('hour')}:${get('minute')}`
@@ -61,9 +65,13 @@ export function formatTimelineTime(value, fallback = '—', timeZone) {
   if (value && typeof value === 'object') {
     return formatWarningTime(value, timeZone)
   }
-  if (value === null || value === undefined || value === '') {return fallback;}
+  if (value === null || value === undefined || value === '') {
+    return fallback
+  }
   const text = String(value)
-  if (!ISO_INSTANT.test(text)) {return text;}
+  if (!ISO_INSTANT.test(text)) {
+    return text
+  }
   // 无效的 ISO 也不能变成 '—'：把原文同时作为 time 回退值
   return formatWarningTime({ triggeredAt: text, time: text }, timeZone)
 }

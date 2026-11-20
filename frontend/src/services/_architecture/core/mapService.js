@@ -51,7 +51,9 @@ const mapAttribution = '© 高德地图 · 卫星影像'
 // 避免 3x/4x 屏带来 9–16 倍渲染开销。
 function resolvePixelRatio() {
   const override = Number(import.meta.env.VITE_MAP_PIXEL_RATIO)
-  if (Number.isFinite(override) && override > 0) {return override}
+  if (Number.isFinite(override) && override > 0) {
+    return override
+  }
   return Math.min(window.devicePixelRatio || 1, 2.5)
 }
 
@@ -68,12 +70,24 @@ function resolvePixelRatio() {
  * 提到模块级以便 UI 层（如 OverviewPage 区域环境面板、WeatherPage）复用。
  */
 export function pickZoomForAccuracy(accuracy, fallbackZoom) {
-  if (!Number.isFinite(fallbackZoom)) {fallbackZoom = 16}
-  if (!Number.isFinite(accuracy) || accuracy <= 0) {return fallbackZoom}
-  if (accuracy <= 50) {return Math.min(fallbackZoom, 16)}
-  if (accuracy <= 200) {return Math.min(fallbackZoom, 14)}
-  if (accuracy <= 1000) {return Math.min(fallbackZoom, 12)}
-  if (accuracy <= 5000) {return Math.min(fallbackZoom, 10)}
+  if (!Number.isFinite(fallbackZoom)) {
+    fallbackZoom = 16
+  }
+  if (!Number.isFinite(accuracy) || accuracy <= 0) {
+    return fallbackZoom
+  }
+  if (accuracy <= 50) {
+    return Math.min(fallbackZoom, 16)
+  }
+  if (accuracy <= 200) {
+    return Math.min(fallbackZoom, 14)
+  }
+  if (accuracy <= 1000) {
+    return Math.min(fallbackZoom, 12)
+  }
+  if (accuracy <= 5000) {
+    return Math.min(fallbackZoom, 10)
+  }
   return Math.min(fallbackZoom, 8)
 }
 
@@ -86,15 +100,23 @@ export function gradeAccuracy(accuracy) {
   if (!Number.isFinite(accuracy) || accuracy <= 0) {
     return { grade: 1, label: '精度未知', color: 'amber' }
   }
-  if (accuracy <= 50) {return { grade: 0, label: '精确', color: 'teal' }}
-  if (accuracy <= 500) {return { grade: 1, label: '良好', color: 'teal' }}
-  if (accuracy <= 2000) {return { grade: 2, label: '粗略', color: 'amber' }}
+  if (accuracy <= 50) {
+    return { grade: 0, label: '精确', color: 'teal' }
+  }
+  if (accuracy <= 500) {
+    return { grade: 1, label: '良好', color: 'teal' }
+  }
+  if (accuracy <= 2000) {
+    return { grade: 2, label: '粗略', color: 'amber' }
+  }
   return { grade: 3, label: '仅供参考', color: 'red' }
 }
 
 /** 天地图影像 WMTS。需用户自行到天地图开放平台申请 tk（VITE_TDT_TOKEN），未配置返回空串。 */
 function buildTdtUrl(layer) {
-  if (!TDT_TOKEN) {return ''}
+  if (!TDT_TOKEN) {
+    return ''
+  }
   return `https://t0.tianditu.gov.cn/${layer}_w/wmts?service=wmts&request=GetTile&version=1.0.0&layer=${layer}&style=default&tileMatrixSet=w&format=tiles&tileMatrix={z}&tileRow={y}&tileCol={x}&tk=${encodeURIComponent(TDT_TOKEN)}`
 }
 
@@ -167,12 +189,18 @@ function createBaseLayers(mode) {
   // ① 主影像：高德卫星影像瓦片（真实瓦片金字塔，zoom 3~19，不再需要任何合成任务）
   const primaryUrl = buildAmapImageryUrl(6, 0)
   const satellite = tileLayerFromUrl(primaryUrl, true, 256, {
-    kind: 'amap-imagery', name: '高德卫星影像', datum: 'gcj02',
-    updatedAt: new Date().toISOString(), priority: 1,
+    kind: 'amap-imagery',
+    name: '高德卫星影像',
+    datum: 'gcj02',
+    updatedAt: new Date().toISOString(),
+    priority: 1,
   })
   // ② 影像注记（透明 PNG，不是矢量底图）：mode=vector 时叠加地名，mode=satellite 时纯影像
   const satelliteAnno = tileLayerFromUrl(buildAmapImageryUrl(8, 0), mode !== 'satellite', 256, {
-    kind: 'amap-imagery-anno', name: '影像地名注记', datum: 'gcj02', priority: 2,
+    kind: 'amap-imagery-anno',
+    name: '影像地名注记',
+    datum: 'gcj02',
+    priority: 2,
   })
   // ③ 备影像：优先天地图 img_w（需 tk），否则高德备用子域；仅在主源连续失败时接管
   const tdtImgUrl = buildTdtUrl('img')
@@ -181,11 +209,17 @@ function createBaseLayers(mode) {
   const vector = tileLayerFromUrl(backupUrl, false, 256, {
     kind: tdtImgUrl ? 'tdt-imagery' : 'amap-imagery-backup',
     name: tdtImgUrl ? '天地图卫星影像（备源）' : '高德卫星影像（备用子域）',
-    datum: backupDatum, priority: 3,
+    datum: backupDatum,
+    priority: 3,
   })
   const tdtAnnoUrl = buildTdtUrl('cia')
   const vectorAnno = tdtAnnoUrl
-    ? tileLayerFromUrl(tdtAnnoUrl, false, 256, { kind: 'tdt-imagery-anno', name: '天地图注记', datum: 'wgs84', priority: 4 })
+    ? tileLayerFromUrl(tdtAnnoUrl, false, 256, {
+        kind: 'tdt-imagery-anno',
+        name: '天地图注记',
+        datum: 'wgs84',
+        priority: 4,
+      })
     : null
   // ④ 保留旧 Sentinel 叠加层 API 形状（默认全隐藏），仅为向后兼容存量调用，不参与底图显示
   const sentinelLayers = createSentinelLayers()
@@ -267,7 +301,10 @@ const WEATHER_EXTENTS = {
   drought: [73, 16, 135, 54],
 }
 
-export function createOpenLayersController(container, { center = [107.21, 30.61], zoom = 10, baseMap = 'vector' } = {}) {
+export function createOpenLayersController(
+  container,
+  { center = [107.21, 30.61], zoom = 10, baseMap = 'vector' } = {}
+) {
   const baseLayers = createBaseLayers(baseMap)
   // 两种模式都是卫星影像：satellite=纯影像，vector=影像+地名注记。不存在矢量底图。
   let currentMode = baseMap === 'satellite' ? 'satellite' : 'vector'
@@ -277,7 +314,9 @@ export function createOpenLayersController(container, { center = [107.21, 30.61]
   let backupActive = false
   // 当前选中的灾害点 id（用于放大后高亮该详细点）
   let selectedHazardId = null
-  const hazardLayer = createClusterLayer((feature) => buildClusterStyle(feature, 'hazard', selectedHazardId))
+  const hazardLayer = createClusterLayer((feature) =>
+    buildClusterStyle(feature, 'hazard', selectedHazardId)
+  )
   const deviceLayer = createClusterLayer((feature) => buildClusterStyle(feature, 'device'))
   const warningLayer = createClusterLayer((feature) => buildClusterStyle(feature, 'warning'))
   const personnelLayer = createClusterLayer((feature) => buildClusterStyle(feature, 'personnel'))
@@ -365,7 +404,9 @@ export function createOpenLayersController(container, { center = [107.21, 30.61]
 
   /** 切换 datum 后把所有已绘制的 WGS-84 原点重新投影（主源 GCJ-02 ↔ 天地图备源 WGS-84）。 */
   function reprojectAllPoints(nextDatum) {
-    if (nextDatum === pointDatum) {return}
+    if (nextDatum === pointDatum) {
+      return
+    }
     pointDatum = nextDatum
     fillPointFeatures(hazardLayer.source, itemRegistry.hazards, pointDatum)
     fillPointFeatures(deviceLayer.source, itemRegistry.devices, pointDatum)
@@ -373,9 +414,11 @@ export function createOpenLayersController(container, { center = [107.21, 30.61]
     fillPointFeatures(personnelLayer.source, itemRegistry.personnel, pointDatum)
     personnelTrailLayer.getSource().clear()
     itemRegistry.personnelTrails.forEach((item) => {
-      if (!Array.isArray(item.route) || item.route.length < 2) {return}
+      if (!Array.isArray(item.route) || item.route.length < 2) {
+        return
+      }
       const coordinates = item.route.map((step) =>
-        fromLonLat(applyDatum([Number(step.lon), Number(step.lat)], pointDatum)),
+        fromLonLat(applyDatum([Number(step.lon), Number(step.lat)], pointDatum))
       )
       const trail = new Feature({ geometry: new LineString(coordinates) })
       trail.set('kind', 'personnel-trail')
@@ -406,8 +449,12 @@ export function createOpenLayersController(container, { center = [107.21, 30.61]
     const showAnno = currentMode === 'vector' && !backupActive
     baseLayers.satellite.setVisible(!backupActive)
     baseLayers.vector.setVisible(backupActive)
-    if (baseLayers.satelliteAnno) {baseLayers.satelliteAnno.setVisible(showAnno)}
-    if (baseLayers.vectorAnno) {baseLayers.vectorAnno.setVisible(backupActive && currentMode === 'vector')}
+    if (baseLayers.satelliteAnno) {
+      baseLayers.satelliteAnno.setVisible(showAnno)
+    }
+    if (baseLayers.vectorAnno) {
+      baseLayers.vectorAnno.setVisible(backupActive && currentMode === 'vector')
+    }
     map.renderSync()
     return currentMode
   }
@@ -418,24 +465,38 @@ export function createOpenLayersController(container, { center = [107.21, 30.61]
   let tileErrorTimer = null
   function emitTileError(message) {
     tileErrorListeners.forEach((fn) => {
-      try {fn(message)} catch (_) { /* 回调异常不能打断地图渲染 */ }
+      try {
+        fn(message)
+      } catch (_) {
+        /* 回调异常不能打断地图渲染 */
+      }
     })
   }
   function activateBackup(reason) {
-    if (backupActive) {return}
+    if (backupActive) {
+      return
+    }
     backupActive = true
     baseLayers.vector.setVisible(true)
     baseLayers.satellite.setVisible(false)
-    if (baseLayers.satelliteAnno) {baseLayers.satelliteAnno.setVisible(false)}
-    if (baseLayers.vectorAnno) {baseLayers.vectorAnno.setVisible(currentMode === 'vector')}
+    if (baseLayers.satelliteAnno) {
+      baseLayers.satelliteAnno.setVisible(false)
+    }
+    if (baseLayers.vectorAnno) {
+      baseLayers.vectorAnno.setVisible(currentMode === 'vector')
+    }
     reprojectAllPoints(baseLayers.backupDatum)
     baseLayers.vector.getSource().refresh()
     map.renderSync()
-    emitTileError(`主卫星影像加载失败（${reason}），已切换到${baseLayers.vector.get('sourceMeta')?.name || '备用影像源'}`)
+    emitTileError(
+      `主卫星影像加载失败（${reason}），已切换到${baseLayers.vector.get('sourceMeta')?.name || '备用影像源'}`
+    )
   }
   function bindTileError(layer, isBackup) {
     const source = layer?.getSource?.()
-    if (!source || typeof source.on !== 'function') {return}
+    if (!source || typeof source.on !== 'function') {
+      return
+    }
     source.on('tileloaderror', () => {
       if (isBackup) {
         emitTileError('备用卫星影像源同样加载失败，请检查网络或 VITE_TDT_TOKEN 配置')
@@ -443,11 +504,17 @@ export function createOpenLayersController(container, { center = [107.21, 30.61]
       }
       tileErrorCount += 1
       if (tileErrorCount < 4) {
-        if (tileErrorTimer) {clearTimeout(tileErrorTimer)}
-        tileErrorTimer = setTimeout(() => {tileErrorCount = 0}, 8000)
+        if (tileErrorTimer) {
+          clearTimeout(tileErrorTimer)
+        }
+        tileErrorTimer = setTimeout(() => {
+          tileErrorCount = 0
+        }, 8000)
         return
       }
-      if (tileErrorTimer) {clearTimeout(tileErrorTimer)}
+      if (tileErrorTimer) {
+        clearTimeout(tileErrorTimer)
+      }
       activateBackup(`${tileErrorCount} 个瓦片请求失败`)
       tileErrorCount = 0
     })
@@ -472,7 +539,12 @@ export function createOpenLayersController(container, { center = [107.21, 30.61]
     }
     if (s2Url) {
       baseLayers.sentinelLayers.s2TrueColor.setSource(
-        new ImageStaticSource({ url: s2Url, imageExtent: extent, projection: 'EPSG:4326', crossOrigin: undefined }),
+        new ImageStaticSource({
+          url: s2Url,
+          imageExtent: extent,
+          projection: 'EPSG:4326',
+          crossOrigin: undefined,
+        })
       )
       baseLayers.sentinelLayers.s2TrueColor.set('sourceMeta', {
         kind: 's2-truecolor',
@@ -485,7 +557,12 @@ export function createOpenLayersController(container, { center = [107.21, 30.61]
     }
     if (sarUrl) {
       baseLayers.sentinelLayers.sarFalseColor.setSource(
-        new ImageStaticSource({ url: sarUrl, imageExtent: extent, projection: 'EPSG:4326', crossOrigin: undefined }),
+        new ImageStaticSource({
+          url: sarUrl,
+          imageExtent: extent,
+          projection: 'EPSG:4326',
+          crossOrigin: undefined,
+        })
       )
       baseLayers.sentinelLayers.sarFalseColor.set('sourceMeta', {
         kind: 's1-sar-falsecolor',
@@ -507,7 +584,9 @@ export function createOpenLayersController(container, { center = [107.21, 30.61]
         fromLonLat([minLon, minLat]),
       ]
       const polygon = new Polygon([ring])
-      map.getView().fit(polygon.getExtent(), { padding: [64, 64, 64, 64], duration: 480, maxZoom: 14 })
+      map
+        .getView()
+        .fit(polygon.getExtent(), { padding: [64, 64, 64, 64], duration: 480, maxZoom: 14 })
     }
     map.renderSync()
     return {
@@ -525,7 +604,7 @@ export function createOpenLayersController(container, { center = [107.21, 30.61]
         imageExtent: [107.0, 30.4, 107.4, 30.8],
         projection: 'EPSG:4326',
         crossOrigin: undefined,
-      }),
+      })
     )
     baseLayers.sentinelLayers.s2TrueColor.set('sourceMeta', null)
     baseLayers.sentinelLayers.s2TrueColor.setVisible(false)
@@ -535,7 +614,7 @@ export function createOpenLayersController(container, { center = [107.21, 30.61]
         imageExtent: [107.0, 30.4, 107.4, 30.8],
         projection: 'EPSG:4326',
         crossOrigin: undefined,
-      }),
+      })
     )
     baseLayers.sentinelLayers.sarFalseColor.set('sourceMeta', null)
     baseLayers.sentinelLayers.sarFalseColor.setVisible(false)
@@ -552,7 +631,9 @@ export function createOpenLayersController(container, { center = [107.21, 30.61]
 
   /** v1.8.0：单独调节 SAR 伪彩色叠加不透明度（0-1）。 */
   function setSentinelSarOpacity(opacity) {
-    baseLayers.sentinelLayers.sarFalseColor.setOpacity(Math.max(0, Math.min(1, Number(opacity) || 0)))
+    baseLayers.sentinelLayers.sarFalseColor.setOpacity(
+      Math.max(0, Math.min(1, Number(opacity) || 0))
+    )
     map.renderSync()
   }
 
@@ -563,17 +644,25 @@ export function createOpenLayersController(container, { center = [107.21, 30.61]
   }
 
   function sanitizeBboxForOverlay(bbox) {
-    if (!Array.isArray(bbox) || bbox.length !== 4) {return null}
+    if (!Array.isArray(bbox) || bbox.length !== 4) {
+      return null
+    }
     const [minLon, minLat, maxLon, maxLat] = bbox.map(Number)
-    if (![minLon, minLat, maxLon, maxLat].every(Number.isFinite)) {return null}
-    if (minLon >= maxLon || minLat >= maxLat) {return null}
+    if (![minLon, minLat, maxLon, maxLat].every(Number.isFinite)) {
+      return null
+    }
+    if (minLon >= maxLon || minLat >= maxLat) {
+      return null
+    }
     return [minLon, minLat, maxLon, maxLat]
   }
 
   function setCenter(lon, lat, nextZoom = map.getView().getZoom()) {
     const transformed = applyDatum([Number(lon), Number(lat)], pointDatum)
     map.getView().setCenter(fromLonLat(transformed))
-    if (Number.isFinite(Number(nextZoom))) {map.getView().setZoom(Number(nextZoom))}
+    if (Number.isFinite(Number(nextZoom))) {
+      map.getView().setZoom(Number(nextZoom))
+    }
   }
 
   /** 平滑聚焦到指定坐标并放大到目标级别（用于点击风险点后定位详细点）。 */
@@ -597,16 +686,29 @@ export function createOpenLayersController(container, { center = [107.21, 30.61]
   function fitItems(items = []) {
     const features = items
       .filter((item) => item.lon != null && item.lat != null)
-      .map((item) => new Feature({ geometry: new Point(fromLonLat(applyDatum([Number(item.lon), Number(item.lat)], pointDatum))) }))
-    if (!features.length) {return}
-    const merged = features.map((feature) => feature.getGeometry().getExtent()).reduce((acc, next, index) => {
-      if (index === 0) {return next.slice()}
-      acc[0] = Math.min(acc[0], next[0])
-      acc[1] = Math.min(acc[1], next[1])
-      acc[2] = Math.max(acc[2], next[2])
-      acc[3] = Math.max(acc[3], next[3])
-      return acc
-    }, [])
+      .map(
+        (item) =>
+          new Feature({
+            geometry: new Point(
+              fromLonLat(applyDatum([Number(item.lon), Number(item.lat)], pointDatum))
+            ),
+          })
+      )
+    if (!features.length) {
+      return
+    }
+    const merged = features
+      .map((feature) => feature.getGeometry().getExtent())
+      .reduce((acc, next, index) => {
+        if (index === 0) {
+          return next.slice()
+        }
+        acc[0] = Math.min(acc[0], next[0])
+        acc[1] = Math.min(acc[1], next[1])
+        acc[2] = Math.max(acc[2], next[2])
+        acc[3] = Math.max(acc[3], next[3])
+        return acc
+      }, [])
     map.getView().fit(merged, { padding: [48, 48, 48, 48], maxZoom: 15, duration: 180 })
   }
 
@@ -651,8 +753,12 @@ export function createOpenLayersController(container, { center = [107.21, 30.61]
     itemRegistry.personnelTrails = items
     personnelTrailLayer.getSource().clear()
     items.forEach((item) => {
-      if (!Array.isArray(item.route) || item.route.length < 2) {return}
-      const coordinates = item.route.map((step) => fromLonLat(applyDatum([Number(step.lon), Number(step.lat)], pointDatum)))
+      if (!Array.isArray(item.route) || item.route.length < 2) {
+        return
+      }
+      const coordinates = item.route.map((step) =>
+        fromLonLat(applyDatum([Number(step.lon), Number(step.lat)], pointDatum))
+      )
       const trail = new Feature({ geometry: new LineString(coordinates) })
       trail.set('kind', 'personnel-trail')
       trail.set('name', item.name)
@@ -677,7 +783,9 @@ export function createOpenLayersController(container, { center = [107.21, 30.61]
       trail: personnelTrailLayer,
     }
     const layer = layerMap[kind]
-    if (!layer) {return false}
+    if (!layer) {
+      return false
+    }
     layer.setVisible(!!visible)
     return layer.getVisible()
   }
@@ -692,7 +800,9 @@ export function createOpenLayersController(container, { center = [107.21, 30.61]
       trail: personnelTrailLayer,
     }
     const layer = layerMap[kind]
-    if (!layer) {return false}
+    if (!layer) {
+      return false
+    }
     return layer.getVisible()
   }
 
@@ -809,13 +919,17 @@ export function createOpenLayersController(container, { center = [107.21, 30.61]
       // 先取一帧；若精度 > 500m（多发生在 PC/WiFi/室内），进入 watch 模式再观察 8s 选最佳帧
       fetchOneFix(userOpts)
         .then((first) => {
-          const firstAccuracy = Number.isFinite(first.coords.accuracy) ? first.coords.accuracy : Infinity
+          const firstAccuracy = Number.isFinite(first.coords.accuracy)
+            ? first.coords.accuracy
+            : Infinity
           if (firstAccuracy <= 500) {
             finish(first)
             return
           }
           // 进入 watch 模式挑精度最佳的样本
-          const samples = [{ pos: first, accuracy: firstAccuracy, ts: first.timestamp ?? Date.now() }]
+          const samples = [
+            { pos: first, accuracy: firstAccuracy, ts: first.timestamp ?? Date.now() },
+          ]
           let watchId = null
           let watchDeadline = null
           let resolved = false
@@ -823,10 +937,14 @@ export function createOpenLayersController(container, { center = [107.21, 30.61]
             if (watchId != null && navigator.geolocation.clearWatch) {
               navigator.geolocation.clearWatch(watchId)
             }
-            if (watchDeadline) {clearTimeout(watchDeadline)}
+            if (watchDeadline) {
+              clearTimeout(watchDeadline)
+            }
           }
           const pickBest = () => {
-            if (resolved) {return}
+            if (resolved) {
+              return
+            }
             resolved = true
             cleanup()
             samples.sort((a, b) => a.accuracy - b.accuracy)
@@ -845,7 +963,7 @@ export function createOpenLayersController(container, { center = [107.21, 30.61]
               // watch 阶段报错（权限撤销、设备异常等）—— 取当前最佳结果作为兜底
               pickBest()
             },
-            userOpts,
+            userOpts
           )
           watchDeadline = setTimeout(pickBest, 8_000)
         })
@@ -869,7 +987,9 @@ export function createOpenLayersController(container, { center = [107.21, 30.61]
   function paintUserLocation(opts = {}) {
     const lon = Number(opts.lon)
     const lat = Number(opts.lat)
-    if (!Number.isFinite(lon) || !Number.isFinite(lat)) {return null}
+    if (!Number.isFinite(lon) || !Number.isFinite(lat)) {
+      return null
+    }
     const accuracy = Number.isFinite(opts.accuracy) ? opts.accuracy : 0
     const fallbackZoom = Number.isFinite(opts.zoom) ? opts.zoom : 16
     const animate = opts.animate !== false
@@ -912,7 +1032,9 @@ export function createOpenLayersController(container, { center = [107.21, 30.61]
   /** 暴露最近一次定位的元数据（用于 UI 卡片展示）。 */
   function getUserLocation() {
     const feature = userLocationSource.getFeatures()[0]
-    if (!feature) {return null}
+    if (!feature) {
+      return null
+    }
     return {
       lon: feature.get('lon'),
       lat: feature.get('lat'),
@@ -930,7 +1052,9 @@ export function createOpenLayersController(container, { center = [107.21, 30.61]
    */
   function setWeatherOverlay(kind, visible) {
     const layer = weatherOverlayLayers[kind]
-    if (!layer) {return}
+    if (!layer) {
+      return
+    }
     layer.setVisible(Boolean(visible))
     map.renderSync()
   }
@@ -940,7 +1064,9 @@ export function createOpenLayersController(container, { center = [107.21, 30.61]
    */
   function setWeatherOverlayOpacity(kind, opacity) {
     const layer = weatherOverlayLayers[kind]
-    if (!layer) {return}
+    if (!layer) {
+      return
+    }
     layer.setOpacity(Math.max(0, Math.min(1, Number(opacity) || 0)))
     map.renderSync()
   }
@@ -951,7 +1077,9 @@ export function createOpenLayersController(container, { center = [107.21, 30.61]
    */
   function refreshWeatherOverlay(kind, loader) {
     const layer = weatherOverlayLayers[kind]
-    if (!layer) {return Promise.reject(new Error(`Unknown overlay: ${kind}`))}
+    if (!layer) {
+      return Promise.reject(new Error(`Unknown overlay: ${kind}`))
+    }
     if (!loader) {
       const source = new ImageStaticSource({
         url: makeTransparentPlaceholderDataUrl(),
@@ -965,7 +1093,9 @@ export function createOpenLayersController(container, { center = [107.21, 30.61]
       return Promise.resolve(null)
     }
     return Promise.resolve(loader()).then((payload) => {
-      if (!payload || !payload.url) {return null}
+      if (!payload || !payload.url) {
+        return null
+      }
       const source = new ImageStaticSource({
         url: payload.url,
         imageExtent: WEATHER_EXTENTS[kind],
@@ -1013,19 +1143,29 @@ export function createOpenLayersController(container, { center = [107.21, 30.61]
   }
   function setGeoJSON(kind, geojson) {
     const key = String(kind || '').toLowerCase()
-    if (key === 'hazard' || key === 'hazards') {setHazardsGeoJson(geojson)}
-    else if (key === 'warning' || key === 'warnings') {setWarningsGeoJson(geojson)}
-    else if (key === 'device' || key === 'devices') {setDevicesGeoJson(geojson)}
-    else if (key === 'personnel') {setPersonnelGeoJson(geojson)}
-    else {setGeoJsonFeatures(hazardLayer.source, geojson)}
+    if (key === 'hazard' || key === 'hazards') {
+      setHazardsGeoJson(geojson)
+    } else if (key === 'warning' || key === 'warnings') {
+      setWarningsGeoJson(geojson)
+    } else if (key === 'device' || key === 'devices') {
+      setDevicesGeoJson(geojson)
+    } else if (key === 'personnel') {
+      setPersonnelGeoJson(geojson)
+    } else {
+      setGeoJsonFeatures(hazardLayer.source, geojson)
+    }
   }
-  function showWeatherOverlay(kind = 'satellite') {setWeatherOverlay(kind, true)}
+  function showWeatherOverlay(kind = 'satellite') {
+    setWeatherOverlay(kind, true)
+  }
   function hideWeatherOverlay() {
     Object.keys(weatherOverlayLayers).forEach((kind) => setWeatherOverlay(kind, false))
   }
   /** 订阅瓦片加载错误，返回取消订阅函数；UI 应据此显示可见报错而不是静默白屏。 */
   function onTileError(fn) {
-    if (typeof fn !== 'function') {return () => {}}
+    if (typeof fn !== 'function') {
+      return () => {}
+    }
     tileErrorListeners.add(fn)
     return () => tileErrorListeners.delete(fn)
   }
@@ -1043,7 +1183,9 @@ export function createOpenLayersController(container, { center = [107.21, 30.61]
   return {
     map,
     destroy: () => {
-      if (tileErrorTimer) {clearTimeout(tileErrorTimer)}
+      if (tileErrorTimer) {
+        clearTimeout(tileErrorTimer)
+      }
       tileErrorListeners.clear()
       destroy()
     },
@@ -1096,7 +1238,10 @@ export function createOpenLayersController(container, { center = [107.21, 30.61]
   }
 }
 
-export async function createCesiumViewer(container, { center = [107.21, 30.61], point = null, sentinelTiles = null } = {}) {
+export async function createCesiumViewer(
+  container,
+  { center = [107.21, 30.61], point = null, sentinelTiles = null } = {}
+) {
   const Cesium = await import('cesium')
   // Cesium Ion 属境外商业影像服务，无合规资质且默认 token 必然失败，已彻底停用。
   // 3D 地球同样使用国内合规卫星影像瓦片金字塔。
@@ -1115,7 +1260,7 @@ export async function createCesiumViewer(container, { center = [107.21, 30.61], 
         sentinelTiles.bbox?.[0] ?? center[0] - 0.2,
         sentinelTiles.bbox?.[1] ?? center[1] - 0.2,
         sentinelTiles.bbox?.[2] ?? center[0] + 0.2,
-        sentinelTiles.bbox?.[3] ?? center[1] + 0.2,
+        sentinelTiles.bbox?.[3] ?? center[1] + 0.2
       ),
       credit: mapAttribution,
     })
@@ -1157,14 +1302,18 @@ export async function createCesiumViewer(container, { center = [107.21, 30.61], 
     orientation: { heading: 0, pitch: Cesium.Math.toRadians(-38), roll: 0 },
   })
 
-  if (point) {addCesiumPoint({ Cesium, viewer }, point)}
+  if (point) {
+    addCesiumPoint({ Cesium, viewer }, point)
+  }
   viewer.resize()
   viewer.scene.requestRender()
   return { Cesium, viewer }
 }
 
 export function addCesiumPoint(viewerBundle, point) {
-  if (!viewerBundle?.viewer || !point) {return}
+  if (!viewerBundle?.viewer || !point) {
+    return
+  }
   const { Cesium, viewer } = viewerBundle
   viewer.entities.removeAll()
   viewer.entities.add({
@@ -1186,7 +1335,10 @@ export function addCesiumPoint(viewerBundle, point) {
       pixelOffset: new Cesium.Cartesian2(0, -28),
     },
   })
-  viewer.camera.flyTo({ destination: Cesium.Cartesian3.fromDegrees(Number(point.lon), Number(point.lat), 4500), duration: 1.0 })
+  viewer.camera.flyTo({
+    destination: Cesium.Cartesian3.fromDegrees(Number(point.lon), Number(point.lat), 4500),
+    duration: 1.0,
+  })
   viewer.scene.requestRender()
 }
 
@@ -1227,21 +1379,35 @@ export function buildClusterStyle(feature, type, selectedId) {
   const name = item?.get?.('name') || ''
 
   const selected =
-    selectedId != null &&
-    item != null &&
-    String(item.get?.('id')) === String(selectedId)
+    selectedId != null && item != null && String(item.get?.('id')) === String(selectedId)
 
-  if (type === 'hazard') {return buildHazardStyle(level, name, selected)}
-  if (type === 'device') {return buildDeviceStyle(state, name)}
-  if (type === 'warning') {return buildWarningStyle(level, name)}
+  if (type === 'hazard') {
+    return buildHazardStyle(level, name, selected)
+  }
+  if (type === 'device') {
+    return buildDeviceStyle(state, name)
+  }
+  if (type === 'warning') {
+    return buildWarningStyle(level, name)
+  }
   return buildPersonnelStyle(state, name)
 }
 
 export function buildWarningStyle(featureOrLevel = '预警') {
-  const level = typeof featureOrLevel === 'string' ? featureOrLevel : featureOrLevel.get?.('level') || '预警'
-  const color = level.includes('橙') || level.includes('红') ? '#cd927e' : level.includes('黄') ? '#c4a86e' : '#4f8f99'
+  const level =
+    typeof featureOrLevel === 'string' ? featureOrLevel : featureOrLevel.get?.('level') || '预警'
+  const color =
+    level.includes('橙') || level.includes('红')
+      ? '#cd927e'
+      : level.includes('黄')
+        ? '#c4a86e'
+        : '#4f8f99'
   return new Style({
-    image: new CircleStyle({ radius: 8, fill: new Fill({ color }), stroke: new Stroke({ color: '#ffffff', width: 2 }) }),
+    image: new CircleStyle({
+      radius: 8,
+      fill: new Fill({ color }),
+      stroke: new Stroke({ color: '#ffffff', width: 2 }),
+    }),
     text: new Text({
       text: level.includes('橙') || level.includes('红') ? '‼' : '!',
       fill: new Fill({ color: '#ffffff' }),
@@ -1253,7 +1419,8 @@ export function buildWarningStyle(featureOrLevel = '预警') {
 }
 
 export function buildHazardStyle(featureOrLevel = '正常', _name = '', selected = false) {
-  const level = typeof featureOrLevel === 'string' ? featureOrLevel : featureOrLevel.get?.('level') || '正常'
+  const level =
+    typeof featureOrLevel === 'string' ? featureOrLevel : featureOrLevel.get?.('level') || '正常'
   if (selected) {
     // 选中的风险点：更大半径 + 白色描边 + 品牌青色填充，放大后一眼可辨
     return new Style({
@@ -1273,7 +1440,11 @@ export function buildHazardStyle(featureOrLevel = '正常', _name = '', selected
   }
   const color = level.includes('高') ? '#cd927e' : level.includes('关注') ? '#c4a86e' : '#87b096'
   return new Style({
-    image: new CircleStyle({ radius: 8, fill: new Fill({ color }), stroke: new Stroke({ color: '#ffffff', width: 2 }) }),
+    image: new CircleStyle({
+      radius: 8,
+      fill: new Fill({ color }),
+      stroke: new Stroke({ color: '#ffffff', width: 2 }),
+    }),
     text: new Text({
       text: level.includes('高') ? '!' : level.includes('关注') ? '?' : '✓',
       fill: new Fill({ color: '#ffffff' }),
@@ -1285,10 +1456,15 @@ export function buildHazardStyle(featureOrLevel = '正常', _name = '', selected
 }
 
 export function buildDeviceStyle(featureOrState = '在线') {
-  const state = typeof featureOrState === 'string' ? featureOrState : featureOrState.get?.('state') || '在线'
+  const state =
+    typeof featureOrState === 'string' ? featureOrState : featureOrState.get?.('state') || '在线'
   const color = state === '在线' ? '#6f9e7f' : '#d57b56'
   return new Style({
-    image: new CircleStyle({ radius: 7, fill: new Fill({ color }), stroke: new Stroke({ color: '#ffffff', width: 2 }) }),
+    image: new CircleStyle({
+      radius: 7,
+      fill: new Fill({ color }),
+      stroke: new Stroke({ color: '#ffffff', width: 2 }),
+    }),
     text: new Text({
       text: '◆',
       fill: new Fill({ color: '#ffffff' }),
@@ -1300,10 +1476,15 @@ export function buildDeviceStyle(featureOrState = '在线') {
 }
 
 export function buildPersonnelStyle(featureOrState = '在线') {
-  const state = typeof featureOrState === 'string' ? featureOrState : featureOrState.get?.('state') || '在线'
+  const state =
+    typeof featureOrState === 'string' ? featureOrState : featureOrState.get?.('state') || '在线'
   const color = state === '在线' ? '#4d78d7' : '#c95b87'
   return new Style({
-    image: new CircleStyle({ radius: 7, fill: new Fill({ color }), stroke: new Stroke({ color: '#ffffff', width: 2 }) }),
+    image: new CircleStyle({
+      radius: 7,
+      fill: new Fill({ color }),
+      stroke: new Stroke({ color: '#ffffff', width: 2 }),
+    }),
     text: new Text({
       text: '人',
       fill: new Fill({ color: '#ffffff' }),
@@ -1315,8 +1496,12 @@ export function buildPersonnelStyle(featureOrState = '在线') {
 }
 
 export function buildPersonnelTooltip(person) {
-  if (!person) {return ''}
-  return [person.name, person.role, person.team, person.state, person.updatedAt].filter(Boolean).join(' · ')
+  if (!person) {
+    return ''
+  }
+  return [person.name, person.role, person.team, person.state, person.updatedAt]
+    .filter(Boolean)
+    .join(' · ')
 }
 
 /**
@@ -1324,7 +1509,9 @@ export function buildPersonnelTooltip(person) {
  * 颜色按人员状态（在线=蓝、离线=粉）区分，弱化线条以避免与点位竞争视觉焦点。
  */
 export function buildTrailStyle(feature) {
-  if (!feature) {return undefined}
+  if (!feature) {
+    return undefined
+  }
   const state = feature.get?.('state') || '在线'
   const color = state === '在线' ? '#4d78d7' : '#c95b87'
   return new Style({
@@ -1375,7 +1562,9 @@ export function buildUserLocationStyle(feature, resolution = 1) {
 
 /** 把 [lon, lat] 根据当前底图坐标系做必要变换：gcj02 时 wgs84 → gcj02。 */
 function applyDatum([lon, lat], datum) {
-  if (datum !== 'gcj02') {return [lon, lat]}
+  if (datum !== 'gcj02') {
+    return [lon, lat]
+  }
   return wgs84ToGcj02(lon, lat)
 }
 
@@ -1386,7 +1575,9 @@ export { wgs84ToGcj02, gcj02ToWgs84 }
 function fillPointFeatures(source, items = [], datum = 'wgs84') {
   source.clear()
   items.forEach((item) => {
-    if (item.lon == null || item.lat == null) {return}
+    if (item.lon == null || item.lat == null) {
+      return
+    }
     const [lon, lat] = applyDatum([Number(item.lon), Number(item.lat)], datum)
     source.addFeature(new Feature({ geometry: new Point(fromLonLat([lon, lat])), ...item }))
   })
@@ -1395,7 +1586,9 @@ function fillPointFeatures(source, items = [], datum = 'wgs84') {
 function setGeoJsonFeatures(source, geojson) {
   const format = new GeoJSON()
   source.clear()
-  if (!geojson) {return}
+  if (!geojson) {
+    return
+  }
   source.addFeatures(format.readFeatures(geojson, { featureProjection: 'EPSG:3857' }))
 }
 

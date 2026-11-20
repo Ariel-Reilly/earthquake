@@ -36,7 +36,9 @@ function readStored() {
         return normalized
       }
     }
-  } catch (_) { /* 忽略隐私模式 */ }
+  } catch (_) {
+    /* 忽略隐私模式 */
+  }
   return 'system'
 }
 
@@ -67,14 +69,22 @@ const listeners = new Set()
 
 function broadcast(value) {
   for (const cb of listeners) {
-    try { cb(value) } catch (_) { /* swallow */ }
+    try {
+      cb(value)
+    } catch (_) {
+      /* swallow */
+    }
   }
 }
 
 function setTheme(mode) {
   const next = mode === 'auto' ? 'system' : mode
   theme.value = next
-  try { window.localStorage.setItem(STORAGE_KEY, next) } catch (_) { /* */ }
+  try {
+    window.localStorage.setItem(STORAGE_KEY, next)
+  } catch (_) {
+    /* */
+  }
   applyTheme(next)
   broadcast(next)
 }
@@ -108,8 +118,7 @@ export function useTheme() {
     toggle,
     isDark: () =>
       theme.value === 'dark' ||
-      (theme.value === 'system' &&
-        window.matchMedia?.('(prefers-color-scheme: dark)').matches),
+      (theme.value === 'system' && window.matchMedia?.('(prefers-color-scheme: dark)').matches),
     onChange: (cb) => {
       listeners.add(cb)
       return () => listeners.delete(cb)

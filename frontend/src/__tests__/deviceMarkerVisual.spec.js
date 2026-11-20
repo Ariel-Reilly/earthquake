@@ -16,9 +16,9 @@ describe('deviceMarkerVisual', () => {
       deviceCode: 'RAIN-002',
       mobile: false,
     })
-    expect(v.color).toBe('#94a3b8')          // statusColor('离线')
-    expect(v.radius).toBe(6)                  // 固定非选中
-    expect(v.ringColor).toBe('#1f2937')       // 普通态深色描边
+    expect(v.color).toBe('#94a3b8') // statusColor('离线')
+    expect(v.radius).toBe(6) // 固定非选中
+    expect(v.ringColor).toBe('#1f2937') // 普通态深色描边
     expect(v.ringWidth).toBe(1.6)
     expect(v.haloFill).toContain('255,255,255') // 白色光晕底圈
     expect(v.label).toBe('翻斗雨量计')
@@ -46,7 +46,9 @@ describe('deviceMarkerVisual', () => {
   })
 
   it('无设备名时回退到设备编码作为标签', () => {
-    expect(deviceMarkerVisual({ onlineStatus: '在线', deviceCode: 'GPS-009' }).label).toBe('GPS-009')
+    expect(deviceMarkerVisual({ onlineStatus: '在线', deviceCode: 'GPS-009' }).label).toBe(
+      'GPS-009'
+    )
   })
 
   it('光晕半径始终大于主点半径，保证影像上"浮起来"', () => {

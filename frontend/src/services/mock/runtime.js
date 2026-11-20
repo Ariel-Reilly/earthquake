@@ -4,85 +4,82 @@
  * - 路径规划（直线 + 抖动生成 fastest / safest 两套方案）
  * - P0 阶段新增：用户偏好/会签/路径避障/区域专项大屏
  */
-import { SEED_BASE } from "./seed";
+import { SEED_BASE } from './seed'
 
 // 设备轨迹：从 seed 设备的 lon/lat 中心派生 20 个稳定点
 
 export function getDeviceTrackMock(deviceId, { from, to } = {}) {
   const device =
-    SEED_BASE.devices.find((d) => String(d.id) === String(deviceId)) ??
-    SEED_BASE.devices[0];
-  if (!device) {return [];}
+    SEED_BASE.devices.find((d) => String(d.id) === String(deviceId)) ?? SEED_BASE.devices[0]
+  if (!device) {
+    return []
+  }
   const seed = String(deviceId)
-    .split("")
-    .reduce((s, c) => s + c.charCodeAt(0), 0);
-  const baseLon = device.lon ?? 107.21;
-  const baseLat = device.lat ?? 30.61;
-  const fromTs = from ? new Date(from).getTime() : Date.now() - 20 * 60 * 1000;
-  const toTs = to ? new Date(to).getTime() : Date.now();
-  const points = [];
+    .split('')
+    .reduce((s, c) => s + c.charCodeAt(0), 0)
+  const baseLon = device.lon ?? 107.21
+  const baseLat = device.lat ?? 30.61
+  const fromTs = from ? new Date(from).getTime() : Date.now() - 20 * 60 * 1000
+  const toTs = to ? new Date(to).getTime() : Date.now()
+  const points = []
   for (let i = 0; i < 20; i += 1) {
-    const t = fromTs + ((toTs - fromTs) * i) / 19;
-    const angle = (seed + i * 13) % 360;
-    const rad = (angle * Math.PI) / 180;
-    const r = 0.003 + ((seed + i) % 10) * 0.0002;
+    const t = fromTs + ((toTs - fromTs) * i) / 19
+    const angle = (seed + i * 13) % 360
+    const rad = (angle * Math.PI) / 180
+    const r = 0.003 + ((seed + i) % 10) * 0.0002
     points.push({
       lon: parseFloat((baseLon + Math.cos(rad) * r).toFixed(6)),
       lat: parseFloat((baseLat + Math.sin(rad) * r * 0.8).toFixed(6)),
       ts: new Date(t).toISOString(),
       speed: 0.5 + ((seed + i) % 5) * 0.2,
-    });
+    })
   }
-  return points;
+  return points
 }
 
 // 路径规划：直线距离 + ±10% 抖动生成 2 套方案
 
 export function planRouteMock(payload = {}) {
-  const { startLon = 0, startLat = 0, endLon = 0, endLat = 0 } = payload;
-  const dLon = endLon - startLon;
-  const dLat = endLat - startLat;
-  const straightKm = Math.sqrt(dLon * dLon + dLat * dLat) * 111;
-  const seed = Math.round(straightKm * 10);
-  const fastestKm = parseFloat(
-    (straightKm * (0.9 + (seed % 10) * 0.01)).toFixed(2),
-  );
-  const safestKm = parseFloat(
-    (straightKm * (1.0 + (seed % 5) * 0.02)).toFixed(2),
-  );
-  const fastestMin = Math.round((fastestKm / 60) * 60);
-  const safestMin = Math.round((safestKm / 40) * 60);
-  const fmt = (m) => `${Math.floor(m / 60)}分${m % 60}秒`;
+  const { startLon = 0, startLat = 0, endLon = 0, endLat = 0 } = payload
+  const dLon = endLon - startLon
+  const dLat = endLat - startLat
+  const straightKm = Math.sqrt(dLon * dLon + dLat * dLat) * 111
+  const seed = Math.round(straightKm * 10)
+  const fastestKm = parseFloat((straightKm * (0.9 + (seed % 10) * 0.01)).toFixed(2))
+  const safestKm = parseFloat((straightKm * (1.0 + (seed % 5) * 0.02)).toFixed(2))
+  const fastestMin = Math.round((fastestKm / 60) * 60)
+  const safestMin = Math.round((safestKm / 40) * 60)
+  const fmt = (m) => `${Math.floor(m / 60)}分${m % 60}秒`
 
   const makeGeom = (_km) => {
-    const pts = [];
+    const pts = []
     for (let i = 0; i <= 8; i += 1) {
-      const t = i / 8;
-      const jitter = i % 2 === 0 ? 0 : 0.0003 * (((seed + i) % 3) - 1);
+      const t = i / 8
+      const jitter = i % 2 === 0 ? 0 : 0.0003 * (((seed + i) % 3) - 1)
       pts.push([
         parseFloat((startLon + dLon * t + jitter).toFixed(6)),
         parseFloat((startLat + dLat * t + jitter * 0.5).toFixed(6)),
-      ]);
+      ])
     }
-    return pts;
-  };
+    return pts
+  }
 
   return [
     {
-      type: "fastest",
+      type: 'fastest',
       distance: fastestKm,
       duration: fmt(fastestMin),
-      warning: fastestKm > 50 ? "长距离路线，请注意道路状况" : undefined,
+      warning: fastestKm > 50 ? '长距离路线，请注意道路状况' : undefined,
       geometry: makeGeom(fastestKm),
     },
     {
-      type: "safest",
+      type: 'safest',
       distance: safestKm,
       duration: fmt(safestMin),
-      warning: "安全路线绕行较多，请合理安排时间",
+      warning: '安全路线绕行较多，请合理安排时间',
       geometry: makeGeom(safestKm),
     },
-  ];
+  ]
 }
 
 // P0-1：路径规划（含避障）
@@ -90,11 +87,11 @@ export function planRouteMock(payload = {}) {
 export function getObstacleAreasMock() {
   // 与 seed.hazardPoints 中风险等级>=橙的灾害点对应形成避障多边形
   return SEED_BASE.hazardPoints
-    .filter((h) => ["橙色", "红色"].includes(h.level))
+    .filter((h) => ['橙色', '红色'].includes(h.level))
     .slice(0, 4)
     .map((h, idx) => ({
       id: `OBS-${h.id ?? idx}`,
-      type: "polygon",
+      type: 'polygon',
       hazardId: h.id,
       name: h.name ?? `影响区域 ${idx + 1}`,
       level: h.level,
@@ -105,7 +102,7 @@ export function getObstacleAreasMock() {
         [h.lon - 0.012, h.lat + 0.008],
         [h.lon - 0.01, h.lat - 0.008],
       ],
-    }));
+    }))
 }
 
 /**
@@ -114,78 +111,93 @@ export function getObstacleAreasMock() {
  * 真实 A* 在后端实现（PathPlanningService），前端只是 mock 降级。
  */
 export function planRoutesWithObstaclesMock({ start, end, obstacles = [] }) {
-  const startLon = start?.lng ?? start?.lon ?? 120.15;
-  const startLat = start?.lat ?? 30.28;
-  const endLon = end?.lng ?? end?.lon ?? 120.35;
-  const endLat = end?.lat ?? end?.lat ?? 30.45;
-  const dLon = endLon - startLon;
-  const dLat = endLat - startLat;
-  const straightKm = +(Math.sqrt(dLon * dLon + dLat * dLat) * 111).toFixed(2);
-  const id = (m) => `route-${m}-${Math.floor(straightKm * 100)}`;
-  const fmtDur = (m) => `${Math.floor(m / 60)}分${m % 60}秒`;
+  const startLon = start?.lng ?? start?.lon ?? 120.15
+  const startLat = start?.lat ?? 30.28
+  const endLon = end?.lng ?? end?.lon ?? 120.35
+  const endLat = end?.lat ?? end?.lat ?? 30.45
+  const dLon = endLon - startLon
+  const dLat = endLat - startLat
+  const straightKm = +(Math.sqrt(dLon * dLon + dLat * dLat) * 111).toFixed(2)
+  const id = (m) => `route-${m}-${Math.floor(straightKm * 100)}`
+  const fmtDur = (m) => `${Math.floor(m / 60)}分${m % 60}秒`
   const makeLine = (jitterBase, jitterY, steps = 12, amp = 0.003) => {
-    const pts = [];
+    const pts = []
     for (let i = 0; i <= steps; i += 1) {
-      const t = i / steps;
-      const wave = Math.sin(t * Math.PI * 3) * amp;
-      const jx = (i % 2 === 0 ? 1 : -1) * jitterBase * 0.0008;
-      const jy = jitterY * 0.0005;
+      const t = i / steps
+      const wave = Math.sin(t * Math.PI * 3) * amp
+      const jx = (i % 2 === 0 ? 1 : -1) * jitterBase * 0.0008
+      const jy = jitterY * 0.0005
       pts.push([
         +(startLon + dLon * t + wave + jx).toFixed(6),
         +(startLat + dLat * t + wave * 0.5 + jy).toFixed(6),
-      ]);
+      ])
     }
-    return pts;
-  };
+    return pts
+  }
   return [
     {
-      id: id("fastest"),
-      mode: "fastest",
+      id: id('fastest'),
+      mode: 'fastest',
       distance: +(straightKm * 1.05).toFixed(0),
-      duration: Math.round((straightKm * 1.05) / 60 * 60),
-      riskLevel: "medium",
+      duration: Math.round(((straightKm * 1.05) / 60) * 60),
+      riskLevel: 'medium',
       obstacleCount: obstacles.length,
       geometry: makeLine(0.2, 0.1, 12, 0.002),
       waypoints: [
-        { name: "起点", lng: startLon, lat: startLat, type: "start" },
-        { name: "中途补给点", lng: +((startLon + endLon) / 2).toFixed(4), lat: +((startLat + endLat) / 2 + 0.005).toFixed(4), type: "rest" },
-        { name: "灾区", lng: endLon, lat: endLat, type: "end" },
+        { name: '起点', lng: startLon, lat: startLat, type: 'start' },
+        {
+          name: '中途补给点',
+          lng: +((startLon + endLon) / 2).toFixed(4),
+          lat: +((startLat + endLat) / 2 + 0.005).toFixed(4),
+          type: 'rest',
+        },
+        { name: '灾区', lng: endLon, lat: endLat, type: 'end' },
       ],
     },
     {
-      id: id("safest"),
-      mode: "safest",
+      id: id('safest'),
+      mode: 'safest',
       distance: +(straightKm * 1.32).toFixed(0),
-      duration: Math.round((straightKm * 1.32) / 40 * 60),
-      riskLevel: "low",
+      duration: Math.round(((straightKm * 1.32) / 40) * 60),
+      riskLevel: 'low',
       obstacleCount: obstacles.length,
       geometry: makeLine(0.8, 0.4, 16, 0.008),
       waypoints: [
-        { name: "起点", lng: startLon, lat: startLat, type: "start" },
-        { name: "安全绕行点 A", lng: +(startLon + 0.02).toFixed(4), lat: +(startLat + 0.015).toFixed(4), type: "waypoint" },
-        { name: "安全绕行点 B", lng: +(startLon + 0.04).toFixed(4), lat: +(startLat + 0.025).toFixed(4), type: "waypoint" },
-        { name: "灾区", lng: endLon, lat: endLat, type: "end" },
+        { name: '起点', lng: startLon, lat: startLat, type: 'start' },
+        {
+          name: '安全绕行点 A',
+          lng: +(startLon + 0.02).toFixed(4),
+          lat: +(startLat + 0.015).toFixed(4),
+          type: 'waypoint',
+        },
+        {
+          name: '安全绕行点 B',
+          lng: +(startLon + 0.04).toFixed(4),
+          lat: +(startLat + 0.025).toFixed(4),
+          type: 'waypoint',
+        },
+        { name: '灾区', lng: endLon, lat: endLat, type: 'end' },
       ],
     },
     {
-      id: id("shortest"),
-      mode: "shortest",
+      id: id('shortest'),
+      mode: 'shortest',
       distance: +(straightKm * 0.98).toFixed(0),
-      duration: Math.round((straightKm * 0.98) / 65 * 60),
-      riskLevel: "high",
+      duration: Math.round(((straightKm * 0.98) / 65) * 60),
+      riskLevel: 'high',
       obstacleCount: obstacles.length,
       geometry: makeLine(0.05, 0.02, 8, 0.0005),
       waypoints: [
-        { name: "起点", lng: startLon, lat: startLat, type: "start" },
-        { name: "灾区", lng: endLon, lat: endLat, type: "end" },
+        { name: '起点', lng: startLon, lat: startLat, type: 'start' },
+        { name: '灾区', lng: endLon, lat: endLat, type: 'end' },
       ],
     },
-  ].map((r) => ({ ...r, duration: fmtDur(r.duration) }));
+  ].map((r) => ({ ...r, duration: fmtDur(r.duration) }))
 }
 
 export function exportRouteGeoJsonMock(route) {
   return {
-    type: "Feature",
+    type: 'Feature',
     properties: {
       name: route.id,
       mode: route.mode,
@@ -194,28 +206,28 @@ export function exportRouteGeoJsonMock(route) {
       riskLevel: route.riskLevel,
     },
     geometry: {
-      type: "LineString",
+      type: 'LineString',
       coordinates: route.geometry ?? [],
     },
-  };
+  }
 }
 
 // P0-2：预警解除通知预览
 
 const RESOLVE_TEMPLATES = [
-  "经现场核查，监测数据已恢复正常，特解除本预警。",
-  "应急响应已结束，本次预警风险已消除，现予以解除。",
-  "现场复核确认威胁消除，预警予以解除，请继续关注后续监测。",
-];
+  '经现场核查，监测数据已恢复正常，特解除本预警。',
+  '应急响应已结束，本次预警风险已消除，现予以解除。',
+  '现场复核确认威胁消除，预警予以解除，请继续关注后续监测。',
+]
 
 export function previewWarningResolveMock(warning) {
-  const reason = warning?.closeReason ?? "现场核查位移速率恢复正常，风险已消除";
+  const reason = warning?.closeReason ?? '现场核查位移速率恢复正常，风险已消除'
   return {
-    title: `【解除预警】${warning?.title ?? "灾害预警"} 已解除`,
-    content: `${RESOLVE_TEMPLATES[0]}\n解除时间：${new Date().toLocaleString("zh-CN", { hour12: false })}\n解除原因：${reason}\n解除范围：${warning?.scope ?? "全部"}\n请相关人员知悉。`,
-    channels: ["SMS", "APP", "SCREEN"],
+    title: `【解除预警】${warning?.title ?? '灾害预警'} 已解除`,
+    content: `${RESOLVE_TEMPLATES[0]}\n解除时间：${new Date().toLocaleString('zh-CN', { hour12: false })}\n解除原因：${reason}\n解除范围：${warning?.scope ?? '全部'}\n请相关人员知悉。`,
+    channels: ['SMS', 'APP', 'SCREEN'],
     templates: RESOLVE_TEMPLATES,
-  };
+  }
 }
 
 // P0-3：用户偏好默认
@@ -223,241 +235,269 @@ export function previewWarningResolveMock(warning) {
 export const DEFAULT_USER_PREFERENCE = {
   channels: { sms: true, email: false, app: true, inApp: true, phone: false },
   levels: {
-    red: ["sms", "app", "inApp", "phone"],
-    orange: ["sms", "app", "inApp"],
-    yellow: ["app", "inApp"],
-    blue: ["inApp"],
+    red: ['sms', 'app', 'inApp', 'phone'],
+    orange: ['sms', 'app', 'inApp'],
+    yellow: ['app', 'inApp'],
+    blue: ['inApp'],
   },
-  language: "zh-CN",
-  theme: "light",
-  landingPage: "/dashboard",
+  language: 'zh-CN',
+  theme: 'light',
+  landingPage: '/dashboard',
   compactMode: false,
   quietHoursEnabled: false,
-  quietStart: "22:00",
-  quietEnd: "08:00",
-};
-
-export function getUserPreferenceMock(userId = "u-admin") {
-  const raw = typeof window !== "undefined" ? window.localStorage.getItem(`disasterguard_pref_${userId}`) : null;
-  if (raw) {
-    try { return JSON.parse(raw); } catch { /* ignore */ }
-  }
-  return { ...DEFAULT_USER_PREFERENCE };
+  quietStart: '22:00',
+  quietEnd: '08:00',
 }
 
-export function saveUserPreferenceMock(userId = "u-admin", pref = {}) {
-  if (typeof window === "undefined") {return { ok: true };}
-  window.localStorage.setItem(`disasterguard_pref_${userId}`, JSON.stringify(pref));
-  return { ok: true, savedAt: new Date().toISOString() };
+export function getUserPreferenceMock(userId = 'u-admin') {
+  const raw =
+    typeof window !== 'undefined'
+      ? window.localStorage.getItem(`disasterguard_pref_${userId}`)
+      : null
+  if (raw) {
+    try {
+      return JSON.parse(raw)
+    } catch {
+      /* ignore */
+    }
+  }
+  return { ...DEFAULT_USER_PREFERENCE }
+}
+
+export function saveUserPreferenceMock(userId = 'u-admin', pref = {}) {
+  if (typeof window === 'undefined') {
+    return { ok: true }
+  }
+  window.localStorage.setItem(`disasterguard_pref_${userId}`, JSON.stringify(pref))
+  return { ok: true, savedAt: new Date().toISOString() }
 }
 
 // P0-4：会签
 
 export const SIGN_MODE_OPTIONS = [
-  { value: "PARALLEL", label: "并行会签", desc: "所有人同时收到待办，全部确认后汇总" },
-  { value: "SEQUENTIAL", label: "串行会签", desc: "按顺序逐个确认，前一人未确认则后一人不会签" },
-];
+  { value: 'PARALLEL', label: '并行会签', desc: '所有人同时收到待办，全部确认后汇总' },
+  { value: 'SEQUENTIAL', label: '串行会签', desc: '按顺序逐个确认，前一人未确认则后一人不会签' },
+]
 
 export const TIMEOUT_ACTION_OPTIONS = [
-  { value: "ESCALATE", label: "自动升级", desc: "超时后转交高级别负责人" },
-  { value: "REJECT", label: "自动驳回", desc: "超时后视为未通过本次会签" },
-];
+  { value: 'ESCALATE', label: '自动升级', desc: '超时后转交高级别负责人' },
+  { value: 'REJECT', label: '自动驳回', desc: '超时后视为未通过本次会签' },
+]
 
 export const EXPERT_POOL = [
-  { id: "expertA", name: "刘国梁", specialty: "地质灾害", org: "应急管理部地质所" },
-  { id: "expertB", name: "周晓彤", specialty: "气象水文", org: "国家气象局" },
-  { id: "expertC", name: "高志远", specialty: "应急救援", org: "武警救援学院" },
-  { id: "expertD", name: "韩雪清", specialty: "岩土工程", org: "中科院地质所" },
-  { id: "expertE", name: "杨思齐", specialty: "遥感监测", org: "中国地震局" },
-];
+  { id: 'expertA', name: '刘国梁', specialty: '地质灾害', org: '应急管理部地质所' },
+  { id: 'expertB', name: '周晓彤', specialty: '气象水文', org: '国家气象局' },
+  { id: 'expertC', name: '高志远', specialty: '应急救援', org: '武警救援学院' },
+  { id: 'expertD', name: '韩雪清', specialty: '岩土工程', org: '中科院地质所' },
+  { id: 'expertE', name: '杨思齐', specialty: '遥感监测', org: '中国地震局' },
+]
 
-const SIGN_STORE_KEY = "disasterguard_sign_records";
+const SIGN_STORE_KEY = 'disasterguard_sign_records'
 
 function loadSignStore() {
-  if (typeof window === "undefined") {return [];}
+  if (typeof window === 'undefined') {
+    return []
+  }
   try {
-    return JSON.parse(window.localStorage.getItem(SIGN_STORE_KEY) ?? "[]");
+    return JSON.parse(window.localStorage.getItem(SIGN_STORE_KEY) ?? '[]')
   } catch {
-    return [];
+    return []
   }
 }
 
 function saveSignStore(list) {
-  if (typeof window === "undefined") {return;}
-  window.localStorage.setItem(SIGN_STORE_KEY, JSON.stringify(list));
+  if (typeof window === 'undefined') {
+    return
+  }
+  window.localStorage.setItem(SIGN_STORE_KEY, JSON.stringify(list))
 }
 
 export function listSignRecordsMock(eventId) {
-  const all = loadSignStore();
-  return eventId ? all.filter((r) => r.eventId === eventId) : all;
+  const all = loadSignStore()
+  return eventId ? all.filter((r) => r.eventId === eventId) : all
 }
 
-export function createSignMock({ eventId, signers, mode, timeout, timeoutAction, comment, initiator }) {
-  const list = loadSignStore();
-  const id = `sign-${Date.now()}`;
+export function createSignMock({
+  eventId,
+  signers,
+  mode,
+  timeout,
+  timeoutAction,
+  comment,
+  initiator,
+}) {
+  const list = loadSignStore()
+  const id = `sign-${Date.now()}`
   const record = {
     id,
     eventId,
-    mode: mode ?? "PARALLEL",
+    mode: mode ?? 'PARALLEL',
     timeout: Number(timeout ?? 24),
-    timeoutAction: timeoutAction ?? "ESCALATE",
+    timeoutAction: timeoutAction ?? 'ESCALATE',
     comment,
-    initiator: initiator ?? "system",
+    initiator: initiator ?? 'system',
     createdAt: new Date().toISOString(),
-    status: "RUNNING",
+    status: 'RUNNING',
     signers: signers.map((sid) => {
-      const exp = EXPERT_POOL.find((e) => e.id === sid);
+      const exp = EXPERT_POOL.find((e) => e.id === sid)
       return {
         signerId: sid,
         signerName: exp?.name ?? sid,
-        specialty: exp?.specialty ?? "",
-        status: "PENDING",
+        specialty: exp?.specialty ?? '',
+        status: 'PENDING',
         signedAt: null,
-        opinion: "",
-        order: mode === "SEQUENTIAL" ? signers.indexOf(sid) : 0,
-      };
+        opinion: '',
+        order: mode === 'SEQUENTIAL' ? signers.indexOf(sid) : 0,
+      }
     }),
-  };
-  list.unshift(record);
-  saveSignStore(list);
-  return record;
-}
-
-export function signConfirmMock(signId, signerId, opinion = "") {
-  const list = loadSignStore();
-  const idx = list.findIndex((r) => r.id === signId);
-  if (idx < 0) {return null;}
-  const sign = list[idx];
-  const s = sign.signers.find((x) => x.signerId === signerId);
-  if (!s) {return sign;}
-  s.status = "CONFIRMED";
-  s.opinion = opinion;
-  s.signedAt = new Date().toISOString();
-  if (sign.signers.every((x) => x.status === "CONFIRMED")) {
-    sign.status = "COMPLETED";
-    sign.completedAt = new Date().toISOString();
   }
-  list[idx] = sign;
-  saveSignStore(list);
-  return sign;
+  list.unshift(record)
+  saveSignStore(list)
+  return record
 }
 
-export function signRejectMock(signId, signerId, opinion = "") {
-  const list = loadSignStore();
-  const idx = list.findIndex((r) => r.id === signId);
-  if (idx < 0) {return null;}
-  const sign = list[idx];
-  const s = sign.signers.find((x) => x.signerId === signerId);
-  if (!s) {return sign;}
-  s.status = "REJECTED";
-  s.opinion = opinion;
-  s.signedAt = new Date().toISOString();
-  sign.status = "REJECTED";
-  sign.completedAt = new Date().toISOString();
-  list[idx] = sign;
-  saveSignStore(list);
-  return sign;
+export function signConfirmMock(signId, signerId, opinion = '') {
+  const list = loadSignStore()
+  const idx = list.findIndex((r) => r.id === signId)
+  if (idx < 0) {
+    return null
+  }
+  const sign = list[idx]
+  const s = sign.signers.find((x) => x.signerId === signerId)
+  if (!s) {
+    return sign
+  }
+  s.status = 'CONFIRMED'
+  s.opinion = opinion
+  s.signedAt = new Date().toISOString()
+  if (sign.signers.every((x) => x.status === 'CONFIRMED')) {
+    sign.status = 'COMPLETED'
+    sign.completedAt = new Date().toISOString()
+  }
+  list[idx] = sign
+  saveSignStore(list)
+  return sign
+}
+
+export function signRejectMock(signId, signerId, opinion = '') {
+  const list = loadSignStore()
+  const idx = list.findIndex((r) => r.id === signId)
+  if (idx < 0) {
+    return null
+  }
+  const sign = list[idx]
+  const s = sign.signers.find((x) => x.signerId === signerId)
+  if (!s) {
+    return sign
+  }
+  s.status = 'REJECTED'
+  s.opinion = opinion
+  s.signedAt = new Date().toISOString()
+  sign.status = 'REJECTED'
+  sign.completedAt = new Date().toISOString()
+  list[idx] = sign
+  saveSignStore(list)
+  return sign
 }
 
 export function transferEventMock(eventId, toUser, reason, operator) {
-  const list = loadSignStore();
-  const idx = list.findIndex((r) => r.eventId === eventId);
+  const list = loadSignStore()
+  const idx = list.findIndex((r) => r.eventId === eventId)
   const transfer = {
     id: `transfer-${Date.now()}`,
     eventId,
     toUser,
     reason,
-    operator: operator ?? "system",
+    operator: operator ?? 'system',
     transferredAt: new Date().toISOString(),
-  };
-  if (idx >= 0) {
-    list[idx].transfers = list[idx].transfers ?? [];
-    list[idx].transfers.push(transfer);
-    list[idx].assignee = toUser;
-    saveSignStore(list);
   }
-  return transfer;
+  if (idx >= 0) {
+    list[idx].transfers = list[idx].transfers ?? []
+    list[idx].transfers.push(transfer)
+    list[idx].assignee = toUser
+    saveSignStore(list)
+  }
+  return transfer
 }
 
 // P0-5：区域专项大屏
 
-export function getZoneKpiMock({ region = "all", kind = "all", range = "7d" } = {}) {
-  const factor = (region === "all" ? 1 : 0.4) * (kind === "all" ? 1 : 0.5);
-  const rangeFactor = range === "24h" ? 0.2 : range === "7d" ? 1 : range === "30d" ? 2 : 3;
-  const hazards = Math.round(60 * factor + 80);
-  const warnings = Math.round(8 * factor + 6);
-  const onlineDevices = Math.round(110 * factor + 18);
-  const aiAccuracy = +(0.86 + (rangeFactor % 5) * 0.015).toFixed(2);
+export function getZoneKpiMock({ region = 'all', kind = 'all', range = '7d' } = {}) {
+  const factor = (region === 'all' ? 1 : 0.4) * (kind === 'all' ? 1 : 0.5)
+  const rangeFactor = range === '24h' ? 0.2 : range === '7d' ? 1 : range === '30d' ? 2 : 3
+  const hazards = Math.round(60 * factor + 80)
+  const warnings = Math.round(8 * factor + 6)
+  const onlineDevices = Math.round(110 * factor + 18)
+  const aiAccuracy = +(0.86 + (rangeFactor % 5) * 0.015).toFixed(2)
   return {
     hazardCount: hazards,
     warningCount: warnings,
     onlineDeviceCount: Math.min(onlineDevices, 168),
     aiAccuracy,
     lastUpdated: new Date().toISOString(),
-  };
+  }
 }
 
-export function getZoneTrendMock({ range = "7d" } = {}) {
-  const days = range === "24h" ? 24 : range === "7d" ? 7 : range === "30d" ? 30 : 60;
-  const points = [];
-  const base = 60;
+export function getZoneTrendMock({ range = '7d' } = {}) {
+  const days = range === '24h' ? 24 : range === '7d' ? 7 : range === '30d' ? 30 : 60
+  const points = []
+  const base = 60
   for (let i = 0; i < days; i += 1) {
-    const date = new Date(Date.now() - (days - i - 1) * 24 * 3600 * 1000);
-    const wave = Math.sin(i / 4) * 12 + (i % 3) * 2;
+    const date = new Date(Date.now() - (days - i - 1) * 24 * 3600 * 1000)
+    const wave = Math.sin(i / 4) * 12 + (i % 3) * 2
     points.push({
       date: date.toISOString().slice(0, 10),
       value: Math.max(10, Math.round(base + wave + (i % 5) * 3)),
-    });
+    })
   }
-  return { points };
+  return { points }
 }
 
-export function getZoneTopHazardsMock({ region = "all", kind = "all" } = {}) {
+export function getZoneTopHazardsMock({ region = 'all', kind = 'all' } = {}) {
   const items = SEED_BASE.hazardPoints.slice(0, 5).map((h, i) => ({
     rank: i + 1,
     hazardCode: h.hazardCode ?? `H${i + 1}`,
     name: h.name ?? `灾害点 ${i + 1}`,
-    type: h.disasterType ?? "滑坡",
-    level: h.level ?? "橙色",
+    type: h.disasterType ?? '滑坡',
+    level: h.level ?? '橙色',
     riskScore: +(0.95 - i * 0.07).toFixed(2),
     displacement: `${(5 + i * 0.6).toFixed(1)}mm/d`,
     rainfall: `${40 + i * 5}mm`,
-    region: h.regionName ?? "龙安镇",
+    region: h.regionName ?? '龙安镇',
     lon: h.lon,
     lat: h.lat,
-  }));
-  if (kind !== "all") {
-    items.forEach((it) => (it.type = kind));
+  }))
+  if (kind !== 'all') {
+    items.forEach((it) => (it.type = kind))
   }
-  if (region !== "all") {
-    items.forEach((it) => (it.region = region));
+  if (region !== 'all') {
+    items.forEach((it) => (it.region = region))
   }
-  return items;
+  return items
 }
 
-export function getZoneRelatedWarningsMock({ region = "all", _kind = "all", _range = "7d" } = {}) {
+export function getZoneRelatedWarningsMock({ region = 'all', _kind = 'all', _range = '7d' } = {}) {
   return SEED_BASE.warnings.slice(0, 5).map((w, i) => ({
     code: w.warningCode ?? `W${i + 1}`,
-    title: w.title ?? "区域关联预警",
-    level: w.warningLevel ?? "橙色",
-    status: w.status ?? "已发布",
-    region: w.region ?? (region === "all" ? "全域" : region),
+    title: w.title ?? '区域关联预警',
+    level: w.warningLevel ?? '橙色',
+    status: w.status ?? '已发布',
+    region: w.region ?? (region === 'all' ? '全域' : region),
     triggeredAt: w.triggeredAt ?? new Date().toISOString(),
-  }));
+  }))
 }
 
-export function getZoneRelatedEmergenciesMock({ region = "all" } = {}) {
+export function getZoneRelatedEmergenciesMock({ region = 'all' } = {}) {
   return SEED_BASE.incidents.slice(0, 4).map((e, i) => ({
     code: e.code ?? `E${i + 1}`,
     title: e.name ?? `应急事件 ${i + 1}`,
-    level: e.level ?? "三级响应",
-    status: e.status ?? "处置中",
-    region: region === "all" ? "全域" : region,
-    commander: e.commander ?? "指挥组",
+    level: e.level ?? '三级响应',
+    status: e.status ?? '处置中',
+    region: region === 'all' ? '全域' : region,
+    commander: e.commander ?? '指挥组',
     startedAt: e.startedAt ?? new Date().toISOString(),
-  }));
+  }))
 }
-
 
 export function reportPersonnelPositionMock(payload = {}) {
   return {
@@ -473,21 +513,80 @@ export function reportPersonnelPositionMock(payload = {}) {
       hazardCode: payload.hazardCode ?? null,
       speed: payload.speed ?? null,
       heading: payload.heading ?? null,
-      status: "在线",
+      status: '在线',
       lastSeen: new Date().toISOString(),
     },
-  };
+  }
 }
 
-
 const PERSONNEL_DEMO = [
-  { id: "周小雨", name: "周小雨", role: "值班员", status: "巡检中", taskCode: "TK-001", taskName: "HZ-LA-001 巡检", hazardCode: "HZ-LA-001", lon: 118.542, lat: 30.128, region: "龙安镇", speed: 1.2 },
-  { id: "王建国", name: "王建国", role: "现场运维", status: "巡检中", taskCode: "TK-002", taskName: "HZ-LA-002 巡查", hazardCode: "HZ-LA-002", lon: 107.214, lat: 30.612, region: "石桥镇", speed: 0.8 },
-  { id: "陈晓峰", name: "陈晓峰", role: "值班员", status: "待出发", taskCode: "TK-003", taskName: "HZ-LA-003 待派", hazardCode: "HZ-LA-003", lon: 118.873, lat: 30.974, region: "清河镇", speed: 0 },
-  { id: "李宇航", name: "李宇航", role: "应急指挥", status: "在线", taskCode: null, taskName: "指挥调度", hazardCode: null, lon: 118.602, lat: 30.203, region: "指挥中心", speed: 0 },
-  { id: "张丽华", name: "张丽华", role: "领域专家", status: "在线", taskCode: null, taskName: "远程会商", hazardCode: null, lon: 118.487, lat: 30.083, region: "专家坐席", speed: 0 },
-];
+  {
+    id: '周小雨',
+    name: '周小雨',
+    role: '值班员',
+    status: '巡检中',
+    taskCode: 'TK-001',
+    taskName: 'HZ-LA-001 巡检',
+    hazardCode: 'HZ-LA-001',
+    lon: 118.542,
+    lat: 30.128,
+    region: '龙安镇',
+    speed: 1.2,
+  },
+  {
+    id: '王建国',
+    name: '王建国',
+    role: '现场运维',
+    status: '巡检中',
+    taskCode: 'TK-002',
+    taskName: 'HZ-LA-002 巡查',
+    hazardCode: 'HZ-LA-002',
+    lon: 107.214,
+    lat: 30.612,
+    region: '石桥镇',
+    speed: 0.8,
+  },
+  {
+    id: '陈晓峰',
+    name: '陈晓峰',
+    role: '值班员',
+    status: '待出发',
+    taskCode: 'TK-003',
+    taskName: 'HZ-LA-003 待派',
+    hazardCode: 'HZ-LA-003',
+    lon: 118.873,
+    lat: 30.974,
+    region: '清河镇',
+    speed: 0,
+  },
+  {
+    id: '李宇航',
+    name: '李宇航',
+    role: '应急指挥',
+    status: '在线',
+    taskCode: null,
+    taskName: '指挥调度',
+    hazardCode: null,
+    lon: 118.602,
+    lat: 30.203,
+    region: '指挥中心',
+    speed: 0,
+  },
+  {
+    id: '张丽华',
+    name: '张丽华',
+    role: '领域专家',
+    status: '在线',
+    taskCode: null,
+    taskName: '远程会商',
+    hazardCode: null,
+    lon: 118.487,
+    lat: 30.083,
+    region: '专家坐席',
+    speed: 0,
+  },
+]
 
 export function getPersonnelListMock() {
-  return PERSONNEL_DEMO.map((p) => ({ ...p, lastSeen: new Date().toISOString() }));
+  return PERSONNEL_DEMO.map((p) => ({ ...p, lastSeen: new Date().toISOString() }))
 }

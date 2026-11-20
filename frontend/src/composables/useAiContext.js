@@ -32,7 +32,7 @@ const aiContext = ref({
   contextType: null,
   contextId: null,
   title: null,
-  metadata: {}
+  metadata: {},
 })
 
 /**
@@ -48,7 +48,7 @@ export function useAiContext() {
       contextType: context.contextType || null,
       contextId: context.contextId || null,
       title: context.title || null,
-      metadata: context.metadata || {}
+      metadata: context.metadata || {},
     }
   }
 
@@ -60,7 +60,7 @@ export function useAiContext() {
       contextType: null,
       contextId: null,
       title: null,
-      metadata: {}
+      metadata: {},
     }
   }
 
@@ -81,6 +81,6 @@ export function useAiContext() {
     setAiContext,
     clearAiContext,
     getAiContext,
-    hasContext
+    hasContext,
   }
 }

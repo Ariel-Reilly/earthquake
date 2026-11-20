@@ -146,7 +146,9 @@ export function alarmSeverityOf(warning) {
     return ALARM_SEVERITY.INFO
   }
 
-  const aiLevel = String(warning.aiLevel ?? '').trim().toUpperCase()
+  const aiLevel = String(warning.aiLevel ?? '')
+    .trim()
+    .toUpperCase()
   if (AI_LEVEL_SEVERITY[aiLevel]) {
     return AI_LEVEL_SEVERITY[aiLevel]
   }

@@ -1,4 +1,3 @@
-
 /* stylelint-disable no-duplicate-selectors */
 
 /* 说明：本文件末尾「SKELETON IOS-IFICATION」覆盖层有意复用选择器做同优先级后置覆盖，
@@ -35,7 +34,7 @@
 /* ═══════════════════════════════════════════════════════════
    界面密度 (紧凑模式)
    ═══════════════════════════════════════════════════════════ */
-:root[data-density="compact"] {
+:root[data-density='compact'] {
   --sp-4: 3px;
   --sp-8: 6px;
   --sp-12: 9px;
@@ -58,7 +57,7 @@
    让「跟随系统」的用户自动进入半深半浅的混合界面，体验比纯浅色更差。
    主色在深色下换成浅绿，此时才轮到深字 --primary-on（对比度 6.25）。
    ═══════════════════════════════════════════════════════════ */
-:root[data-theme="dark"],
+:root[data-theme='dark'],
 :root.theme-dark {
   --primary: #8eb1a0;
   --primary-hover: #a5c4b5;
@@ -159,7 +158,7 @@
 
 /* 分隔线:从图标之后起画,符合 iOS 规范 */
 .ios-row + .ios-row::before {
-  content: "";
+  content: '';
   position: absolute;
   top: 0;
   left: var(--sp-4);
@@ -181,7 +180,7 @@
 }
 
 .ios-row.active,
-.ios-row[aria-selected="true"] {
+.ios-row[aria-selected='true'] {
   background: var(--c-brand-soft);
   color: var(--c-brand-deep);
   font-weight: 600;
@@ -383,7 +382,7 @@
 }
 
 .ios-switch::after {
-  content: "";
+  content: '';
   position: absolute;
   left: 2px;
   width: 27px;
@@ -396,11 +395,11 @@
   transition: transform var(--dur-base) var(--ease-ios);
 }
 
-.ios-switch[aria-checked="true"] {
+.ios-switch[aria-checked='true'] {
   background: var(--c-brand);
 }
 
-.ios-switch[aria-checked="true"]::after {
+.ios-switch[aria-checked='true']::after {
   transform: translateX(20px);
 }
 
@@ -836,7 +835,12 @@ h4 {
   min-height: 100vh;
   display: grid;
   grid-template-columns: 1.2fr 0.8fr;
-  background: radial-gradient(circle at top left, #edf7f3 0, var(--c-surface-2) 35%, var(--c-brand-mist) 100%);
+  background: radial-gradient(
+    circle at top left,
+    #edf7f3 0,
+    var(--c-surface-2) 35%,
+    var(--c-brand-mist) 100%
+  );
 }
 
 .login-hero {
@@ -1384,13 +1388,23 @@ h4 {
 .nav-group.has-active .nav-group-head {
   color: var(--c-on-brand);
   border-left-color: var(--c-surface);
-  background: linear-gradient(90deg, rgb(255 255 255 / 16%) 0%, rgb(255 255 255 / 6%) 60%, transparent 100%);
+  background: linear-gradient(
+    90deg,
+    rgb(255 255 255 / 16%) 0%,
+    rgb(255 255 255 / 6%) 60%,
+    transparent 100%
+  );
   box-shadow: inset 0 0 20px rgb(255 255 255 / 6%);
 }
 
 .nav-group.has-active .nav-group-head:hover {
   color: #f2f8f4;
-  background: linear-gradient(90deg, rgb(255 255 255 / 22%) 0%, rgb(255 255 255 / 9%) 60%, transparent 100%);
+  background: linear-gradient(
+    90deg,
+    rgb(255 255 255 / 22%) 0%,
+    rgb(255 255 255 / 9%) 60%,
+    transparent 100%
+  );
 }
 
 /* 分组图标 */
@@ -1535,7 +1549,7 @@ h4 {
 
 /* 导航项左侧高亮条 (iOS 选中指示:白色圆角短条) */
 .nav-item::before {
-  content: "";
+  content: '';
   position: absolute;
   left: 0;
   top: 50%;
@@ -1587,7 +1601,7 @@ h4 {
 
 /* 导航项图标 */
 .nav-item svg,
-.nav-item [class*="lucide"] {
+.nav-item [class*='lucide'] {
   flex: 0 0 auto !important;
   width: 20px !important;
   height: 20px !important;
@@ -1660,7 +1674,11 @@ h4 {
   padding: 20px 0 2px;
 
   /* 渐变遮罩: 滚动内容从 footer 下方淡出, 替代生硬的边框切断 */
-  background: linear-gradient(180deg, rgb(65 105 79 / 0%) 0%, var(--nav-bg-flat, var(--nav-bg-flat)) 38%);
+  background: linear-gradient(
+    180deg,
+    rgb(65 105 79 / 0%) 0%,
+    var(--nav-bg-flat, var(--nav-bg-flat)) 38%
+  );
 }
 
 .sidebar-footer-nav {
@@ -1704,7 +1722,12 @@ h4 {
 
 .sidebar-footer .nav-item.active {
   color: var(--c-on-brand);
-  background: linear-gradient(90deg, rgb(255 255 255 / 16%) 0%, rgb(255 255 255 / 6%) 50%, transparent 100%);
+  background: linear-gradient(
+    90deg,
+    rgb(255 255 255 / 16%) 0%,
+    rgb(255 255 255 / 6%) 50%,
+    transparent 100%
+  );
   box-shadow: inset 3px 0 0 var(--c-surface);
 }
 
@@ -2769,7 +2792,7 @@ p {
 }
 
 .map-canvas::before {
-  content: "";
+  content: '';
   position: absolute;
   inset: 0;
   opacity: 0.65;
@@ -3161,7 +3184,7 @@ p {
 
 .ai-popover-score strong {
   margin-left: auto;
-  font-family: "JetBrains Mono", monospace;
+  font-family: 'JetBrains Mono', monospace;
   font-size: 12px;
 }
 
@@ -3493,7 +3516,7 @@ p {
 }
 
 .ai-meter strong {
-  font-family: "JetBrains Mono", monospace;
+  font-family: 'JetBrains Mono', monospace;
   text-align: right;
   font-size: 11px;
 }
@@ -3526,7 +3549,7 @@ p {
 }
 
 .ai-health-reasons li::before {
-  content: "·";
+  content: '·';
   position: absolute;
   left: 4px;
   color: var(--c-brand-tint);
@@ -3615,7 +3638,7 @@ p {
 
 .ai-dim-cell strong {
   font-size: 14px;
-  font-family: "JetBrains Mono", monospace;
+  font-family: 'JetBrains Mono', monospace;
 }
 
 .ai-hazard-reasons {
@@ -3646,7 +3669,7 @@ p {
 }
 
 .ai-hazard-reasons li::before {
-  content: "▸";
+  content: '▸';
   position: absolute;
   left: 2px;
   color: var(--c-brand-tint);
@@ -3728,7 +3751,7 @@ p {
 }
 
 .ai-device-code {
-  font-family: "JetBrains Mono", monospace;
+  font-family: 'JetBrains Mono', monospace;
   font-size: 12px;
 }
 
@@ -3927,7 +3950,7 @@ p {
 }
 
 .progress-ring::after {
-  content: "";
+  content: '';
   position: absolute;
   inset: 7px;
   border-radius: 50%;
@@ -4318,7 +4341,7 @@ textarea {
 }
 
 .settings-toggle i::after {
-  content: "";
+  content: '';
   position: absolute;
   top: 3px;
   left: 3px;
@@ -6753,7 +6776,7 @@ textarea {
   background: #f4f9f7;
 }
 
-.layer-toggle-row input[type="checkbox"] {
+.layer-toggle-row input[type='checkbox'] {
   grid-row: 1 / span 2;
   width: 14px;
   height: 14px;
@@ -7615,7 +7638,8 @@ html.theme-dark .ol-scale-step-marker {
   justify-content: center;
   padding: 32px 20px;
   background: linear-gradient(135deg, var(--c-warning-bg) 0%, #f6f8fc 50%, #eef4fb 100%);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
 }
 
 .error-card {
@@ -7702,7 +7726,7 @@ html.theme-dark .ol-scale-step-marker {
 }
 
 .error-meta code {
-  font-family: ui-monospace, "Cascadia Code", SFMono-Regular, Menlo, monospace;
+  font-family: ui-monospace, 'Cascadia Code', SFMono-Regular, Menlo, monospace;
   color: var(--c-info);
   background: rgb(29 107 154 / 8%);
   padding: 2px 6px;
@@ -8884,8 +8908,8 @@ div.kpi-card {
 
 /* 顶栏搜索框:iOS 搜索栏观感 */
 .topbar-search,
-.topbar input[type="search"],
-.topbar input[type="text"] {
+.topbar input[type='search'],
+.topbar input[type='text'] {
   border-radius: var(--r-md);
   background: var(--c-surface-2);
   border: 1px solid transparent;
@@ -8950,7 +8974,12 @@ a,
 /* ── 骨架屏 / 加载态:柔和脉冲 ── */
 .skeleton,
 .loading-shimmer {
-  background: linear-gradient(90deg, var(--c-surface-2) 0%, var(--c-surface-3) 50%, var(--c-surface-2) 100%);
+  background: linear-gradient(
+    90deg,
+    var(--c-surface-2) 0%,
+    var(--c-surface-3) 50%,
+    var(--c-surface-2) 100%
+  );
   background-size: 200% 100%;
   animation: ios-shimmer 1.4s ease-in-out infinite;
   border-radius: var(--r-sm);
@@ -9087,11 +9116,11 @@ a,
 .kpi-card .kpi-value,
 .metric-card strong,
 .data-table td.num,
-.data-table td[data-type="number"],
+.data-table td[data-type='number'],
 .pagination span,
 .badge-count {
   font-variant-numeric: tabular-nums;
-  font-feature-settings: "tnum" 1;
+  font-feature-settings: 'tnum' 1;
 }
 
 /* 大数字关键字距收紧,贴近 iOS 大标题排版 */
@@ -9192,8 +9221,8 @@ a,
 /* ── 9. 输入框:统一 iOS 内阴影聚焦感 ── */
 .settings-input:focus,
 .form-input:focus,
-input[type="text"]:focus:not(.topbar input),
-input[type="search"]:focus,
+input[type='text']:focus:not(.topbar input),
+input[type='search']:focus,
 textarea:focus,
 select:focus {
   border-color: var(--c-brand);
@@ -9284,53 +9313,53 @@ select:focus {
    仍用 !important，原因与既有 PAGE-LEVEL SKELETON 层相同：
    scoped 样式优先级更高，不改它就得动 61 个页面。
    ═══════════════════════════════════════════════════════════ */
-:root[data-density="compact"] .panel-header {
+:root[data-density='compact'] .panel-header {
   min-height: 0 !important;
   padding: 12px 15px 10px !important;
 }
 
-:root[data-density="compact"] .panel-body,
-:root[data-density="compact"] .card-body {
+:root[data-density='compact'] .panel-body,
+:root[data-density='compact'] .card-body {
   padding: 12px 15px !important;
 }
 
-:root[data-density="compact"] .table th,
-:root[data-density="compact"] .table td {
+:root[data-density='compact'] .table th,
+:root[data-density='compact'] .table td {
   padding-top: 7px !important;
   padding-bottom: 7px !important;
 }
 
-:root[data-density="compact"] .nav-item,
-:root[data-density="compact"] .hnav-item,
-:root[data-density="compact"] .hnav-group {
+:root[data-density='compact'] .nav-item,
+:root[data-density='compact'] .hnav-item,
+:root[data-density='compact'] .hnav-group {
   height: 30px !important;
 }
 
-:root[data-density="compact"] .hnav-top {
+:root[data-density='compact'] .hnav-top {
   height: 54px !important;
 }
 
-:root[data-density="compact"] .hnav-sub {
+:root[data-density='compact'] .hnav-sub {
   height: 42px !important;
 }
 
-:root[data-density="compact"] .topbar {
+:root[data-density='compact'] .topbar {
   height: 52px !important;
 }
 
-:root[data-density="compact"] .form-input,
-:root[data-density="compact"] .ios-row {
+:root[data-density='compact'] .form-input,
+:root[data-density='compact'] .ios-row {
   padding-top: 7px !important;
   padding-bottom: 7px !important;
 }
 
-:root[data-density="compact"] .page-content {
+:root[data-density='compact'] .page-content {
   padding-top: 16px !important;
   padding-bottom: 32px !important;
 }
 
 /* 紧凑档下表格字号同步收一档，避免"行变矮但字没变"的拥挤感 */
-:root[data-density="compact"] .table {
+:root[data-density='compact'] .table {
   font-size: 12.5px !important;
 }
 
@@ -9339,155 +9368,155 @@ select:focus {
    这两页大量 padding/height/gap 写死在 scoped 里，变量换不动，
    紧凑模式须在此按选择器逐一收紧。仍需 !important 压过 scoped。
    ─────────────────────────────────────────────────────────── */
-:root[data-density="compact"] .dap-root {
+:root[data-density='compact'] .dap-root {
   padding: 12px 16px !important;
 }
 
-:root[data-density="compact"] .dap-header,
-:root[data-density="compact"] .dap-tabs {
+:root[data-density='compact'] .dap-header,
+:root[data-density='compact'] .dap-tabs {
   margin-bottom: 12px !important;
 }
 
-:root[data-density="compact"] .dap-tab {
+:root[data-density='compact'] .dap-tab {
   padding: 5px 12px !important;
 }
 
-:root[data-density="compact"] .dap-control-bar {
+:root[data-density='compact'] .dap-control-bar {
   padding: 10px 12px !important;
   margin-bottom: 10px !important;
 }
 
-:root[data-density="compact"] .dap-select,
-:root[data-density="compact"] .dap-input {
+:root[data-density='compact'] .dap-select,
+:root[data-density='compact'] .dap-input {
   padding: 5px 10px !important;
 }
 
-:root[data-density="compact"] .dap-run-btn {
+:root[data-density='compact'] .dap-run-btn {
   padding: 6px 14px !important;
 }
 
-:root[data-density="compact"] .dap-refresh-btn {
+:root[data-density='compact'] .dap-refresh-btn {
   padding: 6px 8px !important;
 }
 
-:root[data-density="compact"] .dap-error {
+:root[data-density='compact'] .dap-error {
   padding: 6px 10px !important;
   margin-bottom: 10px !important;
 }
 
-:root[data-density="compact"] .dap-risk-hero {
+:root[data-density='compact'] .dap-risk-hero {
   padding: 12px 16px !important;
   margin-bottom: 10px !important;
 }
 
-:root[data-density="compact"] .dap-risk-level {
+:root[data-density='compact'] .dap-risk-level {
   margin-bottom: 3px !important;
 }
 
-:root[data-density="compact"] .dap-risk-score {
+:root[data-density='compact'] .dap-risk-score {
   margin-bottom: 6px !important;
 }
 
-:root[data-density="compact"] .dap-score-num {
+:root[data-density='compact'] .dap-score-num {
   font-size: 40px !important;
 }
 
-:root[data-density="compact"] .dap-risk-meta {
+:root[data-density='compact'] .dap-risk-meta {
   margin-bottom: 6px !important;
 }
 
-:root[data-density="compact"] .dap-concern-badge,
-:root[data-density="compact"] .dap-type-badge,
-:root[data-density="compact"] .dap-no-device-badge {
+:root[data-density='compact'] .dap-concern-badge,
+:root[data-density='compact'] .dap-type-badge,
+:root[data-density='compact'] .dap-no-device-badge {
   padding: 2px 8px !important;
 }
 
-:root[data-density="compact"] .dap-results,
-:root[data-density="compact"] .dap-results-grid,
-:root[data-density="compact"] .dap-nationwide-layout,
-:root[data-density="compact"] .dap-nationwide-results {
+:root[data-density='compact'] .dap-results,
+:root[data-density='compact'] .dap-results-grid,
+:root[data-density='compact'] .dap-nationwide-layout,
+:root[data-density='compact'] .dap-nationwide-results {
   gap: 10px !important;
 }
 
-:root[data-density="compact"] .dap-card {
+:root[data-density='compact'] .dap-card {
   padding: 10px 12px !important;
 }
 
-:root[data-density="compact"] .dap-card-header {
+:root[data-density='compact'] .dap-card-header {
   margin-bottom: 8px !important;
 }
 
-:root[data-density="compact"] .dap-radar-wrap {
+:root[data-density='compact'] .dap-radar-wrap {
   margin-bottom: 8px !important;
 }
 
-:root[data-density="compact"] .dap-radar-svg {
+:root[data-density='compact'] .dap-radar-svg {
   width: 232px !important;
   height: 208px !important;
 }
 
-:root[data-density="compact"] .dap-dim-bars,
-:root[data-density="compact"] .dap-reasoning,
-:root[data-density="compact"] .dap-actions {
+:root[data-density='compact'] .dap-dim-bars,
+:root[data-density='compact'] .dap-reasoning,
+:root[data-density='compact'] .dap-actions {
   gap: 5px !important;
 }
 
-:root[data-density="compact"] .dap-reason-num {
+:root[data-density='compact'] .dap-reason-num {
   min-width: 17px !important;
   height: 17px !important;
 }
 
-:root[data-density="compact"] .dap-divider {
+:root[data-density='compact'] .dap-divider {
   margin: 7px 0 !important;
 }
 
-:root[data-density="compact"] .dap-dt-grid {
+:root[data-density='compact'] .dap-dt-grid {
   gap: 8px !important;
 }
 
-:root[data-density="compact"] .dap-nationwide-form {
+:root[data-density='compact'] .dap-nationwide-form {
   gap: 8px !important;
 }
 
-:root[data-density="compact"] .dap-form-grid {
+:root[data-density='compact'] .dap-form-grid {
   gap: 6px !important;
 }
 
-:root[data-density="compact"] .dap-form-section-title {
+:root[data-density='compact'] .dap-form-section-title {
   padding-top: 5px !important;
 }
 
-:root[data-density="compact"] .dap-points-list {
+:root[data-density='compact'] .dap-points-list {
   padding: 6px !important;
   max-height: 140px !important;
 }
 
-:root[data-density="compact"] .dap-point-item {
+:root[data-density='compact'] .dap-point-item {
   padding: 4px 8px !important;
 }
 
-:root[data-density="compact"] .dap-nationwide-kpi {
+:root[data-density='compact'] .dap-nationwide-kpi {
   gap: 8px !important;
 }
 
-:root[data-density="compact"] .dap-nkpi {
+:root[data-density='compact'] .dap-nkpi {
   padding: 7px 10px !important;
 }
 
-:root[data-density="compact"] .dap-nkpi-val {
+:root[data-density='compact'] .dap-nkpi-val {
   font-size: 20px !important;
 }
 
-:root[data-density="compact"] .dap-table th {
+:root[data-density='compact'] .dap-table th {
   padding: 5px 8px !important;
 }
 
-:root[data-density="compact"] .dap-table td {
+:root[data-density='compact'] .dap-table td {
   padding: 4px 8px !important;
 }
 
-:root[data-density="compact"] .dap-empty,
-:root[data-density="compact"] .dap-nationwide-empty {
+:root[data-density='compact'] .dap-empty,
+:root[data-density='compact'] .dap-nationwide-empty {
   padding: 40px 16px !important;
 }
 
@@ -9496,119 +9525,119 @@ select:focus {
    队列项、详情头、时间线、意见表单的写死间距在此收紧；骨架态
    (.sds-*) 同步收紧，保证加载中与加载后布局一致不跳动。
    ─────────────────────────────────────────────────────────── */
-:root[data-density="compact"] .grid > .panel {
+:root[data-density='compact'] .grid > .panel {
   padding: 10px 12px !important;
   gap: 7px !important;
 }
 
-:root[data-density="compact"] .panel h3 {
+:root[data-density='compact'] .panel h3 {
   padding-bottom: 4px !important;
 }
 
-:root[data-density="compact"] .panel ul {
+:root[data-density='compact'] .panel ul {
   gap: 4px !important;
 }
 
-:root[data-density="compact"] .item,
-:root[data-density="compact"] .sign-queue-skeleton-row {
+:root[data-density='compact'] .item,
+:root[data-density='compact'] .sign-queue-skeleton-row {
   padding: 6px 10px !important;
 }
 
-:root[data-density="compact"] .sign-queue-skeleton {
+:root[data-density='compact'] .sign-queue-skeleton {
   gap: 4px !important;
 }
 
-:root[data-density="compact"] .meta {
+:root[data-density='compact'] .meta {
   margin-top: 2px !important;
 }
 
-:root[data-density="compact"] .detail-body {
+:root[data-density='compact'] .detail-body {
   gap: 7px !important;
 }
 
-:root[data-density="compact"] .sign-detail-skeleton {
+:root[data-density='compact'] .sign-detail-skeleton {
   gap: 8px !important;
 }
 
-:root[data-density="compact"] .sds-head-main {
+:root[data-density='compact'] .sds-head-main {
   gap: 5px !important;
 }
 
-:root[data-density="compact"] .sds-timeline {
+:root[data-density='compact'] .sds-timeline {
   gap: 8px !important;
   padding: 7px 0 !important;
 }
 
-:root[data-density="compact"] .sds-node {
+:root[data-density='compact'] .sds-node {
   gap: 7px !important;
 }
 
-:root[data-density="compact"] .sds-node-body {
+:root[data-density='compact'] .sds-node-body {
   gap: 4px !important;
   padding-top: 1px !important;
 }
 
-:root[data-density="compact"] .sds-form,
-:root[data-density="compact"] .sds-actions,
-:root[data-density="compact"] .sds-form-btns {
+:root[data-density='compact'] .sds-form,
+:root[data-density='compact'] .sds-actions,
+:root[data-density='compact'] .sds-form-btns {
   gap: 5px !important;
 }
 
-:root[data-density="compact"] .d-head h4 {
+:root[data-density='compact'] .d-head h4 {
   font-size: 16px !important;
 }
 
-:root[data-density="compact"] .d-head p {
+:root[data-density='compact'] .d-head p {
   margin-top: 2px !important;
 }
 
-:root[data-density="compact"] .d-actions {
+:root[data-density='compact'] .d-actions {
   gap: 4px !important;
 }
 
-:root[data-density="compact"] .sign-actions {
+:root[data-density='compact'] .sign-actions {
   gap: 4px !important;
   padding-top: 6px !important;
 }
 
-:root[data-density="compact"] .sign-actions textarea {
+:root[data-density='compact'] .sign-actions textarea {
   padding: 5px 8px !important;
 }
 
 /* SignTimeline 为独立 scoped 子组件，用 .timeline 前缀锁定，避免误伤同名 .state/.meta */
-:root[data-density="compact"] .timeline {
+:root[data-density='compact'] .timeline {
   gap: 8px !important;
 }
 
-:root[data-density="compact"] .timeline ul {
+:root[data-density='compact'] .timeline ul {
   gap: 5px !important;
 }
 
-:root[data-density="compact"] .timeline li {
+:root[data-density='compact'] .timeline li {
   gap: 8px !important;
   padding: 2px 0 !important;
 }
 
-:root[data-density="compact"] .timeline .dot {
+:root[data-density='compact'] .timeline .dot {
   width: 20px !important;
   height: 20px !important;
 }
 
-:root[data-density="compact"] .timeline .meta {
+:root[data-density='compact'] .timeline .meta {
   gap: 2px !important;
 }
 
-:root[data-density="compact"] .timeline .state {
+:root[data-density='compact'] .timeline .state {
   padding: 1px 6px !important;
 }
 
-:root[data-density="compact"] .timeline .line {
+:root[data-density='compact'] .timeline .line {
   left: 9px !important;
   top: 23px !important;
   bottom: -6px !important;
 }
 
-:root[data-density="compact"] .timeline .transfers {
+:root[data-density='compact'] .timeline .transfers {
   padding-top: 6px !important;
 }
 

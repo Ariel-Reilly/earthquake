@@ -19,31 +19,31 @@ export const emptyPaged = {
   page: 1,
   size: 20,
   pages: 1,
-};
+}
 
 export function paged(size = 20) {
-  return { records: [], total: 0, page: 1, size, pages: 1 };
+  return { records: [], total: 0, page: 1, size, pages: 1 }
 }
 
 export function emptyList() {
-  return [];
+  return []
 }
 
 // 写操作成功壳
 
-export const ok = { ok: true };
+export const ok = { ok: true }
 
 // 单条详情（null 占位）
 
-export const emptyDetail = null;
+export const emptyDetail = null
 
 // 任务执行日志空集
 
-export const emptyTaskLog = { entries: [], cursor: null };
+export const emptyTaskLog = { entries: [], cursor: null }
 
 // 附件空集
 
-export const emptyAttachments = [];
+export const emptyAttachments = []
 
 // 待办 / 审批 / 备份 / 报表等 占位
 
@@ -52,7 +52,7 @@ export const emptyTodoSummary = {
   approval: 0,
   pendingWarnings: 0,
   openEmergency: 0,
-};
+}
 
 export const emptyApprovalStats = {
   total: 0,
@@ -60,14 +60,14 @@ export const emptyApprovalStats = {
   passRate: 0,
   avgCostMinutes: 0,
   dailySeries: [],
-};
+}
 
 export const emptyCatalogSummary = {
   resourceTotal: 0,
   tableCount: 0,
   fieldCount: 0,
   updatedAt: null,
-};
+}
 
 export const emptyDeliverySummary = (warningId) => ({
   warningId,
@@ -76,7 +76,7 @@ export const emptyDeliverySummary = (warningId) => ({
   read: 0,
   confirmed: 0,
   channels: [],
-});
+})
 
 // 上传附件回执骨架
 
@@ -86,14 +86,14 @@ export function uploadReceipt({ businessType, businessCode, file, uploader }) {
       id: Date.now(),
       businessType,
       businessCode,
-      fileName: file?.name ?? "file",
+      fileName: file?.name ?? 'file',
       fileSize: file?.size ?? 0,
-      fileType: file?.type ?? "",
-      storagePath: "",
-      fileUrl: "",
+      fileType: file?.type ?? '',
+      storagePath: '',
+      fileUrl: '',
       uploader,
     },
-  };
+  }
 }
 
 // GPS 围栏校验 demo 结果
@@ -105,17 +105,17 @@ export function gpsCheckFallback({ taskCode, hazardCode, lon, lat, allowedRadius
     distanceM: 32.5,
     allowedRadius: allowedRadius ?? 100,
     withinFence: true,
-    fenceStatus: "已进入围栏",
+    fenceStatus: '已进入围栏',
     lon,
     lat,
     checkedAt: new Date().toISOString(),
-  };
+  }
 }
 
 // 巡检结果回执
 
 export function submitInspectionFallback(payload = {}) {
-  const now = Date.now();
+  const now = Date.now()
   return {
     id: now,
     recordCode: `IR-${now}`,
@@ -130,48 +130,48 @@ export function submitInspectionFallback(payload = {}) {
     note: payload.note,
     photoIds: payload.photoIds ?? [],
     formData: payload.formData ?? {},
-  };
+  }
 }
 
 // 巡检接口示例 payload
 
 export function inspectionExampleFallback() {
   return {
-    description: "巡检上报接口示例 payload（离线 mock），用于前端联调参考",
-    submitUrl: "/api/inspection/submit",
-    method: "POST",
+    description: '巡检上报接口示例 payload（离线 mock），用于前端联调参考',
+    submitUrl: '/api/inspection/submit',
+    method: 'POST',
     sample: {
-      taskCode: "TK-DEMO-001",
-      hazardCode: "HZ-LA-001",
+      taskCode: 'TK-DEMO-001',
+      hazardCode: 'HZ-LA-001',
       lon: 118.5421,
       lat: 30.1284,
       allowedRadius: 200,
-      inspector: "周小雨",
+      inspector: '周小雨',
       abnormalFlag: false,
-      note: "山体表面无异常，监测设备运行正常",
-      photoIds: ["photo-001", "photo-002"],
+      note: '山体表面无异常，监测设备运行正常',
+      photoIds: ['photo-001', 'photo-002'],
       formData: {
         displacement_mm: 2.3,
         crack_width_mm: 0,
         rainfall_mm: 5.2,
       },
     },
-  };
+  }
 }
 
 // 登录 demo 回执
 
-export function loginMockUser(username, role = "admin") {
+export function loginMockUser(username, role = 'admin') {
   return {
     token: `token_${btoa(`${username}:${Date.now()}`)}`,
     user: {
-      name: "李晨曦",
+      name: '李晨曦',
       role,
       username,
     },
-  };
+  }
 }
 
 // 登出回执
 
-export const logoutOk = { success: true };
+export const logoutOk = { success: true }

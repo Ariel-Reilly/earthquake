@@ -20,11 +20,11 @@
  * 3. 命名约定：xxxMock 函数返回纯数据；xxxMock 常量是预生成的静态值。
  */
 
-export * as seed from "./seed";
-export * as empty from "./empty";
-export * as ai from "./ai";
-export * as analytics from "./analytics";
-export * as workflow from "./workflow";
-export * as operations from "./operations";
-export * as system from "./system";
-export * as runtime from "./runtime";
+export * as seed from './seed'
+export * as empty from './empty'
+export * as ai from './ai'
+export * as analytics from './analytics'
+export * as workflow from './workflow'
+export * as operations from './operations'
+export * as system from './system'
+export * as runtime from './runtime'

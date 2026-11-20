@@ -13,7 +13,11 @@
  */
 
 import { ref } from 'vue'
-import { geocodeAddress, reverseGeocode, parseCoordinate } from '../services/_architecture/core/geocodeService.js'
+import {
+  geocodeAddress,
+  reverseGeocode,
+  parseCoordinate,
+} from '../services/_architecture/core/geocodeService.js'
 
 export function useOverviewSearch({ mapController, hazards, emit, onSelect }) {
   const searchTerm = ref('')
@@ -46,10 +50,14 @@ export function useOverviewSearch({ mapController, hazards, emit, onSelect }) {
 
   /** 主动跑一次搜索(用户按 Enter 或点击搜索图标时)。 */
   function onSearchSubmit(event) {
-    if (event?.isComposing || event?.keyCode === 229) {return}
+    if (event?.isComposing || event?.keyCode === 229) {
+      return
+    }
     event?.preventDefault()
     const term = searchTerm.value.trim()
-    if (!term) {return}
+    if (!term) {
+      return
+    }
     runSearch(term)
   }
 
@@ -62,18 +70,32 @@ export function useOverviewSearch({ mapController, hazards, emit, onSelect }) {
     searchError.value = ''
     try {
       const keyword = term.toLowerCase()
-      const localResults = (hazards?.value ?? []).filter((point) =>
-        [point.name, point.hazardCode, point.address].some((value) =>
-          String(value ?? '').toLowerCase().includes(keyword),
-        ) && Number.isFinite(point.lon) && Number.isFinite(point.lat),
-      ).slice(0, 8).map((point) => ({
-        lon: point.lon, lat: point.lat, name: point.name,
-        address: point.address, source: 'hazard',
-      }))
-      const results = !parseCoordinate(term) && localResults.length
-        ? localResults
-        : await geocodeAddress(term, { signal: controller.signal })
-      if (controller.signal.aborted) {return}
+      const localResults = (hazards?.value ?? [])
+        .filter(
+          (point) =>
+            [point.name, point.hazardCode, point.address].some((value) =>
+              String(value ?? '')
+                .toLowerCase()
+                .includes(keyword)
+            ) &&
+            Number.isFinite(point.lon) &&
+            Number.isFinite(point.lat)
+        )
+        .slice(0, 8)
+        .map((point) => ({
+          lon: point.lon,
+          lat: point.lat,
+          name: point.name,
+          address: point.address,
+          source: 'hazard',
+        }))
+      const results =
+        !parseCoordinate(term) && localResults.length
+          ? localResults
+          : await geocodeAddress(term, { signal: controller.signal })
+      if (controller.signal.aborted) {
+        return
+      }
       if (!results || !results.length) {
         searchResults.value = []
         searchPanelState.value = 'empty'
@@ -82,7 +104,9 @@ export function useOverviewSearch({ mapController, hazards, emit, onSelect }) {
       searchResults.value = results
       searchPanelState.value = 'results'
     } catch (err) {
-      if (controller.signal.aborted) {return}
+      if (controller.signal.aborted) {
+        return
+      }
       searchResults.value = []
       searchPanelState.value = 'empty'
       searchError.value = err?.message || '搜索失败'
@@ -91,7 +115,9 @@ export function useOverviewSearch({ mapController, hazards, emit, onSelect }) {
 
   /** 在地图上选中一个搜索结果: 画 marker、zoom、关闭面板。 */
   function selectSearchResult(item) {
-    if (!mapController?.value || !item) {return}
+    if (!mapController?.value || !item) {
+      return
+    }
     searchMarker.value = {
       lon: item.lon,
       lat: item.lat,
@@ -101,11 +127,14 @@ export function useOverviewSearch({ mapController, hazards, emit, onSelect }) {
     mapController.value.zoomToPoint(item.lon, item.lat, 15)
     onSelect?.(item)
     searchPanelOpen.value = false
-    const label = item.source === 'coord'
-      ? `已定位:${item.lon.toFixed(4)}, ${item.lat.toFixed(4)}`
-      : `已定位:${item.name}`
+    const label =
+      item.source === 'coord'
+        ? `已定位:${item.lon.toFixed(4)}, ${item.lat.toFixed(4)}`
+        : `已定位:${item.name}`
     emit?.('notify', label)
-    if (item.source !== 'coord') {return}
+    if (item.source !== 'coord') {
+      return
+    }
     const marker = searchMarker.value
     reverseGeocode(item.lon, item.lat).then((addr) => {
       if (addr && searchMarker.value === marker) {

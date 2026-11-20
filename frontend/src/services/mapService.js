@@ -1,1 +1,1 @@
-export * from './_architecture/core/mapService.js';
+export * from './_architecture/core/mapService.js'

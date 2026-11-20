@@ -1,5 +1,5 @@
-import { createApiError } from "./_architecture/core/errors.js";
-import { request, downloadFile } from "./_architecture/core/httpClient.js";
+import { createApiError } from './_architecture/core/errors.js'
+import { request, downloadFile } from './_architecture/core/httpClient.js'
 import {
   getRuntimeMode,
   isBackendRuntime,
@@ -7,8 +7,8 @@ import {
   initBackendMode,
   requireBackend,
   API_BASE,
-} from "./_architecture/core/runtime.js";
-import { withQuery } from "../utils/query.js";
+} from './_architecture/core/runtime.js'
+import { withQuery } from '../utils/query.js'
 
 export {
   createApiError,
@@ -21,32 +21,32 @@ export {
   requireBackend,
   API_BASE,
   withQuery,
-};
+}
 
 // USE_BACKEND ?? runtime.js ??,?? getUseBackend() ??;
-export const USE_BACKEND = getUseBackend();
+export const USE_BACKEND = getUseBackend()
 
-const _latency = 240;
+const _latency = 240
 function _clone(data) {
-  return typeof structuredClone === "function"
+  return typeof structuredClone === 'function'
     ? structuredClone(data)
-    : JSON.parse(JSON.stringify(data));
+    : JSON.parse(JSON.stringify(data))
 }
 export function response(data) {
   return new Promise((resolve) => {
-    window.setTimeout(() => resolve(_clone(data)), _latency);
-  });
+    window.setTimeout(() => resolve(_clone(data)), _latency)
+  })
 }
 
-import * as mock from "./mock";
-import { normalizePage } from "../api/client.js";
+import * as mock from './mock'
+import { normalizePage } from '../api/client.js'
 
 /**
  * 分页归一化统一委托 api/client.normalizePage（records / items / list）。
  * 避免本文件与 api/client 双实现漂移；行为等价，额外支持 list、裸数组与 pages 推导。
  */
 function normalizePaged(payload, fallback = []) {
-  return normalizePage(payload, fallback);
+  return normalizePage(payload, fallback)
 }
 
 // withQuery 已迁移到 utils/query.js
@@ -58,14 +58,14 @@ function normalizePaged(payload, fallback = []) {
  * 映射集中在这里，避免各处散落 if-else。
  */
 const QUEUE_STATE_STATUS = {
-  DETECTED: "待确认",
-  CONFIRMING: "已认领",
-  CONFIRMED: "已确认",
-  REJECTED: "已驳回",
-  CLOSED: "已关闭",
-  WARNING_ISSUED: "已发布预警",
-  EMERGENCY_ACTIVE: "应急处置中",
-};
+  DETECTED: '待确认',
+  CONFIRMING: '已认领',
+  CONFIRMED: '已确认',
+  REJECTED: '已驳回',
+  CLOSED: '已关闭',
+  WARNING_ISSUED: '已发布预警',
+  EMERGENCY_ACTIVE: '应急处置中',
+}
 
 /**
  * operation_log 的 module_name（Controller 所在包）→ 审计页业务分组。
@@ -73,16 +73,16 @@ const QUEUE_STATE_STATUS = {
  * 前端列表展示时也统一映射成「分组_动作」形式（如 WARNING_CONFIRM），保证配色与二次筛选可用。
  */
 const AUDIT_ACTION_GROUP = {
-  warning: "WARNING",
-  hazard: "HAZARD",
-  task: "TASK",
-  inspection: "TASK",
-  device: "DEVICE",
-  ota: "DEVICE",
-  confirmation: "CONFIRMATION",
-  system: "USER",
-  auth: "LOGIN",
-};
+  warning: 'WARNING',
+  hazard: 'HAZARD',
+  task: 'TASK',
+  inspection: 'TASK',
+  device: 'DEVICE',
+  ota: 'DEVICE',
+  confirmation: 'CONFIRMATION',
+  system: 'USER',
+  auth: 'LOGIN',
+}
 
 /**
  * 会签队列项 → 前端视图模型。
@@ -95,33 +95,33 @@ const AUDIT_ACTION_GROUP = {
  * @returns {object} 前端视图模型
  */
 function normalizeQueueItem(raw) {
-  if (!raw) {return null;}
-  const state = raw.state ?? "";
-  const transferred = raw.transferred === true;
+  if (!raw) {
+    return null
+  }
+  const state = raw.state ?? ''
+  const transferred = raw.transferred === true
   // 转派后事件仍是「确认中」，靠转派记录把它与「已认领」区分开
   const status =
     raw.status ??
-    (state === "CONFIRMING" && transferred
-      ? "已转派"
-      : QUEUE_STATE_STATUS[state] ?? "待确认");
+    (state === 'CONFIRMING' && transferred ? '已转派' : (QUEUE_STATE_STATUS[state] ?? '待确认'))
   return {
     ...raw,
-    hazardCode: raw.hazardCode ?? raw.code ?? "",
-    name: raw.name ?? raw.hazardName ?? raw.title ?? "",
-    type: raw.type ?? raw.hazardType ?? "",
-    level: raw.level ?? raw.riskLevel ?? "",
+    hazardCode: raw.hazardCode ?? raw.code ?? '',
+    name: raw.name ?? raw.hazardName ?? raw.title ?? '',
+    type: raw.type ?? raw.hazardType ?? '',
+    level: raw.level ?? raw.riskLevel ?? '',
     status,
     assignee: raw.assignee ?? null,
     transferred,
     transferredTo: raw.transferredTo ?? null,
     confidence: raw.confidence ?? null,
     aiScore: raw.aiScore ?? raw.riskScore ?? null,
-    reason: raw.reason ?? "",
+    reason: raw.reason ?? '',
     discoveredAt: raw.discoveredAt ?? raw.createdAt ?? null,
-    regionCode: raw.regionCode ?? "",
+    regionCode: raw.regionCode ?? '',
     longitude: raw.longitude ?? raw.lon ?? null,
     latitude: raw.latitude ?? raw.lat ?? null,
-  };
+  }
 }
 
 /**
@@ -131,96 +131,99 @@ function normalizeQueueItem(raw) {
  * 详见 ./mock/seed.js
  */
 function fallback(key) {
-  if (USE_BACKEND) {return [];}
-  return mock.seed.SEED_BASE[key] ?? [];
+  if (USE_BACKEND) {
+    return []
+  }
+  return mock.seed.SEED_BASE[key] ?? []
 }
 
 export async function loginRequest(payload) {
   if (USE_BACKEND) {
-    const data = await request("/auth/login", {
-      method: "POST",
+    const data = await request('/auth/login', {
+      method: 'POST',
       body: JSON.stringify(payload),
-    });
-    return { token: data.token, user: data.user };
+    })
+    return { token: data.token, user: data.user }
   }
 
-  const username = String(payload?.username ?? "").trim();
-  const password = String(payload?.password ?? "").trim();
-  const role = String(payload?.role ?? "admin");
+  const username = String(payload?.username ?? '').trim()
+  const password = String(payload?.password ?? '').trim()
+  const role = String(payload?.role ?? 'admin')
 
   if (!username || !password) {
-    throw createApiError("用户名和密码不能为空");
+    throw createApiError('用户名和密码不能为空')
   }
 
-  return response(mock.empty.loginMockUser(username, role));
+  return response(mock.empty.loginMockUser(username, role))
 }
 
 export async function logoutRequest() {
   if (USE_BACKEND) {
-    return request("/auth/logout", { method: "POST" }).catch(() => null);
+    return request('/auth/logout', { method: 'POST' }).catch(() => null)
   }
-  return response(mock.empty.logoutOk);
+  return response(mock.empty.logoutOk)
 }
 
 export const dashboardApi = {
   getOverview: async () => {
-    if (!USE_BACKEND) {requireBackend("综合态势");}
-    return request("/dashboard/overview");
+    if (!USE_BACKEND) {
+      requireBackend('综合态势')
+    }
+    return request('/dashboard/overview')
   },
   getHazards: async (params = {}) => {
-    if (!USE_BACKEND) {requireBackend("灾害列表");}
-    const data = await request(`/hazards${withQuery(params)}`);
-    const normalized = normalizePaged(data, fallback("hazardPoints"));
+    if (!USE_BACKEND) {
+      requireBackend('灾害列表')
+    }
+    const data = await request(`/hazards${withQuery(params)}`)
+    const normalized = normalizePaged(data, fallback('hazardPoints'))
     return {
       list: normalized.records,
       total: normalized.total,
       page: normalized.page,
       size: normalized.size,
       pages: normalized.pages,
-    };
+    }
   },
 
   getAiMonitorHazards: async () => {
-    if (!USE_BACKEND) {requireBackend("获取 AI 监测灾害");}
-    const data = await request("/hazards/ai-monitor");
-    return Array.isArray(data) ? data : (data.list ?? data.records ?? []);
+    if (!USE_BACKEND) {
+      requireBackend('获取 AI 监测灾害')
+    }
+    const data = await request('/hazards/ai-monitor')
+    return Array.isArray(data) ? data : (data.list ?? data.records ?? [])
   },
-  getHazardsByViewport: async ({
-    bbox,
-    zoom,
-    level,
-    keyword,
-    regionCode,
-    type,
-  } = {}) => {
-    const params = { bbox, zoom, level, keyword, regionCode, type };
-    if (!USE_BACKEND) {requireBackend("按视野查询灾害");}
-    const data = await request(`/hazards/viewport${withQuery(params)}`);
-    return Array.isArray(data)
-      ? data
-      : normalizePaged(data, fallback("hazardPoints")).records;
+  getHazardsByViewport: async ({ bbox, zoom, level, keyword, regionCode, type } = {}) => {
+    const params = { bbox, zoom, level, keyword, regionCode, type }
+    if (!USE_BACKEND) {
+      requireBackend('按视野查询灾害')
+    }
+    const data = await request(`/hazards/viewport${withQuery(params)}`)
+    return Array.isArray(data) ? data : normalizePaged(data, fallback('hazardPoints')).records
   },
   getHazardDetail: async (id) => {
-    if (!USE_BACKEND) {requireBackend("灾害详情");}
-    return request(`/hazards/${id}`);
+    if (!USE_BACKEND) {
+      requireBackend('灾害详情')
+    }
+    return request(`/hazards/${id}`)
   },
   createHazard: async (payload) => {
-    requireBackend("新建灾害");
-    return request("/hazards", {
-      method: "POST",
+    requireBackend('新建灾害')
+    return request('/hazards', {
+      method: 'POST',
       body: JSON.stringify(payload),
-    });
+    })
   },
   updateHazard: async (id, payload) => {
-    requireBackend("更新灾害");
+    requireBackend('更新灾害')
     return request(`/hazards/${id}`, {
-      method: "PUT",
+      method: 'PUT',
       body: JSON.stringify(payload),
-    });
+    })
   },
   deleteHazard: async (id) => {
-    requireBackend("删除灾害");
-    return request(`/hazards/${id}`, { method: "DELETE" });
+    requireBackend('删除灾害')
+    return request(`/hazards/${id}`, { method: 'DELETE' })
   },
   /**
    * 把灾害点提交到人工确认队列（真实落库，不是前端本地删卡片）。
@@ -228,281 +231,268 @@ export const dashboardApi = {
    * 返回 { hazardCode, eventCode, state, alreadyInQueue, message }。
    */
   submitHazardConfirmation: async (hazardCode) => {
-    requireBackend("提交人工确认");
+    requireBackend('提交人工确认')
     return request(`/hazards/${encodeURIComponent(hazardCode)}/submit-confirmation`, {
-      method: "POST",
-    });
+      method: 'POST',
+    })
   },
   /** 归档误报（DISMISS → CLOSED），原因必填。 */
   dismissHazard: async (hazardCode, reason) => {
-    requireBackend("归档误报");
+    requireBackend('归档误报')
     return request(`/hazards/${encodeURIComponent(hazardCode)}/dismiss`, {
-      method: "POST",
+      method: 'POST',
       body: JSON.stringify({ reason }),
-    });
+    })
   },
   getTasks: async (params = {}) => {
-    requireBackend("巡检任务");
-    const data = await request(`/tasks${withQuery(params)}`);
-    const normalized = normalizePaged(data, fallback("tasks"));
+    requireBackend('巡检任务')
+    const data = await request(`/tasks${withQuery(params)}`)
+    const normalized = normalizePaged(data, fallback('tasks'))
     return {
       list: normalized.records,
       total: normalized.total,
       page: normalized.page,
       size: normalized.size,
       pages: normalized.pages,
-    };
+    }
   },
   getTaskDetail: async (id) => {
-    requireBackend("任务详情");
-    return request(`/tasks/${id}`);
+    requireBackend('任务详情')
+    return request(`/tasks/${id}`)
   },
   createTask: async (payload) => {
-    requireBackend("新建任务");
-    return request("/tasks", { method: "POST", body: JSON.stringify(payload) });
+    requireBackend('新建任务')
+    return request('/tasks', { method: 'POST', body: JSON.stringify(payload) })
   },
   updateTask: async (id, payload) => {
-    requireBackend("更新任务");
+    requireBackend('更新任务')
     return request(`/tasks/${id}`, {
-      method: "PUT",
+      method: 'PUT',
       body: JSON.stringify(payload),
-    });
+    })
   },
   updateTaskStatus: async (id, status) => {
-    requireBackend("更新任务状态");
+    requireBackend('更新任务状态')
     return request(`/tasks/${id}/status`, {
-      method: "PATCH",
+      method: 'PATCH',
       body: JSON.stringify({ status }),
-    });
+    })
   },
   deleteTask: async (id) => {
-    requireBackend("删除任务");
-    return request(`/tasks/${id}`, { method: "DELETE" });
+    requireBackend('删除任务')
+    return request(`/tasks/${id}`, { method: 'DELETE' })
   },
   getDevices: async (params = {}) => {
-    requireBackend("设备列表");
-    const data = await request(`/devices${withQuery(params)}`);
-    const normalized = normalizePaged(data, fallback("devices"));
+    requireBackend('设备列表')
+    const data = await request(`/devices${withQuery(params)}`)
+    const normalized = normalizePaged(data, fallback('devices'))
     return {
       list: normalized.records,
       total: normalized.total,
       page: normalized.page,
       size: normalized.size,
       pages: normalized.pages,
-    };
+    }
   },
   getDevicesByViewport: async ({ bbox, zoom, state, keyword } = {}) => {
-    const params = { bbox, zoom, state, keyword };
-    requireBackend("按视野查询设备");
-    const data = await request(`/devices/viewport${withQuery(params)}`);
-    return Array.isArray(data)
-      ? data
-      : normalizePaged(data, fallback("devices")).records;
+    const params = { bbox, zoom, state, keyword }
+    requireBackend('按视野查询设备')
+    const data = await request(`/devices/viewport${withQuery(params)}`)
+    return Array.isArray(data) ? data : normalizePaged(data, fallback('devices')).records
   },
   getDeviceDetail: async (id) => {
-    requireBackend("设备详情");
-    return request(`/devices/${id}`);
+    requireBackend('设备详情')
+    return request(`/devices/${id}`)
   },
   createDevice: async (device) => {
-    requireBackend("创建设备");
-    return request("/devices", {
-      method: "POST",
+    requireBackend('创建设备')
+    return request('/devices', {
+      method: 'POST',
       body: JSON.stringify(device),
-    });
+    })
   },
   updateDevice: async (id, payload) => {
-    requireBackend("更新设备");
+    requireBackend('更新设备')
     return request(`/devices/${id}`, {
-      method: "PUT",
+      method: 'PUT',
       body: JSON.stringify(payload),
-    });
+    })
   },
   deleteDevice: async (id) => {
-    requireBackend("删除设备");
-    return request(`/devices/${id}`, { method: "DELETE" });
+    requireBackend('删除设备')
+    return request(`/devices/${id}`, { method: 'DELETE' })
   },
   diagnoseDevice: async (id) => {
-    requireBackend("设备诊断");
-    return request(`/devices/${id}/diagnose`, { method: "POST" });
+    requireBackend('设备诊断')
+    return request(`/devices/${id}/diagnose`, { method: 'POST' })
   },
   getWarnings: async (params = {}) => {
-    requireBackend("预警列表");
-    const data = await request(`/warnings${withQuery(params)}`);
-    const normalized = normalizePaged(data, fallback("warnings"));
+    requireBackend('预警列表')
+    const data = await request(`/warnings${withQuery(params)}`)
+    const normalized = normalizePaged(data, fallback('warnings'))
     return {
       list: normalized.records,
       total: normalized.total,
       page: normalized.page,
       size: normalized.size,
       pages: normalized.pages,
-    };
+    }
   },
   getWarningsPreview: async () => {
-    requireBackend("预警预览");
-    const data = await request(`/warnings/preview`);
-    return Array.isArray(data)
-      ? { list: data }
-      : normalizePaged(data, fallback("warnings"));
+    requireBackend('预警预览')
+    const data = await request(`/warnings/preview`)
+    return Array.isArray(data) ? { list: data } : normalizePaged(data, fallback('warnings'))
   },
   getWarningsByViewport: async ({ bbox, zoom, keyword, status } = {}) => {
-    const params = { bbox, zoom, keyword, status };
-    requireBackend("按视野查询预警");
-    const data = await request(`/warnings/viewport${withQuery(params)}`);
-    return Array.isArray(data)
-      ? data
-      : normalizePaged(data, fallback("warnings")).records;
+    const params = { bbox, zoom, keyword, status }
+    requireBackend('按视野查询预警')
+    const data = await request(`/warnings/viewport${withQuery(params)}`)
+    return Array.isArray(data) ? data : normalizePaged(data, fallback('warnings')).records
   },
   getWarningDetail: async (id) => {
-    requireBackend("预警详情");
-    return request(`/warnings/${id}`);
+    requireBackend('预警详情')
+    return request(`/warnings/${id}`)
   },
   // AI 分析详情：AI 研判 + 事发前后指标 + 现场影像（一次聚合返回）
   getWarningAnalysisDetail: async (id) => {
-    requireBackend("预警 AI 分析详情");
-    return request(`/warnings/${id}/analysis-detail`);
+    requireBackend('预警 AI 分析详情')
+    return request(`/warnings/${id}/analysis-detail`)
   },
   updateWarning: async (id, payload) => {
-    requireBackend("更新预警");
+    requireBackend('更新预警')
     return request(`/warnings/${id}`, {
-      method: "PUT",
+      method: 'PUT',
       body: JSON.stringify(payload),
-    });
+    })
   },
   confirmWarning: async (id) => {
-    requireBackend("确认预警");
-    return request(`/warnings/${id}/confirm`, { method: "POST" });
+    requireBackend('确认预警')
+    return request(`/warnings/${id}/confirm`, { method: 'POST' })
   },
   dispatchWarning: async (id) => {
-    requireBackend("下发预警");
-    return request(`/warnings/${id}/dispatch`, { method: "POST" });
+    requireBackend('下发预警')
+    return request(`/warnings/${id}/dispatch`, { method: 'POST' })
   },
   closeWarning: async (id, payload = {}) => {
-    requireBackend("关闭预警");
-    const reason = payload.reason ?? "未填写关闭原因";
+    requireBackend('关闭预警')
+    const reason = payload.reason ?? '未填写关闭原因'
     return request(`/warnings/${id}/close`, {
-      method: "POST",
+      method: 'POST',
       body: JSON.stringify({ reason }),
-    });
+    })
   },
   dismissWarning: async (id) => {
-    requireBackend("解除预警");
-    return request(`/warnings/${id}/dismiss`, { method: "POST" });
+    requireBackend('解除预警')
+    return request(`/warnings/${id}/dismiss`, { method: 'POST' })
   },
   resolveWarning: async (id) => {
-    requireBackend("预警解除");
-    return request(`/warnings/${id}/resolve`, { method: "POST" });
+    requireBackend('预警解除')
+    return request(`/warnings/${id}/resolve`, { method: 'POST' })
   },
   getEmergency: async () => {
-    requireBackend("应急事件列表");
-    const data = await request("/emergency?size=200");
+    requireBackend('应急事件列表')
+    const data = await request('/emergency?size=200')
     const records = Array.isArray(data?.records)
       ? data.records
       : Array.isArray(data?.list)
         ? data.list
-        : [];
+        : []
     const incidents = records.map((e) => ({
       id: e.id,
       title: e.title,
-      level: e.status === "处置中" ? "处置中" : "已结束",
+      level: e.status === '处置中' ? '处置中' : '已结束',
       owner: e.commander,
       step: e.stepName,
       warningId: e.warningCode,
       hazardCode: e.hazardCode,
-      time: e.startedAt
-        ? new Date(e.startedAt).toLocaleString("zh-CN", { hour12: false })
-        : "",
+      time: e.startedAt ? new Date(e.startedAt).toLocaleString('zh-CN', { hour12: false }) : '',
       resultSummary: e.resultSummary,
-    }));
-    return { incidents };
+    }))
+    return { incidents }
   },
   getPersonnel: async () => {
-    requireBackend("人员列表");
-    const data = await request(`/personnel/positions`);
-    return Array.isArray(data) ? { list: data } : normalizePaged(data, []);
+    requireBackend('人员列表')
+    const data = await request(`/personnel/positions`)
+    return Array.isArray(data) ? { list: data } : normalizePaged(data, [])
   },
   closeIncident: async (id) => {
-    requireBackend("关闭应急事件");
+    requireBackend('关闭应急事件')
     return request(`/emergency/${id}/close`, {
-      method: "POST",
-      body: JSON.stringify({ summary: "应急处置已完成" }),
-    });
+      method: 'POST',
+      body: JSON.stringify({ summary: '应急处置已完成' }),
+    })
   },
   dispatchIncident: async (id) => {
-    requireBackend("派发应急事件");
-    return request(`/emergency/${id}/dispatch`, { method: "POST" });
+    requireBackend('派发应急事件')
+    return request(`/emergency/${id}/dispatch`, { method: 'POST' })
   },
   exportOverviewReport: async () => {
-    return downloadFile("/dashboard/overview/export", "综合态势报表.xlsx");
+    return downloadFile('/dashboard/overview/export', '综合态势报表.xlsx')
   },
   exportHazardReport: async () => {
-    return downloadFile("/hazards/export", "灾害统计报表.xlsx");
+    return downloadFile('/hazards/export', '灾害统计报表.xlsx')
   },
   exportTaskReport: async () => {
-    return downloadFile("/tasks/export", "巡检任务报表.xlsx");
+    return downloadFile('/tasks/export', '巡检任务报表.xlsx')
   },
   exportDeviceReport: async () => {
-    return downloadFile("/devices/export", "设备台账报表.xlsx");
+    return downloadFile('/devices/export', '设备台账报表.xlsx')
   },
   exportWarningReport: async () => {
-    return downloadFile("/warnings/export", "预警统计报表.xlsx");
+    return downloadFile('/warnings/export', '预警统计报表.xlsx')
   },
   exportEmergencyReport: async () => {
-    return downloadFile("/emergency/export", "应急事件报表.xlsx");
+    return downloadFile('/emergency/export', '应急事件报表.xlsx')
   },
   getAnalytics: async () => {
-    if (USE_BACKEND) {return request("/dashboard/analytics");}
-    return response(mock.analytics.getAnalyticsMock());
+    if (USE_BACKEND) {
+      return request('/dashboard/analytics')
+    }
+    return response(mock.analytics.getAnalyticsMock())
   },
   getModuleMeta: async () =>
-    USE_BACKEND
-      ? request("/dashboard/summary")
-      : response(mock.analytics.moduleMetaMock),
+    USE_BACKEND ? request('/dashboard/summary') : response(mock.analytics.moduleMetaMock),
   uploadAttachment: async ({ businessType, businessCode, file, uploader }) => {
     if (!USE_BACKEND) {
-      return response(mock.empty.uploadReceipt({ businessType, businessCode, file, uploader }));
+      return response(mock.empty.uploadReceipt({ businessType, businessCode, file, uploader }))
     }
-    const formData = new FormData();
-    formData.append("businessType", businessType);
-    formData.append("businessCode", businessCode);
-    formData.append("file", file);
+    const formData = new FormData()
+    formData.append('businessType', businessType)
+    formData.append('businessCode', businessCode)
+    formData.append('file', file)
     const responseData = await fetch(`${API_BASE}/attachments`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "X-User": uploader },
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'X-User': uploader },
       body: formData,
-    });
-    const payload = await responseData.json().catch(() => null);
-    if (!responseData.ok || payload?.code !== 0)
-      {throw createApiError(payload?.message || "附件上传失败");}
-    return payload.data;
+    })
+    const payload = await responseData.json().catch(() => null)
+    if (!responseData.ok || payload?.code !== 0) {
+      throw createApiError(payload?.message || '附件上传失败')
+    }
+    return payload.data
   },
   getAttachments: async ({ businessType, businessCode }) => {
-    if (USE_BACKEND)
-      {return request(
-        `/attachments?businessType=${encodeURIComponent(businessType)}&businessCode=${encodeURIComponent(businessCode)}`,
-      );}
-    return response(mock.empty.emptyAttachments);
+    if (USE_BACKEND) {
+      return request(
+        `/attachments?businessType=${encodeURIComponent(businessType)}&businessCode=${encodeURIComponent(businessCode)}`
+      )
+    }
+    return response(mock.empty.emptyAttachments)
   },
   refreshAttachmentUrl: async (attachmentId) => {
     if (USE_BACKEND) {
       const data = await request(`/attachments/${attachmentId}/refresh-url`, {
-        method: "POST",
-      });
-      return data?.url;
+        method: 'POST',
+      })
+      return data?.url
     }
-    return null;
+    return null
   },
-  gpsCheck: async ({
-    taskCode,
-    hazardCode,
-    lon,
-    lat,
-    allowedRadius,
-    inspector,
-  }) => {
+  gpsCheck: async ({ taskCode, hazardCode, lon, lat, allowedRadius, inspector }) => {
     if (USE_BACKEND) {
-      return request("/inspection/gps-check", {
-        method: "POST",
+      return request('/inspection/gps-check', {
+        method: 'POST',
         body: JSON.stringify({
           taskCode,
           hazardCode,
@@ -511,38 +501,40 @@ export const dashboardApi = {
           allowedRadius,
           inspector,
         }),
-      });
+      })
     }
-    return response(
-      mock.empty.gpsCheckFallback({ taskCode, hazardCode, lon, lat, allowedRadius }),
-    );
+    return response(mock.empty.gpsCheckFallback({ taskCode, hazardCode, lon, lat, allowedRadius }))
   },
   submitInspection: async (payload) => {
     if (USE_BACKEND) {
-      return request("/inspection/submit", {
-        method: "POST",
+      return request('/inspection/submit', {
+        method: 'POST',
         body: JSON.stringify(payload),
-      });
+      })
     }
-    return response(mock.empty.submitInspectionFallback(payload));
+    return response(mock.empty.submitInspectionFallback(payload))
   },
   getInspectionByTask: async (taskCode) => {
-    if (USE_BACKEND)
-      {return request(`/inspection/task/${encodeURIComponent(taskCode)}`);}
-    return response(mock.empty.emptyList());
+    if (USE_BACKEND) {
+      return request(`/inspection/task/${encodeURIComponent(taskCode)}`)
+    }
+    return response(mock.empty.emptyList())
   },
   getInspectionByHazard: async (hazardCode) => {
-    if (USE_BACKEND)
-      {return request(`/inspection/hazard/${encodeURIComponent(hazardCode)}`);}
-    return response(mock.empty.emptyList());
+    if (USE_BACKEND) {
+      return request(`/inspection/hazard/${encodeURIComponent(hazardCode)}`)
+    }
+    return response(mock.empty.emptyList())
   },
 
   /**
    * GET /api/inspection/example
    */
   getInspectionExample: async () => {
-    if (USE_BACKEND) {return request("/inspection/example");}
-    return response(mock.empty.inspectionExampleFallback());
+    if (USE_BACKEND) {
+      return request('/inspection/example')
+    }
+    return response(mock.empty.inspectionExampleFallback())
   },
 
   /**
@@ -551,12 +543,12 @@ export const dashboardApi = {
    */
   reportPersonnelPosition: async (payload = {}) => {
     if (USE_BACKEND) {
-      return request("/personnel/positions/report", {
-        method: "POST",
+      return request('/personnel/positions/report', {
+        method: 'POST',
         body: JSON.stringify(payload),
-      });
+      })
     }
-    return response(mock.runtime.reportPersonnelPositionMock(payload));
+    return response(mock.runtime.reportPersonnelPositionMock(payload))
   },
 
   /**
@@ -570,46 +562,47 @@ export const dashboardApi = {
    *   inspections: Array
    * }>}
    */
-    getRelatedEvents: async (hazardId, hazardCode) => {
-    requireBackend("上报人员定位");
-    let resolvedCode = hazardCode;
-    let hazard = null;
+  getRelatedEvents: async (hazardId, hazardCode) => {
+    requireBackend('上报人员定位')
+    let resolvedCode = hazardCode
+    let hazard = null
 
     const [hazardDetail, warningsResp, emergencyResp] = await Promise.all([
-      resolvedCode
-        ? Promise.resolve(null)
-        : request(`/hazards/${hazardId}`).catch(() => null),
+      resolvedCode ? Promise.resolve(null) : request(`/hazards/${hazardId}`).catch(() => null),
       request(`/warnings?size=200`).catch(() => null),
       request(`/emergency?size=200`).catch(() => null),
-    ]);
+    ])
     if (!resolvedCode) {
-      hazard = hazardDetail?.item ?? hazardDetail ?? null;
-      resolvedCode = hazard?.hazardCode ?? hazard?.code;
+      hazard = hazardDetail?.item ?? hazardDetail ?? null
+      resolvedCode = hazard?.hazardCode ?? hazard?.code
     }
-    const warningsRaw = warningsResp?.list ?? warningsResp?.records ?? [];
-    const emergenciesRaw = emergencyResp?.incidents ?? emergencyResp?.records ?? [];
-    const warnings = warningsRaw.filter(
-      (w) => !resolvedCode || w.hazardCode === resolvedCode,
-    );
-    const emergencies = emergenciesRaw.filter(
-      (e) => !resolvedCode || e.hazardCode === resolvedCode,
-    );
-    return { hazard, warnings, emergencies, inspections: [] };
-  },getAiComprehensiveAll: () => {
-    if (USE_BACKEND) {return request("/ai/comprehensive-analysis/all");}
-    return response(mock.ai.getAiComprehensiveAllMock());
+    const warningsRaw = warningsResp?.list ?? warningsResp?.records ?? []
+    const emergenciesRaw = emergencyResp?.incidents ?? emergencyResp?.records ?? []
+    const warnings = warningsRaw.filter((w) => !resolvedCode || w.hazardCode === resolvedCode)
+    const emergencies = emergenciesRaw.filter((e) => !resolvedCode || e.hazardCode === resolvedCode)
+    return { hazard, warnings, emergencies, inspections: [] }
+  },
+  getAiComprehensiveAll: () => {
+    if (USE_BACKEND) {
+      return request('/ai/comprehensive-analysis/all')
+    }
+    return response(mock.ai.getAiComprehensiveAllMock())
   },
 
   getAiComprehensiveCached: (hazardCode) => {
-    if (USE_BACKEND)
-      {return request(`/ai/comprehensive-analysis/cached?hazardCode=${encodeURIComponent(hazardCode)}`);}
-    return response(mock.ai.aiComprehensiveCachedMock);
+    if (USE_BACKEND) {
+      return request(
+        `/ai/comprehensive-analysis/cached?hazardCode=${encodeURIComponent(hazardCode)}`
+      )
+    }
+    return response(mock.ai.aiComprehensiveCachedMock)
   },
 
   refreshAiComprehensive: () => {
-    if (USE_BACKEND)
-      {return request("/ai/comprehensive-analysis/refresh", { method: "POST" });}
-    return response(mock.ai.aiComprehensiveRefreshMock);
+    if (USE_BACKEND) {
+      return request('/ai/comprehensive-analysis/refresh', { method: 'POST' })
+    }
+    return response(mock.ai.aiComprehensiveRefreshMock)
   },
 
   /**
@@ -617,10 +610,10 @@ export const dashboardApi = {
    * @param {Map<string, {riskLevel, riskScore}>} aiMap
    */
   attachAiScores: (rows, aiList) => {
-    const map = new Map();
-    (aiList ?? []).forEach((s) => map.set(s.hazardCode, s));
+    const map = new Map()
+    ;(aiList ?? []).forEach((s) => map.set(s.hazardCode, s))
     return rows.map((r) => {
-      const ai = map.get(r.hazardCode);
+      const ai = map.get(r.hazardCode)
       return {
         ...r,
         aiScore: ai?.riskScore ?? null,
@@ -632,10 +625,9 @@ export const dashboardApi = {
         aiDisasterTypeSource: ai?.disasterTypeSource ?? null,
         aiConcernLabel: ai?.concernLabel ?? null,
         aiDeviceAvailable: ai?.deviceAvailable ?? null,
-      };
-    });
+      }
+    })
   },
-
 
   /**
    * @returns {Promise<Array<{
@@ -645,29 +637,35 @@ export const dashboardApi = {
    * }>>}
    */
   getAiDeviceHealthAll: () => {
-    if (USE_BACKEND) {return request("/ai/device-health/all");}
-    return response(mock.ai.aiDeviceHealthAllMock);
+    if (USE_BACKEND) {
+      return request('/ai/device-health/all')
+    }
+    return response(mock.ai.aiDeviceHealthAllMock)
   },
 
   getAiDeviceHealth: (deviceCode) => {
-    if (USE_BACKEND)
-      {return request(`/ai/device-health?deviceCode=${encodeURIComponent(deviceCode)}`);}
-    return response(null);
+    if (USE_BACKEND) {
+      return request(`/ai/device-health?deviceCode=${encodeURIComponent(deviceCode)}`)
+    }
+    return response(null)
   },
 
   refreshAiDeviceHealth: () => {
-    if (USE_BACKEND)
-      {return request("/ai/device-health/refresh", { method: "POST" });}
-    return response(mock.ai.aiDeviceHealthRefreshMock);
+    if (USE_BACKEND) {
+      return request('/ai/device-health/refresh', { method: 'POST' })
+    }
+    return response(mock.ai.aiDeviceHealthRefreshMock)
   },
 
   attachAiDeviceHealth: (rows, aiList) => {
-    const map = new Map();
-    (aiList ?? []).forEach((s) => {
-      if (s?.deviceCode) {map.set(s.deviceCode, s);}
-    });
+    const map = new Map()
+    ;(aiList ?? []).forEach((s) => {
+      if (s?.deviceCode) {
+        map.set(s.deviceCode, s)
+      }
+    })
     return rows.map((r) => {
-      const ai = map.get(r.deviceCode ?? r.code);
+      const ai = map.get(r.deviceCode ?? r.code)
       return {
         ...r,
         aiHealthScore: ai?.healthScore ?? null,
@@ -677,201 +675,216 @@ export const dashboardApi = {
         aiReasoning: ai?.reasoning ?? [],
         aiSuggestedActions: ai?.suggestedActions ?? [],
         aiAnalyzedAt: ai?.analyzedAt ?? null,
-      };
-    });
+      }
+    })
   },
-
 
   /**
    * @returns {Promise<{items: Array<{id, hazardCode, name, type, level, confidence, aiScore, reason, discoveredAt, status, assignee}>, total: number, pending: number}>}
    */
   getConfirmationQueue: async (params = {}) => {
     if (USE_BACKEND) {
-      const data = await request(`/confirmation/queue${withQuery(params)}`);
-      const items = (data?.items ?? []).map(normalizeQueueItem).filter(Boolean);
-      return { ...(data ?? {}), items, total: data?.total ?? items.length };
+      const data = await request(`/confirmation/queue${withQuery(params)}`)
+      const items = (data?.items ?? []).map(normalizeQueueItem).filter(Boolean)
+      return { ...(data ?? {}), items, total: data?.total ?? items.length }
     }
-    const mockData = await response(mock.workflow.getConfirmationQueueMock());
-    const items = (mockData?.items ?? []).map(normalizeQueueItem).filter(Boolean);
-    return { ...(mockData ?? {}), items, total: mockData?.total ?? items.length };
+    const mockData = await response(mock.workflow.getConfirmationQueueMock())
+    const items = (mockData?.items ?? []).map(normalizeQueueItem).filter(Boolean)
+    return { ...(mockData ?? {}), items, total: mockData?.total ?? items.length }
   },
 
   getConfirmationQueueStats: async () => {
-    if (USE_BACKEND) {return request("/confirmation/stats");}
-    return response(mock.workflow.confirmationQueueStatsMock);
+    if (USE_BACKEND) {
+      return request('/confirmation/stats')
+    }
+    return response(mock.workflow.confirmationQueueStatsMock)
   },
 
   claimConfirmation: async (id, operator) => {
-    requireBackend("认领会签任务");
+    requireBackend('认领会签任务')
     return request(`/confirmation/queue/${id}/claim`, {
-      method: "POST",
+      method: 'POST',
       body: JSON.stringify({ operator }),
-    });
+    })
   },
 
   transferConfirmation: async (id, toUser, reason) => {
-    requireBackend("转派会签任务");
+    requireBackend('转派会签任务')
     return request(`/confirmation/queue/${id}/transfer`, {
-      method: "POST",
+      method: 'POST',
       body: JSON.stringify({ toUser, reason }),
-    });
+    })
   },
 
   confirmHazard: async (id, payload = {}) => {
-    requireBackend("确认灾害");
+    requireBackend('确认灾害')
     return request(`/confirmation/queue/${id}/confirm`, {
-      method: "POST",
+      method: 'POST',
       body: JSON.stringify(payload),
-    });
+    })
   },
 
   rejectHazard: async (id, payload = {}) => {
-    requireBackend("驳回灾害");
+    requireBackend('驳回灾害')
     return request(`/confirmation/queue/${id}/reject`, {
-      method: "POST",
+      method: 'POST',
       body: JSON.stringify(payload),
-    });
+    })
   },
 
   createWarning: async (payload) => {
-    requireBackend("发布预警");
-    return request("/warnings", {
-      method: "POST",
+    requireBackend('发布预警')
+    return request('/warnings', {
+      method: 'POST',
       body: JSON.stringify(payload),
-    });
+    })
   },
 
   getWarningStats: async () => {
-    if (USE_BACKEND) {return request("/warnings/stats");}
-    return response(mock.workflow.warningStatsMock);
+    if (USE_BACKEND) {
+      return request('/warnings/stats')
+    }
+    return response(mock.workflow.warningStatsMock)
   },
 
   getResources: async (params = {}) => {
     if (USE_BACKEND) {
-      const data = await request(`/resources${withQuery(params)}`);
-      return normalizePaged(data, []);
+      const data = await request(`/resources${withQuery(params)}`)
+      return normalizePaged(data, [])
     }
-    return response(mock.operations.getResourcesMock());
+    return response(mock.operations.getResourcesMock())
   },
 
   assignResource: async (payload) => {
-    requireBackend("资源调度");
+    requireBackend('资源调度')
     return request(`/resources/assign`, {
-      method: "POST",
+      method: 'POST',
       body: JSON.stringify(payload),
-    });
+    })
   },
 
   getDataSources: async () => {
-    if (USE_BACKEND) {return request("/datasources");}
-    return response(mock.operations.getDataSourcesMock());
+    if (USE_BACKEND) {
+      return request('/datasources')
+    }
+    return response(mock.operations.getDataSourcesMock())
   },
 
   toggleDataSource: async (code, enabled) => {
-    requireBackend("切换数据源");
+    requireBackend('切换数据源')
     return request(`/datasources/${encodeURIComponent(code)}/toggle`, {
-      method: "POST",
+      method: 'POST',
       body: JSON.stringify({ enabled }),
-    });
+    })
   },
 
   getSyncStats: async () => {
-    if (USE_BACKEND) {return request("/sync/stats");}
-    requireBackend("同步统计");
+    if (USE_BACKEND) {
+      return request('/sync/stats')
+    }
+    requireBackend('同步统计')
   },
 
   getSyncTasks: async () => {
-    if (USE_BACKEND) {return request("/sync/tasks");}
-    requireBackend("同步任务");
+    if (USE_BACKEND) {
+      return request('/sync/tasks')
+    }
+    requireBackend('同步任务')
   },
 
   getSyncHistory: async (params = {}) => {
-    if (USE_BACKEND) {return normalizePaged(await request("/sync/history", { params }));}
-    requireBackend("同步历史");
+    if (USE_BACKEND) {
+      return normalizePaged(await request('/sync/history', { params }))
+    }
+    requireBackend('同步历史')
   },
 
   getIntegrityReport: async () => {
-    if (USE_BACKEND) {return request("/sync/integrity");}
-    requireBackend("数据完整性报告");
+    if (USE_BACKEND) {
+      return request('/sync/integrity')
+    }
+    requireBackend('数据完整性报告')
   },
 
   getSyncAnomalies: async () => {
-    if (USE_BACKEND) {return request("/sync/anomalies");}
-    requireBackend("同步异常列表");
+    if (USE_BACKEND) {
+      return request('/sync/anomalies')
+    }
+    requireBackend('同步异常列表')
   },
 
   triggerSyncTask: async (id) => {
-    requireBackend("触发同步");
+    requireBackend('触发同步')
     return request(`/sync/tasks/${encodeURIComponent(id)}/trigger`, {
-      method: "POST",
-    });
+      method: 'POST',
+    })
   },
 
   pauseSyncTask: async (id) => {
-    requireBackend("暂停同步");
+    requireBackend('暂停同步')
     return request(`/sync/tasks/${encodeURIComponent(id)}/pause`, {
-      method: "POST",
-    });
+      method: 'POST',
+    })
   },
 
   testDataSource: async (code) => {
-    requireBackend("测试数据源连接");
+    requireBackend('测试数据源连接')
     return request(`/datasources/${encodeURIComponent(code)}/test`, {
-      method: "POST",
-    });
+      method: 'POST',
+    })
   },
 
   createDataSource: async (source) => {
-    requireBackend("新增数据源");
-    return request("/datasources", {
-      method: "POST",
+    requireBackend('新增数据源')
+    return request('/datasources', {
+      method: 'POST',
       body: JSON.stringify(source),
-    });
+    })
   },
 
   updateDataSource: async (code, source) => {
-    requireBackend("更新数据源");
+    requireBackend('更新数据源')
     return request(`/datasources/${encodeURIComponent(code)}`, {
-      method: "PUT",
+      method: 'PUT',
       body: JSON.stringify(source),
-    });
+    })
   },
 
   getUsers: async (params = {}) => {
     if (USE_BACKEND) {
-      const data = await request(`/users${withQuery(params)}`);
-      return normalizePaged(data, []);
+      const data = await request(`/users${withQuery(params)}`)
+      return normalizePaged(data, [])
     }
-    return response(mock.system.getUsersMock());
+    return response(mock.system.getUsersMock())
   },
 
   createUser: async (payload) => {
-    requireBackend("新建用户");
-    return request("/users", {
-      method: "POST",
+    requireBackend('新建用户')
+    return request('/users', {
+      method: 'POST',
       body: JSON.stringify(payload),
-    });
+    })
   },
 
   updateUser: async (id, payload) => {
-    requireBackend("更新用户");
+    requireBackend('更新用户')
     return request(`/users/${id}`, {
-      method: "PUT",
+      method: 'PUT',
       body: JSON.stringify(payload),
-    });
+    })
   },
 
   deleteUser: async (id) => {
-    requireBackend("删除用户");
-    return request(`/users/${id}`, { method: "DELETE" });
+    requireBackend('删除用户')
+    return request(`/users/${id}`, { method: 'DELETE' })
   },
 
   resetUserPassword: async (id, newPassword) => {
-    requireBackend("重置密码");
+    requireBackend('重置密码')
     return request(`/users/${id}/reset-password`, {
-      method: "POST",
+      method: 'POST',
       body: JSON.stringify({ newPassword }),
-    });
+    })
   },
 
   /**
@@ -880,16 +893,18 @@ export const dashboardApi = {
    * 无后端时直接报错，不伪造"提交成功"。
    */
   submitSupportFeedback: async (payload) => {
-    requireBackend("提交反馈");
-    return request("/support/feedback", {
-      method: "POST",
+    requireBackend('提交反馈')
+    return request('/support/feedback', {
+      method: 'POST',
       body: JSON.stringify(payload),
-    });
+    })
   },
 
   getRoles: async () => {
-    if (USE_BACKEND) {return request("/roles");}
-    return response(mock.system.getRolesMock());
+    if (USE_BACKEND) {
+      return request('/roles')
+    }
+    return response(mock.system.getRolesMock())
   },
 
   /**
@@ -898,8 +913,8 @@ export const dashboardApi = {
    * 无后端时返回空矩阵，由页面展示错误态（不造假的权限表）。
    */
   getPermissionMatrix: async () => {
-    requireBackend("权限矩阵");
-    return request("/roles/permission-matrix");
+    requireBackend('权限矩阵')
+    return request('/roles/permission-matrix')
   },
 
   /* ── 注册申请 ─────────────────────────────────────────────
@@ -916,8 +931,8 @@ export const dashboardApi = {
    * @throws {Error} 后端不可达时抛出
    */
   getCaptcha: async () => {
-    requireBackend("图形验证码");
-    return request("/auth/captcha", { auth: false });
+    requireBackend('图形验证码')
+    return request('/auth/captcha', { auth: false })
   },
 
   /**
@@ -929,12 +944,12 @@ export const dashboardApi = {
    * @throws {Error} 通道未启用时后端返回 50301（网关未接入）
    */
   sendRegisterCode: async (type, target) => {
-    requireBackend("短信验证码");
-    return request("/auth/register/send-code", {
-      method: "POST",
+    requireBackend('短信验证码')
+    return request('/auth/register/send-code', {
+      method: 'POST',
       auth: false,
       body: JSON.stringify({ type, target }),
-    });
+    })
   },
 
   /**
@@ -943,12 +958,12 @@ export const dashboardApi = {
    * @returns {Promise<any>}
    */
   registerRequest: async (payload) => {
-    requireBackend("注册申请");
-    return request("/auth/register", {
-      method: "POST",
+    requireBackend('注册申请')
+    return request('/auth/register', {
+      method: 'POST',
       auth: false,
       body: JSON.stringify(payload),
-    });
+    })
   },
 
   /**
@@ -959,8 +974,8 @@ export const dashboardApi = {
    *          该用户名没有任何申请记录时后端返回 null
    */
   getRegisterStatus: async (username) => {
-    requireBackend("注册状态");
-    return request(`/auth/register/status${withQuery({ username })}`, { auth: false });
+    requireBackend('注册状态')
+    return request(`/auth/register/status${withQuery({ username })}`, { auth: false })
   },
 
   /* ── 注册申请审核（admin） ── */
@@ -971,9 +986,9 @@ export const dashboardApi = {
    * @returns {Promise<{records: any[], total: number, page: number, size: number, pages: number}>}
    */
   getApplications: async (params = {}) => {
-    requireBackend("注册申请审核");
-    const data = await request(`/admin/applications${withQuery(params)}`);
-    return normalizePaged(data, []);
+    requireBackend('注册申请审核')
+    const data = await request(`/admin/applications${withQuery(params)}`)
+    return normalizePaged(data, [])
   },
 
   /**
@@ -982,10 +997,10 @@ export const dashboardApi = {
    * @returns {Promise<any>}
    */
   approveApplication: async (id) => {
-    requireBackend("审核通过");
+    requireBackend('审核通过')
     return request(`/admin/applications/${encodeURIComponent(id)}/approve`, {
-      method: "POST",
-    });
+      method: 'POST',
+    })
   },
 
   /**
@@ -995,34 +1010,34 @@ export const dashboardApi = {
    * @returns {Promise<any>}
    */
   rejectApplication: async (id, reason) => {
-    requireBackend("审核拒绝");
+    requireBackend('审核拒绝')
     return request(`/admin/applications/${encodeURIComponent(id)}/reject`, {
-      method: "POST",
+      method: 'POST',
       body: JSON.stringify({ reason }),
-    });
+    })
   },
 
   getAuditLogs: async (params = {}) => {
     if (USE_BACKEND) {
-      const data = await request(`/audit/logs${withQuery(params)}`);
-      const normalized = normalizePaged(data, []);
+      const data = await request(`/audit/logs${withQuery(params)}`)
+      const normalized = normalizePaged(data, [])
       // operation_log 字段名（createdAt/actionName/requestPath/ipAddress）与审计页视图模型
       //（time/action/target/detail/ip）不同，这里统一映射；否则页面整表取值都是 undefined。
       const items = normalized.records.map((log) => {
-        const actionName = String(log.actionName ?? "").toUpperCase();
-        const group = AUDIT_ACTION_GROUP[String(log.moduleName ?? "").toLowerCase()] ?? "OTHER";
+        const actionName = String(log.actionName ?? '').toUpperCase()
+        const group = AUDIT_ACTION_GROUP[String(log.moduleName ?? '').toLowerCase()] ?? 'OTHER'
         return {
           ...log,
           time: log.createdAt,
           // 页面按「业务分组_动作」展示与配色，如 WARNING_CONFIRM
           action: actionName ? `${group}_${actionName}` : group,
-          target: log.requestPath ?? "",
-          detail: [log.resultStatus, log.costMs != null ? `${log.costMs}ms` : ""]
+          target: log.requestPath ?? '',
+          detail: [log.resultStatus, log.costMs != null ? `${log.costMs}ms` : '']
             .filter(Boolean)
-            .join(" · "),
-          ip: log.ipAddress ?? "",
-        };
-      });
+            .join(' · '),
+          ip: log.ipAddress ?? '',
+        }
+      })
       return {
         items,
         records: items,
@@ -1030,64 +1045,74 @@ export const dashboardApi = {
         page: normalized.page,
         size: normalized.size,
         pages: normalized.pages,
-      };
+      }
     }
-    const data = await response(mock.system.getAuditLogsMock());
-    const records = data?.records ?? [];
-    return { ...data, items: records, records, total: data?.total ?? records.length };
+    const data = await response(mock.system.getAuditLogsMock())
+    const records = data?.records ?? []
+    return { ...data, items: records, records, total: data?.total ?? records.length }
   },
 
   getSystemMonitor: async () => {
-    if (USE_BACKEND) {return request("/system/monitor");}
-    return response(mock.system.getSystemMonitorMock());
+    if (USE_BACKEND) {
+      return request('/system/monitor')
+    }
+    return response(mock.system.getSystemMonitorMock())
   },
 
   // 平台级系统设置：从 localStorage 迁到后端持久化（GET 需 settings:view，PUT 需 settings:edit）
   getSystemSettings: async () => {
-    if (USE_BACKEND) {return request("/settings");}
-    return response({});
+    if (USE_BACKEND) {
+      return request('/settings')
+    }
+    return response({})
   },
 
   saveSystemSettings: async (payload = {}) => {
-    if (USE_BACKEND) {return request("/settings", { method: "PUT", body: payload });}
-    return response(payload);
+    if (USE_BACKEND) {
+      return request('/settings', { method: 'PUT', body: payload })
+    }
+    return response(payload)
   },
 
   getMessages: async (params = {}) => {
     if (USE_BACKEND) {
-      const data = await request(`/messages${withQuery(params)}`);
+      const data = await request(`/messages${withQuery(params)}`)
       // 消息抽屉/消息中心按 { items, total } 消费；normalizePaged 输出的是 records，
       // 直接返回会导致“角标有 42 条、列表却显示没有消息”。
-      const normalized = normalizePaged(data, []);
+      const normalized = normalizePaged(data, [])
       return {
         items: normalized.records,
         total: normalized.total,
         page: normalized.page,
         size: normalized.size,
         pages: normalized.pages,
-      };
+      }
     }
-    return response(mock.workflow.getMessagesMock());
+    return response(mock.workflow.getMessagesMock())
   },
 
   getMessageStats: async () => {
-    if (USE_BACKEND) {return request("/messages/stats");}
-    return response(mock.workflow.messageStatsMock);
+    if (USE_BACKEND) {
+      return request('/messages/stats')
+    }
+    return response(mock.workflow.messageStatsMock)
   },
 
   markMessageRead: async (id) => {
-    requireBackend("标记已读");
-    return request(`/messages/${id}/read`, { method: "POST" });
+    requireBackend('标记已读')
+    return request(`/messages/${id}/read`, { method: 'POST' })
   },
 
   markAllMessagesRead: async () => {
-    requireBackend("全部标记已读");
-    return request(`/messages/read-all`, { method: "POST" });
+    requireBackend('全部标记已读')
+    return request(`/messages/read-all`, { method: 'POST' })
   },
 
   getSentinelCoverage: async (bbox) => {
-    if (USE_BACKEND) {return request(`/sentinel/coverage${bbox ? `?bbox=${encodeURIComponent(bbox)}` : ""}`);}
-    return response(mock.analytics.sentinelCoverageMock);
+    if (USE_BACKEND) {
+      return request(`/sentinel/coverage${bbox ? `?bbox=${encodeURIComponent(bbox)}` : ''}`)
+    }
+    return response(mock.analytics.sentinelCoverageMock)
   },
 
   /**
@@ -1095,8 +1120,10 @@ export const dashboardApi = {
    * @returns {Promise<{status: 'RUNNING'|'SUCCESS'|'FAILED'|'PENDING'|'PAUSED'|'TERMINATED'|'TIMEOUT', cpu: number, gpu: number, memMB: number, startedAt: string, finishedAt?: string, duration: number, retries: number, throughput: number}>}
    */
   getTaskRuntime: async (id) => {
-    if (USE_BACKEND) {return request(`/tasks/${id}/runtime`);}
-    return response(mock.ai.getTaskRuntimeMock(id));
+    if (USE_BACKEND) {
+      return request(`/tasks/${id}/runtime`)
+    }
+    return response(mock.ai.getTaskRuntimeMock(id))
   },
 
   /**
@@ -1106,66 +1133,78 @@ export const dashboardApi = {
    */
   getTaskExecutionLog: async (id, params = {}) => {
     if (USE_BACKEND) {
-      const data = await request(`/tasks/${id}/execution-log${withQuery(params)}`);
-      return data ?? { entries: [], cursor: new Date().toISOString() };
+      const data = await request(`/tasks/${id}/execution-log${withQuery(params)}`)
+      return data ?? { entries: [], cursor: new Date().toISOString() }
     }
-    return response(mock.ai.getTaskExecutionLogMock(id));
+    return response(mock.ai.getTaskExecutionLogMock(id))
   },
 
   /**
    * @param {string|number} id ?? ID
    */
   retryTask: async (id) => {
-    requireBackend("重试任务");
-    return request(`/tasks/${id}/retry`, { method: "POST" });
+    requireBackend('重试任务')
+    return request(`/tasks/${id}/retry`, { method: 'POST' })
   },
 
   /**
    * @param {string|number} id ?? ID
    */
   terminateTask: async (id) => {
-    requireBackend("终止任务");
-    return request(`/tasks/${id}/terminate`, { method: "POST" });
+    requireBackend('终止任务')
+    return request(`/tasks/${id}/terminate`, { method: 'POST' })
   },
-
 
   /**
    * @returns {Promise<{confirmation:number, approval:number, pendingWarnings:number, openEmergency:number}>}
    */
   getTodoSummary: async () => {
-    if (!USE_BACKEND) {requireBackend("待办汇总");}
-    return request("/todo/summary");
+    if (!USE_BACKEND) {
+      requireBackend('待办汇总')
+    }
+    return request('/todo/summary')
   },
 
   listMyConfirmations: async () => {
-    if (USE_BACKEND) {return normalizePaged(await request("/todo/confirmations"));}
-    return normalizePaged(await response(mock.workflow.listMyConfirmationsMock()));
+    if (USE_BACKEND) {
+      return normalizePaged(await request('/todo/confirmations'))
+    }
+    return normalizePaged(await response(mock.workflow.listMyConfirmationsMock()))
   },
 
   listMyApprovals: async () => {
-    if (USE_BACKEND) {return normalizePaged(await request("/todo/approvals"));}
-    return normalizePaged(await response(mock.workflow.listMyApprovalsMock()));
+    if (USE_BACKEND) {
+      return normalizePaged(await request('/todo/approvals'))
+    }
+    return normalizePaged(await response(mock.workflow.listMyApprovalsMock()))
   },
 
   listMyPendingWarnings: async () => {
-    if (USE_BACKEND) {return normalizePaged(await request("/todo/warnings"));}
-    return normalizePaged(await response(mock.workflow.listMyPendingWarningsMock()));
+    if (USE_BACKEND) {
+      return normalizePaged(await request('/todo/warnings'))
+    }
+    return normalizePaged(await response(mock.workflow.listMyPendingWarningsMock()))
   },
 
   listMyOpenTasks: async () => {
-    if (USE_BACKEND) {return normalizePaged(await request("/todo/tasks"));}
-    return normalizePaged(await response(mock.workflow.listMyOpenTasksMock()));
+    if (USE_BACKEND) {
+      return normalizePaged(await request('/todo/tasks'))
+    }
+    return normalizePaged(await response(mock.workflow.listMyOpenTasksMock()))
   },
 
-
   listApprovals: async (filters = {}) => {
-    if (!USE_BACKEND) {requireBackend("审批列表");}
-    return request(`/approvals${withQuery(filters)}`);
+    if (!USE_BACKEND) {
+      requireBackend('审批列表')
+    }
+    return request(`/approvals${withQuery(filters)}`)
   },
 
   getApprovalStats: async () => {
-    if (!USE_BACKEND) {requireBackend("审批统计");}
-    return request("/approvals/stats");
+    if (!USE_BACKEND) {
+      requireBackend('审批统计')
+    }
+    return request('/approvals/stats')
   },
 
   /**
@@ -1173,19 +1212,23 @@ export const dashboardApi = {
    * @param {{decision:'approve'|'reject', comment:string}} payload
    */
   decideApproval: async (id, payload) => {
-    if (!USE_BACKEND) {requireBackend("审批决策");}
+    if (!USE_BACKEND) {
+      requireBackend('审批决策')
+    }
     return request(`/approvals/${id}/decide`, {
-      method: "POST",
+      method: 'POST',
       body: JSON.stringify(payload),
-    });
+    })
   },
 
   /**
    * @param {string|number} id ?? ID
    */
   getDeliverySummary: async (id) => {
-    if (USE_BACKEND) {return request(`/warnings/${id}/delivery/summary`);}
-    return response(mock.empty.emptyDeliverySummary(id));
+    if (USE_BACKEND) {
+      return request(`/warnings/${id}/delivery/summary`)
+    }
+    return response(mock.empty.emptyDeliverySummary(id))
   },
 
   /**
@@ -1194,12 +1237,10 @@ export const dashboardApi = {
    */
   getDeliveryRecords: async (id, params = {}) => {
     if (USE_BACKEND) {
-      const data = await request(
-        `/warnings/${id}/delivery/records${withQuery(params)}`,
-      );
-      return normalizePaged(data, []);
+      const data = await request(`/warnings/${id}/delivery/records${withQuery(params)}`)
+      return normalizePaged(data, [])
     }
-    return response(mock.empty.emptyPaged);
+    return response(mock.empty.emptyPaged)
   },
 
   /**
@@ -1207,11 +1248,11 @@ export const dashboardApi = {
    * @param {{channel: string, targetIds?: Array<string|number>}} payload
    */
   redeliver: async (id, payload = {}) => {
-    requireBackend("重新投递");
+    requireBackend('重新投递')
     return request(`/warnings/${id}/delivery/redeliver`, {
-      method: "POST",
+      method: 'POST',
       body: JSON.stringify(payload ?? {}),
-    });
+    })
   },
 
   /**
@@ -1221,9 +1262,9 @@ export const dashboardApi = {
     if (USE_BACKEND) {
       // 后端实际路径是 /api/dashboard/zone/kpi（ZoneDashboardController），
       // 历史上写成了不存在的 /zones/summary，后端从未有过 /api/zones 这个基址。
-      return request(`/dashboard/zone/kpi${withQuery({ kind, region })}`);
+      return request(`/dashboard/zone/kpi${withQuery({ kind, region })}`)
     }
-    return response(mock.analytics.getZoneSummaryMock({ kind, region }));
+    return response(mock.analytics.getZoneSummaryMock({ kind, region }))
   },
 
   /**
@@ -1232,9 +1273,9 @@ export const dashboardApi = {
   getZoneRiskTrend: async ({ kind, region } = {}) => {
     if (USE_BACKEND) {
       // 同上：/zones/risk-trend 不存在，对应后端 /api/dashboard/zone/trend。
-      return request(`/dashboard/zone/trend${withQuery({ kind, region })}`);
+      return request(`/dashboard/zone/trend${withQuery({ kind, region })}`)
     }
-    return response(mock.analytics.getZoneRiskTrendMock({ kind, region }));
+    return response(mock.analytics.getZoneRiskTrendMock({ kind, region }))
   },
 
   /**
@@ -1242,11 +1283,9 @@ export const dashboardApi = {
    */
   listModels: async ({ family, status } = {}) => {
     if (USE_BACKEND) {
-      return normalizePaged(
-        await request(`/ai/models${withQuery({ family, status })}`),
-      );
+      return normalizePaged(await request(`/ai/models${withQuery({ family, status })}`))
     }
-    return normalizePaged(await response(mock.system.modelsListMock));
+    return normalizePaged(await response(mock.system.modelsListMock))
   },
 
   /**
@@ -1254,23 +1293,23 @@ export const dashboardApi = {
    */
   getModelDetail: async (versionId) => {
     if (USE_BACKEND) {
-      return request(`/ai/models/${versionId}`);
+      return request(`/ai/models/${versionId}`)
     }
-    return response(mock.system.modelDetailMock);
+    return response(mock.system.modelDetailMock)
   },
 
   getModelFamilyStats: async () => {
     if (USE_BACKEND) {
-      return request("/ai/models/stats");
+      return request('/ai/models/stats')
     }
-    return response(mock.ai.modelFamilyStatsMock);
+    return response(mock.ai.modelFamilyStatsMock)
   },
 
   getModelTrainingJobs: async () => {
     if (USE_BACKEND) {
-      return normalizePaged(await request("/ai/models/training-jobs"));
+      return normalizePaged(await request('/ai/models/training-jobs'))
     }
-    return normalizePaged(await response(mock.ai.trainingJobsMock));
+    return normalizePaged(await response(mock.ai.trainingJobsMock))
   },
 
   /**
@@ -1278,12 +1317,12 @@ export const dashboardApi = {
    */
   createModelTrainingJob: async (payload = {}) => {
     if (USE_BACKEND) {
-      return request("/ai/models/training-jobs", {
-        method: "POST",
+      return request('/ai/models/training-jobs', {
+        method: 'POST',
         body: JSON.stringify(payload ?? {}),
-      });
+      })
     }
-    return response(mock.empty.ok);
+    return response(mock.empty.ok)
   },
 
   /**
@@ -1292,10 +1331,10 @@ export const dashboardApi = {
   startTrainingJob: async (id) => {
     if (USE_BACKEND) {
       return request(`/ai/models/training-jobs/${id}/start`, {
-        method: "POST",
-      });
+        method: 'POST',
+      })
     }
-    return response(mock.empty.ok);
+    return response(mock.empty.ok)
   },
 
   /**
@@ -1304,10 +1343,10 @@ export const dashboardApi = {
   stopTrainingJob: async (id) => {
     if (USE_BACKEND) {
       return request(`/ai/models/training-jobs/${id}/stop`, {
-        method: "POST",
-      });
+        method: 'POST',
+      })
     }
-    return response(mock.empty.ok);
+    return response(mock.empty.ok)
   },
 
   /**
@@ -1316,11 +1355,9 @@ export const dashboardApi = {
    */
   getTrainingJobLog: async (id, params = {}) => {
     if (USE_BACKEND) {
-      return request(
-        `/ai/models/training-jobs/${id}/log${withQuery(params)}`,
-      );
+      return request(`/ai/models/training-jobs/${id}/log${withQuery(params)}`)
     }
-    return response(mock.ai.trainingJobLogMock);
+    return response(mock.ai.trainingJobLogMock)
   },
 
   /**
@@ -1329,10 +1366,10 @@ export const dashboardApi = {
   activateModelVersion: async (versionId) => {
     if (USE_BACKEND) {
       return request(`/ai/models/${versionId}/activate`, {
-        method: "POST",
-      });
+        method: 'POST',
+      })
     }
-    return response(mock.empty.ok);
+    return response(mock.empty.ok)
   },
 
   /**
@@ -1341,10 +1378,10 @@ export const dashboardApi = {
   deleteModelVersion: async (versionId) => {
     if (USE_BACKEND) {
       return request(`/ai/models/${versionId}`, {
-        method: "DELETE",
-      });
+        method: 'DELETE',
+      })
     }
-    return response(mock.empty.ok);
+    return response(mock.empty.ok)
   },
 
   /**
@@ -1354,10 +1391,10 @@ export const dashboardApi = {
    */
   getDeviceTrack: async (deviceId, { from, to } = {}) => {
     if (USE_BACKEND) {
-      const data = await request(`/devices/${deviceId}/track${withQuery({ from, to })}`);
-      return Array.isArray(data) ? data : (data.points ?? []);
+      const data = await request(`/devices/${deviceId}/track${withQuery({ from, to })}`)
+      return Array.isArray(data) ? data : (data.points ?? [])
     }
-    return response(mock.runtime.getDeviceTrackMock(deviceId, { from, to }));
+    return response(mock.runtime.getDeviceTrackMock(deviceId, { from, to }))
   },
 
   /**
@@ -1366,12 +1403,12 @@ export const dashboardApi = {
    */
   planRoute: async (payload = {}) => {
     if (USE_BACKEND) {
-      return request("/resources/route", {
-        method: "POST",
+      return request('/resources/route', {
+        method: 'POST',
         body: JSON.stringify(payload),
-      });
+      })
     }
-    return response(mock.runtime.planRouteMock(payload));
+    return response(mock.runtime.planRouteMock(payload))
   },
 
   /**
@@ -1385,9 +1422,9 @@ export const dashboardApi = {
    */
   getInspectionReport: async (params = {}) => {
     if (USE_BACKEND) {
-      return request(`/analytics/inspection-report${withQuery(params)}`);
+      return request(`/analytics/inspection-report${withQuery(params)}`)
     }
-    return response(mock.analytics.getInspectionReportMock(params));
+    return response(mock.analytics.getInspectionReportMock(params))
   },
 
   /**
@@ -1395,9 +1432,9 @@ export const dashboardApi = {
    */
   listFirmware: async (filters = {}) => {
     if (USE_BACKEND) {
-      return request(`/ota/firmwares${withQuery(filters)}`);
+      return request(`/ota/firmwares${withQuery(filters)}`)
     }
-    return response(mock.empty.emptyPaged);
+    return response(mock.empty.emptyPaged)
   },
 
   /**
@@ -1405,16 +1442,22 @@ export const dashboardApi = {
    */
   uploadFirmware: async (payload = {}) => {
     if (USE_BACKEND) {
-      const form = new FormData();
-      if (payload.file) {form.append("file", payload.file);}
+      const form = new FormData()
+      if (payload.file) {
+        form.append('file', payload.file)
+      }
       Object.entries(payload).forEach(([k, v]) => {
-        if (k === "file") {return;}
-        if (v === undefined || v === null) {return;}
-        form.append(k, String(v));
-      });
-      return request("/ota/firmwares", { method: "POST", body: form });
+        if (k === 'file') {
+          return
+        }
+        if (v === undefined || v === null) {
+          return
+        }
+        form.append(k, String(v))
+      })
+      return request('/ota/firmwares', { method: 'POST', body: form })
     }
-    return response(mock.empty.ok);
+    return response(mock.empty.ok)
   },
 
   /**
@@ -1422,9 +1465,9 @@ export const dashboardApi = {
    */
   deleteFirmware: async (firmwareId) => {
     if (USE_BACKEND) {
-      return request(`/ota/firmwares/${firmwareId}`, { method: "DELETE" });
+      return request(`/ota/firmwares/${firmwareId}`, { method: 'DELETE' })
     }
-    return response(mock.empty.ok);
+    return response(mock.empty.ok)
   },
 
   /**
@@ -1432,9 +1475,9 @@ export const dashboardApi = {
    */
   listOtaTasks: async (filters = {}) => {
     if (USE_BACKEND) {
-      return request(`/ota/tasks${withQuery(filters)}`);
+      return request(`/ota/tasks${withQuery(filters)}`)
     }
-    return response(mock.empty.emptyPaged);
+    return response(mock.empty.emptyPaged)
   },
 
   /**
@@ -1442,12 +1485,12 @@ export const dashboardApi = {
    */
   createOtaTask: async (payload = {}) => {
     if (USE_BACKEND) {
-      return request("/ota/tasks", {
-        method: "POST",
+      return request('/ota/tasks', {
+        method: 'POST',
         body: JSON.stringify(payload ?? {}),
-      });
+      })
     }
-    return response(mock.empty.ok);
+    return response(mock.empty.ok)
   },
 
   /**
@@ -1455,9 +1498,9 @@ export const dashboardApi = {
    */
   cancelOtaTask: async (taskId) => {
     if (USE_BACKEND) {
-      return request(`/ota/tasks/${taskId}/cancel`, { method: "POST" });
+      return request(`/ota/tasks/${taskId}/cancel`, { method: 'POST' })
     }
-    return response(mock.empty.ok);
+    return response(mock.empty.ok)
   },
 
   /**
@@ -1465,9 +1508,9 @@ export const dashboardApi = {
    */
   retryOtaTask: async (taskId) => {
     if (USE_BACKEND) {
-      return request(`/ota/tasks/${taskId}/retry`, { method: "POST" });
+      return request(`/ota/tasks/${taskId}/retry`, { method: 'POST' })
     }
-    return response(mock.empty.ok);
+    return response(mock.empty.ok)
   },
 
   /**
@@ -1475,9 +1518,9 @@ export const dashboardApi = {
    */
   getOtaTaskDetail: async (taskId) => {
     if (USE_BACKEND) {
-      return request(`/ota/tasks/${taskId}`);
+      return request(`/ota/tasks/${taskId}`)
     }
-    return response(null);
+    return response(null)
   },
 
   /**
@@ -1485,9 +1528,9 @@ export const dashboardApi = {
    */
   listNoticeTemplates: async (filters = {}) => {
     if (USE_BACKEND) {
-      return normalizePaged(await request(`/notice-templates${withQuery(filters)}`));
+      return normalizePaged(await request(`/notice-templates${withQuery(filters)}`))
     }
-    return normalizePaged(await response(mock.empty.emptyPaged));
+    return normalizePaged(await response(mock.empty.emptyPaged))
   },
 
   /**
@@ -1495,9 +1538,9 @@ export const dashboardApi = {
    */
   getNoticeTemplate: async (id) => {
     if (USE_BACKEND) {
-      return request(`/notice-templates/${id}`);
+      return request(`/notice-templates/${id}`)
     }
-    return response(null);
+    return response(null)
   },
 
   /**
@@ -1505,13 +1548,13 @@ export const dashboardApi = {
    */
   upsertNoticeTemplate: async (payload = {}) => {
     if (USE_BACKEND) {
-      const hasId = payload?.id !== undefined && payload?.id !== null && `${payload.id}` !== "";
-      const path = hasId ? `/notice-templates/${payload.id}` : "/notice-templates";
-      const method = hasId ? "PUT" : "POST";
-      const body = hasId ? payload : (({ id: _id, ...rest }) => rest)(payload);
-      return request(path, { method, body: JSON.stringify(body) });
+      const hasId = payload?.id !== undefined && payload?.id !== null && `${payload.id}` !== ''
+      const path = hasId ? `/notice-templates/${payload.id}` : '/notice-templates'
+      const method = hasId ? 'PUT' : 'POST'
+      const body = hasId ? payload : (({ id: _id, ...rest }) => rest)(payload)
+      return request(path, { method, body: JSON.stringify(body) })
     }
-    return response(mock.empty.ok);
+    return response(mock.empty.ok)
   },
 
   /**
@@ -1519,9 +1562,9 @@ export const dashboardApi = {
    */
   deleteNoticeTemplate: async (id) => {
     if (USE_BACKEND) {
-      return request(`/notice-templates/${id}`, { method: "DELETE" });
+      return request(`/notice-templates/${id}`, { method: 'DELETE' })
     }
-    return response(mock.empty.ok);
+    return response(mock.empty.ok)
   },
 
   /**
@@ -1529,9 +1572,9 @@ export const dashboardApi = {
    */
   toggleNoticeTemplate: async (id) => {
     if (USE_BACKEND) {
-      return request(`/notice-templates/${id}/toggle`, { method: "POST" });
+      return request(`/notice-templates/${id}/toggle`, { method: 'POST' })
     }
-    return response(mock.empty.ok);
+    return response(mock.empty.ok)
   },
 
   /**
@@ -1541,11 +1584,11 @@ export const dashboardApi = {
   testNoticeTemplate: async (id, payload = {}) => {
     if (USE_BACKEND) {
       return request(`/notice-templates/${id}/test`, {
-        method: "POST",
+        method: 'POST',
         body: JSON.stringify(payload),
-      });
+      })
     }
-    return response(mock.empty.ok);
+    return response(mock.empty.ok)
   },
 
   /**
@@ -1553,12 +1596,12 @@ export const dashboardApi = {
    */
   createNoticeTemplate: async (template) => {
     if (USE_BACKEND) {
-      return request("/notice-templates", {
-        method: "POST",
+      return request('/notice-templates', {
+        method: 'POST',
         body: JSON.stringify(template),
-      });
+      })
     }
-    return response(mock.empty.ok);
+    return response(mock.empty.ok)
   },
 
   /**
@@ -1568,11 +1611,11 @@ export const dashboardApi = {
   updateNoticeTemplate: async (id, template) => {
     if (USE_BACKEND) {
       return request(`/notice-templates/${id}`, {
-        method: "PUT",
+        method: 'PUT',
         body: JSON.stringify(template),
-      });
+      })
     }
-    return response(mock.empty.ok);
+    return response(mock.empty.ok)
   },
 
   /**
@@ -1580,9 +1623,9 @@ export const dashboardApi = {
    */
   listPlans: async (filters = {}) => {
     if (USE_BACKEND) {
-      return normalizePaged(await request(`/plans${withQuery(filters)}`));
+      return normalizePaged(await request(`/plans${withQuery(filters)}`))
     }
-    return normalizePaged(await response(mock.empty.emptyPaged));
+    return normalizePaged(await response(mock.empty.emptyPaged))
   },
 
   /**
@@ -1590,9 +1633,9 @@ export const dashboardApi = {
    */
   getPlanDetail: async (planId) => {
     if (USE_BACKEND) {
-      return request(`/plans/${planId}`);
+      return request(`/plans/${planId}`)
     }
-    return response(null);
+    return response(null)
   },
 
   /**
@@ -1600,13 +1643,13 @@ export const dashboardApi = {
    */
   upsertPlan: async (payload = {}) => {
     if (USE_BACKEND) {
-      const hasId = payload?.id !== undefined && payload?.id !== null && `${payload.id}` !== "";
-      const path = hasId ? `/plans/${payload.id}` : "/plans";
-      const method = hasId ? "PUT" : "POST";
-      const body = hasId ? payload : (({ id: _id, ...rest }) => rest)(payload);
-      return request(path, { method, body: JSON.stringify(body) });
+      const hasId = payload?.id !== undefined && payload?.id !== null && `${payload.id}` !== ''
+      const path = hasId ? `/plans/${payload.id}` : '/plans'
+      const method = hasId ? 'PUT' : 'POST'
+      const body = hasId ? payload : (({ id: _id, ...rest }) => rest)(payload)
+      return request(path, { method, body: JSON.stringify(body) })
     }
-    return response(mock.empty.ok);
+    return response(mock.empty.ok)
   },
 
   /**
@@ -1614,9 +1657,9 @@ export const dashboardApi = {
    */
   createPlan: async (plan) => {
     if (USE_BACKEND) {
-      return request("/plans", { method: "POST", body: JSON.stringify(plan) });
+      return request('/plans', { method: 'POST', body: JSON.stringify(plan) })
     }
-    return response({ ...mock.empty.ok, id: `plan-${Date.now()}` });
+    return response({ ...mock.empty.ok, id: `plan-${Date.now()}` })
   },
 
   /**
@@ -1625,9 +1668,9 @@ export const dashboardApi = {
    */
   updatePlan: async (id, plan) => {
     if (USE_BACKEND) {
-      return request(`/plans/${id}`, { method: "PUT", body: JSON.stringify(plan) });
+      return request(`/plans/${id}`, { method: 'PUT', body: JSON.stringify(plan) })
     }
-    return response(mock.empty.ok);
+    return response(mock.empty.ok)
   },
 
   /**
@@ -1635,9 +1678,9 @@ export const dashboardApi = {
    */
   deletePlan: async (planId) => {
     if (USE_BACKEND) {
-      return request(`/plans/${planId}`, { method: "DELETE" });
+      return request(`/plans/${planId}`, { method: 'DELETE' })
     }
-    return response(mock.empty.ok);
+    return response(mock.empty.ok)
   },
 
   /**
@@ -1646,11 +1689,11 @@ export const dashboardApi = {
   launchPlan: async (planId, params = {}) => {
     if (USE_BACKEND) {
       return request(`/plans/${planId}/launch`, {
-        method: "POST",
+        method: 'POST',
         body: JSON.stringify(params),
-      });
+      })
     }
-    return response(mock.empty.ok);
+    return response(mock.empty.ok)
   },
 
   /**
@@ -1658,16 +1701,16 @@ export const dashboardApi = {
    */
   simulatePlanLaunch: async (planId) => {
     if (USE_BACKEND) {
-      return request(`/plans/${planId}/simulate-launch`, { method: "POST" });
+      return request(`/plans/${planId}/simulate-launch`, { method: 'POST' })
     }
-    return response(mock.empty.ok);
+    return response(mock.empty.ok)
   },
 
   listPlanLaunches: async () => {
     if (USE_BACKEND) {
-      return normalizePaged(await request("/plans/launches"));
+      return normalizePaged(await request('/plans/launches'))
     }
-    return normalizePaged(await response(mock.empty.emptyPaged));
+    return normalizePaged(await response(mock.empty.emptyPaged))
   },
 
   /**
@@ -1675,9 +1718,9 @@ export const dashboardApi = {
    */
   listBackups: async (filters = {}) => {
     if (USE_BACKEND) {
-      return normalizePaged(await request(`/backup/records${withQuery(filters)}`));
+      return normalizePaged(await request(`/backup/records${withQuery(filters)}`))
     }
-    return normalizePaged(await response(mock.empty.emptyPaged));
+    return normalizePaged(await response(mock.empty.emptyPaged))
   },
 
   /**
@@ -1685,12 +1728,12 @@ export const dashboardApi = {
    */
   createBackup: async (payload = {}) => {
     if (USE_BACKEND) {
-      return request("/backup/records", {
-        method: "POST",
+      return request('/backup/records', {
+        method: 'POST',
         body: JSON.stringify(payload),
-      });
+      })
     }
-    return response(mock.empty.ok);
+    return response(mock.empty.ok)
   },
 
   /**
@@ -1699,10 +1742,10 @@ export const dashboardApi = {
   verifyBackup: async (id) => {
     if (USE_BACKEND) {
       return request(`/backup/records/${id}/verify`, {
-        method: "POST",
-      });
+        method: 'POST',
+      })
     }
-    return response(mock.empty.ok);
+    return response(mock.empty.ok)
   },
 
   /**
@@ -1712,11 +1755,11 @@ export const dashboardApi = {
   restoreBackup: async (id, payload = {}) => {
     if (USE_BACKEND) {
       return request(`/backup/records/${id}/restore`, {
-        method: "POST",
+        method: 'POST',
         body: JSON.stringify(payload),
-      });
+      })
     }
-    return response(mock.empty.ok);
+    return response(mock.empty.ok)
   },
 
   /**
@@ -1724,16 +1767,16 @@ export const dashboardApi = {
    */
   deleteBackup: async (id) => {
     if (USE_BACKEND) {
-      return request(`/backup/records/${id}`, { method: "DELETE" });
+      return request(`/backup/records/${id}`, { method: 'DELETE' })
     }
-    return response(mock.empty.ok);
+    return response(mock.empty.ok)
   },
 
   listBackupStrategies: async () => {
     if (USE_BACKEND) {
-      return normalizePaged(await request("/backup/strategies"));
+      return normalizePaged(await request('/backup/strategies'))
     }
-    return normalizePaged(await response(mock.empty.emptyPaged));
+    return normalizePaged(await response(mock.empty.emptyPaged))
   },
 
   /**
@@ -1741,13 +1784,13 @@ export const dashboardApi = {
    */
   upsertBackupStrategy: async (payload = {}) => {
     if (USE_BACKEND) {
-      const hasId = payload?.id !== undefined && payload?.id !== null && `${payload.id}` !== "";
-      const path = hasId ? `/backup/strategies/${payload.id}` : "/backup/strategies";
-      const method = hasId ? "PUT" : "POST";
-      const body = hasId ? payload : (({ id: _id, ...rest }) => rest)(payload);
-      return request(path, { method, body: JSON.stringify(body) });
+      const hasId = payload?.id !== undefined && payload?.id !== null && `${payload.id}` !== ''
+      const path = hasId ? `/backup/strategies/${payload.id}` : '/backup/strategies'
+      const method = hasId ? 'PUT' : 'POST'
+      const body = hasId ? payload : (({ id: _id, ...rest }) => rest)(payload)
+      return request(path, { method, body: JSON.stringify(body) })
     }
-    return response(mock.empty.ok);
+    return response(mock.empty.ok)
   },
 
   /**
@@ -1755,9 +1798,9 @@ export const dashboardApi = {
    */
   deleteBackupStrategy: async (id) => {
     if (USE_BACKEND) {
-      return request(`/backup/strategies/${id}`, { method: "DELETE" });
+      return request(`/backup/strategies/${id}`, { method: 'DELETE' })
     }
-    return response(mock.empty.ok);
+    return response(mock.empty.ok)
   },
 
   /**
@@ -1766,69 +1809,69 @@ export const dashboardApi = {
   runBackupStrategy: async (id) => {
     if (USE_BACKEND) {
       return request(`/backup/strategies/${id}/run`, {
-        method: "POST",
-      });
+        method: 'POST',
+      })
     }
-    return response(mock.empty.ok);
+    return response(mock.empty.ok)
   },
 
   listRestoreHistory: async () => {
     if (USE_BACKEND) {
-      return normalizePaged(await request("/backup/restores"));
+      return normalizePaged(await request('/backup/restores'))
     }
-    return normalizePaged(await response(mock.empty.emptyPaged));
+    return normalizePaged(await response(mock.empty.emptyPaged))
   },
 
   getAccountSecurity: async () => {
-    requireBackend("getAccountSecurity");
-    return request("/account/security");
+    requireBackend('getAccountSecurity')
+    return request('/account/security')
   },
 
   /**
    * @param {{enabled: boolean, methods: ('totp'|'sms'|'email')[]}} payload
    */
   toggle2FA: async (payload = {}) => {
-    requireBackend("toggle2FA");
-    return request("/account/security/2fa", {
-      method: "POST",
+    requireBackend('toggle2FA')
+    return request('/account/security/2fa', {
+      method: 'POST',
       body: JSON.stringify(payload),
-    });
+    })
   },
 
   regenerateBackupCodes: async () => {
-    requireBackend("regenerateBackupCodes");
-    return request("/account/security/backup-codes/regenerate", {
-      method: "POST",
-    });
+    requireBackend('regenerateBackupCodes')
+    return request('/account/security/backup-codes/regenerate', {
+      method: 'POST',
+    })
   },
 
   /**
    * @param {{page?: number, size?: number, status?: string}} filters
    */
   listLoginHistory: async (filters = {}) => {
-    requireBackend("listLoginHistory");
-    return request(`/account/login-history${withQuery(filters)}`);
+    requireBackend('listLoginHistory')
+    return request(`/account/login-history${withQuery(filters)}`)
   },
 
   listActiveSessions: async () => {
-    requireBackend("listActiveSessions");
-    return normalizePaged(await request("/account/sessions"));
+    requireBackend('listActiveSessions')
+    return normalizePaged(await request('/account/sessions'))
   },
 
   /**
    * @param {string|number} id
    */
   revokeSession: async (id) => {
-    requireBackend("revokeSession");
-    return request(`/account/sessions/${id}`, { method: "DELETE" });
+    requireBackend('revokeSession')
+    return request(`/account/sessions/${id}`, { method: 'DELETE' })
   },
 
   /**
    * @param {{page?: number, size?: number, type?: string}} filters
    */
   listAccountAudit: async (filters = {}) => {
-    requireBackend("listAccountAudit");
-    return request(`/account/audit${withQuery(filters)}`);
+    requireBackend('listAccountAudit')
+    return request(`/account/audit${withQuery(filters)}`)
   },
 
   /**
@@ -1836,9 +1879,9 @@ export const dashboardApi = {
    */
   listReportTemplates: async (filters = {}) => {
     if (USE_BACKEND) {
-      return normalizePaged(await request(`/reports/templates${withQuery(filters)}`));
+      return normalizePaged(await request(`/reports/templates${withQuery(filters)}`))
     }
-    return normalizePaged(await response(mock.empty.emptyPaged));
+    return normalizePaged(await response(mock.empty.emptyPaged))
   },
 
   /**
@@ -1846,12 +1889,12 @@ export const dashboardApi = {
    */
   createReportTemplate: async (payload = {}) => {
     if (USE_BACKEND) {
-      return request("/reports/templates", {
-        method: "POST",
+      return request('/reports/templates', {
+        method: 'POST',
         body: JSON.stringify(payload),
-      });
+      })
     }
-    return response(mock.empty.ok, { id: `tpl-${Date.now()}` });
+    return response(mock.empty.ok, { id: `tpl-${Date.now()}` })
   },
 
   /**
@@ -1859,9 +1902,9 @@ export const dashboardApi = {
    */
   deleteReportTemplate: async (id) => {
     if (USE_BACKEND) {
-      return request(`/reports/templates/${id}`, { method: "DELETE" });
+      return request(`/reports/templates/${id}`, { method: 'DELETE' })
     }
-    return response(mock.empty.ok);
+    return response(mock.empty.ok)
   },
 
   /**
@@ -1871,11 +1914,11 @@ export const dashboardApi = {
   runReportTemplate: async (id, payload = {}) => {
     if (USE_BACKEND) {
       return request(`/reports/templates/${id}/run`, {
-        method: "POST",
+        method: 'POST',
         body: JSON.stringify(payload),
-      });
+      })
     }
-    return response({ ...mock.empty.ok, historyId: `h-${Date.now()}` });
+    return response({ ...mock.empty.ok, historyId: `h-${Date.now()}` })
   },
 
   /**
@@ -1883,12 +1926,12 @@ export const dashboardApi = {
    */
   updateReportSubscription: async (payload = {}) => {
     if (USE_BACKEND) {
-      return request("/reports/subscriptions", {
-        method: "POST",
+      return request('/reports/subscriptions', {
+        method: 'POST',
         body: JSON.stringify(payload),
-      });
+      })
     }
-    return response(mock.empty.ok);
+    return response(mock.empty.ok)
   },
 
   /**
@@ -1896,9 +1939,9 @@ export const dashboardApi = {
    */
   listReportHistory: async (filters = {}) => {
     if (USE_BACKEND) {
-      return normalizePaged(await request(`/reports/history${withQuery(filters)}`));
+      return normalizePaged(await request(`/reports/history${withQuery(filters)}`))
     }
-    return normalizePaged(await response(mock.empty.emptyPaged));
+    return normalizePaged(await response(mock.empty.emptyPaged))
   },
 
   /**
@@ -1907,10 +1950,10 @@ export const dashboardApi = {
   rerunReportHistory: async (id) => {
     if (USE_BACKEND) {
       return request(`/reports/history/${id}/rerun`, {
-        method: "POST",
-      });
+        method: 'POST',
+      })
     }
-    return response(mock.empty.ok);
+    return response(mock.empty.ok)
   },
 
   /**
@@ -1919,57 +1962,64 @@ export const dashboardApi = {
   cancelReportHistory: async (id) => {
     if (USE_BACKEND) {
       return request(`/reports/history/${id}/cancel`, {
-        method: "POST",
-      });
+        method: 'POST',
+      })
     }
-    return response(mock.empty.ok);
+    return response(mock.empty.ok)
   },
 
   /**
    * @param {{base: string, compare: string, mode?: 'side'|'overlay'|'delta'}} params
    */
-  getTimeRangeComparison: async ({ base, compare, mode = "side" } = {}) => {
-    const safeBase = base || "24h";
-    const safeCompare = compare || "previous";
-    const safeMode = ["side", "overlay", "delta"].includes(mode) ? mode : "side";
+  getTimeRangeComparison: async ({ base, compare, mode = 'side' } = {}) => {
+    const safeBase = base || '24h'
+    const safeCompare = compare || 'previous'
+    const safeMode = ['side', 'overlay', 'delta'].includes(mode) ? mode : 'side'
     if (USE_BACKEND) {
       const data = await request(
-        `/analytics/compare${withQuery({ base: safeBase, compare: safeCompare, mode: safeMode })}`,
-      );
-      return data ?? response({ base: {}, compare: {}, series: [], kpis: [], categories: {}, regions: {} });
+        `/analytics/compare${withQuery({ base: safeBase, compare: safeCompare, mode: safeMode })}`
+      )
+      return (
+        data ??
+        response({ base: {}, compare: {}, series: [], kpis: [], categories: {}, regions: {} })
+      )
     }
     return response(
-      mock.analytics.getTimeRangeComparisonMock({ base: safeBase, compare: safeCompare, mode: safeMode }),
-    );
+      mock.analytics.getTimeRangeComparisonMock({
+        base: safeBase,
+        compare: safeCompare,
+        mode: safeMode,
+      })
+    )
   },
 
   getCatalogSummary: async () => {
-    requireBackend("getCatalogSummary");
-    return request("/catalog/summary");
+    requireBackend('getCatalogSummary')
+    return request('/catalog/summary')
   },
 
   /**
    * @param {{type?: string, category?: string, source?: string, keyword?: string, page?: number, size?: number}} filters
    */
   listDataAssets: async (filters = {}) => {
-    requireBackend("listDataAssets");
-    return normalizePaged(await request(`/catalog/assets${withQuery(filters)}`));
+    requireBackend('listDataAssets')
+    return normalizePaged(await request(`/catalog/assets${withQuery(filters)}`))
   },
 
   createCatalogAsset: async (asset) => {
-    requireBackend("新增数据资产");
-    return request("/catalog/assets", {
-      method: "POST",
+    requireBackend('新增数据资产')
+    return request('/catalog/assets', {
+      method: 'POST',
       body: JSON.stringify(asset),
-    });
+    })
   },
 
   /**
    * @param {string|number} id
    */
   getDataAssetDetail: async (id) => {
-    requireBackend("getDataAssetDetail");
-    return request(`/catalog/assets/${id}`);
+    requireBackend('getDataAssetDetail')
+    return request(`/catalog/assets/${id}`)
   },
 
   /**
@@ -1977,11 +2027,11 @@ export const dashboardApi = {
    * @param {{scenario: string, duration: string|number, reason: string}} payload
    */
   requestDataAssetAccess: async (id, payload = {}) => {
-    requireBackend("requestDataAssetAccess");
+    requireBackend('requestDataAssetAccess')
     return request(`/catalog/assets/${id}/access-requests`, {
-      method: "POST",
+      method: 'POST',
       body: JSON.stringify(payload),
-    });
+    })
   },
 
   /**
@@ -1989,187 +2039,215 @@ export const dashboardApi = {
    * @param {{tags: string[]}} payload
    */
   updateDataAssetTags: async (id, payload = {}) => {
-    requireBackend("updateDataAssetTags");
+    requireBackend('updateDataAssetTags')
     return request(`/catalog/assets/${id}/tags`, {
-      method: "PUT",
+      method: 'PUT',
       body: JSON.stringify(payload),
-    });
+    })
   },
 
   listCatalogUsage: async () => {
-    requireBackend("listCatalogUsage");
-    return normalizePaged(await request("/catalog/usage"));
+    requireBackend('listCatalogUsage')
+    return normalizePaged(await request('/catalog/usage'))
   },
 
   /**
    * @param {string|number} id
    */
   subscribeAssetChange: async (id) => {
-    requireBackend("subscribeAssetChange");
+    requireBackend('subscribeAssetChange')
     // 后端实际路径是 /api/catalog/assets/{id}/subscribe（CatalogController），
     // 且该接口用 @RequestBody 读取 email/webhook，缺 body 会被 Spring 判为 400。
     return request(`/catalog/assets/${id}/subscribe`, {
-      method: "POST",
+      method: 'POST',
       body: JSON.stringify({}),
-    });
+    })
   },
 
-
   getObstacleAreas: async () => {
-    if (USE_BACKEND) {return request("/path-planning/obstacles");}
-    return response(mock.runtime.getObstacleAreasMock());
+    if (USE_BACKEND) {
+      return request('/path-planning/obstacles')
+    }
+    return response(mock.runtime.getObstacleAreasMock())
   },
   planRoutes: async (payload = {}) => {
     if (USE_BACKEND) {
-      return request("/path-planning/calculate", {
-        method: "POST",
+      return request('/path-planning/calculate', {
+        method: 'POST',
         body: JSON.stringify(payload),
-      });
+      })
     }
-    return response(mock.runtime.planRoutesWithObstaclesMock(payload));
+    return response(mock.runtime.planRoutesWithObstaclesMock(payload))
   },
   exportRouteGeoJson: async (route) => {
     if (USE_BACKEND) {
-      return request("/path-planning/export", {
-        method: "POST",
+      return request('/path-planning/export', {
+        method: 'POST',
         body: JSON.stringify(route),
-      });
+      })
     }
-    return response({ geojson: mock.runtime.exportRouteGeoJsonMock(route) });
+    return response({ geojson: mock.runtime.exportRouteGeoJsonMock(route) })
   },
 
   previewWarningResolve: async (warning) => {
     if (USE_BACKEND) {
-      return request(`/warnings/${warning?.id ?? warning?.warningId}/resolve/preview`);
+      return request(`/warnings/${warning?.id ?? warning?.warningId}/resolve/preview`)
     }
-    return response(mock.runtime.previewWarningResolveMock(warning));
+    return response(mock.runtime.previewWarningResolveMock(warning))
   },
   getWarningResolveScope: async (id) => {
-    if (USE_BACKEND) {return request(`/warnings/${id}/resolve/scope`);}
-    return response({ scopes: [
-      { value: "ALL", label: "全部" },
-      { value: "龙安镇", label: "龙安镇" },
-      { value: "石桥镇", label: "石桥镇" },
-      { value: "清河镇", label: "清河镇" },
-    ] });
+    if (USE_BACKEND) {
+      return request(`/warnings/${id}/resolve/scope`)
+    }
+    return response({
+      scopes: [
+        { value: 'ALL', label: '全部' },
+        { value: '龙安镇', label: '龙安镇' },
+        { value: '石桥镇', label: '石桥镇' },
+        { value: '清河镇', label: '清河镇' },
+      ],
+    })
   },
   resolveWarning: async (id, payload = {}) => {
-    requireBackend("解除预警");
+    requireBackend('解除预警')
     return request(`/warnings/${id}/resolve`, {
-      method: "POST",
+      method: 'POST',
       body: JSON.stringify(payload),
-    });
+    })
   },
 
   getProfile: async () => {
-    if (USE_BACKEND) {return request("/profile");}
-    return response(mock.system.getUsersMock?.()?.[0] ?? {
-      id: "u-admin", username: "admin", name: "系统管理员",
-      phone: "138****8888", email: "admin@disasterguard.cn", department: "应急管理中心",
-      avatar: "", role: "admin",
-    });
+    if (USE_BACKEND) {
+      return request('/profile')
+    }
+    return response(
+      mock.system.getUsersMock?.()?.[0] ?? {
+        id: 'u-admin',
+        username: 'admin',
+        name: '系统管理员',
+        phone: '138****8888',
+        email: 'admin@disasterguard.cn',
+        department: '应急管理中心',
+        avatar: '',
+        role: 'admin',
+      }
+    )
   },
   updateProfile: async (payload) => {
     if (USE_BACKEND) {
-      return request("/profile", { method: "PUT", body: JSON.stringify(payload) });
+      return request('/profile', { method: 'PUT', body: JSON.stringify(payload) })
     }
-    return response({ ok: true, data: payload, updatedAt: new Date().toISOString() });
+    return response({ ok: true, data: payload, updatedAt: new Date().toISOString() })
   },
   changeMyPassword: async (payload) => {
     if (USE_BACKEND) {
-      return request("/profile/password", { method: "PUT", body: JSON.stringify(payload) });
+      return request('/profile/password', { method: 'PUT', body: JSON.stringify(payload) })
     }
-    if (payload?.current === "123456") {
-      return response({ ok: true });
+    if (payload?.current === '123456') {
+      return response({ ok: true })
     }
-    const err = new Error("修改密码");
-    err.code = "PWD";
-    throw err;
+    const err = new Error('修改密码')
+    err.code = 'PWD'
+    throw err
   },
   getUserPreference: async (userId) => {
-    if (USE_BACKEND) {return request("/profile/notification-preference");}
-    return response(mock.runtime.getUserPreferenceMock(userId));
+    if (USE_BACKEND) {
+      return request('/profile/notification-preference')
+    }
+    return response(mock.runtime.getUserPreferenceMock(userId))
   },
   updateUserPreference: async (payload) => {
     if (USE_BACKEND) {
-      return request("/profile/notification-preference", {
-        method: "PUT",
+      return request('/profile/notification-preference', {
+        method: 'PUT',
         body: JSON.stringify(payload),
-      });
+      })
     }
-    return response(mock.runtime.saveUserPreferenceMock("u-admin", payload));
+    return response(mock.runtime.saveUserPreferenceMock('u-admin', payload))
   },
   updateThemeLanguage: async (payload) => {
     if (USE_BACKEND) {
-      return request("/profile/theme-language", {
-        method: "PUT",
+      return request('/profile/theme-language', {
+        method: 'PUT',
         body: JSON.stringify(payload),
-      });
+      })
     }
-    return response({ ok: true, ...payload });
+    return response({ ok: true, ...payload })
   },
 
   // P0-4 ??
   listSignRecords: async (eventId) => {
-    if (USE_BACKEND) {return request(`/events/${eventId}/sign`);}
-    return response(mock.runtime.listSignRecordsMock(eventId));
+    if (USE_BACKEND) {
+      return request(`/events/${eventId}/sign`)
+    }
+    return response(mock.runtime.listSignRecordsMock(eventId))
   },
   createSign: async (payload) => {
     if (USE_BACKEND) {
       return request(`/events/${payload.eventId}/sign`, {
-        method: "POST",
+        method: 'POST',
         body: JSON.stringify(payload),
-      });
+      })
     }
-    return response(mock.runtime.createSignMock(payload));
+    return response(mock.runtime.createSignMock(payload))
   },
   confirmSign: async ({ eventId, signId, signerId, opinion }) => {
     if (USE_BACKEND) {
       return request(`/events/${eventId}/sign/${signId}/confirm`, {
-        method: "PUT",
+        method: 'PUT',
         body: JSON.stringify({ signerId, opinion }),
-      });
+      })
     }
-    return response(mock.runtime.signConfirmMock(signId, signerId, opinion));
+    return response(mock.runtime.signConfirmMock(signId, signerId, opinion))
   },
   rejectSign: async ({ eventId, signId, signerId, opinion }) => {
     if (USE_BACKEND) {
       return request(`/events/${eventId}/sign/${signId}/reject`, {
-        method: "PUT",
+        method: 'PUT',
         body: JSON.stringify({ signerId, opinion }),
-      });
+      })
     }
-    return response(mock.runtime.signRejectMock(signId, signerId, opinion));
+    return response(mock.runtime.signRejectMock(signId, signerId, opinion))
   },
   transferEvent: async ({ eventId, toUser, reason }) => {
     if (USE_BACKEND) {
       return request(`/events/${eventId}/transfer`, {
-        method: "POST",
+        method: 'POST',
         body: JSON.stringify({ toUser, reason }),
-      });
+      })
     }
-    return response(mock.runtime.transferEventMock(eventId, toUser, reason));
+    return response(mock.runtime.transferEventMock(eventId, toUser, reason))
   },
 
   getZoneKpi: async (params = {}) => {
-    if (USE_BACKEND) {return request("/dashboard/zone/kpi" + withQuery(params));}
-    return response(mock.runtime.getZoneKpiMock(params));
+    if (USE_BACKEND) {
+      return request('/dashboard/zone/kpi' + withQuery(params))
+    }
+    return response(mock.runtime.getZoneKpiMock(params))
   },
   getZoneTrend: async (params = {}) => {
-    if (USE_BACKEND) {return request("/dashboard/zone/trend" + withQuery(params));}
-    return response(mock.runtime.getZoneTrendMock(params));
+    if (USE_BACKEND) {
+      return request('/dashboard/zone/trend' + withQuery(params))
+    }
+    return response(mock.runtime.getZoneTrendMock(params))
   },
   getZoneTopHazards: async (params = {}) => {
-    if (USE_BACKEND) {return request("/dashboard/zone/top-hazards" + withQuery(params));}
-    return response(mock.runtime.getZoneTopHazardsMock(params));
+    if (USE_BACKEND) {
+      return request('/dashboard/zone/top-hazards' + withQuery(params))
+    }
+    return response(mock.runtime.getZoneTopHazardsMock(params))
   },
   getZoneRelatedWarnings: async (params = {}) => {
-    if (USE_BACKEND) {return request("/dashboard/zone/related-warnings" + withQuery(params));}
-    return response(mock.runtime.getZoneRelatedWarningsMock(params));
+    if (USE_BACKEND) {
+      return request('/dashboard/zone/related-warnings' + withQuery(params))
+    }
+    return response(mock.runtime.getZoneRelatedWarningsMock(params))
   },
   getZoneRelatedEmergencies: async (params = {}) => {
-    if (USE_BACKEND) {return request("/dashboard/zone/related-emergencies" + withQuery(params));}
-    return response(mock.runtime.getZoneRelatedEmergenciesMock(params));
+    if (USE_BACKEND) {
+      return request('/dashboard/zone/related-emergencies' + withQuery(params))
+    }
+    return response(mock.runtime.getZoneRelatedEmergenciesMock(params))
   },
 
   getZoneSummary: async (filter = {}) => {
@@ -2179,16 +2257,15 @@ export const dashboardApi = {
       dashboardApi.getZoneTopHazards(filter).catch(() => []),
       dashboardApi.getZoneRelatedWarnings(filter).catch(() => []),
       dashboardApi.getZoneRelatedEmergencies(filter).catch(() => []),
-    ]);
-    return { ...kpi, topHazards, relatedWarnings, relatedIncidents, points: trend.points ?? [] };
+    ])
+    return { ...kpi, topHazards, relatedWarnings, relatedIncidents, points: trend.points ?? [] }
   },
   /** @deprecated ?? getZoneTrend ?? */
   getZoneRiskTrend: async (filter = {}) => {
-    return dashboardApi.getZoneTrend(filter);
+    return dashboardApi.getZoneTrend(filter)
   },
   getZoneRelatedWarningsBy: (params) => dashboardApi.getZoneRelatedWarnings(params),
   getZoneRelatedEmergenciesBy: (params) => dashboardApi.getZoneRelatedEmergencies(params),
-
 
   /**
    * @param {Object} params
@@ -2196,17 +2273,17 @@ export const dashboardApi = {
    */
   listUnifiedEvents: async (params = {}) => {
     if (USE_BACKEND) {
-      const data = await request(`/event/list${withQuery(params)}`);
-      const list = Array.isArray(data) ? data : (data?.items ?? data?.records ?? []);
+      const data = await request(`/event/list${withQuery(params)}`)
+      const list = Array.isArray(data) ? data : (data?.items ?? data?.records ?? [])
       return {
         items: list,
         total: data?.total ?? list.length,
         page: data?.page ?? 1,
         size: data?.size ?? 20,
         pages: data?.pages ?? 1,
-      };
+      }
     }
-    return response(mock.workflow.getUnifiedEventsMock(params));
+    return response(mock.workflow.getUnifiedEventsMock(params))
   },
 
   /**
@@ -2214,110 +2291,110 @@ export const dashboardApi = {
    */
   getUnifiedEventStats: async () => {
     if (USE_BACKEND) {
-      const data = await request("/event/stats");
-      return data ?? {};
+      const data = await request('/event/stats')
+      return data ?? {}
     }
-    return response(mock.workflow.unifiedEventsStatsMock);
+    return response(mock.workflow.unifiedEventsStatsMock)
   },
 
   getUnifiedEventDetail: async (code) => {
     if (USE_BACKEND) {
-      return request(`/event/${encodeURIComponent(code)}`);
+      return request(`/event/${encodeURIComponent(code)}`)
     }
-    return response(mock.workflow.getUnifiedEventDetailMock(code));
+    return response(mock.workflow.getUnifiedEventDetailMock(code))
   },
 
   /**
    * @param {Object} payload
    */
   transitionUnifiedEvent: async (code, payload = {}) => {
-    requireBackend("统一事件状态流转");
+    requireBackend('统一事件状态流转')
     return request(`/event/${encodeURIComponent(code)}/transition`, {
-      method: "POST",
+      method: 'POST',
       body: JSON.stringify(payload),
-    });
+    })
   },
 
   /**
    * @param {string} code
    */
   getUnifiedEventAvailableTriggers: async (code) => {
-    const detail = await dashboardApi.getUnifiedEventDetail(code);
-    if (!detail) { return []; }
-    return dashboardApi.computeAvailableTriggers(detail.state);
+    const detail = await dashboardApi.getUnifiedEventDetail(code)
+    if (!detail) {
+      return []
+    }
+    return dashboardApi.computeAvailableTriggers(detail.state)
   },
 
   computeAvailableTriggers: (currentState) => {
     const MAP = {
       DETECTED: [
-        { trigger: "AI_DETECT", label: "AI 识别", tone: "blue" },
-        { trigger: "MANUAL_REPORT", label: "人工上报", tone: "blue" },
-        { trigger: "DISMISS", label: "忽略", tone: "gray" },
+        { trigger: 'AI_DETECT', label: 'AI 识别', tone: 'blue' },
+        { trigger: 'MANUAL_REPORT', label: '人工上报', tone: 'blue' },
+        { trigger: 'DISMISS', label: '忽略', tone: 'gray' },
       ],
       CONFIRMING: [
-        { trigger: "CONFIRM", label: "确认", tone: "green" },
-        { trigger: "REJECT", label: "驳回", tone: "red" },
-        { trigger: "DISMISS", label: "忽略", tone: "gray" },
+        { trigger: 'CONFIRM', label: '确认', tone: 'green' },
+        { trigger: 'REJECT', label: '驳回', tone: 'red' },
+        { trigger: 'DISMISS', label: '忽略', tone: 'gray' },
       ],
       CONFIRMED: [
-        { trigger: "ISSUE_WARNING", label: "发布预警", tone: "orange" },
-        { trigger: "TRIGGER_EMERGENCY", label: "启动应急", tone: "red" },
-        { trigger: "DISMISS", label: "忽略", tone: "gray" },
+        { trigger: 'ISSUE_WARNING', label: '发布预警', tone: 'orange' },
+        { trigger: 'TRIGGER_EMERGENCY', label: '启动应急', tone: 'red' },
+        { trigger: 'DISMISS', label: '忽略', tone: 'gray' },
       ],
       WARNING_ISSUED: [
-        { trigger: "TRIGGER_EMERGENCY", label: "启动应急", tone: "red" },
-        { trigger: "CLOSE", label: "关闭", tone: "green" },
+        { trigger: 'TRIGGER_EMERGENCY', label: '启动应急', tone: 'red' },
+        { trigger: 'CLOSE', label: '关闭', tone: 'green' },
       ],
-      EMERGENCY_ACTIVE: [
-        { trigger: "CLOSE", label: "结束应急", tone: "green" },
-      ],
-      CLOSED: [
-        { trigger: "REOPEN", label: "重新打开", tone: "blue" },
-      ],
-      REJECTED: [
-        { trigger: "REOPEN", label: "重新打开", tone: "blue" },
-      ],
-    };
-    return MAP[currentState] ?? [];
+      EMERGENCY_ACTIVE: [{ trigger: 'CLOSE', label: '结束应急', tone: 'green' }],
+      CLOSED: [{ trigger: 'REOPEN', label: '重新打开', tone: 'blue' }],
+      REJECTED: [{ trigger: 'REOPEN', label: '重新打开', tone: 'blue' }],
+    }
+    return MAP[currentState] ?? []
   },
 
   getStateMachineGraph: () => ({
     states: [
-      { id: "DETECTED",          label: "已发现",      color: "#4f8f99", icon: "Eye" },
-      { id: "CONFIRMING",        label: "确认中",      color: "#cbaa76", icon: "ClipboardCheck" },
-      { id: "CONFIRMED",         label: "已确认",      color: "#638fc2", icon: "CheckCircle2" },
-      { id: "WARNING_ISSUED",    label: "预警发布",    color: "#d88561", icon: "Bell" },
-      { id: "EMERGENCY_ACTIVE",  label: "应急处置",    color: "#e06060", icon: "Truck" },
-      { id: "CLOSED",            label: "已关闭",      color: "#9baead", icon: "Archive" },
-      { id: "REJECTED",          label: "已驳回",      color: "#8a968d", icon: "XCircle" },
+      { id: 'DETECTED', label: '已发现', color: '#4f8f99', icon: 'Eye' },
+      { id: 'CONFIRMING', label: '确认中', color: '#cbaa76', icon: 'ClipboardCheck' },
+      { id: 'CONFIRMED', label: '已确认', color: '#638fc2', icon: 'CheckCircle2' },
+      { id: 'WARNING_ISSUED', label: '预警发布', color: '#d88561', icon: 'Bell' },
+      { id: 'EMERGENCY_ACTIVE', label: '应急处置', color: '#e06060', icon: 'Truck' },
+      { id: 'CLOSED', label: '已关闭', color: '#9baead', icon: 'Archive' },
+      { id: 'REJECTED', label: '已驳回', color: '#8a968d', icon: 'XCircle' },
     ],
     transitions: [
-      { from: "DETECTED",         to: "CONFIRMING",       trigger: "AI_DETECT/MANUAL_REPORT" },
-      { from: "DETECTED",         to: "CLOSED",           trigger: "DISMISS" },
-      { from: "CONFIRMING",       to: "CONFIRMED",        trigger: "CONFIRM" },
-      { from: "CONFIRMING",       to: "REJECTED",         trigger: "REJECT" },
-      { from: "CONFIRMING",       to: "CLOSED",           trigger: "DISMISS" },
-      { from: "CONFIRMED",        to: "WARNING_ISSUED",   trigger: "ISSUE_WARNING" },
-      { from: "CONFIRMED",        to: "EMERGENCY_ACTIVE", trigger: "TRIGGER_EMERGENCY" },
-      { from: "CONFIRMED",        to: "CLOSED",           trigger: "DISMISS" },
-      { from: "WARNING_ISSUED",   to: "EMERGENCY_ACTIVE", trigger: "TRIGGER_EMERGENCY" },
-      { from: "WARNING_ISSUED",   to: "CLOSED",           trigger: "CLOSE" },
-      { from: "EMERGENCY_ACTIVE", to: "CLOSED",           trigger: "CLOSE" },
-      { from: "CLOSED",           to: "WARNING_ISSUED",   trigger: "REOPEN" },
+      { from: 'DETECTED', to: 'CONFIRMING', trigger: 'AI_DETECT/MANUAL_REPORT' },
+      { from: 'DETECTED', to: 'CLOSED', trigger: 'DISMISS' },
+      { from: 'CONFIRMING', to: 'CONFIRMED', trigger: 'CONFIRM' },
+      { from: 'CONFIRMING', to: 'REJECTED', trigger: 'REJECT' },
+      { from: 'CONFIRMING', to: 'CLOSED', trigger: 'DISMISS' },
+      { from: 'CONFIRMED', to: 'WARNING_ISSUED', trigger: 'ISSUE_WARNING' },
+      { from: 'CONFIRMED', to: 'EMERGENCY_ACTIVE', trigger: 'TRIGGER_EMERGENCY' },
+      { from: 'CONFIRMED', to: 'CLOSED', trigger: 'DISMISS' },
+      { from: 'WARNING_ISSUED', to: 'EMERGENCY_ACTIVE', trigger: 'TRIGGER_EMERGENCY' },
+      { from: 'WARNING_ISSUED', to: 'CLOSED', trigger: 'CLOSE' },
+      { from: 'EMERGENCY_ACTIVE', to: 'CLOSED', trigger: 'CLOSE' },
+      { from: 'CLOSED', to: 'WARNING_ISSUED', trigger: 'REOPEN' },
     ],
   }),
-
 
   /**
    * GET /api/ai/forecast/auto
    * @param {{deviceCode: string, metric?: string, horizon?: number, historyLimit?: number}} params
    * @returns {Promise<{deviceCode, metric, horizon, predictions: number[], confidence: number, model: string, degraded: boolean}>}
    */
-  getDisasterForecast: async ({ deviceCode, metric = 'displacement', horizon = 24, historyLimit = 30 } = {}) => {
+  getDisasterForecast: async ({
+    deviceCode,
+    metric = 'displacement',
+    horizon = 24,
+    historyLimit = 30,
+  } = {}) => {
     if (USE_BACKEND) {
-      return request(`/ai/forecast/auto${withQuery({ deviceCode, metric, horizon, historyLimit })}`);
+      return request(`/ai/forecast/auto${withQuery({ deviceCode, metric, horizon, historyLimit })}`)
     }
-    return response(mock.ai.getDisasterForecastMock({ deviceCode, metric, horizon, historyLimit }));
+    return response(mock.ai.getDisasterForecastMock({ deviceCode, metric, horizon, historyLimit }))
   },
 
   /**
@@ -2327,9 +2404,9 @@ export const dashboardApi = {
    */
   getFusionRisk: async (hazardCode) => {
     if (USE_BACKEND) {
-      return request(`/ai/fusion-risk/auto${withQuery({ hazardCode })}`);
+      return request(`/ai/fusion-risk/auto${withQuery({ hazardCode })}`)
     }
-    return response(mock.ai.getFusionRiskMock(hazardCode));
+    return response(mock.ai.getFusionRiskMock(hazardCode))
   },
 
   /**
@@ -2339,9 +2416,9 @@ export const dashboardApi = {
    */
   getDisasterAssessment: async (hazardCode, { allowMock = true } = {}) => {
     if (USE_BACKEND) {
-      return request(`/ai/disaster-assessment${withQuery({ hazardCode })}`);
+      return request(`/ai/disaster-assessment${withQuery({ hazardCode })}`)
     }
-    return allowMock ? response(mock.ai.getDisasterAssessmentMock(hazardCode)) : null;
+    return allowMock ? response(mock.ai.getDisasterAssessmentMock(hazardCode)) : null
   },
 
   /**
@@ -2349,9 +2426,9 @@ export const dashboardApi = {
    */
   getDisasterAssessmentStatus: async () => {
     if (USE_BACKEND) {
-      return request("/ai/disaster-assessment/status");
+      return request('/ai/disaster-assessment/status')
     }
-    return response(mock.ai.disasterAssessmentStatusMock);
+    return response(mock.ai.disasterAssessmentStatusMock)
   },
 
   /**
@@ -2361,12 +2438,12 @@ export const dashboardApi = {
    */
   runIndependentAssessment: async (payload = {}) => {
     if (USE_BACKEND) {
-      return request("/ai/disaster-assessment/independent", {
-        method: "POST",
+      return request('/ai/disaster-assessment/independent', {
+        method: 'POST',
         body: JSON.stringify(payload),
-      });
+      })
     }
-    return response(mock.ai.runIndependentAssessmentMock(payload));
+    return response(mock.ai.runIndependentAssessmentMock(payload))
   },
 
   /**
@@ -2377,15 +2454,15 @@ export const dashboardApi = {
    */
   getAiWelcomePrompts: async (context) => {
     if (USE_BACKEND) {
-      return request("/ai/welcome-prompts", {
-        method: "POST",
+      return request('/ai/welcome-prompts', {
+        method: 'POST',
         body: JSON.stringify(context),
-      });
+      })
     }
     // 本地兜底逻辑（前端规则引擎）
     return response({
       welcomeText: `你好！正在分析 ${context.contextId}`,
       quickPrompts: [`分析 ${context.contextId}`, '查看详情', '生成报告', '联系应急'],
-    });
+    })
   },
-};
+}

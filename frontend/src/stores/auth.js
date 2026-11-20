@@ -16,23 +16,51 @@ const TOKEN_KEY = 'disasterguard_token'
 const USER_KEY = 'disasterguard_user'
 
 export const ROLE_OPTIONS = [
-  { value: 'admin',               label: '超管',       description: '平台最高权限，拥有全部模块访问权限，负责系统初始化和极端故障恢复' },
-  { value: 'system-admin',        label: '系统管理员', description: '负责系统运维、日志审计和用户管理，管系统不管业务' },
-  { value: 'emergency-commander', label: '应急指挥',   description: '灾害发生时的最高指挥官，负责态势研判、预警发布和资源调度' },
-  { value: 'attendant',           label: '值班员',     description: '7×24 小时盯屏，AI 初筛的第一响应人，负责初审和草稿起草' },
-  { value: 'expert',              label: '领域专家',   description: '提供专业背书，防止 AI 误报漏报，负责二次确认和会签复核' },
-  { value: 'ai-engineer',         label: 'AI工程师',   description: '负责模型迭代、规则配置和数据管道，造模型的不管业务' },
-  { value: 'maintenance',         label: '现场运维',   description: '负责设备安装、抢修和状态回报，一线设备保障' },
+  {
+    value: 'admin',
+    label: '超管',
+    description: '平台最高权限，拥有全部模块访问权限，负责系统初始化和极端故障恢复',
+  },
+  {
+    value: 'system-admin',
+    label: '系统管理员',
+    description: '负责系统运维、日志审计和用户管理，管系统不管业务',
+  },
+  {
+    value: 'emergency-commander',
+    label: '应急指挥',
+    description: '灾害发生时的最高指挥官，负责态势研判、预警发布和资源调度',
+  },
+  {
+    value: 'attendant',
+    label: '值班员',
+    description: '7×24 小时盯屏，AI 初筛的第一响应人，负责初审和草稿起草',
+  },
+  {
+    value: 'expert',
+    label: '领域专家',
+    description: '提供专业背书，防止 AI 误报漏报，负责二次确认和会签复核',
+  },
+  {
+    value: 'ai-engineer',
+    label: 'AI工程师',
+    description: '负责模型迭代、规则配置和数据管道，造模型的不管业务',
+  },
+  {
+    value: 'maintenance',
+    label: '现场运维',
+    description: '负责设备安装、抢修和状态回报，一线设备保障',
+  },
 ]
 
 export const ROLE_HOME_MAP = {
-  admin:               '/dashboard',
-  'system-admin':      '/dashboard/audit-log',
+  admin: '/dashboard',
+  'system-admin': '/dashboard/audit-log',
   'emergency-commander': '/dashboard/emergency',
-  attendant:           '/dashboard',
-  expert:              '/dashboard/confirmation-workbench',
-  'ai-engineer':      '/dashboard/ai-tasks',
-  maintenance:         '/dashboard/devices',
+  attendant: '/dashboard',
+  expert: '/dashboard/confirmation-workbench',
+  'ai-engineer': '/dashboard/ai-tasks',
+  maintenance: '/dashboard/devices',
 }
 
 /**
@@ -43,29 +71,57 @@ export const ROLE_HOME_MAP = {
  * 统一在此处做一次转换，使两侧键名对齐。
  */
 export function normalizeRole(role) {
-  if (!role) {return '';}
-  return String(role).trim().toLowerCase().replace(/_/g, '-');
+  if (!role) {
+    return ''
+  }
+  return String(role).trim().toLowerCase().replace(/_/g, '-')
 }
 
 export const ROLE_MENU_MAP = {
   admin: [
-    '/dashboard', '/dashboard/real-time-map', '/dashboard/satellite-compare', '/dashboard/device-map',
-    '/dashboard/ai-tasks', '/dashboard/ai-results', '/dashboard/ai-insight', '/dashboard/disaster-forecast', '/dashboard/damage-assessment', '/dashboard/ai-models',
-    '/dashboard/hazards', '/dashboard/confirmation-workbench', '/dashboard/confirmation-sign',
-    '/dashboard/field-inspection', '/dashboard/personnel',
+    '/dashboard',
+    '/dashboard/real-time-map',
+    '/dashboard/satellite-compare',
+    '/dashboard/device-map',
+    '/dashboard/ai-tasks',
+    '/dashboard/ai-results',
+    '/dashboard/ai-insight',
+    '/dashboard/disaster-forecast',
+    '/dashboard/damage-assessment',
+    '/dashboard/ai-models',
+    '/dashboard/hazards',
+    '/dashboard/confirmation-workbench',
+    '/dashboard/confirmation-sign',
+    '/dashboard/field-inspection',
+    '/dashboard/personnel',
     '/dashboard/events',
-    '/dashboard/warnings', '/dashboard/warnings/create', '/dashboard/warnings/:id/delivery',
-    '/dashboard/emergency', '/dashboard/resource-dispatch', '/dashboard/route-planning',
-    '/dashboard/devices', '/dashboard/devices/ota',
-    '/dashboard/data-sources', '/dashboard/data-sync', '/dashboard/weather',
+    '/dashboard/warnings',
+    '/dashboard/warnings/create',
+    '/dashboard/warnings/:id/delivery',
+    '/dashboard/emergency',
+    '/dashboard/resource-dispatch',
+    '/dashboard/route-planning',
+    '/dashboard/devices',
+    '/dashboard/devices/ota',
+    '/dashboard/data-sources',
+    '/dashboard/data-sync',
+    '/dashboard/weather',
     '/dashboard/rule-engine',
     '/dashboard/analytics',
-    '/dashboard/user-management', '/dashboard/audit-log', '/dashboard/system-monitor',
-    '/dashboard/message-center', '/dashboard/todo', '/dashboard/approvals',
+    '/dashboard/user-management',
+    '/dashboard/audit-log',
+    '/dashboard/system-monitor',
+    '/dashboard/message-center',
+    '/dashboard/todo',
+    '/dashboard/approvals',
     '/dashboard/notice-templates',
     '/dashboard/data-catalog',
-    '/dashboard/account-security', '/dashboard/settings', '/dashboard/profile',
-    '/dashboard/zone', '/dashboard/workbench', '/dashboard/help',
+    '/dashboard/account-security',
+    '/dashboard/settings',
+    '/dashboard/profile',
+    '/dashboard/zone',
+    '/dashboard/workbench',
+    '/dashboard/help',
     '/dashboard/data-manage',
     '/dashboard/notification-channels',
     // 注册申请审核：后端 AdminApplicationController 用 @PreAuthorize("hasRole('ADMIN')") 判定，
@@ -73,114 +129,285 @@ export const ROLE_MENU_MAP = {
     '/admin/applications',
   ],
   attendant: [
-    '/dashboard', '/dashboard/real-time-map', '/dashboard/satellite-compare',
-    '/dashboard/ai-tasks', '/dashboard/ai-insight', '/dashboard/ai-results',
-    '/dashboard/hazards', '/dashboard/confirmation-workbench', '/dashboard/confirmation-sign',
-    '/dashboard/field-inspection', '/dashboard/personnel',
+    '/dashboard',
+    '/dashboard/real-time-map',
+    '/dashboard/satellite-compare',
+    '/dashboard/ai-tasks',
+    '/dashboard/ai-insight',
+    '/dashboard/ai-results',
+    '/dashboard/hazards',
+    '/dashboard/confirmation-workbench',
+    '/dashboard/confirmation-sign',
+    '/dashboard/field-inspection',
+    '/dashboard/personnel',
     '/dashboard/events',
-    '/dashboard/warnings', '/dashboard/warnings/create',
-    '/dashboard/emergency', '/dashboard/devices', '/dashboard/device-map',
+    '/dashboard/warnings',
+    '/dashboard/warnings/create',
+    '/dashboard/emergency',
+    '/dashboard/devices',
+    '/dashboard/device-map',
     '/dashboard/notice-templates',
-    '/dashboard/weather', '/dashboard/analytics',
-    '/dashboard/approvals', '/dashboard/account-security',
-    '/dashboard/message-center', '/dashboard/todo', '/dashboard/settings', '/dashboard/profile',
-    '/dashboard/route-planning', '/dashboard/workbench', '/dashboard/help',
+    '/dashboard/weather',
+    '/dashboard/analytics',
+    '/dashboard/approvals',
+    '/dashboard/account-security',
+    '/dashboard/message-center',
+    '/dashboard/todo',
+    '/dashboard/settings',
+    '/dashboard/profile',
+    '/dashboard/route-planning',
+    '/dashboard/workbench',
+    '/dashboard/help',
     '/dashboard/notification-channels',
   ],
   expert: [
     '/dashboard',
-    '/dashboard/hazards', '/dashboard/confirmation-workbench', '/dashboard/confirmation-sign',
-    '/dashboard/field-inspection', '/dashboard/personnel',
+    '/dashboard/hazards',
+    '/dashboard/confirmation-workbench',
+    '/dashboard/confirmation-sign',
+    '/dashboard/field-inspection',
+    '/dashboard/personnel',
     '/dashboard/events',
-    '/dashboard/ai-tasks', '/dashboard/ai-insight', '/dashboard/disaster-forecast', '/dashboard/damage-assessment', '/dashboard/ai-models', '/dashboard/ai-results',
+    '/dashboard/ai-tasks',
+    '/dashboard/ai-insight',
+    '/dashboard/disaster-forecast',
+    '/dashboard/damage-assessment',
+    '/dashboard/ai-models',
+    '/dashboard/ai-results',
     '/dashboard/warnings',
-    '/dashboard/emergency', '/dashboard/route-planning',
+    '/dashboard/emergency',
+    '/dashboard/route-planning',
     '/dashboard/data-catalog',
-    '/dashboard/approvals', '/dashboard/rule-engine',
+    '/dashboard/approvals',
+    '/dashboard/rule-engine',
     '/dashboard/analytics',
-    '/dashboard/account-security', '/dashboard/message-center', '/dashboard/todo',
-    '/dashboard/settings', '/dashboard/profile', '/dashboard/workbench', '/dashboard/help',
+    '/dashboard/account-security',
+    '/dashboard/message-center',
+    '/dashboard/todo',
+    '/dashboard/settings',
+    '/dashboard/profile',
+    '/dashboard/workbench',
+    '/dashboard/help',
   ],
   maintenance: [
-    '/dashboard', '/dashboard/real-time-map',
+    '/dashboard',
+    '/dashboard/real-time-map',
     '/dashboard/hazards',
-    '/dashboard/devices', '/dashboard/devices/ota', '/dashboard/device-map',
-    '/dashboard/data-sources', '/dashboard/weather',
+    '/dashboard/devices',
+    '/dashboard/devices/ota',
+    '/dashboard/device-map',
+    '/dashboard/data-sources',
+    '/dashboard/weather',
     '/dashboard/analytics',
-    '/dashboard/emergency', '/dashboard/resource-dispatch', '/dashboard/route-planning',
+    '/dashboard/emergency',
+    '/dashboard/resource-dispatch',
+    '/dashboard/route-planning',
     '/dashboard/system-monitor',
-    '/dashboard/account-security', '/dashboard/message-center', '/dashboard/todo',
-    '/dashboard/settings', '/dashboard/profile', '/dashboard/workbench', '/dashboard/help',
+    '/dashboard/account-security',
+    '/dashboard/message-center',
+    '/dashboard/todo',
+    '/dashboard/settings',
+    '/dashboard/profile',
+    '/dashboard/workbench',
+    '/dashboard/help',
   ],
   'system-admin': [
-    '/dashboard', '/dashboard/analytics',
-    '/dashboard/user-management', '/dashboard/audit-log',
-    '/dashboard/system-monitor', '/dashboard/data-sync', '/dashboard/account-security',
-    '/dashboard/settings', '/dashboard/profile', '/dashboard/message-center',
-    '/dashboard/todo', '/dashboard/workbench', '/dashboard/help',
+    '/dashboard',
+    '/dashboard/analytics',
+    '/dashboard/user-management',
+    '/dashboard/audit-log',
+    '/dashboard/system-monitor',
+    '/dashboard/data-sync',
+    '/dashboard/account-security',
+    '/dashboard/settings',
+    '/dashboard/profile',
+    '/dashboard/message-center',
+    '/dashboard/todo',
+    '/dashboard/workbench',
+    '/dashboard/help',
   ],
   'emergency-commander': [
-    '/dashboard', '/dashboard/real-time-map', '/dashboard/satellite-compare',
-    '/dashboard/ai-tasks', '/dashboard/ai-results',
-    '/dashboard/disaster-forecast', '/dashboard/damage-assessment',
-    '/dashboard/hazards', '/dashboard/confirmation-workbench', '/dashboard/confirmation-sign',
-    '/dashboard/field-inspection', '/dashboard/personnel',
+    '/dashboard',
+    '/dashboard/real-time-map',
+    '/dashboard/satellite-compare',
+    '/dashboard/ai-tasks',
+    '/dashboard/ai-results',
+    '/dashboard/disaster-forecast',
+    '/dashboard/damage-assessment',
+    '/dashboard/hazards',
+    '/dashboard/confirmation-workbench',
+    '/dashboard/confirmation-sign',
+    '/dashboard/field-inspection',
+    '/dashboard/personnel',
     '/dashboard/events',
-    '/dashboard/warnings', '/dashboard/warnings/create', '/dashboard/warnings/:id/delivery',
-    '/dashboard/emergency', '/dashboard/resource-dispatch', '/dashboard/route-planning',
-    '/dashboard/devices', '/dashboard/device-map',
+    '/dashboard/warnings',
+    '/dashboard/warnings/create',
+    '/dashboard/warnings/:id/delivery',
+    '/dashboard/emergency',
+    '/dashboard/resource-dispatch',
+    '/dashboard/route-planning',
+    '/dashboard/devices',
+    '/dashboard/device-map',
     '/dashboard/notice-templates',
     '/dashboard/approvals',
     '/dashboard/analytics',
-    '/dashboard/account-security', '/dashboard/profile', '/dashboard/workbench', '/dashboard/help',
+    '/dashboard/account-security',
+    '/dashboard/profile',
+    '/dashboard/workbench',
+    '/dashboard/help',
     '/dashboard/notification-channels',
   ],
   'ai-engineer': [
-    '/dashboard', '/dashboard/ai-tasks', '/dashboard/ai-results',
-    '/dashboard/ai-models', '/dashboard/ai-insight', '/dashboard/disaster-forecast', '/dashboard/damage-assessment',
+    '/dashboard',
+    '/dashboard/ai-tasks',
+    '/dashboard/ai-results',
+    '/dashboard/ai-models',
+    '/dashboard/ai-insight',
+    '/dashboard/disaster-forecast',
+    '/dashboard/damage-assessment',
     '/dashboard/rule-engine',
-    '/dashboard/data-sources', '/dashboard/data-sync', '/dashboard/data-catalog',
-    '/dashboard/analytics', '/dashboard/reports',
+    '/dashboard/data-sources',
+    '/dashboard/data-sync',
+    '/dashboard/data-catalog',
+    '/dashboard/analytics',
+    '/dashboard/reports',
     '/dashboard/system-monitor',
-    '/dashboard/account-security', '/dashboard/message-center', '/dashboard/todo',
-    '/dashboard/profile', '/dashboard/workbench', '/dashboard/help', '/dashboard/data-manage',
+    '/dashboard/account-security',
+    '/dashboard/message-center',
+    '/dashboard/todo',
+    '/dashboard/profile',
+    '/dashboard/workbench',
+    '/dashboard/help',
+    '/dashboard/data-manage',
   ],
 }
 
 export const ROLE_PERMISSION_MAP = {
   admin: [
-    'overview:view','overview:export','map:view','map:export','map:edit','zone:view',
-    'ai:task:view','ai:task:create','ai:task:edit','ai:task:delete','ai:task:retry','ai:task:terminate',
-    'ai:result:view','ai:result:confirm','ai:result:transfer','ai:result:review','ai:insight:view','ai:insight:refresh',
+    'overview:view',
+    'overview:export',
+    'map:view',
+    'map:export',
+    'map:edit',
+    'zone:view',
+    'ai:task:view',
+    'ai:task:create',
+    'ai:task:edit',
+    'ai:task:delete',
+    'ai:task:retry',
+    'ai:task:terminate',
+    'ai:result:view',
+    'ai:result:confirm',
+    'ai:result:transfer',
+    'ai:result:review',
+    'ai:insight:view',
+    'ai:insight:refresh',
     'ai:forecast:view',
-    'ai:model:view','ai:model:manage','ai:model:edit',
-    'hazards:view','hazards:create','hazards:edit','hazards:delete','hazards:export',
-    'confirmation:view','confirmation:claim','confirmation:confirm','confirmation:reject','confirmation:transfer',
-    'inspection:view','inspection:submit','inspection:gps-check',
-    'personnel:view','personnel:report',
-    'approval:view','approval:sign','approval:initiate','approval:approve','approval:reject',
-    'events:view','events:transition','events:reopen',
-    'warnings:view','warnings:confirm','warnings:dispatch','warnings:close','warnings:create','warnings:export','warnings:resend',
-    'notice:view','notice:edit',
-    'emergency:view','emergency:start','emergency:dispatch','emergency:close','emergency:export',
-    'resource:view','resource:dispatch','resource:assign','resource:create','resource:edit',
-    'devices:view','devices:create','devices:edit','devices:delete','devices:export','devices:control','devices:ota',
-    'datasource:view','datasource:config','datasource:create','datasource:edit','datasource:delete',
-    'sync:view','sync:manage',
-    'analytics:view','analytics:export',
-    'users:view','users:create','users:edit','users:delete','roles:view','roles:edit','users:approve',
-    'rules:view','rules:edit','rules:create','rules:delete','audit:view','audit:export','monitor:view',
-    'settings:view','settings:edit',
-    'messages:view','messages:send','todo:view',
-    'route:view','route:plan','route:approve','route:export','sign:view','sign:create','sign:confirm',
-    'profile:view','profile:edit',
+    'ai:model:view',
+    'ai:model:manage',
+    'ai:model:edit',
+    'hazards:view',
+    'hazards:create',
+    'hazards:edit',
+    'hazards:delete',
+    'hazards:export',
+    'confirmation:view',
+    'confirmation:claim',
+    'confirmation:confirm',
+    'confirmation:reject',
+    'confirmation:transfer',
+    'inspection:view',
+    'inspection:submit',
+    'inspection:gps-check',
+    'personnel:view',
+    'personnel:report',
+    'approval:view',
+    'approval:sign',
+    'approval:initiate',
+    'approval:approve',
+    'approval:reject',
+    'events:view',
+    'events:transition',
+    'events:reopen',
+    'warnings:view',
+    'warnings:confirm',
+    'warnings:dispatch',
+    'warnings:close',
+    'warnings:create',
+    'warnings:export',
+    'warnings:resend',
+    'notice:view',
+    'notice:edit',
+    'emergency:view',
+    'emergency:start',
+    'emergency:dispatch',
+    'emergency:close',
+    'emergency:export',
+    'resource:view',
+    'resource:dispatch',
+    'resource:assign',
+    'resource:create',
+    'resource:edit',
+    'devices:view',
+    'devices:create',
+    'devices:edit',
+    'devices:delete',
+    'devices:export',
+    'devices:control',
+    'devices:ota',
+    'datasource:view',
+    'datasource:config',
+    'datasource:create',
+    'datasource:edit',
+    'datasource:delete',
+    'sync:view',
+    'sync:manage',
+    'analytics:view',
+    'analytics:export',
+    'users:view',
+    'users:create',
+    'users:edit',
+    'users:delete',
+    'roles:view',
+    'roles:edit',
+    'users:approve',
+    'rules:view',
+    'rules:edit',
+    'rules:create',
+    'rules:delete',
+    'audit:view',
+    'audit:export',
+    'monitor:view',
+    'settings:view',
+    'settings:edit',
+    'messages:view',
+    'messages:send',
+    'todo:view',
+    'route:view',
+    'route:plan',
+    'route:approve',
+    'route:export',
+    'sign:view',
+    'sign:create',
+    'sign:confirm',
+    'profile:view',
+    'profile:edit',
     'data:catalog:view',
     // 后端 TaskController / BackupController / PlanController / ReportController 的权限码
     // （此前只加在后端注册表，重跑 scripts/fix/sync-permission-registry.mjs 会被覆盖丢失）
-    'tasks:view','tasks:create','tasks:edit','tasks:delete','tasks:export',
-    'backup:view','backup:manage',
-    'plans:view','plans:edit','plans:launch',
-    'reports:view','reports:create','reports:delete',
+    'tasks:view',
+    'tasks:create',
+    'tasks:edit',
+    'tasks:delete',
+    'tasks:export',
+    'backup:view',
+    'backup:manage',
+    'plans:view',
+    'plans:edit',
+    'plans:launch',
+    'reports:view',
+    'reports:create',
+    'reports:delete',
     // A6-1 决策（2026-11-13）：允许管理员代签。SignService 只对持有此码的角色放行他人会签，
     // 且每次代签都会写 warn 审计日志；其余角色一律保持默认拒绝。
     'sign:proxy',
@@ -189,122 +416,271 @@ export const ROLE_PERMISSION_MAP = {
     'satellite:view',
     // 2026-11-14 审查修复：admin 菜单含 /dashboard/weather，但权限矩阵漏了 weather:view，
     // 路由守卫直接 403。refresh 是同一页「刷新气象产品」按钮所需，一并补齐。
-    'weather:view','weather:refresh',
+    'weather:view',
+    'weather:refresh',
   ],
   attendant: [
-    'overview:view','overview:export','map:view','map:edit','zone:view',
-    'ai:task:view','ai:task:create',
-    'ai:result:view','ai:result:transfer',
-    'ai:insight:view','ai:insight:refresh',
+    'overview:view',
+    'overview:export',
+    'map:view',
+    'map:edit',
+    'zone:view',
+    'ai:task:view',
+    'ai:task:create',
+    'ai:result:view',
+    'ai:result:transfer',
+    'ai:insight:view',
+    'ai:insight:refresh',
     'ai:forecast:view',
     'ai:model:view',
-    'hazards:view','hazards:create','hazards:edit',
-    'confirmation:view','confirmation:claim','confirmation:confirm','confirmation:reject','confirmation:transfer',
-    'inspection:view','inspection:submit','inspection:gps-check',
-    'personnel:view','personnel:report',
-    'warnings:view','warnings:confirm','warnings:dispatch','warnings:create','warnings:export',
-    'events:view','events:transition',
-    'notice:view','notice:edit',
-    'emergency:view','emergency:dispatch','devices:view','weather:view','analytics:view',
-    'approval:view','approval:initiate',
-    'messages:view','todo:view','settings:view',
-    'route:view','route:export','sign:view','sign:create',
-    'profile:view','profile:edit',
-    'tasks:view','tasks:create','tasks:edit','tasks:export',
+    'hazards:view',
+    'hazards:create',
+    'hazards:edit',
+    'confirmation:view',
+    'confirmation:claim',
+    'confirmation:confirm',
+    'confirmation:reject',
+    'confirmation:transfer',
+    'inspection:view',
+    'inspection:submit',
+    'inspection:gps-check',
+    'personnel:view',
+    'personnel:report',
+    'warnings:view',
+    'warnings:confirm',
+    'warnings:dispatch',
+    'warnings:create',
+    'warnings:export',
+    'events:view',
+    'events:transition',
+    'notice:view',
+    'notice:edit',
+    'emergency:view',
+    'emergency:dispatch',
+    'devices:view',
+    'weather:view',
+    'analytics:view',
+    'approval:view',
+    'approval:initiate',
+    'messages:view',
+    'todo:view',
+    'settings:view',
+    'route:view',
+    'route:export',
+    'sign:view',
+    'sign:create',
+    'profile:view',
+    'profile:edit',
+    'tasks:view',
+    'tasks:create',
+    'tasks:edit',
+    'tasks:export',
     'plans:view',
     'reports:view',
     'satellite:view',
   ],
   expert: [
-    'overview:view','zone:view',
-    'hazards:view','hazards:create','hazards:edit',
-    'ai:task:view','ai:insight:view',
-    'ai:result:view','ai:result:review',
+    'overview:view',
+    'zone:view',
+    'hazards:view',
+    'hazards:create',
+    'hazards:edit',
+    'ai:task:view',
+    'ai:insight:view',
+    'ai:result:view',
+    'ai:result:review',
     'ai:forecast:view',
     'ai:model:view',
-    'confirmation:view','confirmation:claim','confirmation:confirm','confirmation:reject','confirmation:transfer',
+    'confirmation:view',
+    'confirmation:claim',
+    'confirmation:confirm',
+    'confirmation:reject',
+    'confirmation:transfer',
     'inspection:view',
     'personnel:view',
-    'approval:view','approval:sign','approval:approve','approval:reject',
+    'approval:view',
+    'approval:sign',
+    'approval:approve',
+    'approval:reject',
     'events:view',
-    'warnings:view','warnings:dispatch',
-    'data:catalog:view','emergency:view','emergency:dispatch',
+    'warnings:view',
+    'warnings:dispatch',
+    'data:catalog:view',
+    'emergency:view',
+    'emergency:dispatch',
     'rules:view',
     'analytics:view',
-    'messages:view','todo:view','settings:view',
-    'route:view','sign:view','sign:create','sign:confirm',
-    'profile:view','profile:edit',
-    'tasks:view','tasks:create',
+    'messages:view',
+    'todo:view',
+    'settings:view',
+    'route:view',
+    'sign:view',
+    'sign:create',
+    'sign:confirm',
+    'profile:view',
+    'profile:edit',
+    'tasks:view',
+    'tasks:create',
     'plans:view',
   ],
   maintenance: [
-    'overview:view','map:view','zone:view',
+    'overview:view',
+    'map:view',
+    'zone:view',
     'hazards:view',
-    'devices:view','devices:create','devices:edit','devices:delete','devices:export','devices:control','devices:ota',
-    'datasource:view','sync:view','data:catalog:view','weather:view','weather:refresh','analytics:view',
-    'emergency:view','emergency:dispatch',
-    'resource:view','route:view',
-    'inspection:view','inspection:submit','inspection:gps-check',
-    'personnel:view','personnel:report',
+    'devices:view',
+    'devices:create',
+    'devices:edit',
+    'devices:delete',
+    'devices:export',
+    'devices:control',
+    'devices:ota',
+    'datasource:view',
+    'sync:view',
+    'data:catalog:view',
+    'weather:view',
+    'weather:refresh',
+    'analytics:view',
+    'emergency:view',
+    'emergency:dispatch',
+    'resource:view',
+    'route:view',
+    'inspection:view',
+    'inspection:submit',
+    'inspection:gps-check',
+    'personnel:view',
+    'personnel:report',
     'monitor:view',
-    'messages:view','todo:view','settings:view',
-    'profile:view','profile:edit',
+    'messages:view',
+    'todo:view',
+    'settings:view',
+    'profile:view',
+    'profile:edit',
     'tasks:view',
   ],
   'system-admin': [
-    'overview:view','overview:export',
-    'analytics:view','analytics:export',
-    'users:view','users:create','users:edit','users:delete','roles:view','roles:edit',
-    'audit:view','audit:export',
+    'overview:view',
+    'overview:export',
+    'analytics:view',
+    'analytics:export',
+    'users:view',
+    'users:create',
+    'users:edit',
+    'users:delete',
+    'roles:view',
+    'roles:edit',
+    'audit:view',
+    'audit:export',
     'monitor:view',
     'sync:view',
-    'settings:view','settings:edit',
-    'messages:view','messages:send','todo:view',
-    'profile:view','profile:edit',
-    'backup:view','backup:manage',
+    'settings:view',
+    'settings:edit',
+    'messages:view',
+    'messages:send',
+    'todo:view',
+    'profile:view',
+    'profile:edit',
+    'backup:view',
+    'backup:manage',
     'plans:view',
-    'reports:view','reports:create','reports:delete',
+    'reports:view',
+    'reports:create',
+    'reports:delete',
   ],
   'emergency-commander': [
-    'overview:view','overview:export','map:view','map:edit','zone:view',
+    'overview:view',
+    'overview:export',
+    'map:view',
+    'map:edit',
+    'zone:view',
     'ai:task:view',
     'ai:result:view',
     'ai:forecast:view',
-    'hazards:view','hazards:create','hazards:edit',
+    'hazards:view',
+    'hazards:create',
+    'hazards:edit',
     'confirmation:view',
     'inspection:view',
     'personnel:view',
-    'events:view','events:transition','events:reopen',
-    'sign:view','sign:create','sign:confirm',
-    'warnings:view','warnings:dispatch','warnings:close','warnings:create','warnings:export','warnings:resend',
+    'events:view',
+    'events:transition',
+    'events:reopen',
+    'sign:view',
+    'sign:create',
+    'sign:confirm',
+    'warnings:view',
+    'warnings:dispatch',
+    'warnings:close',
+    'warnings:create',
+    'warnings:export',
+    'warnings:resend',
     'notice:view',
-    'emergency:view','emergency:start','emergency:dispatch','emergency:close',
-    'resource:view','resource:dispatch','resource:assign','resource:create','resource:edit',
-    'route:view','route:plan','route:approve','route:export',
+    'emergency:view',
+    'emergency:start',
+    'emergency:dispatch',
+    'emergency:close',
+    'resource:view',
+    'resource:dispatch',
+    'resource:assign',
+    'resource:create',
+    'resource:edit',
+    'route:view',
+    'route:plan',
+    'route:approve',
+    'route:export',
     'devices:view',
-    'approval:view','approval:approve','approval:reject',
-    'analytics:view','analytics:export',
-    'profile:view','profile:edit',
+    'approval:view',
+    'approval:approve',
+    'approval:reject',
+    'analytics:view',
+    'analytics:export',
+    'profile:view',
+    'profile:edit',
     'tasks:view',
-    'plans:view','plans:edit','plans:launch',
+    'plans:view',
+    'plans:edit',
+    'plans:launch',
     'reports:view',
     'satellite:view',
   ],
   'ai-engineer': [
-    'overview:view','analytics:view',
-    'ai:task:view','ai:task:create','ai:task:edit','ai:task:delete','ai:task:retry','ai:task:terminate',
-    'ai:result:view','ai:result:transfer',
-    'ai:model:view','ai:model:manage','ai:model:edit',
-    'ai:insight:view','ai:insight:refresh',
+    'overview:view',
+    'analytics:view',
+    'ai:task:view',
+    'ai:task:create',
+    'ai:task:edit',
+    'ai:task:delete',
+    'ai:task:retry',
+    'ai:task:terminate',
+    'ai:result:view',
+    'ai:result:transfer',
+    'ai:model:view',
+    'ai:model:manage',
+    'ai:model:edit',
+    'ai:insight:view',
+    'ai:insight:refresh',
     'ai:forecast:view',
-    'rules:view','rules:edit','rules:create','rules:delete',
-    'datasource:view','datasource:config','datasource:create','datasource:edit','datasource:delete',
-    'sync:view','sync:manage',
+    'rules:view',
+    'rules:edit',
+    'rules:create',
+    'rules:delete',
+    'datasource:view',
+    'datasource:config',
+    'datasource:create',
+    'datasource:edit',
+    'datasource:delete',
+    'sync:view',
+    'sync:manage',
     'data:catalog:view',
     'monitor:view',
-    'messages:view','todo:view',
-    'profile:view','profile:edit',
-    'tasks:view','tasks:create','tasks:edit','tasks:delete',
+    'messages:view',
+    'todo:view',
+    'profile:view',
+    'profile:edit',
+    'tasks:view',
+    'tasks:create',
+    'tasks:edit',
+    'tasks:delete',
   ],
 }
 
@@ -320,11 +696,7 @@ export const ROLE_PERMISSION_MAP = {
  *    防止守卫跳到 403 页后又被 403 页自身拦截形成重定向死循环。
  */
 const SHARED_NAMESPACE_ROOT = '/dashboard'
-const FRAMEWORK_PATHS = [
-  '/dashboard/error/403',
-  '/dashboard/error/404',
-  '/dashboard/error/500',
-]
+const FRAMEWORK_PATHS = ['/dashboard/error/403', '/dashboard/error/404', '/dashboard/error/500']
 
 // router/index.js 仍保留的历史重定向别名（/dashboard/<alias> -> 真实页面）。
 // 它们从来不属于角色菜单；收紧 /dashboard 根节点的前缀放行后，旧书签/旧链接
@@ -341,22 +713,34 @@ const LEGACY_REDIRECT_PATHS = [
 ]
 
 function matchesMenuPath(path, menuPath) {
-  if (path === menuPath) {return true}
-  if (menuPath === SHARED_NAMESPACE_ROOT) {return false}
+  if (path === menuPath) {
+    return true
+  }
+  if (menuPath === SHARED_NAMESPACE_ROOT) {
+    return false
+  }
   const prefix = menuPath.endsWith('/') ? menuPath : menuPath + '/'
   return path.startsWith(prefix)
 }
 
 function hasPathAccess(allowedPaths, path) {
-  if (FRAMEWORK_PATHS.includes(path) || LEGACY_REDIRECT_PATHS.includes(path)) {return true}
+  if (FRAMEWORK_PATHS.includes(path) || LEGACY_REDIRECT_PATHS.includes(path)) {
+    return true
+  }
   return allowedPaths.some((p) => matchesMenuPath(path, p))
 }
 
 // Pinia store — 唯一状态源
 
 function safeParse(raw) {
-  if (!raw) {return null}
-  try { return JSON.parse(raw) } catch { return null }
+  if (!raw) {
+    return null
+  }
+  try {
+    return JSON.parse(raw)
+  } catch {
+    return null
+  }
 }
 
 function loadInitialState() {
@@ -373,9 +757,15 @@ export const useAuthStore = defineStore('auth', {
     // 角色缺失或无法识别时一律视为"无角色"，绝不回落到 admin。
     // 原实现 `?? 'admin'` 会让任意未知角色直接获得管理员全部菜单与权限。
     role: (state) => normalizeRole(state.user?.role),
-    homePath() { return ROLE_HOME_MAP[this.role] ?? '/dashboard' },
-    allowedPaths() { return ROLE_MENU_MAP[this.role] ?? [] },
-    permissions() { return ROLE_PERMISSION_MAP[this.role] ?? [] },
+    homePath() {
+      return ROLE_HOME_MAP[this.role] ?? '/dashboard'
+    },
+    allowedPaths() {
+      return ROLE_MENU_MAP[this.role] ?? []
+    },
+    permissions() {
+      return ROLE_PERMISSION_MAP[this.role] ?? []
+    },
   },
   actions: {
     setSession(session) {
@@ -409,17 +799,31 @@ export const useAuthStore = defineStore('auth', {
  * @deprecated 直接使用 useAuthStore().xxx。新代码不要再调用这些函数。
  * 保留它们是因为 router / 5+ view / httpClient 还在用,逐步迁移。
  */
-export function getAuthToken() { return useAuthStore().token }
-export function getAuthUser() { return useAuthStore().user }
-export function getAuthRole() { return useAuthStore().role }
+export function getAuthToken() {
+  return useAuthStore().token
+}
+export function getAuthUser() {
+  return useAuthStore().user
+}
+export function getAuthRole() {
+  return useAuthStore().role
+}
 export function getAuthHeaders() {
   const token = useAuthStore().token
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
-export function setAuthSession(session) { useAuthStore().setSession(session) }
-export function clearAuthSession() { useAuthStore().clearSession() }
-export function getHomePathByRole(_role) { return useAuthStore().homePath }
-export function getAllowedMenuPaths(_role) { return useAuthStore().allowedPaths }
+export function setAuthSession(session) {
+  useAuthStore().setSession(session)
+}
+export function clearAuthSession() {
+  useAuthStore().clearSession()
+}
+export function getHomePathByRole(_role) {
+  return useAuthStore().homePath
+}
+export function getAllowedMenuPaths(_role) {
+  return useAuthStore().allowedPaths
+}
 export function getRoleLabel(role) {
   return ROLE_OPTIONS.find((item) => item.value === role)?.label ?? '管理员'
 }
@@ -448,13 +852,19 @@ export function canAccessPath(role, path) {
  */
 export function isTokenExpired() {
   const token = getAuthToken()
-  if (!token) {return true}
+  if (!token) {
+    return true
+  }
   const parts = token.split('.')
-  if (parts.length !== 3) {return true}
+  if (parts.length !== 3) {
+    return true
+  }
   try {
     const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
     const payload = JSON.parse(atob(base64))
-    if (!payload.exp) {return false}
+    if (!payload.exp) {
+      return false
+    }
     return payload.exp * 1000 < Date.now()
   } catch {
     return true
@@ -464,9 +874,13 @@ export function isTokenExpired() {
 /** 模块级 401 重定向锁:防止并发请求同时触发多次 redirectToLogin。 */
 let _redirecting = false
 export function redirectToLogin() {
-  if (_redirecting) {return}
+  if (_redirecting) {
+    return
+  }
   _redirecting = true
   clearAuthSession()
   window.location.replace('/login')
-  setTimeout(() => { _redirecting = false }, 2000)
+  setTimeout(() => {
+    _redirecting = false
+  }, 2000)
 }

@@ -16,63 +16,61 @@
  * 不要直接 import { USE_BACKEND } 来判断分支。
  */
 
-import { createApiError } from "./errors.js";
+import { createApiError } from './errors.js'
 
-const API_BASE =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'
 
-const HEALTH_PATH = "/system/health";
-const REPROBE_INTERVAL_MS = 30_000;
+const HEALTH_PATH = '/system/health'
+const REPROBE_INTERVAL_MS = 30_000
 
-const EXPLICIT_FLAG = String(import.meta.env.VITE_USE_BACKEND ?? "")
-  .toLowerCase();
+const EXPLICIT_FLAG = String(import.meta.env.VITE_USE_BACKEND ?? '').toLowerCase()
 
 /** @type {'probing' | 'backend' | 'mock'} */
 let RUNTIME_MODE =
-  EXPLICIT_FLAG === "true"
-    ? "backend"
-    : EXPLICIT_FLAG === "false"
-      ? "mock"
-      : "probing";
+  EXPLICIT_FLAG === 'true' ? 'backend' : EXPLICIT_FLAG === 'false' ? 'mock' : 'probing'
 
 /** @type {boolean} 当前是否走真实后端。 */
-let USE_BACKEND = EXPLICIT_FLAG === "true";
+let USE_BACKEND = EXPLICIT_FLAG === 'true'
 
-let _reprobeTimer = null;
-let _reprobeInFlight = null;
-const _listeners = new Set();
+let _reprobeTimer = null
+let _reprobeInFlight = null
+const _listeners = new Set()
 
 function setRuntime(mode, useBackend) {
-  const prevMode = RUNTIME_MODE;
-  const prevUse = USE_BACKEND;
-  RUNTIME_MODE = mode;
-  USE_BACKEND = useBackend;
+  const prevMode = RUNTIME_MODE
+  const prevUse = USE_BACKEND
+  RUNTIME_MODE = mode
+  USE_BACKEND = useBackend
   if (prevMode !== mode || prevUse !== useBackend) {
     // 异步通知，避免在 probe 调用栈里触发同步副作用
     queueMicrotask(() => {
       for (const fn of _listeners) {
-        try { fn({ mode, useBackend }); } catch (_) { /* ignore */ }
+        try {
+          fn({ mode, useBackend })
+        } catch (_) {
+          /* ignore */
+        }
       }
-    });
+    })
   }
 }
 
 export function getRuntimeMode() {
-  return RUNTIME_MODE === "probing" ? "probing" : RUNTIME_MODE;
+  return RUNTIME_MODE === 'probing' ? 'probing' : RUNTIME_MODE
 }
 
 export function isBackendRuntime() {
-  return RUNTIME_MODE === "backend";
+  return RUNTIME_MODE === 'backend'
 }
 
 export function getUseBackend() {
-  return USE_BACKEND;
+  return USE_BACKEND
 }
 
 /** 订阅运行时切换（backend ↔ mock）。返回取消订阅函数。 */
 export function subscribeRuntime(fn) {
-  _listeners.add(fn);
-  return () => _listeners.delete(fn);
+  _listeners.add(fn)
+  return () => _listeners.delete(fn)
 }
 
 /**
@@ -84,13 +82,12 @@ async function probeOnce() {
     const resp = await fetch(`${API_BASE}${HEALTH_PATH}`, {
       // 8 秒上限，避免卡住首屏
       signal: AbortSignal.timeout(8000),
-    });
-    const payload = await resp.json().catch(() => null);
-    const ok =
-      resp.ok && payload?.code === 0 && payload?.data?.status === "UP";
-    return { ok, status: resp.status };
+    })
+    const payload = await resp.json().catch(() => null)
+    const ok = resp.ok && payload?.code === 0 && payload?.data?.status === 'UP'
+    return { ok, status: resp.status }
   } catch (e) {
-    return { ok: false, status: 0, error: e?.message };
+    return { ok: false, status: 0, error: e?.message }
   }
 }
 
@@ -99,26 +96,32 @@ async function probeOnce() {
  * mock 状态下每 REPROBE_INTERVAL_MS 探测一次，命中 backend 后自动切换并停止定时器。
  */
 function startReprobeTimer() {
-  if (_reprobeTimer) {return;}
-  if (EXPLICIT_FLAG === "true" || EXPLICIT_FLAG === "false") {return;}
+  if (_reprobeTimer) {
+    return
+  }
+  if (EXPLICIT_FLAG === 'true' || EXPLICIT_FLAG === 'false') {
+    return
+  }
   _reprobeTimer = window.setInterval(async () => {
-    if (_reprobeInFlight) {return;}
+    if (_reprobeInFlight) {
+      return
+    }
     _reprobeInFlight = (async () => {
-      const r = await probeOnce();
-      if (r.ok && RUNTIME_MODE !== "backend") {
-        setRuntime("backend", true);
-        stopReprobeTimer();
+      const r = await probeOnce()
+      if (r.ok && RUNTIME_MODE !== 'backend') {
+        setRuntime('backend', true)
+        stopReprobeTimer()
       }
     })().finally(() => {
-      _reprobeInFlight = null;
-    });
-  }, REPROBE_INTERVAL_MS);
+      _reprobeInFlight = null
+    })
+  }, REPROBE_INTERVAL_MS)
 }
 
 function stopReprobeTimer() {
   if (_reprobeTimer) {
-    window.clearInterval(_reprobeTimer);
-    _reprobeTimer = null;
+    window.clearInterval(_reprobeTimer)
+    _reprobeTimer = null
   }
 }
 
@@ -127,22 +130,22 @@ function stopReprobeTimer() {
  * 通常在 App.vue 启动时调用一次；之后由定时器 + recheckBackendMode() 维护。
  */
 export async function initBackendMode() {
-  if (EXPLICIT_FLAG === "true") {
-    setRuntime("backend", true);
-    return RUNTIME_MODE;
+  if (EXPLICIT_FLAG === 'true') {
+    setRuntime('backend', true)
+    return RUNTIME_MODE
   }
-  if (EXPLICIT_FLAG === "false") {
-    setRuntime("mock", false);
-    return RUNTIME_MODE;
+  if (EXPLICIT_FLAG === 'false') {
+    setRuntime('mock', false)
+    return RUNTIME_MODE
   }
-  const r = await probeOnce();
+  const r = await probeOnce()
   if (r.ok) {
-    setRuntime("backend", true);
+    setRuntime('backend', true)
   } else {
-    setRuntime("mock", false);
-    startReprobeTimer();
+    setRuntime('mock', false)
+    startReprobeTimer()
   }
-  return RUNTIME_MODE;
+  return RUNTIME_MODE
 }
 
 /**
@@ -150,17 +153,21 @@ export async function initBackendMode() {
  * @returns {Promise<'backend'|'mock'|'probing'>}
  */
 export async function recheckBackendMode() {
-  if (EXPLICIT_FLAG === "true") {return "backend";}
-  if (EXPLICIT_FLAG === "false") {return "mock";}
-  const r = await probeOnce();
-  if (r.ok) {
-    setRuntime("backend", true);
-    stopReprobeTimer();
-  } else {
-    setRuntime("mock", false);
-    startReprobeTimer();
+  if (EXPLICIT_FLAG === 'true') {
+    return 'backend'
   }
-  return RUNTIME_MODE;
+  if (EXPLICIT_FLAG === 'false') {
+    return 'mock'
+  }
+  const r = await probeOnce()
+  if (r.ok) {
+    setRuntime('backend', true)
+    stopReprobeTimer()
+  } else {
+    setRuntime('mock', false)
+    startReprobeTimer()
+  }
+  return RUNTIME_MODE
 }
 
 /**
@@ -171,9 +178,9 @@ export function requireBackend(feature) {
   if (!USE_BACKEND) {
     throw createApiError(
       `${feature} 需要后端服务。请启动后端或设置 VITE_USE_BACKEND=true 后重试。`,
-      "BACKEND_REQUIRED",
-    );
+      'BACKEND_REQUIRED'
+    )
   }
 }
 
-export { API_BASE };
+export { API_BASE }
