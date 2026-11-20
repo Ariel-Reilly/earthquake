@@ -30,6 +30,7 @@ class ProductionConfigValidatorTest {
     ProductionConfigValidator validator = new ProductionConfigValidator(repository);
     validator.devUsersEnabled = false;
     validator.deviceAuthStrict = true;
+    validator.demoPresenceEnabled = false;
     validator.wsRequireTicket = true;
     validator.frontendOrigin = "https://disasterguard.example.com";
     validator.fileBaseUrl = "https://minio.example.com";
@@ -74,6 +75,16 @@ class ProductionConfigValidatorTest {
   void publicHost_passes() {
     assertThatCode(() -> validatorWith("https://minio.example.com").validate())
         .doesNotThrowAnyException();
+  }
+
+  /** 演示在线保鲜会掩盖真实设备断连，prod 下必须阻断启动。 */
+  @Test
+  void demoPresenceEnabled_isRejected() {
+    ProductionConfigValidator validator = validatorWith("https://minio.example.com");
+    validator.demoPresenceEnabled = true;
+    assertThatThrownBy(() -> validator.validate())
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("DEVICE_DEMO_PRESENCE_ENABLED");
   }
 
   /**

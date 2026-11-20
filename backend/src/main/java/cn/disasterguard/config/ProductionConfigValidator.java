@@ -18,6 +18,7 @@ import org.springframework.stereotype.Component;
  * <ul>
  *   <li>{@code DEV_USERS_ENABLED=true} —— 禁止硬编码账号 fallback</li>
  *   <li>{@code DEVICE_AUTH_STRICT=false} —— 允许匿名设备上报会污染数据</li>
+ *   <li>{@code DEVICE_DEMO_PRESENCE_ENABLED=true} —— 演示在线保鲜会掩盖真实设备断连</li>
  *   <li>{@code WS_REQUIRE_TICKET=false} —— raw JWT 暴露在 URL 中</li>
  *   <li>{@code EMQX_ENABLED=true} 但 username/password 为空或匹配默认值</li>
  *   <li>{@code FRONTEND_ORIGIN} 仍为 localhost 通配，或为 {@code *}</li>
@@ -77,6 +78,10 @@ public class ProductionConfigValidator {
 
   @Value("${disasterguard.device.auth-strict-mode:false}")
   boolean deviceAuthStrict;
+
+  /** 演示设备在线保鲜：prod 下禁止开启，否则会掩盖真实设备断连。 */
+  @Value("${disasterguard.device.demo-presence-enabled:false}")
+  boolean demoPresenceEnabled;
 
   @Value("${disasterguard.ws.require-ticket:false}")
   boolean wsRequireTicket;
@@ -168,6 +173,11 @@ public class ProductionConfigValidator {
     // 3) WS_REQUIRE_TICKET
     if (!wsRequireTicket) {
       errors.add("WS_REQUIRE_TICKET=false 在 prod 下禁止（raw JWT 会暴露在 WebSocket URL 中）。请设为 true。");
+    }
+
+    // 3.1) DEMO_PRESENCE：演示在线保鲜会持续刷新 last_report_at，掩盖真实设备断连
+    if (demoPresenceEnabled) {
+      errors.add("DEVICE_DEMO_PRESENCE_ENABLED=true 在 prod 下禁止（演示在线保鲜会掩盖真实设备断连）。请设为 false。");
     }
 
     // 4) EMQX 凭据

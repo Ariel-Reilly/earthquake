@@ -240,4 +240,33 @@
 - Tag：`v1.8.18-delivery`
 - `output/delivery-verify/DisasterGuard-v1.8.18-delivery.zip` + 同名 `.sha256`（tag 生成，排除口径同 v1.8.15/16/17）。
 
+## 八、在线设备 0/16 数据修复（2026-11-20，v1.8.23）
+
+> 用户截图反馈总览页「在线监测设备 0/16」。定位到是演示数据保鲜机制缺失，非接口故障；其余三项 KPI（9 处 / 1 起 / 20.0%）与 DB count 一致，无问题。
+
+### 根因
+
+- 演示库设备不真实上报，在线状态由 `refresh-demo-data.sql` 刷成「在线」且 `last_report_at=now()`；
+- `DeviceOnlineChecker` 每 60s 把「在线且 5 分钟未上报」的设备置为离线 → 刷新约 5 分钟后在线数必然回落 0；
+- `DeviceMetricSimulator`（demo 灌指标）虽在跑但从未更新 `last_report_at`，且默认关闭，无法充当保鲜源。
+
+### 修复（可配置，生产零影响）
+
+- 新增 `DemoDevicePresenceScheduler`：每 60s 把「在线」设备的 `last_report_at` 刷成 now；只刷上报时间，不改 `online_status`、不广播。
+- 开关 `DEVICE_DEMO_PRESENCE_ENABLED`（默认 false），间隔 `DEVICE_DEMO_PRESENCE_INTERVAL_SECONDS`（默认 60000）。
+- dev compose / `start-dev.ps1`（default|dev profile）默认开启；`ProductionConfigValidator` 增加 prod fail-fast，禁止开启（掩盖真实断连）。
+- 仓储新增 `findByOnlineStatus`；新增 4 例调度器单测 + 1 例 prod 校验测试。
+
+### 实测（2026-11-20，新后端 PID 63188，profile default）
+
+| 时点 | 在线数 | 证据 |
+|---|---|---|
+| 15:47:49 刷新脚本执行后 | 6/16 | 刷新脚本 9/9 PASS，DB/接口一致 |
+| 15:49:48 | 6/16 | DB：6 台在线设备 `last_report_at` 已被刷新调度器刷成该时间 |
+| **15:53:30（超过 5min 阈值 41s）** | **6/16** | 总览接口在线数仍 6/16；DB `last_report_at=15:52:48`，离线设备未变 |
+
+- 后端单测：`DemoDevicePresenceSchedulerTest` 4/4 + `ProductionConfigValidatorTest` 9/9 = **13 passed**。
+- 前端回归：lint 0 / stylelint 0 / vitest **244** / build 成功；正式骨架门禁 **41/41 PASS**（5174 + CDP 9223）。
+- 生产安全：prod 下 `DEVICE_DEMO_PRESENCE_ENABLED=true` 会阻断启动（单测覆盖）。
+
 - 甲方签字：____________________　日期：____________________

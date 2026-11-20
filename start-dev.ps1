@@ -375,6 +375,9 @@ function Invoke-Backend {
   }
   $env:DEV_USERS_ENABLED     = "true"
   $env:DEVICE_AUTH_STRICT    = "false"
+  # 演示在线保鲜：dev 默认开启，抵消 5min 离线心跳让总览页在线数稳定；
+  # 可用 .env 的 DEVICE_DEMO_PRESENCE_ENABLED=false 覆盖（prod profile 不经过此段，天然关闭）。
+  $env:DEVICE_DEMO_PRESENCE_ENABLED = if ([string]::IsNullOrEmpty($env:DEVICE_DEMO_PRESENCE_ENABLED)) { "true" } else { $env:DEVICE_DEMO_PRESENCE_ENABLED }
   $env:TDENGINE_ENABLED      = "false"
   # 宿主机直跑时 EMQX 的 1883 只映射到 11883，保持关闭可避免 MQTT 连接失败；
   # 需要 MQTT 主数据源时请用 docker profile 或显式设置 EMQX_MQTT_URL。
@@ -547,6 +550,7 @@ function Invoke-AllStack {
   # 从环境变量读取 JWT_SECRET 和 REDIS_PASSWORD，不在脚本中硬编码
   $beJwtSecret = if ([string]::IsNullOrEmpty($env:JWT_SECRET)) { "''" } else { "'" + $env:JWT_SECRET + "'" }
   $beRedisPassword = if ([string]::IsNullOrEmpty($env:REDIS_PASSWORD)) { "'CHANGE_ME__dev_redis_password_2026'" } else { "'" + $env:REDIS_PASSWORD + "'" }
+  $beDemoPresence = if ([string]::IsNullOrEmpty($env:DEVICE_DEMO_PRESENCE_ENABLED)) { "true" } else { $env:DEVICE_DEMO_PRESENCE_ENABLED }
   $beScriptBlock = [ScriptBlock]::Create(@"
 Set-Location '$PROJECT_ROOT\backend'
 `$env:SPRING_PROFILES_ACTIVE='$SpringProfile'
@@ -558,6 +562,7 @@ Set-Location '$PROJECT_ROOT\backend'
 `$env:JWT_SECRET=$beJwtSecret
 `$env:DEV_USERS_ENABLED='true'
 `$env:DEVICE_AUTH_STRICT='false'
+`$env:DEVICE_DEMO_PRESENCE_ENABLED='$beDemoPresence'
 `$env:TDENGINE_ENABLED='false'
 `$env:EMQX_ENABLED='false'
 `$env:AI_ENABLED='true'

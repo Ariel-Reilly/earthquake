@@ -165,6 +165,11 @@ disasterguard:
     # 生产必须保持 false，改走 MQTT / HTTP 真实设备上报。
     metric-simulator-enabled: ${DEVICE_METRIC_SIMULATOR_ENABLED:false}
     metric-simulator-mark-source: true
+    # 演示设备在线保鲜：默认关闭，生产严禁开启（会掩盖真实设备断连）。
+    # 仅 dev / 演示环境由环境变量显式打开；开启后定时刷新在线设备的 last_report_at，
+    # 抵消 DeviceOnlineChecker 的 5min 离线判定，让总览页在线数稳定。
+    demo-presence-enabled: ${DEVICE_DEMO_PRESENCE_ENABLED:false}
+    demo-presence-interval-seconds: ${DEVICE_DEMO_PRESENCE_INTERVAL_SECONDS:60000}
     auth-strict-mode: ${DEVICE_AUTH_STRICT:false}
     offline-threshold-minutes: 5
     offline-check-interval-seconds: 60

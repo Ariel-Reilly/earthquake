@@ -163,6 +163,9 @@ services:
       FILE_BASE_URL: ${FILE_BASE_URL:-http://localhost:19000}
       DEV_USERS_ENABLED: ${DEV_USERS_ENABLED:-false}
       DEVICE_AUTH_STRICT: ${DEVICE_AUTH_STRICT:-false}
+      # 演示在线保鲜：仅 dev compose 默认开启，抵消 5min 离线心跳，让总览页在线数稳定。
+      # 生产走 docker-compose.prod.yml（prod profile），ProductionConfigValidator 会禁止此项为 true。
+      DEVICE_DEMO_PRESENCE_ENABLED: ${DEVICE_DEMO_PRESENCE_ENABLED:-true}
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
       POSTGRES_DB: ${POSTGRES_DB:-disasterguard}

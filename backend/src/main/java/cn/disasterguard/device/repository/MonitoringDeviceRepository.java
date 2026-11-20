@@ -25,4 +25,7 @@ public interface MonitoringDeviceRepository extends JpaRepository<MonitoringDevi
 
   /** 统计指定在线状态的设备数（避免 findAll + stream count）。 */
   long countByOnlineStatus(String onlineStatus);
+
+  /** 按在线状态查设备（演示在线保鲜用：只刷新已在线设备的上报时间）。 */
+  List<MonitoringDevice> findByOnlineStatus(String onlineStatus);
 }
