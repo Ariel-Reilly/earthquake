@@ -1056,7 +1056,16 @@ export const dashboardApi = {
   getMessages: async (params = {}) => {
     if (USE_BACKEND) {
       const data = await request(`/messages${withQuery(params)}`);
-      return normalizePaged(data, []);
+      // 消息抽屉/消息中心按 { items, total } 消费；normalizePaged 输出的是 records，
+      // 直接返回会导致“角标有 42 条、列表却显示没有消息”。
+      const normalized = normalizePaged(data, []);
+      return {
+        items: normalized.records,
+        total: normalized.total,
+        page: normalized.page,
+        size: normalized.size,
+        pages: normalized.pages,
+      };
     }
     return response(mock.workflow.getMessagesMock());
   },
