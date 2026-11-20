@@ -82,7 +82,11 @@ jobs:
             fi
           fi
           echo "diff base = $BASE"
-          FILES="$(git diff --name-only --diff-filter=ACMR "$BASE" HEAD -- 'src/**/*.js' 'src/**/*.mjs' 'src/**/*.cjs' 2>/dev/null | tr '\n' ' ' || true)"
+          # 2026-11-20：本 job 的 working-directory 是 ./frontend，而 git diff 输出
+          # 仓库根相对路径（frontend/src/...），直接喂给 eslint 会
+          # "No files matching the pattern" 使 job 失败（本次推送首次引爆）。
+          # 这里剥掉 frontend/ 前缀，交给下游 eslint 以 frontend 相对路径执行。
+          FILES="$(git diff --name-only --diff-filter=ACMR "$BASE" HEAD -- 'src/**/*.js' 'src/**/*.mjs' 'src/**/*.cjs' 2>/dev/null | sed 's#^frontend/##' | tr '\n' ' ' || true)"
           echo "changed js files: ${FILES:-<none>}"
           echo "files=${FILES}" >> "$GITHUB_OUTPUT"
 

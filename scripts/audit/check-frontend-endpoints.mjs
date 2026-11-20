@@ -137,8 +137,10 @@ function collectFrontendCalls() {
     // 这里解析文件内 `const *_BASE = \`...${...}静态后缀\`` 的静态尾部作为前缀；
     // 仅匹配反引号模板（普通字符串赋值如 API_BASE = import.meta.env... 不受影响），
     // 且要求后缀至少一段 /seg 路径，纯 `${API_BASE}` 无后缀的情况不会命中。
+    // 行尾分号可选：prettier(semi:false) 会把该语句的 `;` 删掉（2026-11-20 实测踩坑，
+    // 带分号版本在 prettier 后全部失配 → CI 复红）。
     const baseDefM = src.match(
-      /const\s+\w*_BASE\s*=\s*`[^`]*?(\/(?:[\w-]+\/)*[\w-]+)`\s*;/
+      /const\s+\w*_BASE\s*=\s*`[^`]*?(\/(?:[\w-]+\/)*[\w-]+)`\s*;?/
     );
     const basePrefix = baseDefM ? baseDefM[1] : '';
     let m;
@@ -240,6 +242,30 @@ const missing = [];
 const methodMismatch = [];
 const pendingKnown = [];
 const deprecatedHits = [];
+
+// 前端解析自检（2026-11-20）：satelliteCompareApi.js 的 SENTINEL_BASE 前缀解析
+// 曾因 prettier(semi:false) 删掉行尾分号而整体静默失配（5 条真实调用被误报成
+// /api/compose 等缺口 → CI 复红）。把已知应解析出的调用列入断言，解析器再退化
+// 时在这里立刻失败并提示，而不是产出误导性的缺口清单。
+const FRONTEND_SELF_CHECK = [
+  ['POST', '/api/ai/sentinel/compose'],
+  ['POST', '/api/ai/sentinel/diff'],
+  ['GET', '/api/ai/sentinel/diff-jobs/{x}'],
+  ['GET', '/api/ai/sentinel/jobs/{x}'],
+  ['POST', '/api/ai/sentinel/jobs/{x}/cancel'],
+];
+const frontendSelfCheckFailures = FRONTEND_SELF_CHECK.filter(
+  ([method, p]) => !calls.some(c => c.method === method && c.path === p)
+);
+if (frontendSelfCheckFailures.length > 0) {
+  console.error('✗ 前端调用解析自检失败，以下已知存在的调用未被解析出来：');
+  frontendSelfCheckFailures.forEach(([m, p]) => console.error(`    ${m} ${p}`));
+  console.error(
+    '  多半是 *_BASE 前缀解析退化（如 request()/模板/分号格式变化），'
+  );
+  console.error('  结果不可信，请先修正 check-frontend-endpoints.mjs 的解析逻辑。');
+  process.exit(2);
+}
 
 for (const c of calls) {
   const key = `${c.method} ${c.path}`;

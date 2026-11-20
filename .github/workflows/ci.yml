@@ -130,8 +130,10 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          cache: 'pip'
-          cache-dependency-path: ai-service/requirements.txt
+          # 2026-11-20：不再启用 pip 缓存。本 job 只做 AST / py_compile 语法检查，
+          # 从不执行 pip install，缓存纯属性能负资产；而 requirements.txt 含
+          # torch==2.5.1 等 GB 级依赖，Post 步骤保存 pip 缓存反复超限失败，
+          # 把整个 job 染红（2026-11-06/11-15/11-20 三次实测均挂在该 Post 步骤）。
 
       - name: AST 解析全部 .py 文件
         run: |
