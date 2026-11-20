@@ -14,7 +14,7 @@ import WarningCreateModal from '../../components/WarningCreateModal.vue'
 import { dashboardApi } from '../../services/dashboardApi'
 import { useEscapeClose } from '../../composables/useEscapeClose'
 import { useRealtimeStore } from '../../stores/realtime'
-import { formatWarningTime } from '../../utils/warningTime'
+import { formatWarningTime, formatTimelineTime } from '../../utils/warningTime'
 import { waitForSkeleton } from '../../utils/uiTiming'
 
 const emit = defineEmits(['notify'])
@@ -65,6 +65,9 @@ const visibleWarnings = computed(() => {
 const currentList = computed(() =>
   statusTab.value === 'archived' ? archivedWarnings.value : activeWarnings.value,
 )
+/** 当前 Tab 的总数：不是整表 46 条，避免归档页显示成全部预警总数 */
+const tabTotal = computed(() => currentList.value.length)
+const hiddenByCollapse = computed(() => Math.max(0, tabTotal.value - visibleWarnings.value.length))
 const selectedWarning = computed(
   () => warnings.value.find((item) => item.id === selectedWarningId.value) ?? activeWarnings.value[0] ?? archivedWarnings.value[0] ?? null,
 )
@@ -695,20 +698,27 @@ onBeforeUnmount(() => {
                 >
                   <ArchiveRestore :size="12" />
                   {{ warning.closeReason ?? '无原因记录' }}
-                  <em v-if="warning.closedAt">· {{ warning.closedAt }}</em>
+                  <em v-if="warning.closedAt">· {{ formatTimelineTime(warning.closedAt) }}</em>
                 </p>
               </div>
             </article>
           </div>
           <div class="panel-footer pagination-bar">
-            <span>共 {{ paging.total }} 条，{{ paging.page }}/{{ paging.pages || 1 }} 页</span>
+            <span v-if="!showAll && hiddenByCollapse > 0">
+              当前显示最近 {{ visibleWarnings.length }} 条 / 共 {{ tabTotal }} 条
+            </span>
+            <span v-else>
+              共 {{ tabTotal }} 条<template v-if="(paging.pages || 1) > 1">，第 {{ paging.page }}/{{ paging.pages }} 页</template>
+            </span>
             <div class="detail-utility">
               <button class="secondary-btn" :disabled="paging.page <= 1" @click="changePage(-1)">上一页</button>
               <button class="secondary-btn" :disabled="paging.page >= (paging.pages || 1)" @click="changePage(1)">下一页</button>
             </div>
           </div>
           <div class="detail-utility" style="padding: 0 20px 18px;">
-            <button class="secondary-btn" @click="showAll = !showAll">{{ showAll ? '收起列表' : '查看全部' }}</button>
+            <button class="secondary-btn" @click="showAll = !showAll">
+              {{ showAll ? '收起列表' : `查看全部（${tabTotal}）` }}
+            </button>
           </div>
         </section>
 
