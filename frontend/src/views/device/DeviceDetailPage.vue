@@ -1,8 +1,10 @@
 ﻿<script setup>
 import { computed, onMounted, onBeforeUnmount, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, Database, Gauge, GitBranch, History, Layers3, MapPin, MessageSquareText, PencilLine, Save, Radio, Paperclip, Cpu, Stethoscope } from 'lucide-vue-next'
+import { ArrowLeft, Cpu, GitBranch, History, Layers3, MapPin, MessageSquareText, Paperclip, PencilLine, Radio, Save, Stethoscope } from 'lucide-vue-next'
 import PermissionButton from '../../components/PermissionButton.vue'
+import DeviceDetailSkeleton from '../../components/common/DeviceDetailSkeleton.vue'
+import { waitForSkeleton } from '../../utils/uiTiming'
 import { dashboardApi } from '../../services/dashboardApi'
 import { useAiContext } from '../../composables/useAiContext'
 
@@ -10,6 +12,7 @@ const route = useRoute()
 const router = useRouter()
 const device = ref(null)
 const loading = ref(true)
+const loadError = ref('')
 const editMode = ref(false)
 const form = ref({})
 const aiHealth = ref(null)
@@ -24,31 +27,40 @@ const aiHealthLabel = computed(() => {
 
 async function loadData() {
   loading.value = true
-  const data = await dashboardApi.getDeviceDetail(route.params.id)
-  device.value = data.item
-  form.value = {
-    name: data.item.name,
-    type: data.item.type,
-    point: data.item.point,
-    state: data.item.state,
-    battery: data.item.battery,
-    signal: data.item.signal,
+  loadError.value = ''
+  try {
+    const data = await dashboardApi.getDeviceDetail(route.params.id)
+    const item = data?.item
+    if (!item) throw new Error('设备详情数据为空')
+    device.value = item
+    form.value = {
+      name: item.name,
+      type: item.type,
+      point: item.point,
+      state: item.state,
+      battery: item.battery,
+      signal: item.signal,
+    }
+
+    // 注入 AI 上下文
+    setAiContext({
+      contextType: 'device',
+      contextId: item.deviceCode || route.params.id,
+      title: item.name || `设备 ${item.deviceCode}`,
+      metadata: {
+        type: item.type,
+        state: item.state,
+        battery: item.battery,
+      },
+    })
+  } catch (err) {
+    loadError.value = err instanceof Error ? err.message : '设备详情加载失败'
+    device.value = null
+  } finally {
+    await waitForSkeleton()
+    loading.value = false
   }
-
-  // 注入 AI 上下文
-  setAiContext({
-    contextType: 'device',
-    contextId: data.item.deviceCode || route.params.id,
-    title: data.item.name || `设备 ${data.item.deviceCode}`,
-    metadata: {
-      type: data.item.type,
-      state: data.item.state,
-      battery: data.item.battery,
-    },
-  })
-
-  loading.value = false
-  loadAiHealth()
+  if (device.value) loadAiHealth()
 }
 
 async function loadAiHealth() {
@@ -103,7 +115,12 @@ onBeforeUnmount(() => {
 
 <template>
   <div>
-    <div class="content-grid">
+    <DeviceDetailSkeleton v-if="loading && !device" />
+    <div v-else-if="loadError" class="detail-load-error" role="alert">
+      <p>{{ loadError }}</p>
+      <button class="text-btn" @click="loadData"><History :size="15" />重试加载</button>
+    </div>
+    <div v-else class="content-grid">
       <section class="panel system-panel">
         <div class="panel-header compact">
           <div>
@@ -239,3 +256,21 @@ onBeforeUnmount(() => {
     </div>
   </div>
 </template>
+
+<style scoped>
+.detail-load-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 220px;
+  padding: 24px;
+  color: var(--c-text-2);
+}
+
+.detail-load-error p {
+  margin: 0;
+  font-size: 13px;
+}
+</style>

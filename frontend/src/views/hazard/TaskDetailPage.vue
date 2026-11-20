@@ -8,6 +8,8 @@ import {
   Terminal, UsersRound,
 } from 'lucide-vue-next'
 import PermissionButton from '../../components/PermissionButton.vue'
+import TaskDetailSkeleton from '../../components/common/TaskDetailSkeleton.vue'
+import { waitForSkeleton } from '../../utils/uiTiming'
 import { dashboardApi } from '../../services/dashboardApi'
 
 const emit = defineEmits(['notify'])
@@ -128,6 +130,7 @@ async function loadBasic() {
     emit('notify', err instanceof Error ? err.message : '任务详情加载失败')
     task.value = null
   } finally {
+    await waitForSkeleton()
     loading.value = false
   }
 }
@@ -284,7 +287,8 @@ onMounted(async () => {
 
 <template>
   <div>
-    <div class="content-grid task-detail-grid">
+    <TaskDetailSkeleton v-if="loading && !task" />
+    <div v-else class="content-grid task-detail-grid">
       <!-- 左列：基本信息 + 运行时 + 实时日志 -->
       <div class="detail-main-col">
         <!-- 1) 基本信息 + 编辑 -->
