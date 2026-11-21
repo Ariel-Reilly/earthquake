@@ -154,14 +154,14 @@ devices:
   - code: "SB-LED-01"
     name: "C区LED预警屏"
     type: "led_matrix"
-    hazard: "HZ-SBOX-05"
+    hazard: "HZ-SBOX-01"
     node: "Node-C"
     metrics: ["display_text", "display_color"]
 
   - code: "SB-ALARM-01"
     name: "C区声光报警器"
     type: "alarm"
-    hazard: "HZ-SBOX-05"
+    hazard: "HZ-SBOX-01"
     node: "Node-C"
     metrics: ["alarm_state"]
 

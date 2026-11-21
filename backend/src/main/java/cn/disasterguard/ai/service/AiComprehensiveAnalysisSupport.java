@@ -187,25 +187,29 @@ public class AiComprehensiveAnalysisSupport {
         maxByMetric.merge(m.getMetricCode(), m.getValue(), Math::max);
       }
 
-      // 位移类
-      if (maxByMetric.containsKey("disp_rate")) {
-        factors.put("displacement_rate", maxByMetric.get("disp_rate"));
-      }
-      if (maxByMetric.containsKey("disp_total")) {
-        factors.put("displacement_total", maxByMetric.get("disp_total"));
-      }
+      // 位移类：标准码（真机）优先，旧短码兜底
+      Double dispRate = firstPresent(maxByMetric, "displacement_rate", "disp_rate");
+      if (dispRate != null) factors.put("displacement_rate", dispRate);
+      Double dispTotal = firstPresent(maxByMetric, "displacement_total", "disp_total");
+      if (dispTotal != null) factors.put("displacement_total", dispTotal);
       // 裂缝类
-      if (maxByMetric.containsKey("crack_width")) {
-        factors.put("crack_width", maxByMetric.get("crack_width"));
+      Double crack = firstPresent(maxByMetric, "crack_width");
+      if (crack != null) factors.put("crack_width", crack);
+      // 雨量类（聚合为 24h / 7d / 30d）：优先设备直报的 24h 累计，其次标准码聚合，兜底旧码
+      if (maxByMetric.containsKey("rainfall_24h")) {
+        factors.put("rainfall_24h", maxByMetric.get("rainfall_24h"));
       }
-      // 雨量类（聚合为 24h / 7d / 30d）
-      if (maxByMetric.containsKey("rain_1h")) {
-        Double rain24h = metricRepository.sumByHazardRecentHours(hazardCode, "rain_1h", 24);
-        Double rain7d  = metricRepository.sumByHazardRecentHours(hazardCode, "rain_1h", 24 * 7);
-        Double rain30d = metricRepository.sumByHazardRecentHours(hazardCode, "rain_1h", 24 * 30);
-        factors.put("rainfall_24h", rain24h != null ? rain24h : maxByMetric.get("rain_1h"));
-        factors.put("rainfall_7d",  rain7d  != null ? rain7d  : 0.0);
-        factors.put("rainfall_30d", rain30d != null ? rain30d : 0.0);
+      if (!factors.containsKey("rainfall_24h")) {
+        Double rain24h = sumByHazard(hazardCode, "rainfall_1h", 24);
+        if (rain24h != null) factors.put("rainfall_24h", rain24h);
+      }
+      if (!factors.containsKey("rainfall_7d")) {
+        Double rain7d = sumByHazard(hazardCode, "rainfall_1h", 24 * 7);
+        if (rain7d != null) factors.put("rainfall_7d", rain7d);
+      }
+      if (!factors.containsKey("rainfall_30d")) {
+        Double rain30d = sumByHazard(hazardCode, "rainfall_1h", 24 * 30);
+        if (rain30d != null) factors.put("rainfall_30d", rain30d);
       }
       // 传感器扩展字段
       if (maxByMetric.containsKey("tilt_angle")) {
@@ -428,6 +432,24 @@ public class AiComprehensiveAnalysisSupport {
     if (days <= 30) return 15.0;
     if (days <= 90) return 35.0;
     return 60.0;
+  }
+
+  /** 按候选顺序取第一个存在的指标值：标准码在前，旧短码兜底。 */
+  private static Double firstPresent(Map<String, Double> values, String... codes) {
+    for (String code : codes) {
+      Double v = values.get(code);
+      if (v != null) return v;
+    }
+    return null;
+  }
+
+  /** 按标准码聚合时间窗雨量，标准码无数据时兜底旧码 rain_1h。 */
+  private Double sumByHazard(String hazardCode, String standardCode, int hours) {
+    Double sum = metricRepository.sumByHazardRecentHours(hazardCode, standardCode, hours);
+    if (sum == null) {
+      sum = metricRepository.sumByHazardRecentHours(hazardCode, "rain_1h", hours);
+    }
+    return sum;
   }
 
   /** 将值限制在 [min, max] 范围内。 */

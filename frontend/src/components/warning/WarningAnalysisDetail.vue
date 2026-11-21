@@ -26,13 +26,16 @@ const IMAGE_FALLBACK = '影像地址已过期或对象不存在（可在灾害�
 /** 指标编码 → 中文名 / 单位（与 device_metric 真实编码对齐）。 */
 const METRIC_META = {
   disp_rate: { label: '位移速率', unit: 'mm/d' },
+  disp_total: { label: '累计位移', unit: 'mm' },
   displacement_rate: { label: '位移速率', unit: 'mm/d' },
   displacement_total: { label: '累计位移', unit: 'mm' },
   crack_width: { label: '裂缝宽度', unit: 'mm' },
   crack_width_rate: { label: '裂缝扩展速率', unit: 'mm/d' },
   rainfall_1h: { label: '1 小时降雨', unit: 'mm' },
+  rain_1h: { label: '1 小时降雨', unit: 'mm' },
   rainfall_6h: { label: '6 小时降雨', unit: 'mm' },
   rainfall_24h: { label: '24 小时降雨', unit: 'mm' },
+  rain_24h: { label: '24 小时降雨', unit: 'mm' },
   rainfall_7d: { label: '7 天累计降雨', unit: 'mm' },
   rainfall_30d: { label: '30 天累计降雨', unit: 'mm' },
   soil_moisture: { label: '土壤含水率', unit: '%' },
@@ -41,7 +44,12 @@ const METRIC_META = {
   slope: { label: '坡度', unit: '°' },
   elevation_m: { label: '海拔', unit: 'm' },
   temperature: { label: '温度', unit: '℃' },
+  humidity: { label: '空气湿度', unit: '%' },
+  wind_speed: { label: '风速', unit: 'm/s' },
   tilt: { label: '倾角', unit: '°' },
+  tilt_angle: { label: '倾角', unit: '°' },
+  water_level: { label: '水位', unit: 'm' },
+  ponding_depth: { label: '积水深度', unit: 'cm' },
 }
 
 const AI_BANDS = [
@@ -291,7 +299,6 @@ watch(() => props.warningId, load)
       <section v-if="reasoning.length || suggestedActions.length" class="analysis-card">
         <header class="card-head">
           <h3>AI 详细分析</h3>
-          <span class="sub">数据来源：综合研判模型 reasoning / suggestedActions</span>
         </header>
         <div class="analysis-columns">
           <div class="analysis-block">
@@ -378,10 +385,9 @@ watch(() => props.warningId, load)
       <section class="analysis-card">
         <header class="card-head">
           <h3><Camera :size="17" />现场影像 / 附件</h3>
-          <span class="sub">来源：灾害点/预警附件图片、关联设备最近上传影像</span>
         </header>
         <div v-if="!images.length" class="empty-inline">
-          暂无现场影像。可在「灾害点详情」上传现场照片，AI 图像识别后会出现在这里。
+          暂无现场影像
         </div>
         <div v-else class="image-grid">
           <figure v-for="(image, index) in images" :key="image.url || index" class="image-item">

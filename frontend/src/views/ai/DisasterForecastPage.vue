@@ -30,13 +30,13 @@ import { dashboardApi } from '../../services/dashboardApi'
 import AiHealthBadge from '../../components/AiHealthBadge.vue'
 
 const METRIC_OPTIONS = [
-  { value: 'displacement', label: '地表位移 (mm)' },
-  { value: 'disp_rate', label: '位移速率 (mm/h)' },
-  { value: 'rainfall', label: '降雨量 (mm)' },
-  { value: 'rain_1h', label: '小时降雨 (mm/h)' },
+  { value: 'displacement_rate', label: '位移速率 (mm/d)' },
+  { value: 'displacement_total', label: '累计位移 (mm)' },
+  { value: 'rainfall_24h', label: '24 小时降雨 (mm)' },
+  { value: 'rainfall_1h', label: '小时降雨 (mm)' },
   { value: 'crack_width', label: '裂缝宽度 (mm)' },
-  { value: 'disp_total', label: '累计位移 (mm)' },
-  { value: 'ground_heave', label: '地面隆起 (mm)' },
+  { value: 'tilt_angle', label: '倾角 (°)' },
+  { value: 'water_level', label: '水位 (m)' },
 ]
 
 const HORIZON_OPTIONS = [
@@ -51,7 +51,7 @@ const loading = ref(false)
 const errorMsg = ref('')
 const devices = ref([])
 const selectedDeviceCode = ref('')
-const selectedMetric = ref('displacement')
+const selectedMetric = ref('displacement_rate')
 const selectedHorizon = ref(24)
 const forecastResult = ref(null)
 const deviceDropdownOpen = ref(false)
@@ -353,7 +353,6 @@ onMounted(async () => {
           <div class="dfp-kpi-value dfp-text-brand">
             {{ ((forecastResult.confidence ?? 0) * 100).toFixed(1) }}%
           </div>
-          <div class="dfp-kpi-sub">预测可信程度</div>
         </div>
 
         <div class="dfp-kpi-card">

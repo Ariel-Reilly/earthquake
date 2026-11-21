@@ -73,7 +73,21 @@ INSERT INTO monitoring_device (
 ('SB-FLOOD-01','滨江低洼积水站','water_level','HZ-SBOX-04','500103','离线',100,'强',NULL,'D区低洼路网',
  106.53875,29.553875,'sandbox-sb-flood-01',ST_SetSRID(ST_MakePoint(106.53875,29.553875),4326)),
 ('SB-CAM-01','沙盘坡体摄像头','camera','HZ-SBOX-01','500103','离线',100,'强',NULL,'B区正面',
- 106.52525,29.549063,'sandbox-sb-cam-01',ST_SetSRID(ST_MakePoint(106.52525,29.549063),4326))
+ 106.52525,29.549063,'sandbox-sb-cam-01',ST_SetSRID(ST_MakePoint(106.52525,29.549063),4326)),
+-- C方案新增：执行器 + 第二摄像头。这些是下行控制/视觉回传设备，型号与网关 config.yaml 对齐；
+-- 全部注册，避免真机上报时后端 findByDeviceCode 抛 404 丢数据（R10 设备识别断点）。
+('SB-LED-01','C区LED预警屏','led_matrix','HZ-SBOX-01','500103','离线',100,'强',NULL,'C区危岩带',
+ 106.5225,29.5465,'sandbox-sb-led-01',ST_SetSRID(ST_MakePoint(106.5225,29.5465),4326)),
+('SB-ALARM-01','C区声光报警器','alarm','HZ-SBOX-01','500103','离线',100,'强',NULL,'C区危岩带',
+ 106.5226,29.5466,'sandbox-sb-alarm-01',ST_SetSRID(ST_MakePoint(106.5226,29.5466),4326)),
+('SB-SERVO-01','A区滑坡舵机','servo','HZ-SBOX-01','500103','离线',100,'强',NULL,'B区坡体',
+ 106.5251,29.5502,'sandbox-sb-servo-01',ST_SetSRID(ST_MakePoint(106.5251,29.5502),4326)),
+('SB-PUMP-01','B区微型水泵','pump','HZ-SBOX-03','500103','离线',100,'强',NULL,'A区河道',
+ 106.53,29.5581,'sandbox-sb-pump-01',ST_SetSRID(ST_MakePoint(106.53,29.5581),4326)),
+('SB-VALVE-01','A区电磁阀','valve','HZ-SBOX-03','500103','离线',100,'强',NULL,'A区喷淋管路',
+ 106.5301,29.5582,'sandbox-sb-valve-01',ST_SetSRID(ST_MakePoint(106.5301,29.5582),4326)),
+('SB-CAM-02','B区摄像头','camera','HZ-SBOX-03','500103','离线',100,'强',NULL,'A区河道侧',
+ 106.5302,29.5579,'sandbox-sb-cam-02',ST_SetSRID(ST_MakePoint(106.5302,29.5579),4326))
 ON CONFLICT (device_code) DO UPDATE SET
   device_name = EXCLUDED.device_name,
   hazard_code = EXCLUDED.hazard_code,

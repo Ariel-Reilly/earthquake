@@ -90,6 +90,10 @@ public class DeviceDataService {
     for (Map.Entry<String, Object> entry : metrics.entrySet()) {
       Number value = toNumber(entry.getValue());
       if (value == null) {
+        // 非数值指标（display_color / alarm_state / ai_label 等执行器/视觉状态）不写时序库：
+        // 强行转成数字会造假，这里显式跳过并留痕，避免"设备上报了却查不到"的静默困惑。
+        log.debug("设备非数值指标跳过（不写入 device_metric）device={}, metric={}, type={}",
+            deviceCode, entry.getKey(), entry.getValue() == null ? "null" : entry.getValue().getClass().getSimpleName());
         continue;
       }
       DeviceMetric metric = new DeviceMetric();
@@ -140,6 +144,30 @@ public class DeviceDataService {
     }
 
     return count;
+  }
+
+  /**
+   * 设备详情页：返回该设备每个 metric_code 的最新值 + 最近 30 点时序。
+   *
+   * <p>供前端"数据上报曲线"按真实指标渲染，替代此前永远为空的 history 假字段。
+   * 按 metricCode 分组，每组带中文名无关的原始 code、单位交由前端字典补齐（避免后端重复维护字典）。
+   */
+  public List<Map<String, Object>> latestMetrics(String deviceCode) {
+    List<DeviceMetric> latest = metricRepository.findLatestByDeviceCodes(List.of(deviceCode));
+    List<Map<String, Object>> result = new ArrayList<>();
+    for (DeviceMetric m : latest) {
+      List<Double> series = metricRepository.findRecentValues(deviceCode, m.getMetricCode(), 30);
+      List<Double> asc = new ArrayList<>(series);
+      java.util.Collections.reverse(asc);
+      Map<String, Object> row = new LinkedHashMap<>();
+      row.put("metricCode", m.getMetricCode());
+      row.put("value", m.getValue());
+      row.put("recordedAt", m.getRecordedAt() == null ? null : m.getRecordedAt().toString());
+      row.put("series", asc);
+      result.add(row);
+    }
+    result.sort(java.util.Comparator.comparing(m -> String.valueOf(m.get("metricCode"))));
+    return result;
   }
 
   /**

@@ -48,8 +48,8 @@ public class WarningAnalysisService {
 
   /** 事发前后观察窗口（小时）。 */
   private static final int WINDOW_HOURS = 2;
-  /** 指标序列上限（按样本量取前 N 个）。 */
-  private static final int MAX_SERIES = 6;
+  /** 指标序列上限：覆盖真实库全部 metric_code（当前 19 种），仅作异常膨胀时的兜底，不隐藏真实指标。 */
+  private static final int MAX_SERIES = 64;
   /** 单序列最多返回点数（超出按步长抽样，保持趋势形状）。 */
   private static final int MAX_POINTS_PER_SERIES = 80;
   /** 图片上限。 */
