@@ -239,3 +239,4 @@ __pycache__/
 /*.pptx
 /御灾智巡/
 /御灾智巡_现场演示流程_操作融合稿.md
+frontend/dist_prev*/

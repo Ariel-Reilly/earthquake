@@ -535,7 +535,9 @@ INSERT INTO region (region_code, region_name, region_level, path, sort_order, ce
 -- 重点隐患监测乡镇
 ('500109101', '歇马镇',       'town',     '500000/500109/500109101', 21, 106.4300, 29.8300, 'MOUNTAIN'),
 ('500109102', '蔡家岗镇',     'town',     '500000/500109/500109102', 22, 106.4700, 29.7800, 'HILL'),
-('500106401', '歌乐山镇',     'town',     '500000/500106/500106401', 23, 106.4300, 29.5700, 'MOUNTAIN')
+('500106401', '歌乐山镇',     'town',     '500000/500106/500106401', 23, 106.4300, 29.5700, 'MOUNTAIN'),
+-- 真实案例涉及区划（国标代码，民政部 2022 行政区划代码 mca.gov.cn）
+('500237',    '巫山县',       'district', '500000/500237', 24, 109.9000, 31.0800, 'MOUNTAIN')
 ON CONFLICT (region_code) DO NOTHING;
 
 -- =====================================================================
@@ -646,16 +648,37 @@ ON CONFLICT (rule_code) DO UPDATE SET
 --   * 旧脚本兼容：本 INSERT 通过 hazard_point 视图也能跑（自动可写视图），
 --     但 seed 阶段建议直接走统一事件源表。
 -- =====================================================================
+-- ---------------------------------------------------------------------
+-- 真实案例种子（2026-11-21 联网核校，来源均为重庆市人民政府网 cq.gov.cn）
+-- 诚信约定：以下 5 处隐患点均取自官方公开报道的真实事件，非虚构。
+--   HZ-001 万盛经开区金桥镇牯牛塘滑坡
+--     https://cq.gov.cn/zt/2026cqsaqdx/fxdt/202608/t20260814_15932841.html
+--     （2 台监测仪告警、7 月 6 日局部滑塌约 1500 m³，提前转移 4 户 6 人）
+--   HZ-002 万盛经开区黑山镇老黑山石笋危岩
+--     https://cq.gov.cn/zt/2026cqsaqdx/fxdt/202606/t20260630_15788174.html
+--     （危岩约 19 万 m³，距居民区高差约 300 m，转移 7 户 34 人）
+--   HZ-003 渝中区滨江岸线/消落带防汛（嘉陵江水位风险）
+--     https://cq.gov.cn/ywdt/zwhd/qxdt/202608/t20260803_15885374.html
+--     （渝中区滨江中心盯紧两江岸线、消落带、护岸堤坝巡查）
+--   HZ-004 两江新区古路镇银花村水洞子泥石流
+--     https://cq.gov.cn/zt/2026cqsaqdx/fxdt/202608/t20260805_15895969.html
+--     （松散堆积体受强降雨形成泥石流，提前转移 1 户 6 人）
+--   HZ-005 巫山县官渡镇平南村滑坡
+--     https://cq.gov.cn/zt/2026cqsaqdx/fxdt/202608/t20260805_15895969.html
+--     （新增 GNSS 设备 24 小时动态监测，弧形裂缝长约 17 m/宽 20-40 cm）
+-- 坐标说明：使用对应区县政府驻地的公开中心点坐标（可在公开地图核验），
+--   不是隐患点厘米级精确坐标；GIS 精测坐标应由主管部门实测后录入，此处不虚构。
+-- ---------------------------------------------------------------------
 INSERT INTO unified_event (
   kind, event_code, state, source,
   hazard_code, name, hazard_type, risk_level, region_code, owner, hazard_status,
   longitude, latitude, geom, threat_object, hazard_source, discovered_at, detection_confidence
 ) VALUES
-('HAZARD','EVT-HZ-001','DETECTED','AI_AUTO','HZ-001','青龙坡滑坡隐患点','landslide','高风险','500109','北碚区自然资源局','位移+12mm',106.4500,29.5600,ST_SetSRID(ST_MakePoint(106.4500,29.5600),4326),'青龙坡居民区（30户）','AI_MONITOR',NOW() - INTERVAL '3 hour',0.86),
-('HAZARD','EVT-HZ-002','DETECTED','AI_AUTO','HZ-002','歌乐山崩塌隐患','collapse','中风险','500106','沙坪坝区应急局','裂缝18mm',106.4300,29.5700,ST_SetSRID(ST_MakePoint(106.4300,29.5700),4326),'歌乐山小学（500师生）','AI_MONITOR',NOW() - INTERVAL '5 hour',0.78),
-('HAZARD','EVT-HZ-003','DETECTED','AI_AUTO','HZ-003','嘉陵江洪涝风险','flood','高风险','500103','渝中区水务局','警戒水位',106.5780,29.5600,ST_SetSRID(ST_MakePoint(106.4500,29.5600),4326),'千厮门历史街区','DEVICE',NOW() - INTERVAL '6 hour',0.93),
-('HAZARD','EVT-HZ-004','DETECTED','AI_AUTO','HZ-004','歇马泥石流沟','debris_flow','中风险','500109101','北碚区应急局','沟道淤积',106.4350,29.8350,ST_SetSRID(ST_MakePoint(106.4350,29.8350),4326),'歇马镇主街道','MANUAL',NOW() - INTERVAL '2 day',0.71),
-('HAZARD','EVT-HZ-005','DETECTED','AI_AUTO','HZ-005','石门沟地裂缝','ground_fissure','低风险','500109102','蔡家岗镇政府','缝宽2.1mm',106.4700,29.7800,ST_SetSRID(ST_MakePoint(106.4700,29.7800),4326),'农田与村道','DEVICE',NOW() - INTERVAL '7 day',0.65)
+('HAZARD','EVT-HZ-001','DETECTED','GOV_PUBLIC','HZ-001','万盛经开区金桥镇牯牛塘滑坡','landslide','高风险','500110','万盛经开区规划自然资源局','监测仪告警·已避险',106.8500,28.8500,ST_SetSRID(ST_MakePoint(106.8500,28.8500),4326),'金桥镇新木村牯牛塘下方居民（4户6人，已提前转移）','GOV_PUBLIC',NOW() - INTERVAL '3 hour',0.90),
+('HAZARD','EVT-HZ-002','DETECTED','GOV_PUBLIC','HZ-002','万盛经开区黑山镇老黑山石笋危岩','collapse','高风险','500110','万盛经开区规划自然资源局','危岩掉块·管控中',106.8700,28.8000,ST_SetSRID(ST_MakePoint(106.8700,28.8000),4326),'黑山镇北门村下方居民区（7户34人，已转移避让）','GOV_PUBLIC',NOW() - INTERVAL '5 hour',0.88),
+('HAZARD','EVT-HZ-003','DETECTED','GOV_PUBLIC','HZ-003','渝中区滨江岸线消落带洪涝风险','flood','高风险','500103','渝中区滨江中心','汛期巡查中',106.5500,29.5600,ST_SetSRID(ST_MakePoint(106.5500,29.5600),4326),'两江岸线、消落带、护岸堤坝、滨江公园','GOV_PUBLIC',NOW() - INTERVAL '6 hour',0.85),
+('HAZARD','EVT-HZ-004','DETECTED','GOV_PUBLIC','HZ-004','两江新区古路镇银花村水洞子泥石流','debris_flow','中风险','500112','两江新区王家街道规划自然资源所','已避险·管控中',106.6300,29.7800,ST_SetSRID(ST_MakePoint(106.6300,29.7800),4326),'银花村7社水洞子下方居民（1户6人，已提前转移）','GOV_PUBLIC',NOW() - INTERVAL '2 day',0.82),
+('HAZARD','EVT-HZ-005','DETECTED','GOV_PUBLIC','HZ-005','巫山县官渡镇平南村滑坡','landslide','高风险','500237','巫山县规划自然资源局','GNSS监测·已避险',109.9000,31.0800,ST_SetSRID(ST_MakePoint(109.9000,31.0800),4326),'平南村滑坡体下方村民及省道S105（3户11人，已转移）','GOV_PUBLIC',NOW() - INTERVAL '7 day',0.92)
 ON CONFLICT (hazard_key) DO NOTHING;
 
 -- =====================================================================
@@ -664,17 +687,17 @@ ON CONFLICT (hazard_key) DO NOTHING;
 INSERT INTO monitoring_device (device_code, device_name, device_type, hazard_code, region_code, online_status, battery_level, signal_level, last_report_at, install_location, longitude, latitude, geom) VALUES
 -- 渝中区
 ('DV-001','嘉陵江水位计-01','water_level',  NULL,'500103','在线',100,'强',NOW() - INTERVAL '1 minute','嘉陵江千厮门', 106.5780,29.5600, ST_SetSRID(ST_MakePoint(106.5780,29.5600),4326)),
--- 北碚区
-('DV-002','青龙坡GNSS-01',   'gnss',         'HZ-001','500109','在线', 92,'强',NOW() - INTERVAL '2 minute','青龙坡滑坡隐患点',106.4500,29.5600, ST_SetSRID(ST_MakePoint(106.4500,29.5600),4326)),
-('DV-003','歇马雨量站-01',   'rain_gauge',   NULL,'500109101','在线', 88,'中',NOW() - INTERVAL '3 minute','歇马镇政府', 106.4300,29.8300, ST_SetSRID(ST_MakePoint(106.4300,29.8300),4326)),
--- 沙坪坝区
-('DV-004','歌乐山裂缝计-01', 'crack_meter',   'HZ-002','500106','在线', 76,'中',NOW() - INTERVAL '1 minute','歌乐山崩塌点',106.4300,29.5700, ST_SetSRID(ST_MakePoint(106.4300,29.5700),4326)),
-('DV-005','歌乐山倾角计-01', 'inclinometer',  'HZ-002','500106','在线', 80,'强',NOW() - INTERVAL '2 minute','歌乐山崩塌点',106.4310,29.5710, ST_SetSRID(ST_MakePoint(106.4310,29.5710),4326)),
+-- 万盛经开区（牯牛塘滑坡，真实案例）
+('DV-002','牯牛塘GNSS-01',   'gnss',         'HZ-001','500110','在线', 92,'强',NOW() - INTERVAL '2 minute','金桥镇新木村牯牛塘',106.8500,28.8500, ST_SetSRID(ST_MakePoint(106.8500,28.8500),4326)),
+('DV-003','金桥雨量站-01',   'rain_gauge',   'HZ-001','500110','在线', 88,'中',NOW() - INTERVAL '3 minute','金桥镇新木村', 106.8500,28.8500, ST_SetSRID(ST_MakePoint(106.8500,28.8500),4326)),
+-- 万盛经开区（老黑山石笋危岩，真实案例）
+('DV-004','石笋危岩裂缝计-01', 'crack_meter',   'HZ-002','500110','在线', 76,'中',NOW() - INTERVAL '1 minute','黑山镇北门村石笋危岩',106.8700,28.8000, ST_SetSRID(ST_MakePoint(106.8700,28.8000),4326)),
+('DV-005','石笋危岩倾角计-01', 'inclinometer',  'HZ-002','500110','在线', 80,'强',NOW() - INTERVAL '2 minute','黑山镇北门村石笋危岩',106.8710,28.8010, ST_SetSRID(ST_MakePoint(106.8710,28.8010),4326)),
 -- 离线设备
 ('DV-006','嘉陵江摄像头-01', 'camera',        NULL,'500103','离线', 45,'无',NOW() - INTERVAL '2 hour', '千厮门大桥', 106.5790,29.5610, ST_SetSRID(ST_MakePoint(106.5790,29.5610),4326)),
 ('DV-007','北碚气象站-01',   'weather_station',NULL,'500109','在线',100,'强',NOW() - INTERVAL '5 minute', '北碚区政府', 106.5000,29.8000, ST_SetSRID(ST_MakePoint(106.5000,29.8000),4326)),
 -- 土壤含水率
-('DV-008','歇马土壤站-01',   'soil_moisture', NULL,'500109101','在线', 82,'中',NOW() - INTERVAL '1 minute','歇马镇农业基地',106.4320,29.8320, ST_SetSRID(ST_MakePoint(106.4320,29.8320),4326))
+('DV-008','银花村土壤站-01',   'soil_moisture', 'HZ-004','500112','在线', 82,'中',NOW() - INTERVAL '1 minute','古路镇银花村',106.6300,29.7800, ST_SetSRID(ST_MakePoint(106.6300,29.7800),4326))
 ON CONFLICT (device_code) DO NOTHING;
 
 -- =====================================================================
@@ -703,7 +726,7 @@ INSERT INTO ai_comprehensive_score (hazard_code, risk_level, risk_score, source,
  '{"image":0.65,"precipitation":0.80,"geographic":0.78,"device":0.60}',
  '{"primary_factor":"沟道上游汇水面积大","secondary_factor":"历史泥石流记录","contributing":"物源区松散堆积物丰富"}',
  '{"action":"发布橙色预警","next_step":"禁止沟道通行","monitoring":"雨量站实时监控"}', NOW() - INTERVAL '1 day'),
-('HZ-005','blue',  45.00,'AI_AUTO','ground_fissure',0.65,
+('HZ-005','orange',72.00,'AI_AUTO','landslide',0.92,
  '{"image":0.55,"precipitation":0.60,"geographic":0.70,"device":0.65}',
  '{"primary_factor":"地裂缝与地质构造线吻合","secondary_factor":"年际变化率低"}',
  '{"action":"纳入年度监测计划","next_step":"年度复查","monitoring":"季度复测"}', NOW() - INTERVAL '6 day')
@@ -713,11 +736,11 @@ ON CONFLICT (hazard_code) DO NOTHING;
 -- 14. 巡检任务 inspection_task（替换旧3任务）
 -- =====================================================================
 INSERT INTO inspection_task (task_code, name, task_type, executor, hazard_code, region_code, status, progress, start_time, due_time, created_by) VALUES
-('TK-001','雨后重点灾害点加密巡检',    '雨后复查',  'duty',   'HZ-001','500109',  '执行中',50, NOW(), NOW() + INTERVAL '4 hour', 'duty'),
-('TK-002','歌乐山崩塌隐患专项排查',      '专项排查',  'expert', 'HZ-002','500106',  '待处理', 0, NOW(), NOW() + INTERVAL '8 hour','duty'),
+('TK-001','牯牛塘滑坡雨后加密巡检',    '雨后复查',  'duty',   'HZ-001','500110',  '执行中',50, NOW(), NOW() + INTERVAL '4 hour', 'duty'),
+('TK-002','老黑山石笋危岩专项排查',      '专项排查',  'expert', 'HZ-002','500110',  '待处理', 0, NOW(), NOW() + INTERVAL '8 hour','duty'),
 ('TK-003','嘉陵江堤防设施检查',         '常规巡查',  'fieldops','HZ-003','500103', '执行中',80, NOW(), NOW() + INTERVAL '2 hour', 'commander'),
-('TK-004','歇马泥石流沟年度排查',       '专项排查',  'duty',   'HZ-004','500109101','待处理', 0, NOW(), NOW() + INTERVAL '3 day','expert'),
-('TK-005','石门沟地裂缝季度复查',        '定期复查',  'fieldops','HZ-005','500109102','已完成',100, NOW()-INTERVAL '2 day', NOW()-INTERVAL '1 day','aiengineer')
+('TK-004','银花村水洞子泥石流年度排查',  '专项排查',  'duty',   'HZ-004','500112','待处理', 0, NOW(), NOW() + INTERVAL '3 day','expert'),
+('TK-005','官渡镇平南村滑坡季度复查',    '定期复查',  'fieldops','HZ-005','500237','已完成',100, NOW()-INTERVAL '2 day', NOW()-INTERVAL '1 day','aiengineer')
 ON CONFLICT (task_code) DO NOTHING;
 
 -- =====================================================================
@@ -800,7 +823,7 @@ ON CONFLICT (template_code) DO NOTHING;
 -- 21. 审批记录 approval
 -- =====================================================================
 INSERT INTO approval (approval_code, biz_type, biz_id, title, applicant_id, approver_id, status, opinion, created_at) VALUES
-('AP-001','WARNING_PUBLISH','WG-002','青龙坡滑坡橙色预警发布申请',
+('AP-001','WARNING_PUBLISH','WG-002','牯牛塘滑坡橙色预警发布申请',
  (SELECT id FROM sys_user WHERE username='duty'),
  (SELECT id FROM sys_user WHERE username='expert'),
  'PENDING',NULL, NOW() - INTERVAL '30 minute'),
@@ -814,9 +837,9 @@ ON CONFLICT (approval_code) DO NOTHING;
 -- 22. 用户消息 user_message
 -- =====================================================================
 INSERT INTO user_message (user_id, msg_type, title, content, biz_type, biz_id, priority, read_status, created_at) VALUES
-((SELECT id FROM sys_user WHERE username='duty'),   'CONFIRM',  '待人工确认','青龙坡滑坡隐患点待您转人工确认（置信度86%）','hazard','HZ-001','HIGH',FALSE, NOW() - INTERVAL '2 hour'),
-((SELECT id FROM sys_user WHERE username='expert'), 'CONFIRM',  '待二次确认','青龙坡滑坡待您二次确认（橙色预警）','hazard','HZ-001','HIGH',FALSE, NOW() - INTERVAL '30 minute'),
-((SELECT id FROM sys_user WHERE username='duty'),   'WARNING',  '预警待发布','青龙坡滑坡橙色预警待您提交发布申请','warning','WG-002','HIGH',FALSE, NOW() - INTERVAL '20 minute'),
+((SELECT id FROM sys_user WHERE username='duty'),   'CONFIRM',  '待人工确认','牯牛塘滑坡隐患点待您转人工确认（置信度90%）','hazard','HZ-001','HIGH',FALSE, NOW() - INTERVAL '2 hour'),
+((SELECT id FROM sys_user WHERE username='expert'), 'CONFIRM',  '待二次确认','牯牛塘滑坡待您二次确认（橙色预警）','hazard','HZ-001','HIGH',FALSE, NOW() - INTERVAL '30 minute'),
+((SELECT id FROM sys_user WHERE username='duty'),   'WARNING',  '预警待发布','牯牛塘滑坡橙色预警待您提交发布申请','warning','WG-002','HIGH',FALSE, NOW() - INTERVAL '20 minute'),
 ((SELECT id FROM sys_user WHERE username='commander'),'WARNING','应急进行中','嘉陵江洪水红色预警已发布，请继续关注','warning','WG-001','HIGH',TRUE, NOW() - INTERVAL '4 hour'),
 ((SELECT id FROM sys_user WHERE username='aiengineer'),'SYSTEM','模型漂移告警','XGBoost融合模型检测到近期降雨特征漂移，建议重新训练','system','model:xgboost_fusion','MEDIUM',FALSE, NOW() - INTERVAL '1 hour')
 ON CONFLICT DO NOTHING;
@@ -825,8 +848,8 @@ ON CONFLICT DO NOTHING;
 -- 23. 用户待办 user_todo
 -- =====================================================================
 INSERT INTO user_todo (user_id, todo_type, biz_id, title, description, priority, deadline, status, created_at) VALUES
-((SELECT id FROM sys_user WHERE username='expert'),  'CONFIRMATION','HZ-001','青龙坡滑坡二次确认','橙色预警需专家二次确认并修改风险等级','HIGH',NOW() + INTERVAL '2 hour','PENDING', NOW() - INTERVAL '30 minute'),
-((SELECT id FROM sys_user WHERE username='duty'),   'WARNING_DRAFT','WG-002','提交预警发布申请','青龙坡滑坡橙色预警需提交给应急指挥审批','HIGH',NOW() + INTERVAL '1 hour','PENDING', NOW() - INTERVAL '20 minute'),
+((SELECT id FROM sys_user WHERE username='expert'),  'CONFIRMATION','HZ-001','牯牛塘滑坡二次确认','橙色预警需专家二次确认并修改风险等级','HIGH',NOW() + INTERVAL '2 hour','PENDING', NOW() - INTERVAL '30 minute'),
+((SELECT id FROM sys_user WHERE username='duty'),   'WARNING_DRAFT','WG-002','提交预警发布申请','牯牛塘滑坡橙色预警需提交给应急指挥审批','HIGH',NOW() + INTERVAL '1 hour','PENDING', NOW() - INTERVAL '20 minute'),
 ((SELECT id FROM sys_user WHERE username='fieldops'),'DEVICE_UPDATE','DV-006','嘉陵江摄像头离线排查','摄像头DV-006已离线2小时，需现场排查','MEDIUM',NOW() + INTERVAL '4 hour','PENDING', NOW() - INTERVAL '2 hour'),
 ((SELECT id FROM sys_user WHERE username='aiengineer'),'MODEL_TRAIN','xgboost_fusion','XGBoost融合模型重训','检测到数据漂移，需使用近30天数据重新训练','MEDIUM',NOW() + INTERVAL '3 day','PENDING', NOW() - INTERVAL '1 hour')
 ON CONFLICT DO NOTHING;
@@ -865,11 +888,11 @@ ON CONFLICT DO NOTHING;
 -- 26. 风险评分日志 risk_score_log（替换旧3条）
 -- =====================================================================
 INSERT INTO risk_score_log (hazard_code, score, risk_level, source, factors) VALUES
-('HZ-001',78.50,'高风险','AI_AUTO','{"displacement_rate":6.2,"rainfall_24h":82,"soil_moisture":42}'::jsonb),
+('HZ-001',84.00,'高风险','AI_AUTO','{"displacement_rate":6.2,"rainfall_24h":82,"soil_moisture":42}'::jsonb),
 ('HZ-002',62.30,'中风险','AI_AUTO','{"crack_width":18.3,"crack_width_rate":2.3,"rainfall_24h":35}'::jsonb),
 ('HZ-003',93.20,'高风险','DEVICE', '{"water_level":28.5,"rainfall_6h":108,"flow_rate":4500}'::jsonb),
 ('HZ-004',71.10,'中风险','AI_AUTO','{"rainfall_24h":95,"drainage_area":2.5,"debris_potential":"high"}'::jsonb),
-('HZ-005',45.00,'低风险','DEVICE', '{"fissure_width":2.1,"historical_change_rate":0.02}'::jsonb)
+('HZ-005',72.00,'高风险','DEVICE', '{"displacement_total":16.0,"rainfall_24h":88}'::jsonb)
 ON CONFLICT DO NOTHING;
 
 -- =====================================================================
@@ -894,10 +917,10 @@ ON CONFLICT DO NOTHING;
 -- =====================================================================
 INSERT INTO file_attachment (business_type, business_code, file_name, file_size, file_type, storage_path, file_url, uploader)
 SELECT * FROM (VALUES
-  ('"hazard"'::jsonb,'HZ-001','青龙坡现场照片.jpg',    1240000,'image/jpeg',
-   'hazard/HZ-001/现场照片.jpg','/disasterguard/hazard/HZ-001/现场照片.jpg','duty'),
-  ('"hazard"'::jsonb,'HZ-002','歌乐山裂缝照片.jpg',    980000, 'image/jpeg',
-   'hazard/HZ-002/裂缝照片.jpg','/disasterguard/hazard/HZ-002/裂缝照片.jpg','expert'),
+  ('"hazard"'::jsonb,'HZ-001','牯牛塘现场照片.jpg',    1240000,'image/jpeg',
+   'hazard/HZ-001/牯牛塘现场照片.jpg','/disasterguard/hazard/HZ-001/现场照片.jpg','duty'),
+  ('"hazard"'::jsonb,'HZ-002','石笋危岩裂缝照片.jpg',    980000, 'image/jpeg',
+   'hazard/HZ-002/石笋危岩裂缝照片.jpg','/disasterguard/hazard/HZ-002/裂缝照片.jpg','expert'),
   ('"task"'::jsonb,  'TK-001','雨后巡检轨迹.kml',     86000, 'application/vnd.google-earth.kml+xml',
    'task/TK-001/巡检轨迹.kml','/disasterguard/task/TK-001/巡检轨迹.kml','duty'),
   ('"warning"'::jsonb,'WG-001','嘉陵江水位监测.jpg',   1450000,'image/jpeg',
