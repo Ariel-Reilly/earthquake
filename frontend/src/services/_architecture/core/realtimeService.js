@@ -210,11 +210,14 @@ function normalizeHazard(item) {
 function normalizeDevice(item) {
   return {
     id: item.id,
+    deviceCode: item.deviceCode ?? item.code ?? null,
     name: item.name,
     type: item.type,
-    state: item.state,
+    // 后端离线广播用 onlineStatus，详情/列表接口用 state；两种都收敛到 state
+    state: item.state ?? item.onlineStatus ?? null,
     battery: item.battery,
     signal: item.signal,
+    lastReportAt: item.lastReportAt ?? null,
     point: item.point,
     hazardCode: item.hazardCode,
     lon: item.lon,

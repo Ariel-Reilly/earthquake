@@ -45,9 +45,18 @@ public class AiDeviceHealthService {
 
   private static final Logger log = LoggerFactory.getLogger(AiDeviceHealthService.class);
 
-  /** 参与评分的核心指标，与 Python 端 HEALTH_METRICS 一一对应。 */
-  private static final List<String> HEALTH_METRICS = List.of(
-      "disp_rate", "disp_total", "crack_width", "tilt");
+  /**
+   * 参与评分的核心指标（Python 端 HEALTH_METRICS 的键）→ 真实库 metric_code 候选列表。
+   *
+   * <p>真实设备网关上报的是标准码（displacement_rate / displacement_total / tilt_angle），
+   * 旧模拟器写的是短码（disp_rate / disp_total / tilt）。这里按"标准码优先、旧码兜底"取值，
+   * 再归一化成 Python 端期望的短码键，保持 ai-service 契约不变的同时让真机数据真正参与评分。
+   */
+  private static final Map<String, List<String>> HEALTH_METRIC_SOURCES = Map.of(
+      "disp_rate", List.of("displacement_rate", "disp_rate"),
+      "disp_total", List.of("displacement_total", "disp_total"),
+      "crack_width", List.of("crack_width"),
+      "tilt", List.of("tilt_angle", "tilt"));
 
   /** 单次拉取的样本数；30 个时序点足以让 anomaly / forecast 给出有意义的分数。 */
   private static final int SAMPLE_LIMIT = 30;
@@ -146,12 +155,20 @@ public class AiDeviceHealthService {
     String deviceCode = device.getDeviceCode();
 
     // 1) 收集每条核心指标的最新 30 个值（按时间升序）
+    // 键保持 Python 端期望的短码，值从标准码/旧码真实库读取，标准码优先。
     Map<String, List<Double>> metrics = new LinkedHashMap<>();
-    for (String metric : HEALTH_METRICS) {
-      List<Double> values = metricRepository.findRecentValues(deviceCode, metric, SAMPLE_LIMIT);
+    for (Map.Entry<String, List<String>> entry : HEALTH_METRIC_SOURCES.entrySet()) {
+      List<Double> values = java.util.Collections.emptyList();
+      for (String code : entry.getValue()) {
+        List<Double> found = metricRepository.findRecentValues(deviceCode, code, SAMPLE_LIMIT);
+        if (found != null && !found.isEmpty()) {
+          values = found;
+          break;
+        }
+      }
       // repository 返回的是 DESC，需要反转
       java.util.Collections.reverse(values);
-      metrics.put(metric, values);
+      metrics.put(entry.getKey(), values);
     }
 
     // 2) 调 Python 端做算法评分（一次往返，包含异常检测 + 时序预测 + 加权 + 归因）

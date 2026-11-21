@@ -34,7 +34,8 @@ public class AiForecastScheduler {
 
   private static final Logger log = LoggerFactory.getLogger(AiForecastScheduler.class);
 
-  private static final String[] FORECAST_METRICS = {"displacement", "rainfall", "crack_width"};
+  // 使用真实库 metric_code（真机网关上报的标准码），此前 displacement/rainfall 在库中不存在导致预测恒走合成兜底
+  private static final String[] FORECAST_METRICS = {"displacement_rate", "rainfall_24h", "crack_width"};
 
   private final AiServiceClient client;
   private final MonitoringDeviceRepository deviceRepository;

@@ -1,7 +1,7 @@
 ﻿<script setup>
 import { computed, onMounted, onBeforeUnmount, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, Cpu, GitBranch, History, Layers3, MapPin, MessageSquareText, Paperclip, PencilLine, Radio, Save, Stethoscope } from 'lucide-vue-next'
+import { ArrowLeft, Cpu, History, Layers3, MapPin, MessageSquareText, PencilLine, Radio, Save, Stethoscope } from 'lucide-vue-next'
 import PermissionButton from '../../components/PermissionButton.vue'
 import DeviceDetailSkeleton from '../../components/common/DeviceDetailSkeleton.vue'
 import { waitForSkeleton } from '../../utils/uiTiming'
@@ -11,9 +11,38 @@ import { useAiContext } from '../../composables/useAiContext'
 const route = useRoute()
 const router = useRouter()
 const device = ref(null)
+const metrics = ref([])
 const loading = ref(true)
 const loadError = ref('')
 const editMode = ref(false)
+
+// 与 device_metric 真实编码对齐（与预警分析字典同口径）
+const METRIC_META = {
+  disp_rate: ['位移速率', 'mm/d'], disp_total: ['累计位移', 'mm'],
+  displacement_rate: ['位移速率', 'mm/d'], displacement_total: ['累计位移', 'mm'],
+  crack_width: ['裂缝宽度', 'mm'], crack_width_rate: ['裂缝扩展速率', 'mm/d'],
+  rainfall_1h: ['1h 降雨', 'mm'], rain_1h: ['1h 降雨', 'mm'],
+  rainfall_6h: ['6h 降雨', 'mm'], rainfall_24h: ['24h 降雨', 'mm'], rain_24h: ['24h 降雨', 'mm'],
+  rainfall_7d: ['7d 降雨', 'mm'], rainfall_30d: ['30d 降雨', 'mm'],
+  soil_moisture: ['土壤含水率', '%'], pore_pressure: ['孔隙水压', 'kPa'],
+  flow_rate: ['水流速率', 'm³/s'], slope: ['坡度', '°'], elevation_m: ['海拔', 'm'],
+  temperature: ['温度', '℃'], humidity: ['空气湿度', '%'], wind_speed: ['风速', 'm/s'],
+  tilt: ['倾角', '°'], tilt_angle: ['倾角', '°'],
+  water_level: ['水位', 'm'], ponding_depth: ['积水深度', 'cm'],
+}
+const metricMeta = (code) => {
+  const m = METRIC_META[code]
+  return m ? { label: m[0], unit: m[1] } : { label: code, unit: '' }
+}
+// 迷你趋势线：把数值序列归一化成 SVG polyline 点串
+const sparkline = (series = []) => {
+  const vals = series.filter((v) => typeof v === 'number' && Number.isFinite(v))
+  if (vals.length < 2) return ''
+  const min = Math.min(...vals)
+  const max = Math.max(...vals)
+  const span = max - min || 1
+  return vals.map((v, i) => `${(i / (vals.length - 1)) * 100},${28 - ((v - min) / span) * 24}`).join(' ')
+}
 const form = ref({})
 const aiHealth = ref(null)
 const aiRefreshing = ref(false)
@@ -33,6 +62,7 @@ async function loadData() {
     const item = data?.item
     if (!item) throw new Error('设备详情数据为空')
     device.value = item
+    metrics.value = Array.isArray(data.metrics) ? data.metrics : []
     form.value = {
       name: item.name,
       type: item.type,
@@ -150,7 +180,6 @@ onBeforeUnmount(() => {
               </select>
               <span>信号：{{ device.signal }}</span>
               <div class="task-bars"><i :style="{ width: `${device.battery}%` }"></i></div>
-              <p>支持平台自动巡检和离线告警</p>
             </div>
           </div>
 
@@ -210,45 +239,29 @@ onBeforeUnmount(() => {
       <section class="panel warning-panel">
         <div class="panel-header compact">
           <div>
-            <h2>数据上报曲线</h2>
+            <h2>实时指标</h2>
           </div>
+          <span v-if="metrics.length" class="metric-count">{{ metrics.length }} 项</span>
         </div>
-        <div v-if="device" class="warning-list">
-          <article v-for="record in device.history" :key="`${record.time}-${record.title}`" class="warning-item">
-            <div class="warning-symbol blue">D</div>
-            <div class="warning-body">
-              <div class="warning-title"><strong>{{ record.title }}</strong><span class="blue">{{ record.time }}</span></div>
-              <p>{{ record.desc }}</p>
+        <div v-if="metrics.length" class="metric-grid">
+          <article v-for="m in metrics" :key="m.metricCode" class="metric-cell">
+            <div class="metric-cell-head">
+              <span class="metric-name">{{ metricMeta(m.metricCode).label }}</span>
+              <span class="metric-code">{{ m.metricCode }}</span>
             </div>
+            <div class="metric-value">
+              <strong>{{ Number(m.value).toFixed(2) }}</strong><small>{{ metricMeta(m.metricCode).unit }}</small>
+            </div>
+            <svg v-if="sparkline(m.series)" class="metric-spark" viewBox="0 0 100 32" preserveAspectRatio="none">
+              <polyline :points="sparkline(m.series)" fill="none" stroke="currentColor" stroke-width="1.6" vector-effect="non-scaling-stroke" />
+            </svg>
+            <div v-else class="metric-spark-empty"></div>
+            <time v-if="m.recordedAt">{{ new Date(m.recordedAt).toLocaleString('zh-CN', { hour12: false }) }}</time>
           </article>
         </div>
-        <div v-if="device" class="chart-card">
-          <div class="mini-chart-header">
-            <strong><Paperclip :size="16" />附件</strong>
-            <span>设备说明与校准记录</span>
-          </div>
-          <div class="pie-list">
-            <div v-for="file in device.attachments" :key="file.name" class="pie-item">
-              <span>{{ file.name }}</span>
-              <div class="pie-track"><i style="width: 100%; background: #6f9e7f"></i></div>
-              <strong>{{ file.size }}</strong>
-            </div>
-          </div>
-        </div>
-        <div v-if="device" class="chart-card">
-          <div class="mini-chart-header">
-            <strong><GitBranch :size="16" />关联联动</strong>
-            <span>点击跳转 · 灾害点 / 预警 / 任务</span>
-          </div>
-          <div v-if="device.linked?.length" class="pie-list">
-            <RouterLink v-for="item in device.linked" :key="`${item.type}-${item.label}`" :to="item.path" class="pie-item link-item">
-              <span class="link-type">{{ item.type }}</span>
-              <span class="link-label">{{ item.label }}</span>
-              <div class="pie-track"><i style="width: 100%; background: #87b096"></i></div>
-              <strong class="link-go">查看 ›</strong>
-            </RouterLink>
-          </div>
-          <p v-else class="people-empty" style="padding: 12px;">暂无关联记录</p>
+        <div v-else class="metric-empty">
+          <Radio :size="20" />
+          <span>设备尚无指标上报</span>
         </div>
       </section>
     </div>
@@ -269,6 +282,99 @@ onBeforeUnmount(() => {
 
 .detail-load-error p {
   margin: 0;
+  font-size: 13px;
+}
+
+.metric-count {
+  font-size: 12px;
+  color: var(--c-text-2);
+}
+
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+  padding: 16px 20px 20px;
+}
+
+.metric-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--c-border, rgb(0 0 0 / 8%));
+  border-radius: 12px;
+  background: var(--c-surface-2, rgb(0 0 0 / 2%));
+}
+
+.metric-cell-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.metric-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--c-text-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.metric-code {
+  font-size: 10px;
+  color: var(--c-text-2);
+  font-family: ui-monospace, monospace;
+  opacity: 0.7;
+  flex-shrink: 0;
+}
+
+.metric-value {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.metric-value strong {
+  font-size: 22px;
+  font-weight: 650;
+  color: var(--c-text-1);
+  line-height: 1.1;
+}
+
+.metric-value small {
+  font-size: 11px;
+  color: var(--c-text-2);
+}
+
+.metric-spark {
+  width: 100%;
+  height: 32px;
+  color: var(--c-accent, #4c8b87);
+  opacity: 0.85;
+}
+
+.metric-spark-empty {
+  height: 32px;
+}
+
+.metric-cell time {
+  font-size: 10px;
+  color: var(--c-text-2);
+}
+
+.metric-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 140px;
+  color: var(--c-text-2);
   font-size: 13px;
 }
 </style>

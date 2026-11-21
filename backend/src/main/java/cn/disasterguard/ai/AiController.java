@@ -105,11 +105,15 @@ public class AiController {
   @PreAuthorize("hasAuthority('ai:insight:view')")
   public ApiResponse<ForecastResult> forecastAuto(
       @RequestParam String deviceCode,
-      @RequestParam(defaultValue = "displacement") String metric,
+      @RequestParam(defaultValue = "displacement_rate") String metric,
       @RequestParam(defaultValue = "7") int horizon,
       @RequestParam(defaultValue = "30") int historyLimit) {
     boolean synthetic = false;
     List<Double> history = metricRepository.findRecentValues(deviceCode, metric, historyLimit);
+    // 标准码无数据时兜底旧短码，避免真机设备因命名差异恒走合成序列
+    if (history.isEmpty()) {
+      history = metricRepository.findRecentValues(deviceCode, legacyMetric(metric), historyLimit);
+    }
     if (history.isEmpty()) {
       log.warn("AI forecast/auto: device={}, metric={} 无历史数据，使用合成数据降级", deviceCode, metric);
       // 无历史数据时生成一段合成序列（确保 AI 服务能返回有效结果）
@@ -181,21 +185,26 @@ public class AiController {
       }
 
       // 映射到 AI 因子名（与 ai-service fusion.py 默认权重对齐）
-      if (maxByMetric.containsKey("disp_rate")) {
-        factors.put("displacement_rate", maxByMetric.get("disp_rate"));
+      // 标准码（真机网关上报）优先，旧短码（历史/模拟器数据）兜底。
+      Double dispRate = firstPresent(maxByMetric, "displacement_rate", "disp_rate");
+      if (dispRate != null) factors.put("displacement_rate", dispRate);
+      Double dispTotal = firstPresent(maxByMetric, "displacement_total", "disp_total");
+      if (dispTotal != null) factors.put("displacement_total", dispTotal);
+      Double crack = firstPresent(maxByMetric, "crack_width");
+      if (crack != null) factors.put("crack_width", crack);
+
+      // 雨量：优先用设备直接上报的 24h 累计，其次按标准码 rainfall_1h 聚合，
+      // 最后兜底旧码 rain_1h。真机数据因此不再恒为 0。
+      if (maxByMetric.containsKey("rainfall_24h")) {
+        factors.put("rainfall_24h", maxByMetric.get("rainfall_24h"));
       }
-      if (maxByMetric.containsKey("disp_total")) {
-        factors.put("displacement_total", maxByMetric.get("disp_total"));
+      if (!factors.containsKey("rainfall_24h")) {
+        Double rain24h = sumByHazard(hazardCode, "rainfall_1h", 24);
+        if (rain24h != null) factors.put("rainfall_24h", rain24h);
       }
-      if (maxByMetric.containsKey("crack_width")) {
-        factors.put("crack_width", maxByMetric.get("crack_width"));
-      }
-      if (maxByMetric.containsKey("rain_1h")) {
-        // 优先用 DB 聚合真实雨量；无数据时降级为 rain_1h 原值
-        Double rain24h = metricRepository.sumByHazardRecentHours(hazardCode, "rain_1h", 24);
-        Double rain7d = metricRepository.sumByHazardRecentHours(hazardCode, "rain_1h", 24 * 7);
-        factors.put("rainfall_24h", rain24h != null ? rain24h : maxByMetric.get("rain_1h"));
-        factors.put("rainfall_7d", rain7d != null ? rain7d : maxByMetric.get("rain_1h"));
+      if (!factors.containsKey("rainfall_7d")) {
+        Double rain7d = sumByHazard(hazardCode, "rainfall_1h", 24 * 7);
+        if (rain7d != null) factors.put("rainfall_7d", rain7d);
       }
     }
 
@@ -209,6 +218,36 @@ public class AiController {
 
     log.debug("AI fusion-risk/auto: hazard={}, factors={}", hazardCode, factors);
     return ApiResponse.success(client.fusionRisk(hazardCode, factors));
+  }
+
+  /** 标准码 → 旧短码映射，供历史数据兜底读取。 */
+  private static String legacyMetric(String standardCode) {
+    return switch (standardCode) {
+      case "displacement_rate" -> "disp_rate";
+      case "displacement_total" -> "disp_total";
+      case "tilt_angle" -> "tilt";
+      case "rainfall_1h" -> "rain_1h";
+      case "rainfall_24h" -> "rain_24h";
+      default -> standardCode;
+    };
+  }
+
+  /** 按候选顺序取第一个存在的指标值：标准码在前，旧短码兜底，保持历史数据可读。 */
+  private static Double firstPresent(Map<String, Double> values, String... codes) {
+    for (String code : codes) {
+      Double v = values.get(code);
+      if (v != null) return v;
+    }
+    return null;
+  }
+
+  /** 按标准码聚合时间窗雨量，标准码无数据时兜底旧码 rain_1h。 */
+  private Double sumByHazard(String hazardCode, String standardCode, int hours) {
+    Double sum = metricRepository.sumByHazardRecentHours(hazardCode, standardCode, hours);
+    if (sum == null) {
+      sum = metricRepository.sumByHazardRecentHours(hazardCode, "rain_1h", hours);
+    }
+    return sum;
   }
 
   /** 将 hazard_point.riskLevel（橙色预警等）映射为 1-4 的 site_grade。 */

@@ -63,7 +63,12 @@ public class DeviceController {
   @GetMapping("/{id}")
   @PreAuthorize("hasAuthority('devices:view')")
   public ApiResponse<Map<String, Object>> detail(@PathVariable Long id) {
-    return ApiResponse.success(Map.of("item", deviceService.getById(id)));
+    var device = deviceService.getById(id);
+    Map<String, Object> payload = new java.util.LinkedHashMap<>();
+    payload.put("item", device);
+    // 真实指标时序：供设备详情页按 metric_code 渲染，替代此前为空的 history 假字段
+    payload.put("metrics", deviceDataService.latestMetrics(device.deviceCode()));
+    return ApiResponse.success(payload);
   }
 
   /**

@@ -81,6 +81,29 @@ public class DeviceMetricSimulator {
         new MetricSpec("rain_1h", 8.0, 10.0),
         new MetricSpec("rain_24h", 30.0, 35.0)
     ));
+    // 英文类型（真实设备网关 config.yaml 口径）：此前只认中文 key，真机全部落 DEFAULT 被喂 disp_rate 假数据
+    METRICS_BY_DEVICE_TYPE.put("gnss", List.of(
+        new MetricSpec("displacement_rate", 2.0, 1.5),
+        new MetricSpec("displacement_total", 30.0, 25.0)
+    ));
+    METRICS_BY_DEVICE_TYPE.put("crack_meter", List.of(new MetricSpec("crack_width", 6.0, 4.0)));
+    METRICS_BY_DEVICE_TYPE.put("inclinometer", List.of(new MetricSpec("tilt_angle", 1.0, 0.8)));
+    METRICS_BY_DEVICE_TYPE.put("rain_gauge", List.of(
+        new MetricSpec("rainfall_1h", 8.0, 10.0),
+        new MetricSpec("rainfall_24h", 30.0, 35.0)
+    ));
+    METRICS_BY_DEVICE_TYPE.put("soil_moisture", List.of(new MetricSpec("soil_moisture", 25.0, 6.0)));
+    METRICS_BY_DEVICE_TYPE.put("water_level", List.of(new MetricSpec("water_level", 170.0, 4.0)));
+    // weather_station：真机/API 上报温湿风速，模拟器只兜底这些标准码
+    METRICS_BY_DEVICE_TYPE.put("weather_station", List.of(
+        new MetricSpec("temperature", 22.0, 3.0),
+        new MetricSpec("humidity", 65.0, 8.0),
+        new MetricSpec("wind_speed", 2.5, 1.2)
+    ));
+    // 执行器/视觉类：不产生数值指标，模拟器跳过（返回空列表），避免污染 device_metric
+    for (String actuator : List.of("led_matrix", "alarm", "servo", "pump", "valve", "camera")) {
+      METRICS_BY_DEVICE_TYPE.put(actuator, List.of());
+    }
     // 其他/默认：当作 GNSS 位移（兼容老数据）
     METRICS_BY_DEVICE_TYPE.put("DEFAULT", List.of(
         new MetricSpec("disp_rate", 2.0, 1.5)
