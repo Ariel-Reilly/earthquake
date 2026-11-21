@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>阶段 A · 面包板搭建验证版（零基础照着做）</title>
+<style>
+  :root{
+    --ink:#1c1c1e; --mute:#8a8a90; --line:#e2e2e6; --paper:#fff; --bg:#f4f4f6;
+    --ok:#1d9e75; --bad:#c0392b; --blue:#185fa5; --amber:#854f0b;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;padding:32px 20px;background:var(--bg);color:var(--ink);
+       font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;line-height:1.68}
+  .sheet{max-width:960px;margin:0 auto;background:var(--paper);padding:40px 46px 52px;
+         border-radius:14px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+  h1{font-size:25px;font-weight:600;margin:0 0 4px}
+  .sub{color:var(--mute);font-size:13px;margin-bottom:8px}
+  h2{font-size:18px;font-weight:600;margin:38px 0 12px;padding-bottom:7px;border-bottom:2px solid var(--ink)}
+  h2 .no{display:inline-block;min-width:30px;color:var(--blue)}
+  h3{font-size:14.5px;font-weight:600;margin:22px 0 7px;color:#333}
+  .hint{font-size:12.5px;color:var(--mute);margin:-2px 0 10px}
+  table{width:100%;border-collapse:collapse;font-size:13px;margin:8px 0}
+  th{text-align:left;font-weight:500;color:var(--mute);font-size:12px;padding:7px 8px;
+     border-bottom:1px solid var(--line);background:#fafafb}
+  td{padding:7px 8px;border-bottom:1px solid #f0f0f2;vertical-align:top}
+  td.n{width:30px;color:var(--mute);font-variant-numeric:tabular-nums}
+  code{font-family:"Cascadia Mono",Consolas,Menlo,monospace;font-size:12.5px;
+       background:#f4f4f6;padding:1px 5px;border-radius:4px;white-space:nowrap}
+  .w{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:4px;
+     vertical-align:-1px;border:1px solid rgba(0,0,0,.15)}
+  .tag{display:inline-block;font-size:11.5px;padding:1px 7px;border-radius:20px;font-weight:500}
+  .t-mm{background:#e6f1fb;color:#185fa5}
+  .t-mf{background:#eaf3de;color:#3b6d11}
+  .t-st{background:#faeeda;color:#854f0b}
+  .box{border:1px solid var(--line);border-radius:10px;padding:14px 18px;background:#fbfbfc;margin:12px 0}
+  .box ol,.box ul{margin:6px 0 0;padding-left:22px}
+  .box li{margin:6px 0}
+  .warn{color:var(--bad);font-weight:500}
+  .ok{color:var(--ok);font-weight:500}
+  .stage{background:#e6f1fb;border:1px solid #85b7eb;border-radius:10px;padding:14px 18px;margin:16px 0 24px}
+  .stage b{color:#185fa5}
+  .power{font-family:"Cascadia Mono",Consolas,monospace;font-size:12.5px;white-space:pre;
+         background:#fbfbfc;border:1px solid var(--line);border-radius:10px;padding:14px 16px;line-height:1.75;overflow:auto}
+  .fig{border:1px solid var(--line);border-radius:10px;background:#fbfbfc;padding:12px;margin:12px 0;text-align:center}
+  .fig .cap{font-size:12px;color:var(--mute);margin-top:6px}
+  .foot{margin-top:34px;padding-top:14px;border-top:1px dashed var(--line);color:var(--mute);font-size:12px}
+  @media print{
+    body{background:#fff;padding:0;font-size:12px}
+    .sheet{box-shadow:none;border-radius:0;padding:0 6mm;max-width:none}
+    h2,h3,table,.fig,.box{page-break-inside:avoid}
+  }
+</style>
+</head>
+<body>
+<div class="sheet">
+
+<h1>阶段 A · 面包板搭建验证版</h1>
+<div class="sub">目标：先用面包板把整套接起来、跑出效果；验证通过后，再照"阶段 B 镀锡板版"焊成永久装置</div>
+<div class="sub">两块 <b>YD-ESP32-23 V1.3</b> · 同一份固件，只改 <code>NODE_ROLE</code> · 串口 115200</div>
+
+<div class="stage">
+<b>你现在就在阶段 A，不用碰电烙铁。</b> 面包板插错拔了重来，零基础最合适。等这一版的数字、预警都跑通了，再打开<b>《阶段 B · 镀锡板焊接版》（WIRING_CARD.html）</b>，按里面的"从面包板移植"一节把线一根根搬过去焊死。<br>
+<b>两阶段只有一处不同</b>：配电（3V3/GND/5V 怎么分）——阶段 A 用面包板的轨，阶段 B 用镀锡板焊出来的区。<b>信号脚接线两阶段完全一样</b>，不用重来。
+</div>
+
+<div class="box">
+<b>如果手上现在只有一块板</b>：先只做<b>第 5 章的板①</b>，把温湿度、两个超声波、继电器跑通；板②等第二块板到货再接。
+</div>
+
+<!-- ============ 0 ============ -->
+<h2><span class="no">0</span>开工前：把东西和工具摆出来</h2>
+<div class="hint">接线本身不难，难的是"手上缺一根线、缺一块板"然后卡住。先花 10 分钟按这个清单点一遍。</div>
+
+<h3>0.1 已有的东西（按你的订单）</h3>
+<table>
+<tr><th style="width:190px">东西</th><th style="width:70px">数量</th><th>怎么认 / 用在哪</th></tr>
+<tr><td>ESP32-S3 开发板</td><td>1（计划 2）</td><td>黑色小板，两个 Type-C 口，两排针，针旁直接印着 GPIO 数字</td></tr>
+<tr><td>杜邦线 40P</td><td>3 排</td><td><b>确认每排是"公对公 / 公对母 / 母对母"里的哪一种</b>，见 1.2</td></tr>
+<tr><td>DHT11 温湿度</td><td>1</td><td>蓝色格栅方块，3 根针，标 <code>+ / OUT / −</code></td></tr>
+<tr><td>AJ-SR04M 超声波</td><td>2</td><td>小蓝板 + 一根线连着圆探头，板上 5 根针，中间白色插座插探头</td></tr>
+<tr><td>MH-FMD 蜂鸣器</td><td>1</td><td>小蓝板中间一个黑圆柱，3 根针，板上印"低电平触发"</td></tr>
+<tr><td>GY-BMP280 / BME280</td><td>1</td><td>紫色小板，4 根针 <code>VIN/GND/SCL/SDA</code></td></tr>
+<tr><td>MPU6050（GY-521）</td><td>1</td><td>小方板，中间一颗黑芯片，8 根针，用前 4 根</td></tr>
+<tr><td>电容式土壤探条</td><td>2</td><td>长条板，3 根针 <code>GND/5V/OUT</code></td></tr>
+<tr><td>SG92R 舵机</td><td>2</td><td>小方盒 + 三根线（红/棕/橙）+ 舵盘</td></tr>
+<tr><td>1 路继电器模块</td><td>1</td><td>蓝板，一个蓝色方块继电器，<b>两侧是螺丝端子</b></td></tr>
+<tr><td>3V 潜水泵</td><td>1</td><td>带 USB 插头（要剪掉），出水口接铜雾化喷头</td></tr>
+<tr><td>WS2812B 灯带</td><td>1 m</td><td>软灯条，一端有箭头，数据从箭头尾部进</td></tr>
+<tr><td>5V2A 电源（0520）</td><td>1</td><td>黑方块，圆头输出，<b>内正外负</b></td></tr>
+<tr><td>USB 摄像头</td><td>1</td><td>接电脑，不接 ESP32</td></tr>
+</table>
+
+<h3>0.2 阶段 A 要补买的小东西</h3>
+<table>
+<tr><th style="width:190px">要买</th><th style="width:70px">数量</th><th>为什么必须要</th></tr>
+<tr><td class="warn"><b>面包板</b>（400 孔）</td><td>1</td><td>板上只有 2 个 3V3，已被两个超声波占满。DHT11/BMP280/MPU/土壤都要 3.3V，没有面包板接不上</td></tr>
+<tr><td>DC 母头转接线端子</td><td>1</td><td>5V2A 是圆头，插不进面包板；不想买就直接剪掉圆头剥线</td></tr>
+<tr><td>接线端子排（可选）</td><td>1 条</td><td>给舵机、灯带分 5V 用；没有就用面包板替代</td></tr>
+<tr><td>小螺丝刀（十字+一字）</td><td>各 1</td><td>继电器两侧端子要用它压线</td></tr>
+<tr><td>剥线钳 / 美工刀</td><td>1</td><td>剥水泵 USB 线和电源圆头的外皮</td></tr>
+<tr><td>万用表（强烈建议）</td><td>1</td><td>查"到底有没有电""有没有短路"，新手最快的排错工具</td></tr>
+<tr><td>扎带、美纹纸+笔</td><td>若干</td><td>捆线、两端贴标签</td></tr>
+<tr><td>双面胶 / 尼龙扎带</td><td>若干</td><td>把板子固定在沙盘边框上</td></tr>
+</table>
+<div class="hint"><b>不用买电烙铁/焊锡</b>——那是阶段 B 的事。这里全部是插拔，插错拔了重来。</div>
+
+<h3>0.3 桌面怎么摆</h3>
+<div class="box">
+<ol>
+<li>沙盘在后、电脑在前，两块板<b>固定在沙盘靠你这一侧的外边框</b>（板①靠水槽，板②靠坡体）。</li>
+<li>面包板放在两块板中间，当"配电中心"。</li>
+<li>电脑 USB 线从桌子前面绕到板子的 <code>COM</code> 口；5V2A 电源放在面包板旁边。</li>
+<li>手机放旁边——<b>每接完一个模块立刻拍一张照</b>，这是以后最可靠的"接线记忆"，移植到镀锡板时也要靠它。</li>
+</ol>
+</div>
+
+<!-- ============ 1 ============ -->
+<h2><span class="no">1</span>先认识线：公头、母头、三种杜邦线</h2>
+<div class="fig">
+<svg viewBox="0 0 900 190" width="100%" style="max-width:760px" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <g font-size="14" fill="#1c1c1e"><text x="60" y="28" font-weight="600">公头（针）</text><text x="350" y="28" font-weight="600">母头（孔）</text><text x="640" y="28" font-weight="600">线材类型</text></g>
+  <g stroke="#888" stroke-width="1.4" fill="#d9d9de"><rect x="60" y="60" width="15" height="80" rx="2"/><rect x="85" y="60" width="15" height="80" rx="2"/><rect x="110" y="60" width="15" height="80" rx="2"/></g>
+  <path d="M134 100 H210" stroke="#185fa5" stroke-width="2" fill="none"/>
+  <g stroke="#888" stroke-width="1.4" fill="#f4f4f6"><rect x="350" y="60" width="70" height="80" rx="2"/><rect x="362" y="72" width="9" height="18" fill="#fff"/><rect x="380" y="72" width="9" height="18" fill="#fff"/><rect x="398" y="72" width="9" height="18" fill="#fff"/></g>
+  <path d="M424 100 H500" stroke="#185fa5" stroke-width="2" fill="none"/>
+  <text x="60" y="166" font-size="12.5" fill="#8a8a90">凸出来、硬的 → 插进孔里</text>
+  <text x="350" y="166" font-size="12.5" fill="#8a8a90">凹进去、套筒 → 套住针</text>
+  <g font-size="13" fill="#1c1c1e">
+    <circle cx="650" cy="80" r="7" fill="#185fa5"/><path d="M657 80 H690" stroke="#185fa5" stroke-width="2"/><circle cx="698" cy="80" r="7" fill="#fff" stroke="#185fa5" stroke-width="2"/><text x="712" y="85">母对母：两头都是孔</text>
+    <circle cx="650" cy="118" r="7" fill="#fff" stroke="#1d9e75" stroke-width="2"/><path d="M657 118 H690" stroke="#1d9e75" stroke-width="2"/><circle cx="698" cy="118" r="7" fill="#1d9e75"/><text x="712" y="123">公对母：一头针一头孔</text>
+    <circle cx="650" cy="156" r="7" fill="#c0392b"/><path d="M657 156 H690" stroke="#c0392b" stroke-width="2"/><circle cx="698" cy="156" r="7" fill="#c0392b"/><text x="712" y="161">公对公：两头都是针</text>
+  </g>
+</svg>
+<div class="cap">判断方法：捏住线头看金属端——尖针是公，套筒是母</div>
+</div>
+
+<h3>1.1 一条铁律</h3>
+<div class="box">
+<b>针配孔，针配针要用"母对母"，针配面包板孔要用"公对母"。</b>
+<ul>
+<li>ESP32 板子的两排针 = <b>公头</b>；传感器模块的针 = <b>公头</b>；面包板的孔 = <b>母</b>。</li>
+<li>所以：<b>板 ↔ 模块</b> 用 <span class="tag t-mm">母对母</span>；<b>板/模块 ↔ 面包板</b> 用 <span class="tag t-mf">公对母</span>（公头那端插面包板）。</li>
+</ul>
+</div>
+
+<h3>1.2 确认你买的三排线是哪种</h3>
+<div class="box">
+<ol>
+<li>拿一根看两头金属端：两头都是<b>套筒</b> = 母对母；一头针一头孔 = 公对母；两头针 = 公对公。</li>
+<li>本手册 <b>板↔模块用母对母、接面包板用公对母</b>。缺哪种补哪种。</li>
+</ol>
+</div>
+
+<h3>1.3 怎么插、怎么拔</h3>
+<div class="box">
+<ol>
+<li><b>插</b>：捏住线头<b>根部</b>硬塑料，垂直对准针按到底；别捏线身斜插。</li>
+<li><b>拔</b>：捏根部垂直拔，左右轻晃松动，别拽线身。</li>
+<li>插好<b>轻拉确认不松</b>。松线是"时好时坏"的元凶。</li>
+</ol>
+</div>
+
+<h3>1.4 颜色约定（定死，别混用）</h3>
+<table>
+<tr><th style="width:110px">颜色</th><th style="width:120px">永远代表</th><th>接到</th></tr>
+<tr><td><span class="w" style="background:#d85a30"></span>橙</td><td>3.3V</td><td>板 <code>3V3</code> / 面包板 3V3 轨</td></tr>
+<tr><td><span class="w" style="background:#e24b4a"></span>红</td><td>5V</td><td>板 <code>5V</code> / 5V2A 正极 / 5V 轨</td></tr>
+<tr><td><span class="w" style="background:#2c2c2a"></span>黑</td><td>地</td><td>板 <code>GND</code> / 公共地</td></tr>
+<tr><td><span class="w" style="background:#378add"></span>蓝</td><td>第一信号</td><td>Trig / OUT / I-O / SDA / DIN</td></tr>
+<tr><td><span class="w" style="background:#ef9f27"></span>黄</td><td>第二信号</td><td>Echo / SCL</td></tr>
+</table>
+<div class="hint">例外：<b>舵机自带的线</b>红=5V、棕=地、橙=信号——这里橙是信号，<span class="warn">别接到 3V3</span>。</div>
+
+<!-- ============ 2 ============ -->
+<h2><span class="no">2</span>三种接线方法</h2>
+
+<h3>2.1 针配针 → 母对母杜邦线</h3>
+<div class="box">
+<ol><li>按丝印认清两端针脚（<b>看字不看位置</b>）。</li><li>母头套住模块针，另一端套住 ESP32 对应数字的针。</li><li>轻拉两端确认紧；拍照。</li></ol>
+</div>
+
+<h3>2.2 板针 → 面包板 → 模块 → 用公对母杜邦线</h3>
+<div class="step"><b>用在哪里：</b>所有需要 3.3V 的模块取电，以及 5V 分配。板上 3V3 只有两个，必须借面包板"复制"出很多个。</div>
+<div class="box">
+<b>面包板三条规则</b>
+<ol>
+<li>两侧的长条"轨"（红线、蓝线旁）是<b>整条连通</b>的：把电引到轨上任意一点，整条轨都有电。</li>
+<li>中间那片区域每 5 个横向孔连通、纵向不通——本手册<b>只用两侧轨</b>。</li>
+<li><b>注意：</b>有些面包板上下（或左右）两条同色轨<b>内部不通</b>，要用一根杜邦线桥接。接完用万用表通断档量一下。</li>
+</ol>
+</div>
+
+<h3>2.3 螺丝端子压线 → 剥线 + 螺丝刀</h3>
+<div class="step"><b>用在哪里：</b>继电器两侧端子、端子排。杜邦线插不进去。</div>
+<div class="box">
+<ol>
+<li>线头剥皮约 <b>5mm</b>；</li><li>螺丝<b>逆时针拧松</b>；</li>
+<li>铜丝<b>插到底</b>，太细就<b>对折成两股</b>；</li><li>拧紧后<b>轻拉线</b>，拉不动才算好。</li>
+</ol>
+</div>
+
+<!-- ============ 3 ============ -->
+<h2><span class="no">3</span>找到针脚：板子的排列规律</h2>
+<div class="box">
+<ol>
+<li><b>按数字找，不要按位置数。</b>每个 GPIO 号直接印在针旁。</li>
+<li><b>5V 和 GND 在 COM 口那一端</b>（你一直插线的 Type-C 口）；<b>两个 3V3 在另一端</b>，挨着 <code>RST</code>。</li>
+<li><b>GND 有好几个</b>，任意一个都是同一个地。</li>
+<li><b>GPIO1、GPIO2 也引出来了</b>（网上按 DevKitC-1 的教程说这俩没引出，对你不成立）。</li>
+<li>两个 Type-C：<code>COM</code> 是串口（一直用它），<code>USB / USB-OTG</code> 是原生口，<b>始终插 COM</b>。</li>
+</ol>
+</div>
+<div class="hint">找不到数字时：手机开闪光灯正对板子俯拍放大。<b>不要凭记忆插</b>。</div>
+
+<!-- ============ 4 ============ -->
+<h2><span class="no">4</span>先搭配电（这步不做，3.3V 不够用）</h2>
+
+<h3>4.1 面包板分电：把 2 个 3V3 变成很多个</h3>
+<div class="step"><b>目标：</b>把板子的一个 3V3"复制"成面包板上一整条轨，让所有 3.3V 模块取电。</div>
+<div class="box">
+<ol>
+<li>一根 <span class="tag t-mf">公对母</span> 橙线：<b>母头</b>插板① <code>3V3</code>，<b>公头</b>插面包板<b>上红轨</b>。</li>
+<li>一根 <span class="tag t-mf">公对母</span> 黑线：母头插板① <code>GND</code>，公头插<b>上蓝轨</b>。</li>
+<li>若面包板上下两条蓝轨不通，插一根短线<b>桥接</b>。</li>
+<li>万用表量：上红轨对 GND 应是 <b>3.3V</b>（不是 5V）。量错立刻拔电检查。</li>
+</ol>
+</div>
+
+<h3>4.2 5V2A 电源出线</h3>
+<div class="box">
+<ol>
+<li><b>先别插 220V。</b>剪掉圆头（或用 DC 转接线），按标签 <code>+</code> 在圆心 → <b>内芯正极(5V)、外皮编织层负极</b>。</li>
+<li>通电用万用表确认内芯对外皮是 5V，然后<b>断电</b>。</li>
+<li>红线(5V+) 插面包板<b>下红轨</b>；黑线(GND−) 插<b>下蓝轨</b>（已和板子 GND 连通）。</li>
+</ol>
+</div>
+<div class="power">面包板四条轨：
+上红轨 = 3.3V（来自板① 3V3）
+上蓝轨 = GND（来自板① GND）
+下红轨 = 5V（来自 5V2A 正极）
+下蓝轨 = GND（与上蓝轨桥接，来自电源负极）
+
+板② 也用同一块面包板：再引一根 3V3 线过去即可</div>
+<div class="hint"><span class="warn">功率警报：</span>2A 总共。两块板约 1A，两个舵机堵转可到 1.4A，30 颗灯带全白约 1.8A。<b>灯带压低亮度只亮几颗，两个舵机别同时动</b>。</div>
+
+<!-- ============ 5 ============ -->
+<h2><span class="no">5</span>逐模块接线（每根线标明用什么线、接到哪）</h2>
+<div class="hint">线材缩写：<span class="tag t-mm">母对母</span> 针配针 ｜ <span class="tag t-mf">公对母</span> 针配面包板。每次只接一个模块，接完拍照再下一个。</div>
+
+<h3>板① · Node-A　<code>NODE_ROLE 1</code>（放水槽正后方）</h3>
+
+<h3>1. AJ-SR04M ①（测水面）</h3>
+<table>
+<tr><th class="n">#</th><th style="width:100px">线材</th><th style="width:110px">板端/轨</th><th style="width:100px">模块端</th><th style="width:56px">颜色</th><th>操作要点</th></tr>
+<tr><td class="n">1</td><td><span class="tag t-mf">公对母</span></td><td>3V3 轨</td><td><code>5V</code></td><td><span class="w" style="background:#d85a30"></span>橙</td><td>3V3 供电，Echo 才是安全电平</td></tr>
+<tr><td class="n">2</td><td><span class="tag t-mm">母对母</span></td><td><code>GND</code></td><td><code>GND</code></td><td><span class="w" style="background:#2c2c2a"></span>黑</td><td>任意 GND</td></tr>
+<tr><td class="n">3</td><td><span class="tag t-mm">母对母</span></td><td><code>4</code></td><td><code>Trig</code></td><td><span class="w" style="background:#378add"></span>蓝</td><td>Trig/Echo 别互换</td></tr>
+<tr><td class="n">4</td><td><span class="tag t-mm">母对母</span></td><td><code>5</code></td><td><code>Echo</code></td><td><span class="w" style="background:#ef9f27"></span>黄</td><td>蓝黄并成一小束</td></tr>
+</table>
+<div class="hint">第 5 根针无标 → 空着。<b>白色 JST 座里必须先插上探头线</b>。</div>
+
+<h3>2. AJ-SR04M ②（测积水）</h3>
+<table>
+<tr><th class="n">#</th><th style="width:100px">线材</th><th style="width:110px">板端/轨</th><th style="width:100px">模块端</th><th style="width:56px">颜色</th><th>操作要点</th></tr>
+<tr><td class="n">5</td><td><span class="tag t-mf">公对母</span></td><td>3V3 轨</td><td><code>5V</code></td><td><span class="w" style="background:#d85a30"></span>橙</td><td>从同一 3V3 轨取电</td></tr>
+<tr><td class="n">6</td><td><span class="tag t-mm">母对母</span></td><td><code>GND</code></td><td><code>GND</code></td><td><span class="w" style="background:#2c2c2a"></span>黑</td><td></td></tr>
+<tr><td class="n">7</td><td><span class="tag t-mm">母对母</span></td><td><code>6</code></td><td><code>Trig</code></td><td><span class="w" style="background:#378add"></span>蓝</td><td>两只超声波贴标签 A/B</td></tr>
+<tr><td class="n">8</td><td><span class="tag t-mm">母对母</span></td><td><code>7</code></td><td><code>Echo</code></td><td><span class="w" style="background:#ef9f27"></span>黄</td><td></td></tr>
+</table>
+
+<h3>3. DHT11 温湿度</h3>
+<table>
+<tr><th class="n">#</th><th style="width:100px">线材</th><th style="width:110px">板端/轨</th><th style="width:100px">模块端</th><th style="width:56px">颜色</th><th>操作要点</th></tr>
+<tr><td class="n">9</td><td><span class="tag t-mf">公对母</span></td><td>3V3 轨</td><td><code>+</code></td><td><span class="w" style="background:#d85a30"></span>橙</td><td class="warn">标 + / OUT / −，正负极别反，反接发烫</td></tr>
+<tr><td class="n">10</td><td><span class="tag t-mm">母对母</span></td><td><code>GND</code></td><td><code>−</code></td><td><span class="w" style="background:#2c2c2a"></span>黑</td><td></td></tr>
+<tr><td class="n">11</td><td><span class="tag t-mm">母对母</span></td><td><code>8</code></td><td><code>OUT</code></td><td><span class="w" style="background:#378add"></span>蓝</td><td>数据脚必须是数字 8</td></tr>
+</table>
+
+<h3>4. GY-BMP280 / BME280</h3>
+<table>
+<tr><th class="n">#</th><th style="width:100px">线材</th><th style="width:110px">板端/轨</th><th style="width:100px">模块端</th><th style="width:56px">颜色</th><th>操作要点</th></tr>
+<tr><td class="n">12</td><td><span class="tag t-mf">公对母</span></td><td>3V3 轨</td><td><code>VIN</code></td><td><span class="w" style="background:#d85a30"></span>橙</td><td class="warn">不要接 5V，SDA/SCL 上拉到 5V 会伤板</td></tr>
+<tr><td class="n">13</td><td><span class="tag t-mm">母对母</span></td><td><code>GND</code></td><td><code>GND</code></td><td><span class="w" style="background:#2c2c2a"></span>黑</td><td></td></tr>
+<tr><td class="n">14</td><td><span class="tag t-mm">母对母</span></td><td><code>9</code></td><td><code>SDA</code></td><td><span class="w" style="background:#378add"></span>蓝</td><td>I2C 两根等长并排</td></tr>
+<tr><td class="n">15</td><td><span class="tag t-mm">母对母</span></td><td><code>10</code></td><td><code>SCL</code></td><td><span class="w" style="background:#ef9f27"></span>黄</td><td></td></tr>
+</table>
+
+<h3>板② · Node-C　<code>NODE_ROLE 3</code>（放坡体正后方）</h3>
+
+<h3>5. MPU6050 倾角</h3>
+<table>
+<tr><th class="n">#</th><th style="width:100px">线材</th><th style="width:110px">板端/轨</th><th style="width:100px">模块端</th><th style="width:56px">颜色</th><th>操作要点</th></tr>
+<tr><td class="n">1</td><td><span class="tag t-mf">公对母</span></td><td>3V3 轨</td><td><code>VCC</code></td><td><span class="w" style="background:#d85a30"></span>橙</td><td rowspan="4">GY-521 针序 <code>VCC GND SCL SDA</code>，<b>SCL 在 SDA 前</b></td></tr>
+<tr><td class="n">2</td><td><span class="tag t-mm">母对母</span></td><td><code>GND</code></td><td><code>GND</code></td><td><span class="w" style="background:#2c2c2a"></span>黑</td></tr>
+<tr><td class="n">3</td><td><span class="tag t-mm">母对母</span></td><td><code>9</code></td><td><code>SDA</code></td><td><span class="w" style="background:#378add"></span>蓝</td></tr>
+<tr><td class="n">4</td><td><span class="tag t-mm">母对母</span></td><td><code>10</code></td><td><code>SCL</code></td><td><span class="w" style="background:#ef9f27"></span>黄</td></tr>
+</table>
+<div class="hint">MPU6050 和 BMP280 <b>共用 SDA=9 / SCL=10</b>，这是 I2C 正常用法。</div>
+
+<h3>6. 土壤探条 ×2（先布线，暂不上报）</h3>
+<table>
+<tr><th class="n">#</th><th style="width:100px">线材</th><th style="width:110px">板端/轨</th><th style="width:100px">模块端</th><th style="width:56px">颜色</th><th>操作要点</th></tr>
+<tr><td class="n">5</td><td><span class="tag t-mf">公对母</span></td><td>3V3 轨</td><td>A: <code>5V</code></td><td><span class="w" style="background:#d85a30"></span>橙</td><td class="warn">探条标 5V 但<b>一定用 3V3</b></td></tr>
+<tr><td class="n">6</td><td><span class="tag t-mm">母对母</span></td><td><code>GND</code></td><td>A: <code>GND</code></td><td><span class="w" style="background:#2c2c2a"></span>黑</td><td></td></tr>
+<tr><td class="n">7</td><td><span class="tag t-mm">母对母</span></td><td><code>6</code></td><td>A: <code>OUT</code></td><td><span class="w" style="background:#378add"></span>蓝</td><td></td></tr>
+<tr><td class="n">8</td><td><span class="tag t-mf">公对母</span></td><td>3V3 轨</td><td>B: <code>5V</code></td><td><span class="w" style="background:#d85a30"></span>橙</td><td>两根探条线并一束</td></tr>
+<tr><td class="n">9</td><td><span class="tag t-mm">母对母</span></td><td><code>GND</code></td><td>B: <code>GND</code></td><td><span class="w" style="background:#2c2c2a"></span>黑</td><td></td></tr>
+<tr><td class="n">10</td><td><span class="tag t-mm">母对母</span></td><td><code>7</code></td><td>B: <code>OUT</code></td><td><span class="w" style="background:#378add"></span>蓝</td><td></td></tr>
+</table>
+
+<h3>7. 舵机 ×2（独立供电，重点）</h3>
+<table>
+<tr><th class="n">#</th><th style="width:100px">线材</th><th style="width:110px">板端/轨</th><th style="width:100px">舵机端</th><th style="width:56px">原色</th><th>操作要点</th></tr>
+<tr><td class="n">11</td><td><span class="tag t-mm">母对母</span></td><td><code>11</code></td><td>① 橙（信号）</td><td><span class="w" style="background:#ef9f27"></span>橙</td><td class="warn">信号接板子；电源/地不从板子取</td></tr>
+<tr><td class="n">12</td><td><span class="tag t-mm">母对母</span></td><td><code>12</code></td><td>② 橙（信号）</td><td><span class="w" style="background:#ef9f27"></span>橙</td><td>舵机自带公头针，用母对母套住</td></tr>
+<tr><td class="n">13</td><td><span class="tag t-mf">公对母</span></td><td>GND 轨</td><td>两只的<b>棕</b></td><td><span class="w" style="background:#654321"></span>棕</td><td>棕线接公共地</td></tr>
+<tr><td class="n">14</td><td><span class="tag t-mf">公对母</span></td><td>5V 轨/端子排</td><td>两只的<b>红</b></td><td><span class="w" style="background:#e24b4a"></span>红</td><td class="warn">红线接 5V，别接板子 3V3</td></tr>
+</table>
+<div class="hint">舵机线颜色<b>自带不要换</b>：红=5V、棕=地、橙=信号。这里橙是信号。</div>
+
+<h3>8. 蜂鸣器（有源 · 低电平触发）</h3>
+<table>
+<tr><th class="n">#</th><th style="width:100px">线材</th><th style="width:110px">板端/轨</th><th style="width:100px">模块端</th><th style="width:56px">颜色</th><th>操作要点</th></tr>
+<tr><td class="n">15</td><td><span class="tag t-mf">公对母</span></td><td>5V 轨</td><td><code>VCC</code></td><td><span class="w" style="background:#e24b4a"></span>红</td><td>板上印"低电平触发"</td></tr>
+<tr><td class="n">16</td><td><span class="tag t-mm">母对母</span></td><td><code>13</code></td><td><code>I-O</code></td><td><span class="w" style="background:#378add"></span>蓝</td><td class="warn"><code>digitalWrite(13,LOW)</code> 才响，不要 tone()</td></tr>
+<tr><td class="n">17</td><td><span class="tag t-mm">母对母</span></td><td><code>GND</code></td><td><code>GND</code></td><td><span class="w" style="background:#2c2c2a"></span>黑</td><td></td></tr>
+</table>
+
+<h3>9. WS2812B 灯带</h3>
+<table>
+<tr><th class="n">#</th><th style="width:100px">线材</th><th style="width:110px">板端/轨</th><th style="width:100px">灯带端</th><th style="width:56px">颜色</th><th>操作要点</th></tr>
+<tr><td class="n">18</td><td><span class="tag t-mm">母对母</span></td><td><code>21</code></td><td><code>DIN</code></td><td><span class="w" style="background:#ef9f27"></span>黄</td><td>数据从<b>箭头尾部</b>进</td></tr>
+<tr><td class="n">19</td><td><span class="tag t-mm">母对母</span></td><td><code>GND</code></td><td><code>GND</code></td><td><span class="w" style="background:#2c2c2a"></span>黑</td><td>灯带 GND 必须共地</td></tr>
+<tr><td class="n">20</td><td><span class="tag t-mf">公对母</span></td><td>5V 轨/端子排</td><td><code>5V</code></td><td><span class="w" style="background:#e24b4a"></span>红</td><td>没 330Ω 可先直连；亮度压低</td></tr>
+</table>
+
+<!-- ============ 6 ============ -->
+<h2><span class="no">6</span>继电器、水泵、电源</h2>
+
+<h3>6.1 继电器端子压线</h3>
+<div class="box">
+<b>这块不是排针，是两组螺丝端子</b>：输入侧 <code>DC+ / DC− / IN</code>，输出侧被外壳挡住，经验上<b>中间是 COM</b>，两边 NO / NC。
+</div>
+<table>
+<tr><th style="width:150px">端子</th><th style="width:170px">接哪里</th><th>用什么线、怎么接</th></tr>
+<tr><td><code>DC+</code></td><td>面包板 5V 轨</td><td>公对母线，公头插面包板，另一端剥皮压螺丝</td></tr>
+<tr><td><code>DC−</code></td><td>面包板 GND 轨</td><td>同上</td></tr>
+<tr><td><code>IN</code></td><td>板① <code>14</code></td><td>母对母线，母头套板针，另一端剥皮压螺丝；多为低电平吸合</td></tr>
+<tr><td><code>COM</code></td><td>5V2A 正极</td><td>剥皮线压端子（可与 DC+ 并到同一 5V 点）</td></tr>
+<tr><td><code>NO</code></td><td>水泵红线(+)</td><td>水泵 USB 剪掉后剥出的红线，剥皮压进来</td></tr>
+<tr><td><code>NC</code></td><td><b>空着不接</b></td><td>—</td></tr>
+</table>
+
+<h3>6.2 先测"咔哒"，再接水泵</h3>
+<div class="box">
+<ol>
+<li><b>先把水泵红线从 NO 上拿掉</b>，只接输入侧三根线。</li>
+<li>上传：<pre style="background:#f4f4f6;padding:10px 14px;border-radius:8px;font-size:12.5px;overflow:auto">#define R 14
+void setup(){ pinMode(R, OUTPUT); }
+void loop(){
+  digitalWrite(R, LOW);  delay(1000);
+  digitalWrite(R, HIGH); delay(2000);
+}</pre></li>
+<li>每 2 秒<b>"咔哒"一声</b> + 小灯亮灭 → 低电平吸合，正确。</li>
+<li><b>没反应</b> → 把 LOW/HIGH 对调再传。</li>
+<li><b>一直吸合不松</b> → <span class="warn">立刻断电</span>，查 DC+ 和 DC− 是否碰在一起。</li>
+</ol>
+</div>
+
+<h3>6.3 水泵 USB 线怎么处理</h3>
+<div class="box">
+<ol>
+<li>断电<b>剪掉 USB 插头</b>。剥开外皮，通常红=<code>+</code>、黑=<code>−</code>，<b>万用表确认</b>。</li>
+<li>红线 → 继电器 <code>NO</code>；黑线 → 公共地（面包板 GND 轨）。</li>
+<li>泵标称 3V，给 5V 会偏快。<b>每次开 30 秒以内</b>。</li>
+<li>出水口接铜雾化喷头，朝水槽固定。</li>
+</ol>
+</div>
+
+<!-- ============ 7 ============ -->
+<h2><span class="no">7</span>走线规矩、上电顺序、验收</h2>
+
+<h3>7.1 排列与走线七条规矩</h3>
+<div class="box">
+<ol>
+<li><b>按模块接，不按颜色接。</b>一次一个模块，接完立刻拍照。</li>
+<li><b>信号与电源分两束：</b>蓝/黄走模块正面，橙/红/黑走背面。</li>
+<li><b>短线在上、长线在下。</b></li>
+<li><b>线从板子外侧绕</b>，别压住 USB、BOOT、RST。</li>
+<li><b>每 5 根线打一个扎带</b>，扎在离板 5cm 处。</li>
+<li><b>两端贴标签：</b>写 <code>A-TRIG</code>、<code>C-SERVO1</code>；两只超声波最容易混。</li>
+<li><b>主线束贴后边框走：</b>用缠绕管把电源束包成一股，沿沙盘后边框横穿。</li>
+</ol>
+</div>
+
+<h3>7.2 上电顺序（每次都一样，别跳步）</h3>
+<div class="box">
+<ol>
+<li>全部接完，<b>断电状态</b>复查：5V 有没有插进数字脚、+/− 有没有接反。</li>
+<li>万用表量：3V3 轨对 GND = 3.3V，5V 轨对 GND = 5V，两轨不短路。</li>
+<li>插两块板 USB（先不开串口），<b>摸一遍所有模块</b>——有热的立刻拔电。</li>
+<li>再插 5V2A 电源给舵机、灯带、继电器。</li>
+<li>最后开串口监视器（115200）看数据。</li>
+</ol>
+</div>
+
+<h3>7.3 逐层验收清单（什么时候算"验证成功，可以转镀锡板"）</h3>
+<table>
+<tr><th style="width:60px">层</th><th style="width:200px">做到什么</th><th>怎么确认成功</th></tr>
+<tr><td>1</td><td>每块板单独出数</td><td>串口滚 <code>{"node":"Node-A","water_mm":...}</code>，手在探头前移动数值变化</td></tr>
+<tr><td>2</td><td>网关认得</td><td><code>python gateway/sandbox_gateway.py --mode serial --print-only --steps 5</code> 打出设备名</td></tr>
+<tr><td>3</td><td>大屏有曲线</td><td>后端开 <code>EMQX_ENABLED=true</code>，大屏数值跟着变</td></tr>
+<tr><td>4</td><td>预警弹出</td><td>加水 + 开泵，达到规则阈值弹窗</td></tr>
+<tr><td>5</td><td>硬件联动</td><td>需补 MQTT→串口桥，目前链路未通</td></tr>
+</table>
+<div class="stage" style="margin-top:18px">
+<b>第 1–4 层都通过了，就可以转阶段 B 了。</b> 打开<b>《阶段 B · 镀锡板焊接版》（WIRING_CARD.html）</b>，照最后一节"从面包板移植到镀锡板"把线一根根搬过去焊死。信号脚接线两阶段完全一样，只需重做配电部分。<br>
+联调前记得把 <code>config.yaml</code> 的 <code>serial</code> 配两条、把不存在的 Node-B 设备注释掉。
+</div>
+
+<div class="foot">
+建议动手顺序：备齐面包板和线 → 面包板搭三轨并量电压 → 板①两个超声波（就能测水位）→ DHT11 / BMP280 → 继电器 → 板②。每接一组拍一张照。有任何一步发烫或短路，立刻断电。
+</div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>配电板分布需求图（转发给设计者）</title>
+<style>
+  :root{--ink:#1c1c1e;--mute:#8a8a90;--line:#e2e2e6;--paper:#fff;--bg:#f4f4f6;--red:#c0392b;--amber:#854f0b;--green:#1d9e75}
+  *{box-sizing:border-box}
+  body{margin:0;padding:30px 18px;background:var(--bg);color:var(--ink);font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;line-height:1.65}
+  .sheet{max-width:980px;margin:0 auto;background:var(--paper);padding:36px 44px 46px;border-radius:14px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+  h1{font-size:24px;font-weight:600;margin:0 0 4px}
+  .sub{color:var(--mute);font-size:13px;margin-bottom:6px}
+  h2{font-size:17px;font-weight:600;margin:32px 0 10px;padding-bottom:6px;border-bottom:2px solid var(--ink)}
+  .tip{background:#e6f1fb;border:1px solid #85b7eb;border-radius:10px;padding:12px 16px;margin:14px 0 22px;font-size:13px;color:#0c447c}
+  .fig{border:1px solid var(--line);border-radius:10px;background:#fbfbfc;padding:10px;margin:12px 0;text-align:center}
+  table{width:100%;border-collapse:collapse;font-size:13px;margin:8px 0}
+  th{text-align:left;font-weight:500;color:var(--mute);font-size:12px;padding:7px 9px;border-bottom:1px solid var(--line);background:#fafafb}
+  td{padding:7px 9px;border-bottom:1px solid #f0f0f2;vertical-align:top}
+  code{font-family:Consolas,Menlo,monospace;font-size:12.5px;background:#f4f4f6;padding:1px 5px;border-radius:4px;white-space:nowrap}
+  .box{border:1px solid var(--line);border-radius:10px;padding:13px 17px;background:#fbfbfc;margin:12px 0}
+  .box ol,.box ul{margin:6px 0 0;padding-left:22px}
+  .box li{margin:5px 0}
+  .warn{color:var(--red);font-weight:500}
+  .foot{margin-top:30px;padding-top:13px;border-top:1px dashed var(--line);color:var(--mute);font-size:12px}
+  @media print{body{background:#fff;padding:0;font-size:12px}.sheet{box-shadow:none;border-radius:0;padding:0 6mm;max-width:none}h2,table,.fig,.box{page-break-inside:avoid}}
+</style>
+</head>
+<body>
+<div class="sheet">
+
+<h1>电源分配板 · 分布需求图</h1>
+<div class="sub">用途：给两块 ESP32-S3 和其它模块分配 3.3V / 5V / GND 三路电源</div>
+<div class="sub">把这一页直接发给设计板子的人即可 —— 下方有板框尺寸、孔位坐标、网络定义和验收要求</div>
+
+<div class="tip"><b>一句话需求：</b>一块小板，上面焊 <b>3 排 × 16 针</b>直排针（共 48 孔）。<b>每一排的 16 个孔用铜箔连成一条</b>，<b>三排之间互不相连</b>。三排分别是 5V、GND、3V3。</div>
+
+<h2>一、板子俯视分布图</h2>
+<div class="fig">
+<svg viewBox="0 0 760 590" width="100%" style="max-width:720px" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <text x="380" y="24" text-anchor="middle" font-size="14" font-weight="500" fill="#1c1c1e">俯视图 · 排针朝上 · 尺寸单位 mm</text>
+
+  <rect x="130" y="70" width="500" height="400" rx="8" fill="#e8f2e9" stroke="#2f6b3a" stroke-width="1.5"/>
+
+  <rect x="150" y="182" width="460" height="36" rx="4" fill="#e24b4a" opacity="0.28"/>
+  <rect x="150" y="282" width="460" height="36" rx="4" fill="#5f5e5a" opacity="0.28"/>
+  <rect x="150" y="382" width="460" height="36" rx="4" fill="#d85a30" opacity="0.28"/>
+
+  <g>
+    <circle cx="190" cy="200" r="10" fill="#d4af37" stroke="#8a6d1f" stroke-width="1"/>
+    <circle cx="210" cy="200" r="10" fill="#d4af37" stroke="#8a6d1f" stroke-width="1"/>
+    <circle cx="230" cy="200" r="10" fill="#d4af37" stroke="#8a6d1f" stroke-width="1"/>
+    <circle cx="250" cy="200" r="10" fill="#d4af37" stroke="#8a6d1f" stroke-width="1"/>
+    <circle cx="270" cy="200" r="10" fill="#d4af37" stroke="#8a6d1f" stroke-width="1"/>
+    <circle cx="290" cy="200" r="10" fill="#d4af37" stroke="#8a6d1f" stroke-width="1"/>
+    <circle cx="310" cy="200" r="10" fill="#d4af37" stroke="#8a6d1f" stroke-width="1"/>
+    <circle cx="330" cy="200" r="10" fill="#d4af37" stroke="#8a6d1f" stroke-width="1"/>
+    <circle cx="350" cy="200" r="10" fill="#d4af37" stroke="#8a6d1f" stroke-width="1"/>
+    <circle cx="370" cy="200" r="10" fill="#d4af37" stroke="#8a6d1f" stroke-width="1"/>
+    <circle cx="390" cy="200" r="10" fill="#d4af37" stroke="#8a6d1f" stroke-width="1"/>
+    <circle cx="410" cy="200" r="10" fill="#d4af37" stroke="#8a6d1f" stroke-width="1"/>
+    <circle cx="430" cy="200" r="10" fill="#d4af37" stroke="#8a6d1f" stroke-width="1"/>
+    <circle cx="450" cy="200" r="10" fill="#d4af37" stroke="#8a6d1f" stroke-width="1"/>
+    <circle cx="470" cy="200" r="10" fill="#d4af37" stroke="#8a6d1f" stroke-width="1"/>
+    <circle cx="490" cy="200" r="10" fill="#d4af37" stroke="#8a6d1f" stroke-width="1"/>
+  </g>
+  <g>
+    <circle cx="190" cy="300" r="10" fill="#d4af37" stroke="#8a6d1f" stroke-width="1"/>
+    <circle cx="210" cy="300" r="10" fill="#d4af37" stroke="#8a6d1f" stroke-width="1"/>
+    <circle cx="230" cy="300" r="10" fill="#d4af37" stroke="#8a6d1f" stroke-width="1"/>
+    <circle cx="250" cy="300" r="10" fill="#d4af37" stroke="#8a6d1f" stroke-width="1"/>
+    <circle cx="270" cy="300" r="10" fill="#d4af37" stroke="#8a6d1f" stroke-width="1"/>
+    <circle cx="290" cy="300" r="10" fill="#d4af37" stroke="#8a6d1f" stroke-width="1"/>
+    <circle cx="310" cy="300" r="10" fill="#d4af37" stroke="#8a6d1f" stroke-width="1"/>
+    <circle cx="330" cy="300" r="10" fill="#d4af37" stroke="#8a6d1f" stroke-width="1"/>
+    <circle cx="350" cy="300" r="10" fill="#d4af37" stroke="#8a6d1f" stroke-width="1"/>
+    <circle cx="370" cy="300" r="10" fill="#d4af37" stroke="#8a6d1f" stroke-width="1"/>
+    <circle cx="390" cy="300" r="10" fill="#d4af37" stroke="#8a6d1f" stroke-width="1"/>
+    <circle cx="410" cy="300" r="10" fill="#d4af37" stroke="#8a6d1f" stroke-width="1"/>
+    <circle cx="430" cy="300" r="10" fill="#d4af37" stroke="#8a6d1f" stroke-width="1"/>
+    <circle cx="450" cy="300" r="10" fill="#d4af37" stroke="#8a6d1f" stroke-width="1"/>
+    <circle cx="470" cy="300" r="10" fill="#d4af37" stroke="#8a6d1f" stroke-width="1"/>
+    <circle cx="490" cy="300" r="10" fill="#d4af37" stroke="#8a6d1f" stroke-width="1"/>
+  </g>
+  <g>
+    <circle cx="190" cy="400" r="10" fill="#d4af37" stroke="#8a6d1f" stroke-width="1"/>
+    <circle cx="210" cy="400" r="10" fill="#d4af37" stroke="#8a6d1f" stroke-width="1"/>
+    <circle cx="230" cy="400" r="10" fill="#d4af37" stroke="#8a6d1f" stroke-width="1"/>
+    <circle cx="250" cy="400" r="10" fill="#d4af37" stroke="#8a6d1f" stroke-width="1"/>
+    <circle cx="270" cy="400" r="10" fill="#d4af37" stroke="#8a6d1f" stroke-width="1"/>
+    <circle cx="290" cy="400" r="10" fill="#d4af37" stroke="#8a6d1f" stroke-width="1"/>
+    <circle cx="310" cy="400" r="10" fill="#d4af37" stroke="#8a6d1f" stroke-width="1"/>
+    <circle cx="330" cy="400" r="10" fill="#d4af37" stroke="#8a6d1f" stroke-width="1"/>
+    <circle cx="350" cy="400" r="10" fill="#d4af37" stroke="#8a6d1f" stroke-width="1"/>
+    <circle cx="370" cy="400" r="10" fill="#d4af37" stroke="#8a6d1f" stroke-width="1"/>
+    <circle cx="390" cy="400" r="10" fill="#d4af37" stroke="#8a6d1f" stroke-width="1"/>
+    <circle cx="410" cy="400" r="10" fill="#d4af37" stroke="#8a6d1f" stroke-width="1"/>
+    <circle cx="430" cy="400" r="10" fill="#d4af37" stroke="#8a6d1f" stroke-width="1"/>
+    <circle cx="450" cy="400" r="10" fill="#d4af37" stroke="#8a6d1f" stroke-width="1"/>
+    <circle cx="470" cy="400" r="10" fill="#d4af37" stroke="#8a6d1f" stroke-width="1"/>
+    <circle cx="490" cy="400" r="10" fill="#d4af37" stroke="#8a6d1f" stroke-width="1"/>
+  </g>
+
+  <g fill="#1c1c1e" font-size="13" font-weight="500">
+    <text x="95" y="205">5V</text>
+    <text x="88" y="305">GND</text>
+    <text x="88" y="405">3V3</text>
+  </g>
+
+  <rect x="176" y="186" width="28" height="28" rx="3" fill="none" stroke="#fff" stroke-width="2"/>
+  <rect x="176" y="286" width="28" height="28" rx="3" fill="none" stroke="#fff" stroke-width="2"/>
+  <rect x="176" y="386" width="28" height="28" rx="3" fill="none" stroke="#fff" stroke-width="2"/>
+
+  <g stroke="#2c2c2a" stroke-width="1" fill="none">
+    <path d="M130 52 H630"/>
+    <path d="M130 47 V57 M630 47 V57"/>
+    <path d="M108 70 V470"/>
+    <path d="M103 70 H113 M103 470 H113"/>
+  </g>
+  <text x="380" y="45" text-anchor="middle" font-size="12.5" fill="#2c2c2a">50 mm</text>
+  <text x="100" y="275" text-anchor="middle" font-size="12.5" fill="#2c2c2a" transform="rotate(-90 100 275)">40 mm</text>
+
+  <g font-size="12" fill="#444441">
+    <text x="205" y="165">← 第 1 针（白框标出），为电源输入位 →</text>
+    <text x="205" y="435">每排 16 孔，孔距 2.54 mm</text>
+  </g>
+
+  <text x="380" y="515" text-anchor="middle" font-size="12.5" fill="#c0392b" font-weight="500">同一排 16 孔用铜箔连成一条 · 三排之间绝对不连通</text>
+  <text x="380" y="538" text-anchor="middle" font-size="12" fill="#8a8a90">孔位坐标（相对板左下角）：第1排 y=30，第2排 y=20，第3排 y=10；每排 x=6 起，间距 2.54</text>
+  <text x="380" y="558" text-anchor="middle" font-size="12" fill="#8a8a90">白框 = 每排第 1 针（输入），其余 15 针为输出</text>
+</svg>
+<div class="cap">孔位坐标给出具体数值，设计者可直接按此布局</div>
+</div>
+
+<h2>二、两块板各接哪些模块</h2>
+<div class="tip">两块配电板<b>设计完全相同</b>（都是 3 排×16 孔），区别只在于接的模块不同。按<b>物理位置</b>分：板 A 放水槽边，板 C 放坡体边，线最短也最整齐。</div>
+
+<table>
+<tr><th style="width:120px">板 A · Node-A<br>（水槽边）</th><th style="width:150px">接到 GPIO</th><th>板 C · Node-C<br>（坡体边）</th><th style="width:150px">接到 GPIO</th></tr>
+<tr><td>超声波①</td><td><code>4</code> Trig / <code>5</code> Echo</td><td>MPU6050 倾角</td><td><code>9</code> SDA / <code>10</code> SCL</td></tr>
+<tr><td>超声波②</td><td><code>6</code> Trig / <code>7</code> Echo</td><td>土壤探条 A</td><td><code>6</code> OUT</td></tr>
+<tr><td>DHT11 温湿度</td><td><code>8</code> OUT</td><td>土壤探条 B</td><td><code>7</code> OUT</td></tr>
+<tr><td>BMP280 气压</td><td><code>9</code> SDA / <code>10</code> SCL</td><td>舵机① 危岩</td><td><code>11</code> 信号</td></tr>
+<tr><td>继电器 → 水泵</td><td><code>14</code> IN</td><td>舵机② 滑坡</td><td><code>12</code> 信号</td></tr>
+<tr><td></td><td></td><td>蜂鸣器</td><td><code>13</code> I-O</td></tr>
+<tr><td></td><td></td><td>灯带</td><td><code>21</code> DIN</td></tr>
+</table>
+<div class="hint" style="font-size:12.5px;color:var(--mute)">两块板各用一份同样设计的配电板，16 孔/排的余量足够。MPU6050 和 BMP280 都接 9/10 是 I2C 的正常挂法（两根线挂多个设备）。</div>
+
+<h2>三、网络与用途定义</h2>
+<table>
+<tr><th style="width:90px">网络</th><th style="width:70px">孔数</th><th style="width:150px">第 1 针（输入）</th><th>其余 15 针（输出）接到</th></tr>
+<tr><td><b style="color:#c0392b">5V</b></td><td>16</td><td>5V2A 电源正极</td><td>舵机红×2、灯带 5V、蜂鸣器 VCC、继电器 DC+</td></tr>
+<tr><td><b style="color:#444441">GND</b></td><td>16</td><td>ESP32 的 GND + 5V2A 负极</td><td>所有模块 GND（含舵机棕、灯带 GND、继电器 DC−）</td></tr>
+<tr><td><b style="color:#d85a30">3V3</b></td><td>16</td><td>ESP32 的 3V3</td><td>超声波×2、DHT11、BMP280、MPU6050、土壤探条×2 的电源脚</td></tr>
+</table>
+<div class="hint" style="font-size:12.5px;color:var(--mute)">输出位按 12 个模块算，留了 3 个余量，不会不够用。</div>
+
+<h2>四、机械与工艺参数</h2>
+<table>
+<tr><th style="width:170px">项目</th><th>要求</th></tr>
+<tr><td>板框尺寸</td><td>约 <b>50 mm × 40 mm</b>（如上图），四角可倒圆角</td></tr>
+<tr><td>排针</td><td>1×16 直排针，<b>2.54 mm</b> 间距，共 3 排（也可用 1×40 剪成 16）</td></tr>
+<tr><td>孔径</td><td><b>1.0 mm</b> 通孔（能插进标准排针脚）</td></tr>
+<tr><td>焊盘</td><td>外径 <b>1.6–1.8 mm</b>，双面焊盘</td></tr>
+<tr><td>铜箔</td><td>同一排 16 孔连成一条铜带；<b>三条铜带之间保持间距，绝不相连</b></td></tr>
+<tr><td>丝印</td><td>三排旁分别印 <code>5V</code> / <code>GND</code> / <code>3V3</code>；每排第 1 针做方框或圆点标记</td></tr>
+<tr><td>板厚 / 铜厚</td><td>1.6 mm / 1 oz 即可</td></tr>
+</table>
+
+<h2>五、交付前验收（设计者自测）</h2>
+<div class="box">
+<ol>
+<li>万用表蜂鸣档量<b>同一排任意两孔</b>：必须响（连通）。</li>
+<li>量<b>不同排任意两孔</b>：必须不响（绝缘）。<span class="warn">这条最关键，短路会烧板。</span></li>
+<li>装好排针、接上电源后：5V 排对 GND 排 = <b>5V</b>，3V3 排对 GND 排 = <b>3.3V</b>。</li>
+</ol>
+</div>
+
+<div class="foot">这块是纯配电板，不含任何芯片和信号走线——信号脚仍用杜邦线直连 ESP32。板子只做"把一个 3V3/5V/GND 扩展成很多个"这一件事。</div>
+
+</div>
+</body>
+</html>

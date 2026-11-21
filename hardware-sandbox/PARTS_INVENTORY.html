@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>沙盘元件清单 · 型号与数量</title>
+<style>
+  :root{--ink:#1c1c1e;--mute:#8a8a90;--line:#e2e2e6;--paper:#fff;--bg:#f4f4f6;--red:#c0392b;--blue:#185fa5;--amber:#854f0b;--green:#1d9e75}
+  *{box-sizing:border-box}
+  body{margin:0;padding:30px 18px;background:var(--bg);color:var(--ink);font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;line-height:1.65}
+  .sheet{max-width:1000px;margin:0 auto;background:var(--paper);padding:36px 44px 46px;border-radius:14px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+  h1{font-size:24px;font-weight:600;margin:0 0 4px}
+  .sub{color:var(--mute);font-size:13px;margin-bottom:6px}
+  h2{font-size:17px;font-weight:600;margin:30px 0 10px;padding-bottom:6px;border-bottom:2px solid var(--ink)}
+  table{width:100%;border-collapse:collapse;font-size:13px;margin:8px 0}
+  th{text-align:left;font-weight:500;color:var(--mute);font-size:12px;padding:7px 9px;border-bottom:1px solid var(--line);background:#fafafb}
+  td{padding:7px 9px;border-bottom:1px solid #f0f0f2;vertical-align:top}
+  td.q{font-weight:600;color:var(--blue);white-space:nowrap;width:56px}
+  code{font-family:Consolas,Menlo,monospace;font-size:12.5px;background:#f4f4f6;padding:1px 5px;border-radius:4px;white-space:nowrap}
+  .box{border:1px solid var(--line);border-radius:10px;padding:13px 17px;background:#fbfbfc;margin:12px 0}
+  .box ol,.box ul{margin:6px 0 0;padding-left:22px}.box li{margin:5px 0}
+  .tip{background:#faeeda;border:1px solid #ef9f27;border-radius:10px;padding:12px 16px;margin:14px 0 22px;font-size:13px;color:#854f0b}
+  .warn{color:var(--red);font-weight:500}
+  .tagA{background:#e6f1fb;color:#185fa5;padding:1px 6px;border-radius:10px;font-size:11.5px}
+  .tagC{background:#fbeee8;color:#993c1d;padding:1px 6px;border-radius:10px;font-size:11.5px}
+  .foot{margin-top:30px;padding-top:13px;border-top:1px dashed var(--line);color:var(--mute);font-size:12px}
+  @media print{body{background:#fff;padding:0;font-size:12px}.sheet{box-shadow:none;border-radius:0;padding:0 6mm;max-width:none}h2,table,.box{page-break-inside:avoid}}
+</style>
+</head>
+<body>
+<div class="sheet">
+
+<h1>沙盘元件清单 · 型号与数量</h1>
+<div class="sub">来源：2026-11-13 淘宝订单共 <b>18 单 / 实付合计 ¥303.14</b>，并按后续实物照片修正型号</div>
+<div class="sub">归属：<span class="tagA">板 A · Node-A</span> 水槽边 ｜ <span class="tagC">板 C · Node-C</span> 坡体边 ｜ 另有部分不接 ESP32</div>
+
+<div class="tip"><b>三处数量修正（之前记错过，以此表为准）：</b>ESP32-S3 是 <b>2 块</b>不是 1 块；舵机是 <b>3 个</b>不是 2 个；杜邦线是 <b>2 排</b>（母对母、公对母各一排 40P）不是 3 排。</div>
+
+<h2>一、主控与供电</h2>
+<table>
+<tr><th style="width:70px">数量</th><th style="width:230px">型号 / 名称</th><th style="width:110px">归属</th><th>说明</th></tr>
+<tr><td class="q">2 块</td><td><code>ESP32-S3-N16R8 开发板</code>（焊接好排针版）</td><td>板 A + 板 C 各一</td><td>16MB Flash + 8MB PSRAM；两块板各刷一份固件，只改 <code>NODE_ROLE</code>（A=1、C=3）</td></tr>
+<tr><td class="q">1 个</td><td><code>5V2A 电源（型号 0520）</code>，双线足功率</td><td>共用</td><td>圆头输出，内正外负；给两块板、舵机、灯带、继电器供电</td></tr>
+<tr><td class="q">2 排</td><td><code>杜邦线 21cm 40P</code>：<b>母对母</b> ×1 排 + <b>公对母</b> ×1 排</td><td>通用</td><td>2.54mm 间距。母对母用于针配针，公对母用于插面包板/配电板</td></tr>
+</table>
+
+<h2>二、传感器</h2>
+<table>
+<tr><th style="width:70px">数量</th><th style="width:230px">型号 / 名称</th><th style="width:110px">归属</th><th>说明</th></tr>
+<tr><td class="q">2 个</td><td><code>AJ-SR04M</code> 防水型超声波模块（带线）</td><td><span class="tagA">板 A</span></td><td>rcwl-1670 芯片，圆探头经白色 JST 座接板；测水面与积水</td></tr>
+<tr><td class="q">1 个</td><td><code>DHT11</code> 温湿度模块（送杜邦线）</td><td><span class="tagA">板 A</span></td><td>针脚标 <code>+ / OUT / −</code>；已验证出数</td></tr>
+<tr><td class="q">1 个</td><td><code>GY-BMP280-5V</code> 温度/气压模块</td><td><span class="tagA">板 A</span></td><td>3.3–5V，I2C；卖家标题可能是 BME/BMP280，是否已确认有湿度待测</td></tr>
+<tr><td class="q">2 个</td><td>电容式土壤湿度传感器（土壤湿度计）</td><td><span class="tagC">板 C</span></td><td>长条探条，针脚 <code>GND / 5V / OUT</code>；<span class="warn">务必 3V3 供电</span></td></tr>
+<tr><td class="q">1 个</td><td><code>MPU-6050</code> 六轴模块（GY-521，3 轴加速度 + 陀螺仪）</td><td><span class="tagC">板 C</span></td><td>针序 <code>VCC GND SCL SDA</code>，SCL 在 SDA 前</td></tr>
+</table>
+
+<h2>三、执行器与输出</h2>
+<table>
+<tr><th style="width:70px">数量</th><th style="width:230px">型号 / 名称</th><th style="width:110px">归属</th><th>说明</th></tr>
+<tr><td class="q">3 个</td><td><code>SG92R 9g 舵机</code>，180°（2.5kg / 4.8V）</td><td><span class="tagC">板 C</span></td><td>红=5V、棕=GND、橙=信号；电源走 5V 不取板子。目前规划用 2 个，留 1 个备用</td></tr>
+<tr><td class="q">1 个</td><td>蜂鸣器模块（订单写"无源"，实物 <code>MH-FMD</code> 印"低电平触发"）</td><td><span class="tagC">板 C</span></td><td><span class="warn">实物是有源</span>：<code>digitalWrite(pin,LOW)</code> 响，不要 <code>tone()</code></td></tr>
+<tr><td class="q">2 条</td><td><code>WS2812B</code> 5V 彩灯带，黑棋盘板，1 米/条，带背胶（72 灯）</td><td><span class="tagC">板 C</span></td><td>数据从箭头尾部进；两条共 144 灯，<span class="warn">同时点亮功率超 2A，务必压低亮度</span></td></tr>
+<tr><td class="q">1 个</td><td>3V 微型潜水泵（立式白色，含 1 米 USB 线）</td><td><span class="tagA">板 A</span></td><td>USB 头要剪掉剥线；经继电器控制，每次开 30 秒内</td></tr>
+<tr><td class="q">1 个</td><td>1 路 5V 继电器模块（<code>SRD-05VDC-SL-C</code>，光耦隔离，螺丝端子）</td><td><span class="tagA">板 A</span></td><td>订单未单列（随泵或赠品），实物已确认；输入 <code>DC+/DC−/IN</code>，输出 <code>NO/COM/NC</code></td></tr>
+</table>
+
+<h2>四、摄像头与附件</h2>
+<table>
+<tr><th style="width:70px">数量</th><th style="width:230px">型号 / 名称</th><th style="width:110px">归属</th><th>说明</th></tr>
+<tr><td class="q">1 个</td><td>1080P 摄像头，宽动态 70 度无畸变</td><td>接电脑 USB</td><td>对应平台 <code>SB-CAM-01/02</code>，<b>不接 ESP32</b></td></tr>
+<tr><td class="q">1 个</td><td>摄像头模组 1080P 免驱（3 万/12V 标）</td><td>备用</td><td>同上，视频回传加分项</td></tr>
+<tr><td class="q">1 个</td><td>铜雾化喷头（一铜本色，10cm 随底）</td><td><span class="tagA">板 A</span></td><td>接水泵出水口，朝水槽固定</td></tr>
+<tr><td class="q">1 个</td><td>M2 牙公制尼龙电缆防水接头（4–8mm，ROHS 阻燃）</td><td>结构件</td><td>穿线防水用</td></tr>
+<tr><td class="q">1 支</td><td>翻页笔（磨砂黑，充电款 + 双接收器）</td><td class="warn">与沙盘无关</td><td>订单里唯一的非沙盘物品</td></tr>
+</table>
+
+<h2>五、还没买、要做配电必须补的</h2>
+<div class="box">
+<ul>
+<li><b>阶段 A 面包板验证</b>：面包板 ×1、DC 母头转接线端子 ×1、小螺丝刀、万用表（建议）</li>
+<li><b>阶段 B 焊板</b>：找人设计的配电 PCB ×2（两块板各一块）、或电烙铁 + 焊锡丝 + 镀锡板</li>
+<li><b>可选</b>：接线端子排（给舵机/灯带分 5V）、330Ω 电阻（灯带 DIN 串接，没有可先直连）</li>
+</ul>
+</div>
+
+<div class="foot">
+数量按订单"商品数量"列逐行核对；型号按实物照片修正（蜂鸣器、开发板型号）。智能沙盘尺寸 1.5 × 1.2 m。
+</div>
+
+</div>
+</body>
+</html>
