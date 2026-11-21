@@ -395,7 +395,7 @@ onMounted(() => loadResources())
               <div v-if="r.warning" class="route-result-warning">{{ r.warning }}</div>
             </li>
           </ul>
-          <div v-else class="empty-hint-sm">点击"重新计算"获取路线方案</div>
+          <div v-else class="empty-hint-sm">暂无路线方案</div>
           <div class="route-actions-top">
             <button class="primary-btn" @click="calcRoute" :disabled="routePlanning">
               <Loader2 v-if="routePlanning" :size="13" class="spin" />重新计算

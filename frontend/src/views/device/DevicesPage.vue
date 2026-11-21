@@ -163,10 +163,10 @@ onMounted(loadData)
     </div>
     <template v-else>
       <div class="stats-grid">
-        <div class="stat-card"><div class="stat-icon teal"><Radio :size="19" /></div><div class="stat-copy"><span>在线设备</span><strong>{{ onlineCount }} <small>台</small></strong><em class="positive">高可用 <i>MQTT接入</i></em></div></div>
-        <div class="stat-card"><div class="stat-icon orange"><AlertTriangle :size="19" /></div><div class="stat-copy"><span>离线设备</span><strong>{{ offlineCount }} <small>台</small></strong><em class="negative">需运维 <i>立即处理</i></em></div></div>
-        <div class="stat-card"><div class="stat-icon red" v-if="aiCriticalCount" :style="{ background: 'linear-gradient(135deg, #c75d5d, #e08c8c)' }"><AlertTriangle :size="19" /></div><div class="stat-icon orange" v-else><Cpu :size="19" /></div><div class="stat-copy"><span>AI 标严重</span><strong>{{ aiCriticalCount }} <small>台</small></strong><em :class="aiCriticalCount ? 'negative' : 'positive'">{{ aiCriticalCount ? '需立即处置' : '运行良好' }} <i>5 分钟刷新</i></em></div></div>
-        <div class="stat-card"><div class="stat-icon yellow"><Stethoscope :size="19" /></div><div class="stat-copy"><span>AI 关注</span><strong>{{ aiAttentionCount }} <small>台</small></strong><em class="positive">建议加密观测 <i>设备健康分</i></em></div></div>
+        <div class="stat-card"><div class="stat-icon teal"><Radio :size="19" /></div><div class="stat-copy"><span>在线设备</span><strong>{{ onlineCount }} <small>台</small></strong></div></div>
+        <div class="stat-card"><div class="stat-icon orange"><AlertTriangle :size="19" /></div><div class="stat-copy"><span>离线设备</span><strong>{{ offlineCount }} <small>台</small></strong></div></div>
+        <div class="stat-card"><div class="stat-icon red" v-if="aiCriticalCount" :style="{ background: 'linear-gradient(135deg, #c75d5d, #e08c8c)' }"><AlertTriangle :size="19" /></div><div class="stat-icon orange" v-else><Cpu :size="19" /></div><div class="stat-copy"><span>AI 标严重</span><strong>{{ aiCriticalCount }} <small>台</small></strong></div></div>
+        <div class="stat-card"><div class="stat-icon yellow"><Stethoscope :size="19" /></div><div class="stat-copy"><span>AI 关注</span><strong>{{ aiAttentionCount }} <small>台</small></strong></div></div>
       </div>
 
       <div class="content-grid">
@@ -260,7 +260,7 @@ onMounted(loadData)
             <ul v-if="selectedDevice.aiReasoning?.length" class="ai-health-reasons">
               <li v-for="(r, i) in selectedDevice.aiReasoning.slice(0, 3)" :key="i">{{ r }}</li>
             </ul>
-            <p v-else-if="selectedDevice.aiHealthScore == null" class="ai-health-hint">等待 AI 评分（5 分钟自动刷新）</p>
+            <p v-else-if="selectedDevice.aiHealthScore == null" class="ai-health-hint">暂无 AI 评分</p>
             <div v-if="selectedDevice.aiSuggestedActions?.length" class="ai-health-actions">
               <small>建议：</small>
               <span v-for="(a, i) in selectedDevice.aiSuggestedActions.slice(0, 2)" :key="i" class="ai-action-pill">{{ a }}</span>

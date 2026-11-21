@@ -628,7 +628,6 @@ const channelColor = (type) => {
         <h3 class="logs-title">
           <Radar :size="15" />
           发送日志
-          <span class="logs-hint">实时显示最近 50 条</span>
         </h3>
         <div class="logs-table-wrap">
           <table class="logs-table">
@@ -1184,13 +1183,6 @@ const channelColor = (type) => {
   font-weight: 700;
   color: var(--c-ink-1);
   margin: 0 0 12px;
-}
-
-.logs-hint {
-  margin-left: auto;
-  font-size: 12px;
-  font-weight: 400;
-  color: var(--c-text-3);
 }
 
 .logs-table-wrap {

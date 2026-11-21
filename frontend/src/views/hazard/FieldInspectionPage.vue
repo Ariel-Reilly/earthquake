@@ -695,8 +695,7 @@ onMounted(async () => {
         <div v-if="trajectoryLoading" class="fip-loading"><Loader2 :size="20" class="spin" /></div>
         <div v-else-if="!TRAJECTORY_SVG" class="fip-empty">
           <Navigation :size="40" style="color:#c8d5d5" />
-          <p>输入设备编号并点击「加载 24h 轨迹」</p>
-          <p class="fip-empty-sub">基于 device-map/trajectory 接口返回最近 24 小时位置点</p>
+          <p>暂无轨迹数据</p>
         </div>
         <div v-else class="fip-trajectory-content">
           <div class="fip-trajectory-stats">

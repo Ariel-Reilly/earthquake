@@ -182,12 +182,7 @@ const maxValue = computed(() => {
     <!-- 无设备空状态 -->
     <div v-if="!hasDevices && !devicesLoading" class="empty-state">
       <AlertTriangle size="32" />
-      <h3>🔌 该灾害点暂未接入监测设备</h3>
-      <p>无法进行趋势预测。您可以：</p>
-      <ul>
-        <li>切换其他灾害点查看预测趋势</li>
-        <li>联系管理员为该灾害点新增监测设备</li>
-      </ul>
+      <h3>该灾害点暂未接入监测设备</h3>
       <button class="cta-btn" @click="$emit('navigate-to-devices')">
         <Plus size="16" /> 前往设备管理
       </button>
@@ -248,7 +243,6 @@ const maxValue = computed(() => {
       <div v-else-if="forecastError" class="forecast-error">
         <AlertTriangle />
         <p>{{ forecastError }}</p>
-        <p class="hint">该设备暂无预测数据，请稍后重试或切换设备</p>
       </div>
 
       <!-- 预测曲线 -->
@@ -330,7 +324,6 @@ const maxValue = computed(() => {
       <div v-else class="no-forecast">
         <AlertTriangle />
         <p>该设备暂无预测数据</p>
-        <p class="hint">请选择其他设备或稍后重试</p>
       </div>
     </div>
   </div>

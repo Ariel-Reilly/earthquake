@@ -546,7 +546,6 @@ onBeforeUnmount(() => {
                 AI 实时监测：已发现 <strong>{{ aiMonitorCount }}</strong> 个灾害点
                 <small v-if="lastAiDetectedAt"> · 最新 {{ fmtRelTime(lastAiDetectedAt) }}</small>
               </span>
-              <small class="ai-monitor-hint">每 90 秒由 AiHazardMonitorScheduler 自动巡查</small>
             </div>
 
             <div v-if="filteredBySource.length" class="warning-list">
@@ -582,7 +581,7 @@ onBeforeUnmount(() => {
             </div>
             <div v-else class="panel-empty" style="padding: 0 20px 18px; color: #76847a;">
               <template v-if="currentTab === 'ai-monitor'">
-                AI 实时监测尚未发现 {{ levelFilter !== '全部' ? `${levelFilter} ` : '' }}灾害 —— 等待下一个 90s 调度周期
+                暂无 AI 监测灾害
               </template>
               <template v-else>当前条件下没有匹配的灾害点</template>
             </div>
@@ -786,7 +785,7 @@ onBeforeUnmount(() => {
               <ul v-if="confirmationState.detailAnalysis?.suggestedActions?.length" class="actions-list">
                 <li v-for="(a, i) in confirmationState.detailAnalysis.suggestedActions" :key="i">{{ i + 1 }}. {{ a }}</li>
               </ul>
-              <p v-else class="muted">— 暂无具体建议措施 —</p>
+              <p v-else class="muted">暂无建议措施</p>
             </div>
 
             <div class="detail-col">
@@ -892,7 +891,7 @@ onBeforeUnmount(() => {
         </section>
 
         <section v-else class="panel detail-panel placeholder">
-          <p>请从左侧队列中选择一项 AI 初筛事件，查看证据链并确认。</p>
+          <p>未选择事件</p>
         </section>
 
         <!-- 转派弹窗 -->
@@ -928,7 +927,7 @@ onBeforeUnmount(() => {
         <div v-if="confirmationState.rejectDialog" class="mask" @click.self="confirmationState.rejectDialog = false">
           <div class="dialog">
             <h3>驳回 AI 推断</h3>
-            <p class="hint">驳回后该事件进入"已驳回"档案，AI 推理结果会反馈到模型用于下次校准。</p>
+            <p class="hint">驳回后该事件进入"已驳回"档案。</p>
             <label>驳回原因
               <textarea v-model="confirmationState.rejectAction.reason" placeholder="例如：与现场复核一致、无新增迹象" rows="3"></textarea>
             </label>
@@ -1151,12 +1150,6 @@ onBeforeUnmount(() => {
 .ai-monitor-text strong {
   font-weight: 700;
   color: var(--c-warning-strong);
-}
-
-.ai-monitor-hint {
-  font-size: 10px;
-  color: var(--c-warning-ink);
-  opacity: 0.75;
 }
 
 .warning-list {

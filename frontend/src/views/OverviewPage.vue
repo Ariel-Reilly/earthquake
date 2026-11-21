@@ -1579,9 +1579,8 @@ function toggleCompareLegend(which) {
   <div class="overview-page">
     <OverviewSkeleton v-if="loading" />
     <div v-else-if="loadError" class="panel overview-load-error">
-      <p class="overview-load-error-title">态势数据加载失败</p>
+      <p class="overview-load-error-title">态势数据加载失败 · 不代表无预警</p>
       <p class="overview-load-error-desc">{{ loadError }}</p>
-      <p class="overview-load-error-desc">请检查后端服务是否可用，切勿据此判断"无预警"。</p>
       <button type="button" class="text-btn" @click="loadData">重新加载</button>
     </div>
     <template v-else>
@@ -1745,13 +1744,12 @@ function toggleCompareLegend(which) {
                     <ChevronRight :size="14" />
                   </button>
                 </div>
-                <div v-if="searchPanelOpen" class="map-search-panel">
+                <div v-if="searchPanelOpen && searchPanelState !== 'idle'" class="map-search-panel">
                   <div v-if="searchPanelState === 'loading'" class="search-hint">
                     <Loader2 :size="13" class="spin" />搜索中…
                   </div>
                   <div v-else-if="searchPanelState === 'empty'" class="search-hint">
                     {{ searchError || "未找到匹配结果" }}
-                    <small>提示：可输入"经度,纬度"直接定位</small>
                   </div>
                   <div v-else-if="searchPanelState === 'results'" class="search-results">
                     <button
@@ -1771,7 +1769,6 @@ function toggleCompareLegend(which) {
                       <ChevronRight :size="13" class="result-arrow" />
                     </button>
                   </div>
-                  <div v-else class="search-hint">按回车或点击箭头搜索</div>
                   <div v-if="searchPanelState === 'results'" class="search-footer">
                     <a v-if="searchResults[0]?.source === 'osm'" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap 贡献者</a>
                     <span v-else-if="searchResults[0]?.source === 'amap'">高德地图</span>
@@ -1931,7 +1928,6 @@ function toggleCompareLegend(which) {
               <!-- 只列活跃预警后，全部关闭时是合法空态，不能留白让人误以为加载失败 -->
               <div v-if="!visibleWarnings.length" class="panel-empty warning-empty">
                 <p>暂无活跃预警</p>
-                <small>已解除 / 已关闭的预警不在此列</small>
               </div>
               <article
                 v-for="warning in visibleWarnings"

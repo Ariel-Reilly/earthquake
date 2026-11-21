@@ -65,7 +65,7 @@ async function submit() {
     <header class="head">
       <div>
         <h3>密码修改</h3>
-        <p>为了账号安全，建议每 90 天更换一次密码；新密码需 8 位以上且包含数字与字母。</p>
+        <p>新密码需 8 位以上且包含数字与字母。</p>
       </div>
       <ShieldCheck :size="22" class="shield" />
     </header>

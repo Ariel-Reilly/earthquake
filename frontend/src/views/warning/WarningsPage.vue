@@ -601,9 +601,8 @@ onBeforeUnmount(() => {
     <WarningsSkeleton v-if="loading" />
     <!-- 取数失败必须显式报错，绝不能把"加载失败"渲染成"态势平稳"（安全误导） -->
     <div v-else-if="loadError" class="panel warning-load-error">
-      <p class="warning-load-error-title">预警列表加载失败</p>
+      <p class="warning-load-error-title">预警列表加载失败 · 不代表态势平稳</p>
       <p class="warning-load-error-desc">{{ loadError }}</p>
-      <p class="warning-load-error-desc">当前无法确认是否存在待处理预警，请勿据此判断"态势平稳"。</p>
       <button type="button" class="text-btn" @click="loadData(paging.page)">重新加载</button>
     </div>
     <template v-else>

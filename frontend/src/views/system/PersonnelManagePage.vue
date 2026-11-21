@@ -272,7 +272,6 @@ onBeforeUnmount(() => stopAutoRefresh())
         <div v-else-if="!MAP_SVG" class="pmp-empty">
           <MapPin :size="40" class="pmp-empty-ico" />
           <p>暂无人员位置数据</p>
-          <p class="pmp-empty-sub">通过下方"位置上报"按钮模拟上报</p>
         </div>
         <svg v-else :viewBox="`0 0 ${MAP_SVG.W} ${MAP_SVG.H}`" class="pmp-map-svg">
           <line
@@ -942,11 +941,6 @@ export default { components: { ClipboardCheckIcon } }
   margin: 0;
   font-size: 13px;
   color: var(--c-brand-deep);
-}
-
-.pmp-empty-sub {
-  font-size: 11px;
-  color: var(--c-text-4);
 }
 
 .spin {

@@ -104,7 +104,6 @@ loadFromApi()
     <header class="card-head">
       <div>
         <h3>个人信息</h3>
-        <p>头像、姓名、手机号、邮箱、部门可修改；用户名与角色由系统分配。</p>
       </div>
       <span v-if="loading" class="status"><Loader2 class="spin" :size="14" /> 同步中</span>
     </header>

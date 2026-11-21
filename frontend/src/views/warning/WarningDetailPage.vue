@@ -1482,7 +1482,7 @@ onBeforeUnmount(() => {
             <AlertCircle :size="14" />
             <span>{{ warning?.title }}</span>
           </p>
-          <p class="close-dialog-hint">关闭此预警后，事件流转结束，请填写关闭原因。</p>
+          <p class="close-dialog-hint">关闭后事件流转结束。</p>
 
           <div class="close-dialog-presets">
             <button

@@ -543,7 +543,6 @@ watch(() => props.warningId, () => loadData());
               重发全量
             </PermissionButton>
           </div>
-          <span class="delivery-foot-note">重发操作会写入审计日志</span>
         </footer>
       </section>
     </template>
@@ -569,7 +568,7 @@ watch(() => props.warningId, () => loadData());
             </strong>
             重发，是否继续？
           </p>
-          <small class="muted">本次操作会调用后端重发接口并写入审计日志</small>
+          <small class="muted">重发记录写入审计日志</small>
         </div>
         <div class="modal-foot">
           <button class="secondary-btn" @click="closeConfirm">取消</button>
@@ -1104,11 +1103,6 @@ watch(() => props.warningId, () => loadData());
   align-items: center;
   gap: var(--space-sm);
   flex-wrap: wrap;
-}
-
-.delivery-foot-note {
-  font-size: var(--text-xs);
-  color: var(--color-tertiary);
 }
 
 /* ═══════════════════════════════════════════════════════════
