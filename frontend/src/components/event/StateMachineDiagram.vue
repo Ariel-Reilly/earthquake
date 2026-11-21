@@ -198,7 +198,6 @@ const SUMMARY = computed(() => {
     <div class="sm-header">
       <div class="sm-title">
         <strong>统一事件状态机</strong>
-        <span class="sm-subtitle">7 状态 · 12 转移 · Spring StateMachine 驱动</span>
       </div>
       <div class="sm-summary">
         <span class="chip teal">活动 {{ SUMMARY.active }}</span>
@@ -270,7 +269,6 @@ const SUMMARY = computed(() => {
       <span><span class="dot" style="background:#6f9e7f"></span>主链路</span>
       <span><span class="dot" style="background:#e06060"></span>应急进行中</span>
       <span><span class="dot" style="background:#9aab9f"></span>终态（CLOSED/REJECTED）</span>
-      <span class="hint">点击节点筛选该状态的事件</span>
     </div>
   </div>
 </template>
@@ -301,11 +299,6 @@ const SUMMARY = computed(() => {
   font-size: 14px;
   color: var(--c-ink-1);
   margin-right: 8px;
-}
-
-.sm-subtitle {
-  font-size: 12px;
-  color: var(--c-text-2);
 }
 
 .sm-summary {

@@ -229,7 +229,6 @@ onMounted(() => loadResults())
         <option value="">全部灾种</option>
         <option v-for="t in typeOptions" :key="t" :value="t">{{ t }}</option>
       </select>
-      <span class="filter-hint">仅显示模型已给出置信度的记录</span>
     </section>
 
     <div v-if="filteredResults.length === 0" class="empty-row">
@@ -906,12 +905,6 @@ onMounted(() => loadResults())
   font-size: 11px;
   color: var(--c-text-2);
   line-height: 1.7;
-}
-
-.filter-hint {
-  margin-left: auto;
-  color: var(--c-text-2);
-  font-size: 11px;
 }
 
 .dismiss-tip {

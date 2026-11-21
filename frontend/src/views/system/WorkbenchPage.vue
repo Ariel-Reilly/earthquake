@@ -254,7 +254,6 @@ onMounted(loadData)
     <section class="panel-block">
       <div class="block-header">
         <h3>待我处理</h3>
-        <span class="block-hint">点击分类直达处理队列</span>
       </div>
       <div class="todo-grid">
         <button
@@ -275,7 +274,6 @@ onMounted(loadData)
     <section class="panel-block">
       <div class="block-header">
         <h3>快捷入口</h3>
-        <span class="block-hint">演示与投屏常用入口</span>
       </div>
       <div class="quick-grid">
         <button
@@ -299,7 +297,6 @@ onMounted(loadData)
       <div class="tip-icon"><Bell :size="20" /></div>
       <div class="tip-content">
         <h3>通知中心</h3>
-        <p>待办、审批、消息已整合到全局通知抽屉，点击顶栏铃铛图标即可集中处理。</p>
       </div>
     </div>
   </div>
@@ -456,11 +453,6 @@ onMounted(loadData)
   font-size: 15px;
   font-weight: 700;
   color: var(--c-text);
-}
-
-.block-hint {
-  font-size: 12px;
-  color: var(--c-text-3-ink, #6b7a73);
 }
 
 .todo-grid {

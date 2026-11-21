@@ -319,7 +319,6 @@ onMounted(async () => {
           <div class="dap-card">
             <div class="dap-card-header">
               <strong><Radar :size="14" /> 七维度风险分布</strong>
-              <span class="dap-card-sub">各因子加权贡献</span>
             </div>
             <div class="dap-radar-wrap">
               <svg :viewBox="`0 0 ${RADAR_W} ${RADAR_H}`" class="dap-radar-svg">
@@ -400,7 +399,6 @@ onMounted(async () => {
         <div v-if="assessmentResult.disasterType" class="dap-card">
           <div class="dap-card-header">
             <strong><MountainSnow :size="14" /> 灾害类型判定</strong>
-            <span class="dap-card-sub">AI 推断依据</span>
           </div>
           <div class="dap-dt-grid">
             <div class="dap-dt-item">
@@ -602,8 +600,7 @@ onMounted(async () => {
         <!-- Nationwide Empty -->
         <div v-else class="dap-nationwide-empty">
           <Globe :size="48" class="dap-empty-icon" />
-          <p>在左侧输入坐标添加评估点，点击「开始全国测算」</p>
-          <p class="dap-empty-sub">不依赖已知灾害点档案，基于坐标 + 可选因子快速评估全国任意位置</p>
+          <p>暂无评估点</p>
         </div>
       </div>
     </div>
@@ -886,11 +883,6 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: 6px;
-}
-
-.dap-card-sub {
-  font-size: 11px;
-  color: var(--c-text-2);
 }
 
 /* Radar */

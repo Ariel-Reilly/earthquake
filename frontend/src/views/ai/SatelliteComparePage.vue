@@ -368,7 +368,7 @@ onBeforeUnmount(() => {
     <section v-if="phase === 'idle' && !statusText" class="panel empty-panel">
       <Satellite :size="30" />
       <h3>尚未开始对比</h3>
-      <p>选择灾害点、设定灾前 / 灾后时间窗口后点击「开始对比」。没有真实影像时会明确提示，不会给出假结果。</p>
+      <p>无真实影像时不输出结果</p>
     </section>
   </div>
 </template>

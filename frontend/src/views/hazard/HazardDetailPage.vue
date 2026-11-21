@@ -468,7 +468,6 @@ onBeforeUnmount(() => {
         <span v-if="confirmationState.assignee" class="assignee-tag">
           当前认领人：{{ confirmationState.assignee }}
         </span>
-        <span class="ops-hint">← 请先认领再处理，避免多人同时操作</span>
       </div>
       <div class="confirmation-ops-right">
         <button
@@ -516,7 +515,7 @@ onBeforeUnmount(() => {
     <div v-if="confirmationState.rejectDialog" class="mask" @click.self="confirmationState.rejectDialog = false">
       <div class="modal">
         <h3>驳回 AI 推断</h3>
-        <p class="modal-hint">驳回后该事件进入"已驳回"档案，AI 推理结果将反馈到模型用于下次校准。</p>
+        <p class="modal-hint">驳回后该事件进入"已驳回"档案。</p>
         <label>驳回原因
           <textarea v-model="confirmationState.rejectReason" placeholder="例如：与现场复核一致、无新增迹象" rows="3"></textarea>
         </label>
@@ -942,11 +941,6 @@ onBeforeUnmount(() => {
   background: color-mix(in srgb, var(--c-success-strong) 10%, transparent);
   padding: 2px 8px;
   border-radius: var(--r-xs);
-}
-
-.ops-hint {
-  font-size: 11.5px;
-  color: var(--c-text-2);
 }
 
 .confirmation-badge {

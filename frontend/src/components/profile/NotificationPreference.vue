@@ -105,7 +105,6 @@ load()
 
     <div class="block">
       <h4><Bell :size="14" /> 通道总开关</h4>
-      <p class="desc">勾选表示愿意接收；关闭将完全屏蔽该通道。</p>
       <div class="chips">
         <button
           v-for="ch in CHANNELS"
@@ -121,7 +120,6 @@ load()
 
     <div class="block">
       <h4>预警等级渠道矩阵</h4>
-      <p class="desc">按红 / 橙 / 黄 / 蓝分别配置接收通道。</p>
       <div class="matrix">
         <div v-for="lv in LEVELS" :key="lv.value" class="level-row" :style="{ '--level-color': lv.color }">
           <div class="level-name">{{ lv.label }}</div>

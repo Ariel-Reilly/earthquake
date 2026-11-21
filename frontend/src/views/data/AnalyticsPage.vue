@@ -192,7 +192,7 @@ onMounted(() => {
           <div class="stat-copy">
             <span>高分风险点</span>
             <strong>{{ aiLevelDistribution.CRITICAL + aiLevelDistribution.HIGH }} <small>个</small></strong>
-            <em class="negative">综合分 ≥ 60 <i>· 需重点关注</i></em>
+            <em class="negative">综合分 ≥ 60</em>
           </div>
         </div>
         <div class="stat-card">
@@ -200,7 +200,7 @@ onMounted(() => {
           <div class="stat-copy">
             <span>中风险点</span>
             <strong>{{ aiLevelDistribution.MEDIUM }} <small>个</small></strong>
-            <em class="positive">综合分 35-60 <i>· 常规观测</i></em>
+            <em class="positive">综合分 35-60</em>
           </div>
         </div>
       </div>
@@ -216,9 +216,8 @@ onMounted(() => {
           <div class="chart-card">
             <div class="mini-chart-header">
               <strong><ShieldAlert :size="16" /> AI 风险评分排行（TOP 12）</strong>
-              <span>5 分钟自动刷新 · 后端 <code>/ai/comprehensive-analysis/all</code></span>
             </div>
-            <div v-if="aiList.length === 0" class="empty-hint">暂无 AI 评分数据，请确认后端 AI 综合分析调度器已运行。</div>
+            <div v-if="aiList.length === 0" class="empty-hint">暂无 AI 评分数据</div>
             <div v-else class="ai-rank-bars">
               <div v-for="s in aiList.slice(0, 12)" :key="s.hazardCode" class="ai-rank-bar">
                 <span class="ai-rank-code">{{ s.hazardCode }}</span>
@@ -368,7 +367,6 @@ onMounted(() => {
             <div class="stat-copy">
               <span>发现事件数</span>
               <strong>{{ inspectionReport?.discoveredEvents ?? '--' }}<small>起</small></strong>
-              <em class="positive">AI 巡检累计</em>
             </div>
           </div>
           <div class="stat-card">
@@ -376,7 +374,6 @@ onMounted(() => {
             <div class="stat-copy">
               <span>误报率</span>
               <strong>{{ inspectionReport?.falsePositiveRate ?? '--' }}<small>%</small></strong>
-              <em class="negative">越低越好</em>
             </div>
           </div>
           <div class="stat-card">
@@ -384,7 +381,6 @@ onMounted(() => {
             <div class="stat-copy">
               <span>漏报率</span>
               <strong>{{ inspectionReport?.missRate ?? '--' }}<small>%</small></strong>
-              <em class="negative">越低越好</em>
             </div>
           </div>
         </div>

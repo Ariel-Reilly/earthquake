@@ -443,8 +443,6 @@ function relativeTime(isoStr) {
       <div class="cs-header-left">
         <ShieldAlert :size="22" class="cs-logo-icon" />
         <span class="cs-logo-text">地脉智巡 · 指挥大厅</span>
-        <span class="cs-divider">|</span>
-        <span class="cs-subtitle">DisasterGuard Command Center</span>
       </div>
 
       <!-- 中: 视图切换标签 -->
@@ -894,16 +892,6 @@ function relativeTime(isoStr) {
   font-weight: 700;
   color: var(--c-brand-mist);
   letter-spacing: 1px;
-}
-
-.cs-divider {
-  color: var(--c-ink-1);
-}
-
-.cs-subtitle {
-  font-size: 12px;
-  color: var(--c-text-3);
-  letter-spacing: 0.5px;
 }
 
 /* 标签切换 */

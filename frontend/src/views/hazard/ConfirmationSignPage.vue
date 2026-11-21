@@ -313,7 +313,6 @@ onBeforeUnmount(() => { if (tabTimer.value) window.clearInterval(tabTimer.value)
         </div>
         <div v-else>
           <template v-if="tab === 'inbox'">
-            <p class="hint">从 AI 巡检的疑似事件中挑选发起的会签；下面是当前"待二次确认"队列。</p>
             <ul>
               <li
                 v-for="ev in draftsEvents"
@@ -358,7 +357,6 @@ onBeforeUnmount(() => { if (tabTimer.value) window.clearInterval(tabTimer.value)
           </template>
 
           <template v-if="tab === 'cc'">
-            <p class="hint">被抄送的会签（其他人发起的、你需要在期限内确认）。</p>
             <ul>
               <li v-for="r in records.filter((x) => x.cc?.includes(operator.name))" :key="r.id" class="item" :class="{ active: selectedRecord?.id === r.id }" @click="selectRecord(r)">
                 <div class="ev-head">

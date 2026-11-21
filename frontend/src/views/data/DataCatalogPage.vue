@@ -734,7 +734,7 @@ onMounted(async () => {
           <header class="drawer-head">
             <div>
               <h3><Tag :size="16" />编辑标签 · {{ editTagsTarget?.name ?? "" }}</h3>
-              <p>用于检索与权限分组，最多 20 个。</p>
+              <p>最多 20 个。</p>
             </div>
             <button class="ghost-btn small" @click="editTagsDrawerOpen = false">关闭</button>
           </header>

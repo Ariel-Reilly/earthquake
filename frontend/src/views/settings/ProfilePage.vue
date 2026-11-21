@@ -216,7 +216,6 @@ onMounted(runServiceCheck)
           <header class="section-head">
             <div>
               <h3><HelpCircle :size="18" /> 帮助与反馈</h3>
-              <p>版本信息、使用帮助与意见反馈渠道</p>
             </div>
           </header>
 
@@ -249,7 +248,6 @@ onMounted(runServiceCheck)
                 <HelpCircle :size="18" color="#6f9e7f" />
                 <strong>帮助中心</strong>
               </div>
-              <p class="help-desc">查阅产品使用手册、功能指南与常见问题解答</p>
               <ul class="help-links">
                 <li>快速入门指南</li>
                 <li>预警处置工作流</li>
@@ -267,7 +265,7 @@ onMounted(runServiceCheck)
                 <Bell :size="18" color="#cbaa76" />
                 <strong>意见反馈</strong>
               </div>
-              <p class="help-desc">遇到问题或有改进建议？提交后将写入系统操作审计日志</p>
+              <p class="help-desc">提交内容写入操作审计日志</p>
               <textarea
                 v-model="feedbackForm.content"
                 class="feedback-input"
@@ -292,7 +290,6 @@ onMounted(runServiceCheck)
           <header class="section-head">
             <div>
               <h3><Server :size="18" /> 服务状态</h3>
-              <p>实时查看平台各服务与数据连接情况</p>
             </div>
             <button class="refresh-btn" :disabled="serviceLoading" @click="runServiceCheck">
               {{ serviceLoading ? '检测中...' : '检测服务' }}

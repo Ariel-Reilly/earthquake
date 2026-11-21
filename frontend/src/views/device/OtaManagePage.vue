@@ -393,7 +393,6 @@ onMounted(loadAll)
     </div>
 
     <section v-if="activeTab === 'firmware'" class="panel-card">
-      <div class="firmware-hint">固件下载：后端暂未提供固件下载接口，下载按钮已禁用。</div>
       <SkeletonTable v-if="loading && firmwareList.length === 0" :rows="5" :columns="7" />
       <div v-else-if="loadError && firmwareList.length === 0" class="detail-load-error" role="alert">
         <p>{{ loadError }}</p>
@@ -904,16 +903,6 @@ onMounted(loadAll)
   border-radius: 50%;
   margin-right: 6px;
   vertical-align: middle;
-}
-
-.firmware-hint {
-  margin-bottom: 12px;
-  padding: 8px 12px;
-  border: 1px solid var(--c-separator);
-  border-radius: var(--r-sm);
-  background: var(--c-surface-2);
-  color: var(--c-text-2);
-  font-size: 12px;
 }
 
 .loading-row,

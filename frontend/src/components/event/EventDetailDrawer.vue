@@ -337,7 +337,6 @@ const onTabClick = (tab) => {
                 <ArrowRight v-if="idx < lineageNodes.length - 1 && lineageEdge(lineageNodes[idx].code, lineageNodes[idx + 1].code)" :key="`arrow-${node.id}`" :size="16" class="lineage-arrow" />
               </template>
             </div>
-            <p class="hint">点击实线节点可跳转到对应业务模块的详情页。</p>
           </section>
 
           <!-- Section 4: 终态原因 -->

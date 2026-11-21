@@ -306,7 +306,6 @@ function goVideo() {
         <Globe :size="20" class="brand-icon" />
         <div>
           <div class="brand-name">地脉智巡</div>
-          <div class="brand-sub">移动指挥终端</div>
         </div>
       </div>
       <div class="header-right">
@@ -536,11 +535,6 @@ function goVideo() {
   font-weight: 700;
   color: var(--c-brand-mist);
   line-height: 1.2;
-}
-
-.brand-sub {
-  font-size: 10px;
-  color: var(--c-text-3);
 }
 
 .header-right {

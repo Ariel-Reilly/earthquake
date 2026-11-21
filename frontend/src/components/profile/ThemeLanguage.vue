@@ -94,7 +94,6 @@ const langDesc = computed(() => LANGS.find((l) => l.value === choice.language)?.
     <header class="head">
       <div>
         <h3><Languages :size="18" /> 主题与语言</h3>
-        <p>主题立即生效；语言切换后界面文案会相应变化。</p>
       </div>
       <button class="primary" :disabled="!dirty || saving" @click="save">
         <Save :size="14" /> 保存

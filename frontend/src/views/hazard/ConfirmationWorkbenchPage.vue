@@ -486,7 +486,7 @@ onBeforeUnmount(() => {
           <ul v-if="detailAnalysis?.suggestedActions?.length" class="actions-list">
             <li v-for="(a, i) in detailAnalysis.suggestedActions" :key="i">{{ i + 1 }}. {{ a }}</li>
           </ul>
-          <p v-else class="muted">— 暂无具体建议措施 —</p>
+          <p v-else class="muted">暂无建议措施</p>
         </div>
 
         <!-- 中：证据链 -->
@@ -594,7 +594,7 @@ onBeforeUnmount(() => {
     </section>
 
     <section v-else class="panel detail-panel placeholder">
-      <p>请从左侧队列中选择一项 AI 初筛事件，查看证据链并确认。</p>
+      <p>未选择事件</p>
     </section>
 
     <!-- 转派弹窗 -->
@@ -625,7 +625,7 @@ onBeforeUnmount(() => {
     <div v-if="rejectDialog" class="mask" @click.self="rejectDialog = false">
       <div class="dialog">
         <h3>驳回 AI 推断</h3>
-        <p class="hint">驳回后该事件进入"已驳回"档案，AI 推理结果会反馈到模型用于下次校准。</p>
+        <p class="hint">驳回后该事件进入"已驳回"档案。</p>
         <label>驳回原因
           <textarea v-model="rejectAction.reason" placeholder="例如：与现场复核一致、无新增迹象" rows="3"></textarea>
         </label>

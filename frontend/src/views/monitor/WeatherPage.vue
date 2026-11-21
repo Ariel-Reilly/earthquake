@@ -277,7 +277,7 @@ onBeforeUnmount(() => {
           <div ref="mainMapContainer" class="wp-map"></div>
           <div class="wp-map-legend">
             <h3>当前叠加图层</h3>
-            <p v-if="!activeKinds.length" class="wp-empty">点击下方卡片即可叠加到主图</p>
+            <p v-if="!activeKinds.length" class="wp-empty">未叠加图层</p>
             <ul v-else>
               <li v-for="kind in activeKinds" :key="kind">
                 <strong>{{ KIND_CARDS.find((c) => c.kind === kind)?.label || kind }}</strong>

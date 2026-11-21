@@ -13,7 +13,7 @@ const showAiAssistant = computed(() => route.meta?.showAiAssistant === true)
 
 const modeLabel = computed(() => {
   switch (runtimeMode.value) {
-    case 'backend': return '后端连接中'
+    case 'backend': return '真实数据'
     case 'mock': return '演示模式'
     case 'unknown': return '检测中...'
     default: return runtimeMode.value
