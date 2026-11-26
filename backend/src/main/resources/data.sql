@@ -626,7 +626,15 @@ INSERT INTO warning_rule (rule_code, rule_name, disaster_type, metric_code, expr
 ('R003', '洪水红色预警（水位）',      'flood',     'water_level',       'water_level > 175.0 AND rainfall_6h > 100',         '红色预警', TRUE, '警戒水位 175.0m 为规则参数（嘉陵江），改阈值请走规则管理页；不再依赖沙盘注入的 warning_level 指标'),
 ('R004', '倾角异常蓝色预警',          'collapse',  'tilt_angle',        'tilt_angle > 5',                                     '蓝色预警', TRUE, '阈值 5°：现场倾角常态 3.2-3.8°，旧阈值 3 会让未变形坡体持续误报'),
 ('R005', '位移速率黄色预警',          'landslide', 'displacement_rate', 'displacement_rate > 5',                              '黄色预警', TRUE, '替代无设备数据源的地震震级规则'),
-('R006', '崩塌黄色预警（裂缝扩展）', 'collapse',  'crack_width_rate',  'crack_width_rate > 2.0 AND rainfall_24h > 30',      '黄色预警', TRUE, 'AND 复合条件由 WarningRuleEvaluator 求值')
+('R006', '崩塌黄色预警（裂缝扩展）', 'collapse',  'crack_width_rate',  'crack_width_rate > 2.0 AND rainfall_24h > 30',      '黄色预警', TRUE, 'AND 复合条件由 WarningRuleEvaluator 求值'),
+-- R11 P0-1：AI 综合评分联动预警的「来源字典」行。
+--   AiWarningScheduler 生成 source=AI_AUTO 的预警时写 rule_code='AI_COMPREHENSIVE'，
+--   而 warning_event.rule_code 有 FK -> warning_rule(rule_code)。本行缺失时每轮 INSERT
+--   必抛外键违约，AI 综合预警长期 0 产出（且被 catch 吞成 debug 日志）。
+--   enabled=FALSE：它不是可求值的设备指标规则（ai_score 不是 device_metric 指标），
+--   不参与 RuleEngineScheduler；仅作为 rule_code 的合法取值与页面追溯用。
+--   ⚠ 不要删除、不要启用。RuleInitializer 启动时也会幂等补这一行，防止老库漏种。
+('AI_COMPREHENSIVE', 'AI 综合风险评分（系统伪规则）', NULL, 'ai_score', 'ai_score >= 60', '黄色预警', FALSE, '系统内部行：AiWarningScheduler 的 rule_code 外键目标，不参与规则引擎求值')
 ON CONFLICT (rule_code) DO UPDATE SET
   rule_name = EXCLUDED.rule_name,
   disaster_type = EXCLUDED.disaster_type,
@@ -708,29 +716,46 @@ ON CONFLICT (device_code) DO NOTHING;
 
 -- =====================================================================
 -- 13. AI 综合评分 ai_comprehensive_score（每个灾害点一条最新）
+--   ⚠ R11 P1-D3：risk_level 必须用 AI 等级词表 LOW/MEDIUM/HIGH/CRITICAL。
+--     历史种子写的是颜色词 orange/yellow/red，而代码（AiWarningScheduler、
+--     AiRiskEnricher、前端 ai-tag-*）全按英文等级查询/着色 → 种子行永远选不中，
+--     AI 联动修好外键也仍然是 0 产出。改种子后，下方 UPDATE 负责清洗老库残留。
 -- =====================================================================
 INSERT INTO ai_comprehensive_score (hazard_code, risk_level, risk_score, source, disaster_type, confidence, dimensions_json, reasoning_json, suggested_actions_json, analyzed_at) VALUES
-('HZ-001','orange',78.50,'AI_AUTO','landslide',0.86,
+('HZ-001','HIGH',78.50,'AI_AUTO','landslide',0.86,
  '{"image":0.82,"precipitation":0.76,"geographic":0.90,"device":0.85}',
  '{"primary_factor":"连续降雨导致坡体饱和","secondary_factor":"位移速率超过阈值","contributing":"土壤含水率持续上升"}',
  '{"action":"启动橙色预警","next_step":"专家二次确认","monitoring":"加密GNSS监测频率"}', NOW() - INTERVAL '2 hour'),
-('HZ-002','yellow',62.30,'AI_AUTO','collapse',0.78,
+('HZ-002','MEDIUM',62.30,'AI_AUTO','collapse',0.78,
  '{"image":0.75,"precipitation":0.68,"geographic":0.80,"device":0.72}',
  '{"primary_factor":"裂缝计示数持续增大","secondary_factor":"近期无强降雨但裂缝扩展趋势明显"}',
  '{"action":"加强巡查","next_step":"安排专家现场踏勘","monitoring":"增加裂缝计读数频率"}', NOW() - INTERVAL '4 hour'),
-('HZ-003','red',   93.20,'AI_AUTO','flood',   0.93,
+('HZ-003','CRITICAL',   93.20,'AI_AUTO','flood',   0.93,
  '{"image":0.88,"precipitation":0.95,"geographic":0.91,"device":0.94}',
  '{"primary_factor":"6小时降雨量超100mm","secondary_factor":"嘉陵江水位逼近警戒线","contributing":"上游来水量持续增大"}',
  '{"action":"立即启动红色预警","next_step":"组织沿江群众撤离","monitoring":"每30分钟上报水位"}', NOW() - INTERVAL '5 hour'),
-('HZ-004','orange',71.10,'AI_AUTO','debris_flow',0.71,
+('HZ-004','HIGH',71.10,'AI_AUTO','debris_flow',0.71,
  '{"image":0.65,"precipitation":0.80,"geographic":0.78,"device":0.60}',
  '{"primary_factor":"沟道上游汇水面积大","secondary_factor":"历史泥石流记录","contributing":"物源区松散堆积物丰富"}',
  '{"action":"发布橙色预警","next_step":"禁止沟道通行","monitoring":"雨量站实时监控"}', NOW() - INTERVAL '1 day'),
-('HZ-005','orange',72.00,'AI_AUTO','landslide',0.92,
+('HZ-005','HIGH',72.00,'AI_AUTO','landslide',0.92,
  '{"image":0.55,"precipitation":0.60,"geographic":0.70,"device":0.65}',
  '{"primary_factor":"地裂缝与地质构造线吻合","secondary_factor":"年际变化率低"}',
  '{"action":"纳入年度监测计划","next_step":"年度复查","monitoring":"季度复测"}', NOW() - INTERVAL '6 day')
 ON CONFLICT (hazard_code) DO NOTHING;
+
+-- R11 P1-D3 老库清洗：把历史颜色词 risk_level 归一为 AI 等级词表。
+-- 幂等（WHERE 只命中颜色词），新库无命中。不做这步，已有数据卷上的老行仍会让
+-- AiWarningScheduler.findByRiskLevelIn(['MEDIUM','HIGH','CRITICAL']) 返回空集。
+UPDATE ai_comprehensive_score
+   SET risk_level = CASE lower(risk_level)
+                      WHEN 'red'    THEN 'CRITICAL'
+                      WHEN 'orange' THEN 'HIGH'
+                      WHEN 'yellow' THEN 'MEDIUM'
+                      WHEN 'blue'   THEN 'LOW'
+                      ELSE risk_level
+                    END
+ WHERE lower(risk_level) IN ('red', 'orange', 'yellow', 'blue');
 
 -- =====================================================================
 -- 14. 巡检任务 inspection_task（替换旧3任务）

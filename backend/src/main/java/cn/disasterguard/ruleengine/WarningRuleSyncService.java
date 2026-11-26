@@ -46,6 +46,17 @@ public class WarningRuleSyncService {
 
   private static final Logger log = LoggerFactory.getLogger(WarningRuleSyncService.class);
 
+  /**
+   * R11 P0-1：AI 综合联动预警使用的系统伪规则码（单一定义，调度器 / 启动初始化共用）。
+   *
+   * <p>{@code warning_event.rule_code} 有外键指向 {@code warning_rule}，所以这条规则行
+   * 必须存在；但它不是设备指标规则，{@code enabled=false} 且不镜像进规则管理页。
+   */
+  public static final String AI_SYSTEM_RULE_CODE = "AI_COMPREHENSIVE";
+
+  /** 不对用户展示、也不允许页面编辑的系统内部规则行。 */
+  private static final java.util.Set<String> SYSTEM_RULE_CODES = java.util.Set.of(AI_SYSTEM_RULE_CODE);
+
   /** 页面等级编码 → 库中中文等级。 */
   private static final Map<String, String> LEVEL_TO_CHINESE = Map.of(
       "red", "红色预警",
@@ -107,6 +118,11 @@ public class WarningRuleSyncService {
     }
     int changed = 0;
     for (WarningRule source : sources) {
+      // 系统伪规则（AI_COMPREHENSIVE）只是外键占位，不是可编辑业务规则：
+      // 镜像进来会让规则管理页多出一条"停用规则"，运维可能误启用。
+      if (SYSTEM_RULE_CODES.contains(source.getRuleCode())) {
+        continue;
+      }
       try {
         Boolean applied = rowTx.execute(status -> {
           Rule target = ruleRepository.findByRuleCode(source.getRuleCode()).orElseGet(() -> {

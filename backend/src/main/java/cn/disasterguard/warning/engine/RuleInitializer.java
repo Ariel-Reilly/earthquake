@@ -27,6 +27,9 @@ public class RuleInitializer implements CommandLineRunner {
 
   private static final Logger log = LoggerFactory.getLogger(RuleInitializer.class);
 
+  /** 与调度器共用同一常量，避免 rule_code 字符串两处漂移。 */
+  private static final String AI_SYSTEM_RULE_CODE = WarningRuleSyncService.AI_SYSTEM_RULE_CODE;
+
   private final WarningRuleRepository ruleRepository;
   private final RuleEngineService ruleEngineService;
   private final WarningRuleSyncService warningRuleSyncService;
@@ -48,6 +51,12 @@ public class RuleInitializer implements CommandLineRunner {
         enabledRuleCount = ruleRepository.countByEnabled(true);
       }
 
+      // R11 P0-1：补齐 AI 联动预警依赖的系统伪规则。
+      // warning_event.rule_code 有 FK -> warning_rule(rule_code)，而 AiWarningScheduler
+      // 硬编码 rule_code='AI_COMPREHENSIVE'。仅靠 data.sql 播种不够——老库/生产卷不会
+      // 重跑 data.sql，缺失时 AI 综合预警每轮外键违约。这里做启动期幂等兜底。
+      ensureAiSystemRule();
+
       // R10 P1-5：把 warning_rule（预警引擎唯一真相源）镜像进 rule 表。
       // 否则规则管理页展示的是另一套编号语义（rule.R004=设备离线 vs warning_rule.R004=倾角>5），
       // 用户在页面上改阈值对预警零影响。
@@ -60,6 +69,34 @@ public class RuleInitializer implements CommandLineRunner {
                enabledRuleCount, ruleEngineService.getCacheSize());
     } catch (Exception e) {
       log.error("【P1 修复】规则初始化失败", e);
+    }
+  }
+
+  /**
+   * R11 P0-1：确保 {@code AI_COMPREHENSIVE} 伪规则存在。
+   *
+   * <p>该行不是可求值的业务规则（{@code ai_score} 不是 device_metric 指标），
+   * 只作为 {@code warning_event.rule_code} 的合法外键取值，因此 {@code enabled=false}，
+   * RuleEngineScheduler 不会取到它。
+   */
+  private void ensureAiSystemRule() {
+    try {
+      if (ruleRepository.findByRuleCode(AI_SYSTEM_RULE_CODE).isPresent()) {
+        return;
+      }
+      WarningRule rule = new WarningRule();
+      rule.setRuleCode(AI_SYSTEM_RULE_CODE);
+      rule.setRuleName("AI 综合风险评分（系统伪规则）");
+      rule.setMetricCode("ai_score");
+      rule.setExpression("ai_score >= 60");
+      rule.setWarningLevel("黄色预警");
+      rule.setDisasterType(null);
+      rule.setEnabled(false);
+      rule.setRemark("系统内部行：AiWarningScheduler 的 rule_code 外键目标，不参与规则引擎求值");
+      ruleRepository.save(rule);
+      log.info("【R11 P0-1】已补齐 AI 联动伪规则 {}", AI_SYSTEM_RULE_CODE);
+    } catch (Exception e) {
+      log.error("【R11 P0-1】补齐 AI 联动伪规则失败，AI 综合预警将因外键违约无法落库", e);
     }
   }
 
