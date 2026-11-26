@@ -647,10 +647,14 @@ CREATE TABLE IF NOT EXISTS notification_record (
   content TEXT,
   channels JSON,
   status VARCHAR(20),
+  read_at TIMESTAMPTZ,
   created_by VARCHAR(64),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+-- R11 P1-C1：已读与投递状态分列（老库幂等补齐）。
+-- status 只表达投递结果，read_at 只表达用户是否已读，二者不再互相覆盖。
+ALTER TABLE notification_record ADD COLUMN IF NOT EXISTS read_at TIMESTAMPTZ;
 CREATE INDEX IF NOT EXISTS idx_notification_record_biz ON notification_record(biz_type, biz_id);
 CREATE INDEX IF NOT EXISTS idx_notification_record_status ON notification_record(status);
 CREATE INDEX IF NOT EXISTS idx_notification_record_disaster ON notification_record(disaster_type, level);

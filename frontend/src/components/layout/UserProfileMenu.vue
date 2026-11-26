@@ -19,6 +19,7 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { User, Shield, Settings, LogOut, ChevronDown, HelpCircle } from 'lucide-vue-next'
 import { getAuthUser, clearAuthSession } from '../../stores/auth'
+import { logoutRequest } from '../../services/dashboardApi'
 
 const router = useRouter()
 
@@ -63,10 +64,19 @@ function navigateTo(path) {
   router.push(path)
 }
 
-function handleLogout() {
+async function handleLogout() {
   closeMenu()
-  clearAuthSession()
-  router.push('/')
+  // R11 P1-F3：必须先调 /auth/logout 吊销服务端 JWT（加入黑名单）。
+  // 旧实现只清本地 session，被复制走的 token 在剩余有效期内仍可访问所有接口。
+  // logoutRequest 自身已 catch 网络错误，这里再兜一层，保证任何情况下都能退出。
+  try {
+    await logoutRequest()
+  } catch {
+    /* 服务端不可达也要完成本地登出 */
+  } finally {
+    clearAuthSession()
+    router.push('/')
+  }
 }
 
 function handleClickOutside(event) {

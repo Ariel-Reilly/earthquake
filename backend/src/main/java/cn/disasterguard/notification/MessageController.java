@@ -26,7 +26,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
  * </ul>
  *
  * <p>数据源：{@code notification_record} 表 via {@link NotificationRecordRepository}.
- * 注意：实体无独立 {@code read} 字段，以 {@code status == "READ"} 判定已读。
+ * R11 P1-C1：已读判定唯一口径是 {@code read_at IS NOT NULL}；
+ * {@code status} 只表示投递结果（SENT / MOCK_SENT / BLOCKED / FAILED），两者分列。
  */
 @RestController
 @RequestMapping("/api/messages")
@@ -130,7 +131,9 @@ public class MessageController {
     if (record == null) {
       return ApiResponse.fail(404, "消息不存在");
     }
-    record.setStatus("READ");
+    if (record.getReadAt() == null) {
+      record.setReadAt(OffsetDateTime.now());
+    }
     record.setUpdatedAt(OffsetDateTime.now());
     recordRepository.save(record);
     return ApiResponse.success("已标记为已读", null);
@@ -139,18 +142,20 @@ public class MessageController {
   /**
    * 全部标为已读。
    *
-   * <p>口径与 {@link #markRead} 完全一致：只把"当前未读"（{@code status <> 'READ'}）的记录
-   * 置为 READ，避免把 FAILED 这类运维记录也吞掉。返回实际更新条数，前端据此立即清红点。
+   * <p>R11 P1-C1：只写 {@code read_at}，绝不改 {@code status}——
+   * status 是投递结果，标已读把它写成 READ 会让补发/统计失去 FAILED、BLOCKED 等依据。
+   * 返回实际更新条数，前端据此立即清红点。
    */
   @PostMapping("/read-all")
   @PreAuthorize("hasAuthority('messages:view')")
   public ApiResponse<Map<String, Object>> markAllRead() {
     var all = recordRepository.findAll();
     int count = 0;
+    OffsetDateTime now = OffsetDateTime.now();
     for (NotificationRecord r : all) {
-      if (!"READ".equals(r.getStatus())) {
-        r.setStatus("READ");
-        r.setUpdatedAt(OffsetDateTime.now());
+      if (r.getReadAt() == null) {
+        r.setReadAt(now);
+        r.setUpdatedAt(now);
         recordRepository.save(r);
         count++;
       }
@@ -187,9 +192,11 @@ public class MessageController {
     dto.put("content", r.getContent());
     dto.put("channels", r.getChannels());
     dto.put("status", r.getStatus());
-    // 已读唯一口径 = status == READ（与 stats 端点一致）
-    dto.put("read", "READ".equals(r.getStatus()));
-    dto.put("unread", !"READ".equals(r.getStatus()));
+    // R11 P1-C1：已读看 read_at，不看 status
+    boolean read = r.getReadAt() != null;
+    dto.put("read", read);
+    dto.put("unread", !read);
+    dto.put("readAt", r.getReadAt());
 
     // ── 前端契约字段（归一化） ──
     dto.put("type", normalizeType(r.getBizType()));

@@ -24,6 +24,7 @@ import { hasPermission, getAuthUser } from '../../stores/auth'
 import ConfirmDialog from '../../components/common/ConfirmDialog.vue'
 import SkeletonBar from '../../components/common/SkeletonBar.vue'
 import { waitForSkeleton } from '../../utils/uiTiming'
+import { normalizeHazardType } from '../../utils/hazardTypes'
 
 const emit = defineEmits(['notify', 'open-task-modal', 'create-task'])
 defineProps({ searchTerm: { type: String, default: '' }, userRole: { type: String, default: 'admin' } })
@@ -82,12 +83,25 @@ const filteredItems = computed(() => {
   } else if (tab) {
     items = items.filter((i) => i.status === tab)
   }
-  // 类型与等级后端不参与过滤，在前端按归一化后的字段筛选
+  // 类型与等级后端不参与过滤，在前端按归一化后的字段筛选。
+  // R11 P1-F2：下拉是中文（滑坡/崩塌…），而队列项的 type 是英文码（landslide…），
+  // 直接 === 比较永远不命中。这里统一归一到英文码再比。
   if (filterType.value) {
-    items = items.filter((i) => i.type === filterType.value)
+    const wanted = normalizeHazardType(filterType.value)
+    items = items.filter((i) => normalizeHazardType(i.type) === wanted)
   }
   if (filterLevel.value) {
-    items = items.filter((i) => i.level === filterLevel.value)
+    const wanted = filterLevel.value
+    // 等级存在两套中文词表（高风险/中风险 vs 高风险/关注/正常），做等价映射。
+    const same = (lv) => {
+      if (!lv) return false
+      if (lv === wanted) return true
+      if (wanted === '关注') return lv === '中风险'
+      if (wanted === '正常') return lv === '低风险'
+      if (wanted === '中风险') return lv === '关注'
+      return false
+    }
+    items = items.filter((i) => same(i.level))
   }
   return items
 })

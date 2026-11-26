@@ -114,8 +114,11 @@ public class ApprovalCenterController {
       @RequestParam(defaultValue = "1") int page,
       @RequestParam(defaultValue = "20") int size) {
     var all = warningRepository.findAll();
+    // R11 P1-F1：前端的筛选值是 pending/approved/rejected，库里存的是中文状态。
+    // 旧实现直接 status.equals(w.getStatus())，任何英文筛选都恒为空。
+    String dbStatus = toDbStatus(status);
     var filtered = all.stream()
-        .filter(w -> status == null || status.isBlank() || status.equals(w.getStatus()))
+        .filter(w -> dbStatus == null || dbStatus.equals(w.getStatus()))
         .filter(w -> level == null || level.isBlank()
             || (w.getWarningLevel() != null && w.getWarningLevel().contains(level)))
         .filter(w -> {
@@ -145,7 +148,8 @@ public class ApprovalCenterController {
       row.put("applicant", w.getClosedBy() == null ? "—" : w.getClosedBy());
       row.put("level", w.getWarningLevel());
       row.put("submittedAt", w.getTriggeredAt());
-      row.put("status", w.getStatus());
+      row.put("status", toUiStatus(w.getStatus()));
+      row.put("rawStatus", w.getStatus());
       items.add(row);
     }
     Map<String, Object> pageResult = new LinkedHashMap<>();
@@ -184,8 +188,31 @@ public class ApprovalCenterController {
     Map<String, Object> result = new LinkedHashMap<>();
     result.put("id", id);
     result.put("decision", decision);
-    result.put("status", warning.getStatus());
+    result.put("status", toUiStatus(warning.getStatus()));
+    result.put("rawStatus", warning.getStatus());
     return ApiResponse.success(result);
+  }
+
+  /** 库内中文状态 → 前端契约状态（pending / approved / rejected）。 */
+  private static String toUiStatus(String dbStatus) {
+    if (dbStatus == null) return "pending";
+    return switch (dbStatus) {
+      case "待确认" -> "pending";
+      case "已确认" -> "approved";
+      case "已忽略" -> "rejected";
+      default -> dbStatus;
+    };
+  }
+
+  /** 前端契约状态 → 库内中文状态；直接传中文时原样返回。 */
+  private static String toDbStatus(String uiStatus) {
+    if (uiStatus == null || uiStatus.isBlank()) return null;
+    return switch (uiStatus) {
+      case "pending" -> "待确认";
+      case "approved" -> "已确认";
+      case "rejected" -> "已忽略";
+      default -> uiStatus;
+    };
   }
 
   /**

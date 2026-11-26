@@ -989,3 +989,19 @@ SELECT u.id, '["sms","app"]', '["red","orange","yellow"]', 'dark', FALSE, TRUE
 FROM sys_user u WHERE u.role_code = 'attendant'
   AND NOT EXISTS (SELECT 1 FROM user_preference WHERE user_id = u.id)
 LIMIT 1;
+
+-- =====================================================================
+-- 30. R11 P1-C1 迁移：把历史上被写进 status 的"已读"还原为 read_at
+--   read_at 由 schema.sql 幂等补列。旧实现点"已读"会写 status='READ'，
+--   把投递结果（SENT/BLOCKED/FAILED）覆盖掉。这里：
+--     1) 有 status='READ' 的行补 read_at（取 updated_at，无则 created_at —— 已读必然发生在发送之后）；
+--     2) 再把 status 还原为 'SENT'（能点已读的记录必然已成功投递）。
+--   幂等：第一步有 read_at IS NULL 条件，第二步执行后不存在 status='READ'。
+-- =====================================================================
+UPDATE notification_record
+   SET read_at = COALESCE(updated_at, created_at)
+ WHERE status = 'READ' AND read_at IS NULL;
+
+UPDATE notification_record
+   SET status = 'SENT'
+ WHERE status = 'READ';

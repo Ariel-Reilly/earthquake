@@ -89,7 +89,9 @@ async function loadApprovals() {
 async function approve(id, e) {
   e?.stopPropagation()
   try {
-    await dashboardApi.decideApproval?.(id, 'approved')
+    // R11 P1-F1：后端 @RequestBody Map 需要对象；旧实现传字符串 'approved'，
+    // JSON.stringify 后是标量，Spring 反序列化直接 400。
+    await dashboardApi.decideApproval?.(id, { decision: 'approve', comment: '' })
     const a = approvals.value.items.find((x) => x.id === id)
     if (a) a.status = 'approved'
     emit('badge-refresh')
@@ -103,7 +105,8 @@ async function approve(id, e) {
 async function reject(id, e) {
   e?.stopPropagation()
   try {
-    await dashboardApi.decideApproval?.(id, 'rejected')
+    // R11 P1-F1：同 approve，必须传对象体。
+    await dashboardApi.decideApproval?.(id, { decision: 'reject', comment: '' })
     const a = approvals.value.items.find((x) => x.id === id)
     if (a) a.status = 'rejected'
     emit('badge-refresh')

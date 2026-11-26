@@ -38,6 +38,7 @@ import { getRealtimeState, onRealtimeUpdate } from '../../services/realtimeServi
 import { useEscapeClose } from '../../composables/useEscapeClose'
 import { dashboardApi } from '../../services/dashboardApi'
 import { hasPermission, getAuthUser } from '../../stores/auth'
+import { normalizeHazardType } from '../../utils/hazardTypes'
 
 const props = defineProps({
   searchTerm: { type: String, default: '' },
@@ -122,11 +123,24 @@ const filteredConfirmationItems = computed(() => {
   } else if (tab) {
     items = items.filter((i) => i.status === tab)
   }
-  if (confirmationState.filterType.value) {
-    items = items.filter((i) => i.type === confirmationState.filterType)
+  // R11 P1-F2：filterType 是 reactive 上的字符串字段，旧写法 .value 恒为 undefined，
+  // 导致"按类型筛选"整组失效（任何选择都返回全量）。
+  // 下拉值为中文标签，队列项的 type 是英文码，需归一再比较。
+  if (confirmationState.filterType) {
+    const wanted = normalizeHazardType(confirmationState.filterType)
+    items = items.filter((i) => normalizeHazardType(i.type) === wanted)
   }
   if (confirmationState.filterLevel) {
-    items = items.filter((i) => i.level === confirmationState.filterLevel)
+    const wanted = confirmationState.filterLevel
+    const same = (lv) => {
+      if (!lv) return false
+      if (lv === wanted) return true
+      if (wanted === '关注') return lv === '中风险'
+      if (wanted === '正常') return lv === '低风险'
+      if (wanted === '中风险') return lv === '关注'
+      return false
+    }
+    items = items.filter((i) => same(i.level))
   }
   return items
 })

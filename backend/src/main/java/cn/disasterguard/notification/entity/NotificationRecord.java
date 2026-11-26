@@ -53,6 +53,16 @@ public class NotificationRecord {
   @Column(length = 20)
   private String status;
 
+  /**
+   * R11 P1-C1：已读时间。
+   *
+   * <p>{@code status} 是**投递状态**（PENDING / SENT / MOCK_SENT / BLOCKED / FAILED），
+   * 由 {@code NotificationDispatcher} 写入；用户点"已读"只应写本列，不得覆盖 status，
+   * 否则补发任务与按状态统计会把"已读"当成一种投递结果，丢失去重与失败重试依据。
+   */
+  @Column(name = "read_at")
+  private OffsetDateTime readAt;
+
   @Column(name = "created_at")
   private OffsetDateTime createdAt;
 
@@ -86,6 +96,10 @@ public class NotificationRecord {
   public void setChannels(String channels) { this.channels = channels; }
   public String getStatus() { return status; }
   public void setStatus(String status) { this.status = status; }
+  public OffsetDateTime getReadAt() { return readAt; }
+  public void setReadAt(OffsetDateTime readAt) { this.readAt = readAt; }
+  /** 是否已读（唯一判据：read_at 非空）。 */
+  public boolean isRead() { return readAt != null; }
   public OffsetDateTime getCreatedAt() { return createdAt; }
   public void setCreatedAt(OffsetDateTime createdAt) { this.createdAt = createdAt; }
   public OffsetDateTime getUpdatedAt() { return updatedAt; }

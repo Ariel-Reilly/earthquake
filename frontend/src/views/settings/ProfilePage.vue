@@ -29,7 +29,7 @@ import PasswordChange from '../../components/profile/PasswordChange.vue'
 import NotificationPreference from '../../components/profile/NotificationPreference.vue'
 import ThemeLanguage from '../../components/profile/ThemeLanguage.vue'
 import { clearAuthSession, getAuthUser, getRoleLabel } from '../../stores/auth'
-import { dashboardApi } from '../../services/dashboardApi'
+import { dashboardApi, logoutRequest } from '../../services/dashboardApi'
 import pkg from '../../../package.json'
 
 const emit = defineEmits(['notify', 'open-task-modal', 'create-task'])
@@ -64,6 +64,12 @@ function logout() {
       isDanger: true
     })
     if (!ok) return
+    // R11 P1-F3：与头像菜单一致，先吊销服务端 JWT 再清本地会话。
+    try {
+      await logoutRequest()
+    } catch {
+      /* 服务端不可达也要完成本地登出 */
+    }
     clearAuthSession()
     emit('notify', '已退出登录')
     router.push('/')

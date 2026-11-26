@@ -28,9 +28,10 @@ import org.springframework.security.access.prepost.PreAuthorize;
  * SENT / PARTIAL / DELIVERED，从不写 READ，于是这些记录永远被算作未读——
  * 用户在消息中心点了"标已读"（status=READ）之后红点也消不掉。
  *
- * <p>现统一为 {@code total - countByStatus("READ")}，与 {@link MessageController#list}
- * 的 {@code read=false} 分路（{@code r.status <> 'READ'}）保持同一口径，
- * 保证"红点数字 == 列表里未读条数"。
+ * <p>R11 P1-C1 口径：已读 = {@code read_at IS NOT NULL}，与 {@link MessageController#list}
+ * 的 {@code read=false} 分路（{@code r.readAt IS NULL}）完全一致；
+ * {@code status} 只表示投递结果，不再承载"已读"语义（旧实现把已读写进 status，
+ * 覆盖了 FAILED / BLOCKED，补发与失败统计因此失真）。
  */
 @RestController
 @RequestMapping("/api/messages")
@@ -45,11 +46,10 @@ public class MessageStatsController {
   @GetMapping("/stats")
   @PreAuthorize("hasAuthority('messages:view')")
   public ApiResponse<Map<String, Object>> stats() {
-    // notification_record.status 取值见 NotificationService.send() 流转：
-    //   PENDING -> SENT -> (PARTIAL / DELIVERED) -> READ / FAILED
-    // 已读判定唯一口径 = status == "READ"，与 MessageController#list(read=false) 一致。
+    // notification_record.status 只表达投递结果（PENDING / SENT / PARTIAL / FAILED ...）；
+    // 已读由独立的 read_at 列判定。
     long total = recordRepository.count();
-    long read = recordRepository.countByStatus("READ");
+    long read = recordRepository.countByReadAtIsNotNull();
     long unread = Math.max(0, total - read);
     long failed = recordRepository.countByStatus("FAILED");
     Map<String, Object> result = new LinkedHashMap<>();
