@@ -7,6 +7,7 @@
  */
 import { computed, reactive, ref } from 'vue'
 import { Loader2, MapPin, ShieldAlert, Search, Send } from 'lucide-vue-next'
+import { warningLevelTone } from '../../utils/warningLevel'
 
 const props = defineProps({
   obstacles: { type: Array, default: () => [] },
@@ -71,6 +72,23 @@ function emitCalculate() {
     obstacles: [...props.obstacles, ...customObstacles],
     mode: Object.keys(modes).filter((m) => modes[m]),
   })
+}
+
+/**
+ * 避障项等级色。等级口径统一走 utils/warningLevel（认可中文「红色预警」与英文 key）。
+ * 说明：本函数原先写在并列的普通 `<script>` 里，`<script setup>` 模板取不到 → 渲染时报
+ * 「levelColor is not a function」，只要避障列表非空就整块不渲染。
+ */
+const OBSTACLE_LEVEL_COLORS = {
+  red: '#dc2626',
+  orange: '#ea580c',
+  yellow: '#ca8a04',
+  blue: '#4a7a5e',
+}
+
+function levelColor(level) {
+  if (!level) return '#8a9c90'
+  return OBSTACLE_LEVEL_COLORS[warningLevelTone(level)]
 }
 </script>
 
@@ -164,13 +182,6 @@ function emitCalculate() {
 </template>
 
 <script>
-function levelColor(level) {
-  if (!level) return '#8a9c90'
-  if (level.includes('红')) return '#dc2626'
-  if (level.includes('橙')) return '#ea580c'
-  if (level.includes('黄')) return '#ca8a04'
-  return '#4a7a5e'
-}
 export default { name: 'RouteForm' }
 </script>
 

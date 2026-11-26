@@ -39,6 +39,7 @@ import { useEscapeClose } from '../../composables/useEscapeClose'
 import { dashboardApi } from '../../services/dashboardApi'
 import { hasPermission, getAuthUser } from '../../stores/auth'
 import { normalizeHazardType } from '../../utils/hazardTypes'
+import { warningLevelTone } from '../../utils/warningLevel'
 
 const props = defineProps({
   searchTerm: { type: String, default: '' },
@@ -432,9 +433,13 @@ function relativeTime(iso) {
 
 function severityColor(level) {
   if (!level) return 'gray'
-  if (level.includes('高') || level.includes('红色') || level.includes('橙')) return 'red'
-  if (level.includes('中') || level.includes('黄')) return 'yellow'
-  if (level.includes('蓝') || level.includes('关注')) return 'blue'
+  const text = String(level)
+  // 预警等级（红/橙/黄/蓝预警）与风险/健康等级（极高/高/中/低）是两套词表，
+  // 先按预警等级精确判定，避免「橙色预警」被 '高' 分支误判成 red。
+  if (/[红橙黄蓝]/.test(text)) return warningLevelTone(text)
+  if (text.includes('高')) return 'red'
+  if (text.includes('中')) return 'yellow'
+  if (text.includes('低') || text.includes('关注')) return 'blue'
   return 'gray'
 }
 
@@ -1711,6 +1716,12 @@ onBeforeUnmount(() => {
 .level-tag.red {
   background: rgb(232 125 91 / 15%);
   color: var(--c-danger-strong);
+}
+
+/* 橙色预警：此前被并进 .red，红橙同色不可辨 */
+.level-tag.orange {
+  background: rgb(212 155 100 / 16%);
+  color: var(--c-warning-ink-deep);
 }
 
 .level-tag.yellow {

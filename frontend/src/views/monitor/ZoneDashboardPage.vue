@@ -11,6 +11,7 @@ import { dashboardApi } from "../../services/dashboardApi";
 import { formatWarningTime } from "../../utils/warningTime";
 import ZoneDashboardSkeleton from "../../components/common/ZoneDashboardSkeleton.vue";
 import { waitForSkeleton } from "../../utils/uiTiming";
+import { warningLevelTone } from "../../utils/warningLevel";
 
 const props = defineProps({
   currentTime: { type: String, default: "" },
@@ -300,12 +301,18 @@ function reload() {
   loadAll();
 }
 
+/**
+ * 等级 → 色调。入参可能是预警文案（红/橙/黄/蓝预警）或风险/健康等级（极高/高/中/低），
+ * 两类词表都在此处消费，预警部分统一走 utils/warningLevel。
+ */
 function levelClass(level) {
   const l = String(level ?? "");
-  if (l.includes("极高") || l.includes("红")) return "red";
-  if (l.includes("高") || l.includes("橙")) return "orange";
-  if (l.includes("中") || l.includes("黄")) return "yellow";
-  if (l.includes("蓝") || l.includes("低")) return "blue";
+  if (!l) return "neutral";
+  if (/[红橙黄蓝]/.test(l)) return warningLevelTone(l);
+  if (l.includes("极高")) return "red";
+  if (l.includes("高")) return "orange";
+  if (l.includes("中")) return "yellow";
+  if (l.includes("低")) return "blue";
   return "neutral";
 }
 

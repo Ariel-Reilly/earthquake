@@ -29,6 +29,7 @@ import PermissionButton from "./PermissionButton.vue";
 import { dashboardApi } from "../services/dashboardApi";
 import { normalizeList } from "../api/client";
 import { formatWarningTime } from "../utils/warningTime";
+import { warningLevelTone } from "../utils/warningLevel";
 
 const props = defineProps({
   warningId: { type: String, required: true },
@@ -184,14 +185,7 @@ const triggerPointText = computed(
   () => warningDetail.value?.item?.point ?? "—",
 );
 
-const levelClass = computed(() => {
-  const level = warningDetail.value?.item?.level ?? "";
-  if (level.includes("红")) return "red";
-  if (level.includes("橙")) return "orange";
-  if (level.includes("黄")) return "yellow";
-  if (level.includes("蓝")) return "blue";
-  return "blue";
-});
+const levelClass = computed(() => warningLevelTone(warningDetail.value?.item?.level ?? ""));
 
 const levelColor = computed(() => {
   const map = { red: "#e06060", orange: "#cbaa76", yellow: "#d9c040", blue: "#87b096" };

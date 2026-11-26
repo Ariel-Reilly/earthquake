@@ -18,6 +18,7 @@ import Feature from 'ol/Feature'
 import Point from 'ol/geom/Point'
 import LineString from 'ol/geom/LineString'
 import { wgs84ToGcj02, gcj02ToWgs84 } from '../../../utils/coordTransform.js'
+import { normalizeWarningLevel, warningLevelColor } from '../../../utils/warningLevel.js'
 
 /**
  * 卫星影像底图 v2.0（2026-11-05 重构）
@@ -1396,12 +1397,10 @@ export function buildClusterStyle(feature, type, selectedId) {
 export function buildWarningStyle(featureOrLevel = '预警') {
   const level =
     typeof featureOrLevel === 'string' ? featureOrLevel : featureOrLevel.get?.('level') || '预警'
-  const color =
-    level.includes('橙') || level.includes('红')
-      ? '#cd927e'
-      : level.includes('黄')
-        ? '#c4a86e'
-        : '#4f8f99'
+  // 等级口径统一走 utils/warningLevel：此前红/橙合并成同一色、蓝色与未知等级同色，
+  // 图上无法区分「红色预警」与「橙色预警」。
+  const tone = normalizeWarningLevel(level)
+  const color = warningLevelColor(tone, 'map')
   return new Style({
     image: new CircleStyle({
       radius: 8,
@@ -1409,7 +1408,7 @@ export function buildWarningStyle(featureOrLevel = '预警') {
       stroke: new Stroke({ color: '#ffffff', width: 2 }),
     }),
     text: new Text({
-      text: level.includes('橙') || level.includes('红') ? '‼' : '!',
+      text: tone === 'red' || tone === 'orange' ? '‼' : '!',
       fill: new Fill({ color: '#ffffff' }),
       stroke: new Stroke({ color, width: 2 }),
       offsetY: -15,

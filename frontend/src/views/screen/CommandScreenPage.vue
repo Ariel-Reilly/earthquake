@@ -22,6 +22,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { Activity, AlertTriangle, Antenna, Bell, Building2, Calendar, CheckCircle2, ChevronLeft, ChevronRight, CloudRain, Cpu, Eye, Globe2, Landmark, Layers, MapPin, Radar, Radio, RefreshCw, ShieldAlert, Thermometer, Timer, TrendingUp, Users, Wifi, WifiOff, Wind, Zap } from "lucide-vue-next";
 import { dashboardApi } from "../../services/dashboardApi.js";
+import { warningLevelTone } from "../../utils/warningLevel.js";
 import {
   onRealtimeUpdate,
   startRealtimeSync,
@@ -205,20 +206,16 @@ const kpis = computed(() => {
   ];
 });
 
-// 预警级别颜色
+// 预警级别颜色（等级口径统一走 utils/warningLevel）
 function levelColor(level) {
   if (!level) return "gray";
-  const l = String(level);
-  if (l.includes("红")) return "red";
-  if (l.includes("橙")) return "orange";
-  if (l.includes("黄")) return "yellow";
-  return "blue";
+  return warningLevelTone(level);
 }
 function levelIcon(level) {
   if (!level) return ShieldAlert;
-  const l = String(level);
-  if (l.includes("红")) return Zap;
-  if (l.includes("橙")) return AlertTriangle;
+  const tone = warningLevelTone(level);
+  if (tone === "red") return Zap;
+  if (tone === "orange") return AlertTriangle;
   return ShieldAlert;
 }
 

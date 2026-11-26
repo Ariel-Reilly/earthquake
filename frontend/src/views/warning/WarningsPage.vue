@@ -12,6 +12,7 @@ import PermissionButton from '../../components/PermissionButton.vue'
 import WarningsSkeleton from '../../components/common/WarningsSkeleton.vue'
 import WarningCreateModal from '../../components/WarningCreateModal.vue'
 import { dashboardApi } from '../../services/dashboardApi'
+import { warningLevelRank, warningLevelTone } from '../../utils/warningLevel'
 import { useEscapeClose } from '../../composables/useEscapeClose'
 import { useRealtimeStore } from '../../stores/realtime'
 import { formatWarningTime, formatTimelineTime } from '../../utils/warningTime'
@@ -91,12 +92,11 @@ const escalationHint = computed(() => {
  * @returns {'destructive'|'warning'|'caution'|'info'|'neutral'}
  */
 function levelTone(level) {
-  const s = String(level ?? '')
-  if (s.includes('红')) return 'destructive'
-  if (s.includes('橙')) return 'warning'
-  if (s.includes('黄')) return 'caution'
-  if (s.includes('蓝')) return 'info'
-  return 'neutral'
+  // 无法识别的等级返回 neutral，交给 toneOf 回落到后端 cssClass
+  if (!warningLevelRank(level)) return 'neutral'
+  return { red: 'destructive', orange: 'warning', yellow: 'caution', blue: 'info' }[
+    warningLevelTone(level)
+  ]
 }
 
 /** 列表项色调：优先按等级文字判定，其次回落到后端下发的 cssClass */
@@ -296,12 +296,7 @@ async function loadData(page = 1) {
 }
 
 function levelWeight(level) {
-  if (!level) return 0
-  if (level.includes('红色')) return 4
-  if (level.includes('橙')) return 3
-  if (level.includes('黄')) return 2
-  if (level.includes('蓝')) return 1
-  return 0
+  return warningLevelRank(level)
 }
 
 async function changePage(step) {

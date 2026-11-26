@@ -2,6 +2,7 @@ import { dashboardApi, isBackendRuntime, getUseBackend, API_BASE } from '../../d
 import { getAuthToken } from '../../../stores/auth.js'
 import { useRealtimeStore } from '../../../stores/realtime.js'
 import { appendWsQuery, resolveWebSocketUrl } from '../../../utils/wsUrl.js'
+import { normalizeWarningLevel } from '../../../utils/warningLevel.js'
 
 const listeners = new Set()
 let socket = null
@@ -165,9 +166,9 @@ function normalizeWarning(item) {
     desc: item.desc ?? item.message ?? '',
     level: item.level ?? item.riskLevel ?? '预警',
     // R3 P1-12：后端 WarningDto 的字段名是 cssClass，不是 class。
-    // 保留 ?? item.class 以兼容旧 mock 数据，并在两者都缺失时按等级兜底。
-    cssClass:
-      item.cssClass ?? item.class ?? (String(item.level).includes('橙') ? 'orange' : 'blue'),
+    // 保留 ?? item.class 以兼容旧 mock 数据；两者都缺失时按等级文案归一，
+    // 此前只判「橙」，红色预警被兜底成 blue（与后端 WarningService#cssClass 不一致）。
+    cssClass: item.cssClass ?? item.class ?? normalizeWarningLevel(item.level),
     point: item.point ?? item.owner ?? '',
     time: item.time ?? item.updatedAt ?? new Date().toISOString(),
     // A6-5：保留 ISO 绝对时刻，供展示层按浏览器本地时区格式化。

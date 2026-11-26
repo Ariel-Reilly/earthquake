@@ -44,6 +44,7 @@ import {
 import { useRouter } from "vue-router";
 import { dashboardApi } from "../../services/dashboardApi";
 import { formatWarningTime } from "../../utils/warningTime";
+import { normalizeWarningLevel, warningLevelLabel } from "../../utils/warningLevel";
 
 defineProps({ searchTerm: { type: String, default: "" }, userRole: { type: String, default: "admin" } });
 const emit = defineEmits(["notify"]);
@@ -75,8 +76,17 @@ const warnings = ref([]);
 // 待确认队列（来自 GET /api/confirmation/queue）
 const pendingConfirm = ref([]);
 
-/** 预警等级中文标签。 */
-const LEVEL_LABEL = { red: "红色", orange: "橙色", yellow: "黄色", blue: "蓝色" };
+/**
+ * 预警等级文案与配色统一走 utils/warningLevel。
+ * 后端 warning_level 存中文（「红色预警」），此处历史上按英文 key 查表，
+ * 导致移动端等级恒显示「未知」、左侧色条恒为灰色。
+ */
+const MOBILE_LEVEL_COLORS = {
+  red: "#c53030",
+  orange: "#dd6b20",
+  yellow: "#d69e2e",
+  blue: "#3182ce",
+};
 
 /** 预警状态中文标签。 */
 const WARNING_STATUS_LABEL = {
@@ -99,12 +109,7 @@ function levelFromScore(score) {
 // ─────────────────────────────────────────────
 // 2. 计算属性
 // ─────────────────────────────────────────────
-const levelColor = (level) => ({
-  red: "#c53030",
-  orange: "#dd6b20",
-  yellow: "#d69e2e",
-  blue: "#3182ce",
-}[level] ?? "#718096");
+const levelColor = (level) => MOBILE_LEVEL_COLORS[normalizeWarningLevel(level)] ?? "#718096";
 
 const statusBadge = (status) => ({
   published: { bg: "#c6f6d5", color: "#276749", label: "已发布" },
@@ -199,7 +204,7 @@ async function loadData() {
         id: String(w.id ?? w.warningCode ?? w.code ?? ""),
         title: w.title ?? w.content ?? w.warningTitle ?? "未命名预警",
         level: w.level ?? w.warningLevel ?? "blue",
-        levelLabel: LEVEL_LABEL[w.level ?? w.warningLevel] ?? "未知",
+        levelLabel: warningLevelLabel(w.level ?? w.warningLevel, { short: true }),
         status: w.status ?? "draft",
         statusLabel:
           w.statusLabel ?? WARNING_STATUS_LABEL[w.status] ?? w.status ?? "未知",
