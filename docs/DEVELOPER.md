@@ -514,7 +514,7 @@ docker compose up -d postgres redis minio emqx tdengine backend frontend
 
 | 服务       | 初始化内容                          | 机制                                                              |
 | ---------- | ----------------------------------- | ----------------------------------------------------------------- |
-| PostgreSQL | 建表 + 索引 + 种子数据              | `spring.sql.init.mode: always`，每次启动幂等执行 `schema.sql` + `data.sql`（`CREATE TABLE IF NOT EXISTS` / `ON CONFLICT DO NOTHING`） |
+| PostgreSQL | 建表 + 索引 + 种子数据              | `spring.sql.init.mode: always`，每次启动幂等执行 `schema.sql` + `data.sql`（`CREATE TABLE IF NOT EXISTS`；有唯一键用 `ON CONFLICT DO NOTHING`，无唯一键用 `WHERE NOT EXISTS`） |
 | EMQX       | `disasterguard_backend` MQTT 认证用户   | `infra/emqx/emqx-entrypoint.sh`，首次启动自动执行（BCrypt 密码）  |
 | MinIO      | `disasterguard` bucket                  | `AttachmentService` 首次附件上传时自动检查并创建                  |
 | TDengine   | `disasterguard` 数据库 + `device_metric` 超级表 | `TdengineMetricService.writeMetric()` 首次写入时 `CREATE DATABASE IF NOT EXISTS` + `CREATE STABLE IF NOT EXISTS` |
@@ -1194,10 +1194,12 @@ idx_ai_device_health_analyzed_at  ai_device_health(analyzed_at DESC)
 ### 8.4 数据库初始化策略
 
 - **扩展引导**：`infra/postgres/init/001_create_extensions.sql`（docker-entrypoint-initdb.d，首次建卷时执行 `postgis`、`uuid-ossp`）。
-- **建表 + 种子**：`backend/src/main/resources/schema.sql` + `data.sql`，经 `spring.sql.init.mode: always` 在每次启动时幂等执行（`CREATE TABLE IF NOT EXISTS` / `ON CONFLICT DO NOTHING` / `ADD COLUMN IF NOT EXISTS`）。
+- **建表 + 种子**：`backend/src/main/resources/schema.sql` + `data.sql`，经 `spring.sql.init.mode: always` 在每次启动时幂等执行（`CREATE TABLE IF NOT EXISTS` / `ON CONFLICT DO NOTHING` / `WHERE NOT EXISTS` / `ADD COLUMN IF NOT EXISTS`）。
   - 注意：`spring.sql.init` 基于 ScriptUtils 按 `;` 切分、不识别 PL/pgSQL `$$` 块，因此 `schema.sql` 只放纯 DDL。
 - **外键补齐**：`config/DatabaseForeignKeyInitializer`（ApplicationRunner）在既有数据卷上幂等补缺失外键（`pg_constraint` 检查 + 单条 DDL）。
-- **formula 幂等种子**：无唯一键的表（`file_attachment`）用 `INSERT ... SELECT ... WHERE NOT EXISTS`，避免每次重启重复插入。`risk_score_log` / `operation_log` 为运行时写入表，无种子，无需处理。
+- **幂等种子（R11 P1-D1）**：只有 `BIGSERIAL` 主键、没有自然唯一键的表（`sys_dict`、`device_metric`、`device_trajectory`、`risk_score_log`、`operation_log`、`user_message`、`user_todo`、`file_attachment`）**不能**用裸 `ON CONFLICT DO NOTHING`——没有可命中的约束，每次重启都会重复插入，导致字典翻倍、指标样本与审计日志膨胀。这些表统一用 `INSERT ... SELECT ... WHERE NOT EXISTS (SELECT 1 FROM t LIMIT 1)` 只播种一次。
+- **规则种子不覆盖配置**：`warning_rule` 用 `ON CONFLICT (rule_code) DO NOTHING`，**刻意不用 `DO UPDATE`**。dev/docker 每次启动都会重跑 `data.sql`，`DO UPDATE` 会把运维在规则管理页改过的阈值与启停状态静默改回出厂值。
+- 回归护栏：`config/SeedIdempotencyContractTest` 锁定上述两条约定。
 
 ### 8.5 种子数据（`data.sql`）
 

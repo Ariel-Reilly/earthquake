@@ -1,5 +1,12 @@
 -- =====================================================================
--- DisasterGuard v2.0.0 数据初始化脚本（幂等：ON CONFLICT DO NOTHING）
+-- DisasterGuard v2.0.0 数据初始化脚本
+-- 幂等策略（两种，按表是否有真实唯一键选择）：
+--   1) 有自然唯一键的表（sys_permission/sys_role/warning_rule/approval...）→
+--      ON CONFLICT (<key>) DO NOTHING；warning_rule 刻意不用 DO UPDATE，
+--      否则重启会把运维改过的阈值改回出厂值；
+--   2) 只有 BIGSERIAL 主键的表（sys_dict/device_metric/user_todo...）→
+--      INSERT ... SELECT ... WHERE NOT EXISTS (SELECT 1 FROM t LIMIT 1)，
+--      因为裸 ON CONFLICT DO NOTHING 没有可命中的约束，每次重启都会重复插入。
 -- 初始化顺序：字典 → 权限 → 角色 → 用户 → 菜单 → 区域
 --           → 系统配置 → AI模型 → 数据源 → 同步任务
 --           → 规则引擎 → 设备 → 灾害 → AI分析 → 预警 → 应急
@@ -12,7 +19,11 @@
 -- =====================================================================
 -- 1. 系统字典 sys_dict（灾种/等级/状态/渠道/设备类型/资源类型/通知类型）
 -- =====================================================================
-INSERT INTO sys_dict (type, label, value, sort_order, description) VALUES
+-- R11 P1-D1：sys_dict 的 id 是 BIGSERIAL，且没有 (type, value) 唯一约束，
+-- 裸 ON CONFLICT DO NOTHING 命中不了任何键 → 每次重启字典整体翻倍，
+-- 灾种/等级下拉会出现重复项。改为"表为空才播种"。
+INSERT INTO sys_dict (type, label, value, sort_order, description)
+SELECT * FROM (VALUES
 -- 灾种
 ('disaster_type', '地震',         'earthquake',    1, '地震'),
 ('disaster_type', '洪水',         'flood',         2, '洪水'),
@@ -94,7 +105,8 @@ INSERT INTO sys_dict (type, label, value, sort_order, description) VALUES
 ('datasource_type', 'MQTT设备',    'mqtt',        3, '物联网设备接入'),
 ('datasource_type', '地形高程',    'terrain',     4, 'DEM地形高程数据'),
 ('datasource_type', '自定义',      'custom',      5, '第三方自定义API')
-ON CONFLICT DO NOTHING;
+) AS v(type, label, value, sort_order, description)
+WHERE NOT EXISTS (SELECT 1 FROM sys_dict LIMIT 1);
 
 -- =====================================================================
 -- 2. 权限表 sys_permission（数据字典，非运行期鉴权源）
@@ -649,14 +661,13 @@ INSERT INTO warning_rule (rule_code, rule_name, disaster_type, metric_code, expr
 --   不参与 RuleEngineScheduler；仅作为 rule_code 的合法取值与页面追溯用。
 --   ⚠ 不要删除、不要启用。RuleInitializer 启动时也会幂等补这一行，防止老库漏种。
 ('AI_COMPREHENSIVE', 'AI 综合风险评分（系统伪规则）', NULL, 'ai_score', 'ai_score >= 60', '黄色预警', FALSE, '系统内部行：AiWarningScheduler 的 rule_code 外键目标，不参与规则引擎求值')
-ON CONFLICT (rule_code) DO UPDATE SET
-  rule_name = EXCLUDED.rule_name,
-  disaster_type = EXCLUDED.disaster_type,
-  metric_code = EXCLUDED.metric_code,
-  expression = EXCLUDED.expression,
-  warning_level = EXCLUDED.warning_level,
-  enabled = EXCLUDED.enabled,
-  remark = EXCLUDED.remark;
+-- R11 P1-D1：这里必须是 DO NOTHING，不能 DO UPDATE。
+--   dev/docker 每次启动都会重跑 data.sql（spring.sql.init.mode=always）。
+--   此前 DO UPDATE 会把运维在「规则管理页」改过的阈值与启停状态在下次重启时
+--   静默改回出厂值——配置看起来"自己变回去了"，且没有任何日志。
+--   种子只负责首次建行；既有行的修改权归运维。
+--   AI_COMPREHENSIVE 的 enabled=false 由 RuleInitializer 启动期兜底，不依赖本语句。
+ON CONFLICT (rule_code) DO NOTHING;
 
 -- =====================================================================
 -- 12. 灾害事件源 unified_event（v2.1.0 Task#1 P1：hazard_point 是该表视图源）
@@ -875,81 +886,109 @@ ON CONFLICT (approval_code) DO NOTHING;
 -- =====================================================================
 -- 22. 用户消息 user_message
 -- =====================================================================
-INSERT INTO user_message (user_id, msg_type, title, content, biz_type, biz_id, priority, read_status, created_at) VALUES
-((SELECT id FROM sys_user WHERE username='duty'),   'CONFIRM',  '待人工确认','牯牛塘滑坡隐患点待您转人工确认（置信度90%）','hazard','HZ-001','HIGH',FALSE, NOW() - INTERVAL '2 hour'),
-((SELECT id FROM sys_user WHERE username='expert'), 'CONFIRM',  '待二次确认','牯牛塘滑坡待您二次确认（橙色预警）','hazard','HZ-001','HIGH',FALSE, NOW() - INTERVAL '30 minute'),
-((SELECT id FROM sys_user WHERE username='duty'),   'WARNING',  '预警待发布','牯牛塘滑坡橙色预警待您提交发布申请','warning','WG-002','HIGH',FALSE, NOW() - INTERVAL '20 minute'),
-((SELECT id FROM sys_user WHERE username='commander'),'WARNING','应急进行中','嘉陵江洪水红色预警已发布，请继续关注','warning','WG-001','HIGH',TRUE, NOW() - INTERVAL '4 hour'),
-((SELECT id FROM sys_user WHERE username='aiengineer'),'SYSTEM','模型漂移告警','XGBoost融合模型检测到近期降雨特征漂移，建议重新训练','system','model:xgboost_fusion','MEDIUM',FALSE, NOW() - INTERVAL '1 hour')
-ON CONFLICT DO NOTHING;
+-- R11 P1-D1：user_message 无唯一键（id 为 BIGSERIAL），ON CONFLICT DO NOTHING
+-- 命中不了任何约束 → 每次重启给每人再塞一遍同样的消息。改为"表为空才播种"。
+INSERT INTO user_message (user_id, msg_type, title, content, biz_type, biz_id, priority, read_status, created_at)
+SELECT * FROM (VALUES
+  ((SELECT id FROM sys_user WHERE username='duty'),   'CONFIRM',  '待人工确认','牯牛塘滑坡隐患点待您转人工确认（置信度90%）','hazard','HZ-001','HIGH',FALSE, NOW() - INTERVAL '2 hour'),
+  ((SELECT id FROM sys_user WHERE username='expert'), 'CONFIRM',  '待二次确认','牯牛塘滑坡待您二次确认（橙色预警）','hazard','HZ-001','HIGH',FALSE, NOW() - INTERVAL '30 minute'),
+  ((SELECT id FROM sys_user WHERE username='duty'),   'WARNING',  '预警待发布','牯牛塘滑坡橙色预警待您提交发布申请','warning','WG-002','HIGH',FALSE, NOW() - INTERVAL '20 minute'),
+  ((SELECT id FROM sys_user WHERE username='commander'),'WARNING','应急进行中','嘉陵江洪水红色预警已发布，请继续关注','warning','WG-001','HIGH',TRUE, NOW() - INTERVAL '4 hour'),
+  ((SELECT id FROM sys_user WHERE username='aiengineer'),'SYSTEM','模型漂移告警','XGBoost融合模型检测到近期降雨特征漂移，建议重新训练','system','model:xgboost_fusion','MEDIUM',FALSE, NOW() - INTERVAL '1 hour')
+) AS v(user_id, msg_type, title, content, biz_type, biz_id, priority, read_status, created_at)
+WHERE NOT EXISTS (SELECT 1 FROM user_message LIMIT 1);
 
 -- =====================================================================
 -- 23. 用户待办 user_todo
 -- =====================================================================
-INSERT INTO user_todo (user_id, todo_type, biz_id, title, description, priority, deadline, status, created_at) VALUES
-((SELECT id FROM sys_user WHERE username='expert'),  'CONFIRMATION','HZ-001','牯牛塘滑坡二次确认','橙色预警需专家二次确认并修改风险等级','HIGH',NOW() + INTERVAL '2 hour','PENDING', NOW() - INTERVAL '30 minute'),
-((SELECT id FROM sys_user WHERE username='duty'),   'WARNING_DRAFT','WG-002','提交预警发布申请','牯牛塘滑坡橙色预警需提交给应急指挥审批','HIGH',NOW() + INTERVAL '1 hour','PENDING', NOW() - INTERVAL '20 minute'),
-((SELECT id FROM sys_user WHERE username='fieldops'),'DEVICE_UPDATE','DV-006','嘉陵江摄像头离线排查','摄像头DV-006已离线2小时，需现场排查','MEDIUM',NOW() + INTERVAL '4 hour','PENDING', NOW() - INTERVAL '2 hour'),
-((SELECT id FROM sys_user WHERE username='aiengineer'),'MODEL_TRAIN','xgboost_fusion','XGBoost融合模型重训','检测到数据漂移，需使用近30天数据重新训练','MEDIUM',NOW() + INTERVAL '3 day','PENDING', NOW() - INTERVAL '1 hour')
-ON CONFLICT DO NOTHING;
+-- R11 P1-D1：user_todo 无唯一键（id 为 BIGSERIAL），每次重启都会重复插入 4 条待办。
+-- 改为"表为空才播种"，避免待办中心出现重复卡片。
+INSERT INTO user_todo (user_id, todo_type, biz_id, title, description, priority, deadline, status, created_at)
+SELECT * FROM (VALUES
+  ((SELECT id FROM sys_user WHERE username='expert'),  'CONFIRMATION','HZ-001','牯牛塘滑坡二次确认','橙色预警需专家二次确认并修改风险等级','HIGH',NOW() + INTERVAL '2 hour','PENDING', NOW() - INTERVAL '30 minute'),
+  ((SELECT id FROM sys_user WHERE username='duty'),   'WARNING_DRAFT','WG-002','提交预警发布申请','牯牛塘滑坡橙色预警需提交给应急指挥审批','HIGH',NOW() + INTERVAL '1 hour','PENDING', NOW() - INTERVAL '20 minute'),
+  ((SELECT id FROM sys_user WHERE username='fieldops'),'DEVICE_UPDATE','DV-006','嘉陵江摄像头离线排查','摄像头DV-006已离线2小时，需现场排查','MEDIUM',NOW() + INTERVAL '4 hour','PENDING', NOW() - INTERVAL '2 hour'),
+  ((SELECT id FROM sys_user WHERE username='aiengineer'),'MODEL_TRAIN','xgboost_fusion','XGBoost融合模型重训','检测到数据漂移，需使用近30天数据重新训练','MEDIUM',NOW() + INTERVAL '3 day','PENDING', NOW() - INTERVAL '1 hour')
+) AS v(user_id, todo_type, biz_id, title, description, priority, deadline, status, created_at)
+WHERE NOT EXISTS (SELECT 1 FROM user_todo LIMIT 1);
 
 -- =====================================================================
 -- 24. 设备轨迹样本 device_trajectory（演示轨迹回放）
 -- =====================================================================
-INSERT INTO device_trajectory (device_code, longitude, latitude, geom, altitude_m, speed_kmh, heading_deg, battery_level, source, recorded_at) VALUES
-('DV-002',106.4500,29.5600,ST_SetSRID(ST_MakePoint(106.4500,29.5600),4326),285.3,0.0,NULL,92,'MQTT',NOW() - INTERVAL '10 minute'),
-('DV-002',106.4502,29.5602,ST_SetSRID(ST_MakePoint(106.4502,29.5602),4326),285.1,2.1,45.0,92,'MQTT',NOW() - INTERVAL '9 minute'),
-('DV-002',106.4504,29.5603,ST_SetSRID(ST_MakePoint(106.4504,29.5603),4326),285.0,1.8,50.0,92,'MQTT',NOW() - INTERVAL '8 minute'),
-('DV-004',106.4300,29.5700,ST_SetSRID(ST_MakePoint(106.4300,29.5700),4326),310.5,0.0,NULL,76,'MQTT',NOW() - INTERVAL '5 minute'),
-('DV-004',106.4301,29.5701,ST_SetSRID(ST_MakePoint(106.4301,29.5701),4326),310.4,1.5,120.0,76,'MQTT',NOW() - INTERVAL '4 minute')
-ON CONFLICT DO NOTHING;
+-- R11 P1-D1：id 为 BIGSERIAL，且 recorded_at 用 NOW()，每次重启都是新行。
+-- 改为"表为空才播种"，避免轨迹回放里出现重复绕圈的历史点。
+INSERT INTO device_trajectory (device_code, longitude, latitude, geom, altitude_m, speed_kmh, heading_deg, battery_level, source, recorded_at)
+SELECT * FROM (VALUES
+  ('DV-002',106.4500,29.5600,ST_SetSRID(ST_MakePoint(106.4500,29.5600),4326),285.3,0.0,NULL,92,'MQTT',NOW() - INTERVAL '10 minute'),
+  ('DV-002',106.4502,29.5602,ST_SetSRID(ST_MakePoint(106.4502,29.5602),4326),285.1,2.1,45.0,92,'MQTT',NOW() - INTERVAL '9 minute'),
+  ('DV-002',106.4504,29.5603,ST_SetSRID(ST_MakePoint(106.4504,29.5603),4326),285.0,1.8,50.0,92,'MQTT',NOW() - INTERVAL '8 minute'),
+  ('DV-004',106.4300,29.5700,ST_SetSRID(ST_MakePoint(106.4300,29.5700),4326),310.5,0.0,NULL,76,'MQTT',NOW() - INTERVAL '5 minute'),
+  ('DV-004',106.4301,29.5701,ST_SetSRID(ST_MakePoint(106.4301,29.5701),4326),310.4,1.5,120.0,76,'MQTT',NOW() - INTERVAL '4 minute')
+) AS v(device_code, longitude, latitude, geom, altitude_m, speed_kmh, heading_deg, battery_level, source, recorded_at)
+WHERE NOT EXISTS (SELECT 1 FROM device_trajectory LIMIT 1);
 
 -- =====================================================================
 -- 25. 设备指标样本 device_metric（演示实时数据）
 -- =====================================================================
-INSERT INTO device_metric (device_code, hazard_code, metric_code, value, recorded_at) VALUES
-('DV-002','HZ-001','displacement_rate', 6.2, NOW() - INTERVAL '2 minute'),
-('DV-002','HZ-001','displacement_total', 156.8, NOW() - INTERVAL '2 minute'),
-('DV-003',NULL,    'rainfall_1h',       12.5, NOW() - INTERVAL '3 minute'),
-('DV-003',NULL,    'rainfall_24h',      82.0, NOW() - INTERVAL '3 minute'),
-('DV-004','HZ-002','crack_width',       18.3, NOW() - INTERVAL '1 minute'),
-('DV-004','HZ-002','crack_width_rate',   2.3, NOW() - INTERVAL '1 minute'),
-('DV-005','HZ-002','tilt_angle',         3.8, NOW() - INTERVAL '2 minute'),
-('DV-001',NULL,    'water_level',       28.5, NOW() - INTERVAL '1 minute'),
-('DV-001',NULL,    'flow_rate',         4500.0,NOW() - INTERVAL '1 minute'),
-('DV-007',NULL,    'temperature',       26.5, NOW() - INTERVAL '5 minute'),
-('DV-007',NULL,    'humidity',          78.0, NOW() - INTERVAL '5 minute'),
-('DV-007',NULL,    'wind_speed',        3.2,  NOW() - INTERVAL '5 minute'),
-('DV-008',NULL,    'soil_moisture',    42.5, NOW() - INTERVAL '1 minute')
-ON CONFLICT DO NOTHING;
+-- R11 P1-D1：device_metric.id 是 BIGSERIAL，ON CONFLICT DO NOTHING 没有可命中的
+-- 唯一键；且 recorded_at 用 NOW()，即便有 (device_code, metric_code, recorded_at)
+-- 唯一索引也每次都是新值。结果：每次重启再加 13 条，指标统计与漂移基线被污染。
+-- 改为"表为空才播种"（与 file_attachment 同一写法）。
+INSERT INTO device_metric (device_code, hazard_code, metric_code, value, recorded_at)
+SELECT * FROM (VALUES
+  ('DV-002','HZ-001','displacement_rate', 6.2, NOW() - INTERVAL '2 minute'),
+  ('DV-002','HZ-001','displacement_total', 156.8, NOW() - INTERVAL '2 minute'),
+  ('DV-003',NULL,    'rainfall_1h',       12.5, NOW() - INTERVAL '3 minute'),
+  ('DV-003',NULL,    'rainfall_24h',      82.0, NOW() - INTERVAL '3 minute'),
+  ('DV-004','HZ-002','crack_width',       18.3, NOW() - INTERVAL '1 minute'),
+  ('DV-004','HZ-002','crack_width_rate',   2.3, NOW() - INTERVAL '1 minute'),
+  ('DV-005','HZ-002','tilt_angle',         3.8, NOW() - INTERVAL '2 minute'),
+  ('DV-001',NULL,    'water_level',       28.5, NOW() - INTERVAL '1 minute'),
+  ('DV-001',NULL,    'flow_rate',         4500.0,NOW() - INTERVAL '1 minute'),
+  ('DV-007',NULL,    'temperature',       26.5, NOW() - INTERVAL '5 minute'),
+  ('DV-007',NULL,    'humidity',          78.0, NOW() - INTERVAL '5 minute'),
+  ('DV-007',NULL,    'wind_speed',        3.2,  NOW() - INTERVAL '5 minute'),
+  ('DV-008',NULL,    'soil_moisture',    42.5, NOW() - INTERVAL '1 minute')
+) AS v(device_code, hazard_code, metric_code, value, recorded_at)
+WHERE NOT EXISTS (SELECT 1 FROM device_metric LIMIT 1);
 
 -- =====================================================================
 -- 26. 风险评分日志 risk_score_log（替换旧3条）
 -- =====================================================================
-INSERT INTO risk_score_log (hazard_code, score, risk_level, source, factors) VALUES
-('HZ-001',84.00,'高风险','AI_AUTO','{"displacement_rate":6.2,"rainfall_24h":82,"soil_moisture":42}'::jsonb),
-('HZ-002',62.30,'中风险','AI_AUTO','{"crack_width":18.3,"crack_width_rate":2.3,"rainfall_24h":35}'::jsonb),
-('HZ-003',93.20,'高风险','DEVICE', '{"water_level":28.5,"rainfall_6h":108,"flow_rate":4500}'::jsonb),
-('HZ-004',71.10,'中风险','AI_AUTO','{"rainfall_24h":95,"drainage_area":2.5,"debris_potential":"high"}'::jsonb),
-('HZ-005',72.00,'高风险','DEVICE', '{"displacement_total":16.0,"rainfall_24h":88}'::jsonb)
-ON CONFLICT DO NOTHING;
+-- R11 P1-D1：risk_score_log 没有唯一键（id 为 BIGSERIAL），计算时间列还有
+-- DEFAULT NOW()，所以 ON CONFLICT DO NOTHING 从来不会命中。每次重启都会追加
+-- 5 条演示评分，污染风险趋势。改为"表为空才播种"。
+INSERT INTO risk_score_log (hazard_code, score, risk_level, source, factors)
+SELECT * FROM (VALUES
+  ('HZ-001',84.00,'高风险','AI_AUTO','{"displacement_rate":6.2,"rainfall_24h":82,"soil_moisture":42}'::jsonb),
+  ('HZ-002',62.30,'中风险','AI_AUTO','{"crack_width":18.3,"crack_width_rate":2.3,"rainfall_24h":35}'::jsonb),
+  ('HZ-003',93.20,'高风险','DEVICE', '{"water_level":28.5,"rainfall_6h":108,"flow_rate":4500}'::jsonb),
+  ('HZ-004',71.10,'中风险','AI_AUTO','{"rainfall_24h":95,"drainage_area":2.5,"debris_potential":"high"}'::jsonb),
+  ('HZ-005',72.00,'高风险','DEVICE', '{"displacement_total":16.0,"rainfall_24h":88}'::jsonb)
+) AS v(hazard_code, score, risk_level, source, factors)
+WHERE NOT EXISTS (SELECT 1 FROM risk_score_log LIMIT 1);
 
 -- =====================================================================
 -- 27. 审计日志 operation_log（演示登录记录）
 -- =====================================================================
-INSERT INTO operation_log (operator, module_name, action_name, request_method, request_path, result_status, ip_address, created_at) VALUES
-('admin',      '系统',        '用户登录',        'POST','/api/auth/login',         '成功','127.0.0.1',NOW() - INTERVAL '1 day'),
-('sysadmin',   '系统',        '用户登录',        'POST','/api/auth/login',         '成功','127.0.0.1',NOW() - INTERVAL '1 day'),
-('commander',  '系统',        '用户登录',        'POST','/api/auth/login',         '成功','127.0.0.1',NOW() - INTERVAL '1 day'),
-('duty',       '系统',        '用户登录',        'POST','/api/auth/login',         '成功','127.0.0.1',NOW() - INTERVAL '20 minute'),
-('expert',     '系统',        '用户登录',        'POST','/api/auth/login',         '成功','127.0.0.1',NOW() - INTERVAL '30 minute'),
-('aiengineer', '系统',        '用户登录',        'POST','/api/auth/login',         '成功','127.0.0.1',NOW() - INTERVAL '1 hour'),
-('fieldops',   '系统',        '用户登录',        'POST','/api/auth/login',         '成功','127.0.0.1',NOW() - INTERVAL '2 hour'),
-('duty',       '灾害',        '认领确认任务',    'POST','/api/confirmation/claim', '成功','127.0.0.1',NOW() - INTERVAL '1 hour'),
-('expert',     '灾害',        '二次确认',        'POST','/api/confirmation/confirm','成功','127.0.0.1',NOW() - INTERVAL '30 minute'),
-('commander',  '预警',        '发布预警',        'POST','/api/warnings/publish',   '成功','127.0.0.1',NOW() - INTERVAL '5 hour'),
-('aiengineer', 'AI',          '触发AI任务',      'POST','/api/ai/tasks/trigger',  '成功','127.0.0.1',NOW() - INTERVAL '3 hour')
-ON CONFLICT DO NOTHING;
+-- R11 P1-D1：审计日志是运行时写入表，种子只是演示行；id 为 BIGSERIAL，
+-- ON CONFLICT DO NOTHING 命中不了任何唯一键 → 每次重启追加 11 条假登录记录。
+-- 改为"表为空才播种"。
+INSERT INTO operation_log (operator, module_name, action_name, request_method, request_path, result_status, ip_address, created_at)
+SELECT * FROM (VALUES
+  ('admin',      '系统',        '用户登录',        'POST','/api/auth/login',         '成功','127.0.0.1',NOW() - INTERVAL '1 day'),
+  ('sysadmin',   '系统',        '用户登录',        'POST','/api/auth/login',         '成功','127.0.0.1',NOW() - INTERVAL '1 day'),
+  ('commander',  '系统',        '用户登录',        'POST','/api/auth/login',         '成功','127.0.0.1',NOW() - INTERVAL '1 day'),
+  ('duty',       '系统',        '用户登录',        'POST','/api/auth/login',         '成功','127.0.0.1',NOW() - INTERVAL '20 minute'),
+  ('expert',     '系统',        '用户登录',        'POST','/api/auth/login',         '成功','127.0.0.1',NOW() - INTERVAL '30 minute'),
+  ('aiengineer', '系统',        '用户登录',        'POST','/api/auth/login',         '成功','127.0.0.1',NOW() - INTERVAL '1 hour'),
+  ('fieldops',   '系统',        '用户登录',        'POST','/api/auth/login',         '成功','127.0.0.1',NOW() - INTERVAL '2 hour'),
+  ('duty',       '灾害',        '认领确认任务',    'POST','/api/confirmation/claim', '成功','127.0.0.1',NOW() - INTERVAL '1 hour'),
+  ('expert',     '灾害',        '二次确认',        'POST','/api/confirmation/confirm','成功','127.0.0.1',NOW() - INTERVAL '30 minute'),
+  ('commander',  '预警',        '发布预警',        'POST','/api/warnings/publish',   '成功','127.0.0.1',NOW() - INTERVAL '5 hour'),
+  ('aiengineer', 'AI',          '触发AI任务',      'POST','/api/ai/tasks/trigger',  '成功','127.0.0.1',NOW() - INTERVAL '3 hour')
+) AS v(operator, module_name, action_name, request_method, request_path, result_status, ip_address, created_at)
+WHERE NOT EXISTS (SELECT 1 FROM operation_log LIMIT 1);
 
 -- =====================================================================
 -- 28. 文件附件 file_attachment（演示已有）
