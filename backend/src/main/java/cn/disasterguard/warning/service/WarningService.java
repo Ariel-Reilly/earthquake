@@ -118,10 +118,33 @@ public class WarningService {
     if (request.warningLevel() != null && !request.warningLevel().isBlank()) {
       warning.setWarningLevel(request.warningLevel());
     }
+    String previousStatus = warning.getStatus();
     if (request.status() != null && !request.status().isBlank()) {
       warning.setStatus(request.status());
     }
-    return toDto(warningRepository.save(warning));
+    WarningDto dto = toDto(warningRepository.save(warning));
+
+    // R11 P1-B1：状态变更必须同步推进统一事件状态机。
+    // 旧实现只改 warning_event.status，unified_event 停在旧状态，
+    // 于是"预警已关闭、事件仍在处理中"，两边口径相反。
+    if (request.status() != null && !request.status().isBlank()
+        && !request.status().equals(previousStatus)) {
+      String trigger = triggerForStatus(request.status());
+      if (trigger != null) {
+        transitionUnifiedEvent(warning, trigger);
+      }
+    }
+    return dto;
+  }
+
+  /** 预警状态 → 统一事件触发器；无对应关系返回 null（不改事件状态）。 */
+  private static String triggerForStatus(String warningStatus) {
+    return switch (warningStatus) {
+      case "已确认" -> "CONFIRM";
+      case "处理中" -> "DISPATCH";
+      case "已关闭", "已忽略", "已解除" -> "CLOSE";
+      default -> null;
+    };
   }
 
   /** 导出用：返回预警事件导出行。 */
@@ -262,6 +285,8 @@ public class WarningService {
     warning.setClosedBy(operator);
     WarningDto dto = toDto(warningRepository.save(warning));
     broadcastWarning(dto);
+    // R11 P1-B1：误报也要推状态机，否则统一事件仍停在待复核/处理中。
+    transitionUnifiedEvent(warning, "CLOSE");
     return dto;
   }
 

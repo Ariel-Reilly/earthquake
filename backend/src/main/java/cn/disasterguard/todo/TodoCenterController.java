@@ -2,6 +2,7 @@ package cn.disasterguard.todo;
 
 import cn.disasterguard.common.api.ApiResponse;
 import cn.disasterguard.emergency.repository.EmergencyEventRepository;
+import cn.disasterguard.emergency.service.EmergencyService;
 import cn.disasterguard.event.EventState;
 import cn.disasterguard.event.repository.UnifiedEventRepository;
 import cn.disasterguard.task.repository.InspectionTaskRepository;
@@ -57,13 +58,11 @@ public class TodoCenterController {
     long approval = warningRepository.findAll().stream()
         .filter(w -> "处理中".equals(w.getStatus()))
         .count();
-    // emergency_event 没有专用状态列，借用 count + 在终态列表外的简化估算；
-    // 终态参考 EmergencyService：已关闭 / 已归档。
+    // R11 P1-B4：终态唯一口径是 EmergencyService.STATUS_RESOLVED（"已闭环"）。
+    // 旧实现按 contains("关闭")/contains("归档") 判定，真实终态一个都不匹配，
+    // 导致所有已闭环应急事件被永久计为"进行中"。
     long openEmergency = emergencyRepository.findAll().stream()
-        .filter(e -> {
-          String s = e.getStatus();
-          return s == null || !(s.contains("关闭") || s.contains("归档"));
-        })
+        .filter(e -> !EmergencyService.STATUS_RESOLVED.equals(e.getStatus()))
         .count();
     Map<String, Object> result = new LinkedHashMap<>();
     result.put("confirmation", confirmation);

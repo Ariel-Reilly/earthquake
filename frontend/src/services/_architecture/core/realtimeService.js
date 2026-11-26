@@ -519,8 +519,11 @@ function tryOpen(fullUrl) {
  */
 async function pollSnapshot() {
   const [warnings, devices, hazards] = await Promise.all([
-    // 显式 size：后端默认 size=10，不传会让实时图层只剩前 10 个点
-    dashboardApi.getWarnings({ page: 1, size: 200 }),
+    // R11 P1-B3：与 pollWarningsPreview 使用同一数据源（仅活动预警）。
+    // 旧实现这里取 /warnings 全量（含已关闭），而高频轮询取 /warnings/preview
+    // （仅活动），两者都以"后端即权威"整表替换 state.warnings；
+    // 15s 与 10s 两个周期交替执行，大屏点位就在含关闭/不含关闭之间反复抖动。
+    dashboardApi.getWarningsPreview(),
     dashboardApi.getDevices({ page: 1, size: 200 }),
     dashboardApi.getHazards({ page: 1, size: 200 }),
   ])

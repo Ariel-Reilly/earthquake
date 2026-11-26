@@ -120,14 +120,24 @@ public class EventStateService {
       if (existing.getEventCode() == null || existing.getEventCode().isBlank()) {
         existing.setEventCode(generateEventCode());
       }
-      existing.setState(initialState);
+      // R11 P1-B1：已闭环/已驳回的事件不能被"新建预警"打回 DETECTED。
+      // 旧实现无条件 setState(initialState)，于是任何一次新预警都会把已处置完的
+      // 事件重新变成待复核，待办中心与事件中心出现"复活"的幽灵事件。
+      // 终态保护后，状态只能通过显式 REOPEN 触发器回到处置流程。
+      boolean terminal = existing.getState() != null && existing.getState().isTerminal();
+      if (terminal) {
+        log.info("统一事件已处于终态 {}，本次预警仅复用关联、不重置状态 eventCode={}, hazard={}",
+            existing.getState(), existing.getEventCode(), hazardCode);
+      } else {
+        existing.setState(initialState);
+        existing.setSource(source);
+        existing.setCurrentStateSince(now);
+        existing.setLastTransitionAt(now);
+        existing.setLastTrigger("CREATE");
+      }
       if (existing.getTitle() == null || existing.getTitle().isBlank()) {
         existing.setTitle(title);
       }
-      existing.setSource(source);
-      existing.setCurrentStateSince(now);
-      existing.setLastTransitionAt(now);
-      existing.setLastTrigger("CREATE");
       existing.setUpdatedAt(now);
       repository.save(existing);
       log.info("UnifiedEvent 复用隐患点已有行: code={}, state={}, hazard={}",
