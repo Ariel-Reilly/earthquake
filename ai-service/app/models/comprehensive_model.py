@@ -977,7 +977,10 @@ class ComprehensiveRiskModel:
                 "enabled": False,
                 "applied": 0,
                 "differing_factors": adaptive_norm_diagnostics,
-                "note": "动态上限仅为只读诊断；评分仍使用静态 NORM_MAX。",
+                # R11 E6：三个模型（comprehensive / disaster_assessment / device_health）
+                # 统一为「诊断只读」，评分一律用静态 NORM_MAX，保证同输入同输出。
+                # 开关见 adaptive_normalizer.SCORING_USES_ADAPTIVE_MAX。
+                "note": "动态上限仅为只读诊断；评分统一使用静态 NORM_MAX（SCORING_USES_ADAPTIVE_MAX=False）。",
             },
             "region_code": region_code,
             "reasoning": reasoning,

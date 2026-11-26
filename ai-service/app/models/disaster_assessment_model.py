@@ -125,7 +125,10 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from app.models.xgboost_model import get_fusion_model
 from app.models.feature_engineering import compute_derived_features
-from app.models.adaptive_normalizer import get_adaptive_normalizer
+from app.models.adaptive_normalizer import (
+    SCORING_USES_ADAPTIVE_MAX,
+    get_adaptive_normalizer,
+)
 
 # 风险等级阈值（与其它 AI 模型一致）
 LEVEL_THRESHOLDS = (
@@ -163,7 +166,7 @@ SUPPORTED_DISASTER_TYPES: List[str] = [
 ]
 
 
-# 归一化参考（保留做 fallback；正常路径用 adaptive_normalizer）
+# 归一化参考上限（评分实际使用的静态上限；窗口 P95 仅作诊断，见 SCORING_USES_ADAPTIVE_MAX）
 ELEVATION_NORM_MAX = 3000.0
 SLOPE_NORM_MAX = 60.0
 SOIL_NORM_MAX = 5.0
@@ -295,9 +298,17 @@ class DisasterAssessmentModel:
         # 自适应归一化器（单例）
         self._normalizer = get_adaptive_normalizer()
 
-    # 自适应归一化 helper
+    # 归一化上限 helper
     def _dynamic_norm(self, factor_key: str, region_code: str, fallback: float) -> float:
-        """从 adaptive_normalizer 取动态上限；样本不足时回退 fallback。"""
+        """返回该因子的归一化上限。
+
+        R11 E6：默认返回**静态**上限（fallback），而不是窗口 P95。
+        原因是动态上限来自进程级共享窗口，由别的请求（含 /detect-batch 的 MON-xxx
+        临时区域、/comprehensive 的全量因子）推进，同一份输入隔一次调用分数就会变 ——
+        演示与回归断言都不可复现。窗口仍保留，仅用于 adaptive_normalization 诊断。
+        """
+        if not SCORING_USES_ADAPTIVE_MAX:
+            return fallback
         try:
             return self._normalizer.get_dynamic_max(factor_key, region_code, fallback=fallback)
         except Exception:

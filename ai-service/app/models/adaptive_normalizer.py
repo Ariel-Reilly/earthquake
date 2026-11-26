@@ -13,6 +13,7 @@
   - 每次 fit_one(value) 推进窗口；get_dynamic_max() 返回 P95（5% 截断，避免极端值干扰）；
   - 当窗口样本数 < 10 时回退到 fallback_max（硬编码兜底）；
   - 线程安全用 threading.Lock 简单保护。
+  - **评分暂不采用**动态上限（见下方 SCORING_USES_ADAPTIVE_MAX）：窗口只用于诊断。
 
 API：
   normalizer = get_adaptive_normalizer()
@@ -62,6 +63,24 @@ def _p95(values: Deque[float]) -> float:
         return float(sorted_vals[lower])
     frac = pos - lower
     return float(sorted_vals[lower] + (sorted_vals[upper] - sorted_vals[lower]) * frac)
+
+
+# ---------------------------------------------------------------------------
+# R11 E6：评分路径是否采用「动态上限（窗口 P95）」
+#
+# 关闭（当前口径）。原因：
+#   1. 确定性 —— get_dynamic_max() 依赖进程级共享窗口，窗口每被任意一次请求
+#      fit_one 推进，P95 就会变；同一份输入隔一次调用就可能得到不同分数，
+#      演示与回归断言都不可复现。
+#   2. 跨区域串扰 —— 窗口按 (factor, region) 分桶，但 /detect-batch 用 MON-000…
+#      这类临时编码当区域，会把批处理样本写进与真实区域无关的桶；
+#      而 disaster_assessment 的窗口又主要由 /comprehensive 的请求推进，
+#      等于「A 请求的样本决定 B 请求的分母」。
+#
+# 打开后行为恢复为「评分用动态上限」；若要长期开启，需要先把动态上限改成
+# **每次推理的局部参数**（而不是进程级全局），并补「同输入两次分数一致」的契约测试。
+# 诊断信息不受此开关影响：window 仍可 fit/查询，通过 adaptive_normalization 对外暴露。
+SCORING_USES_ADAPTIVE_MAX = False
 
 
 class AdaptiveNormalizer:

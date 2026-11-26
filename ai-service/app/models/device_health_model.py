@@ -29,7 +29,10 @@ from typing import Any, Dict, List, Optional, Tuple
 from app.models.isolation_forest import get_detector
 from app.models.lstm_model import get_forecaster
 from app.models.feature_engineering import compute_disp_derivative
-from app.models.adaptive_normalizer import get_adaptive_normalizer
+from app.models.adaptive_normalizer import (
+    SCORING_USES_ADAPTIVE_MAX,
+    get_adaptive_normalizer,
+)
 
 
 # 参与评分的核心指标（与 Java 端 HEALTH_METRICS 对齐）
@@ -95,7 +98,13 @@ class DeviceHealthScorer:
         self._normalizer = get_adaptive_normalizer()
 
     def _dynamic_norm(self, factor_key: str, region_code: str, fallback: float) -> float:
-        """自适应上限 helper（样本不足回退 fallback）。"""
+        """归一化上限 helper。
+
+        R11 E6：与 disaster_assessment 同口径 —— 默认返回静态上限，
+        窗口 P95 只在 SCORING_USES_ADAPTIVE_MAX=True 时参与评分（默认关闭，保证可复现）。
+        """
+        if not SCORING_USES_ADAPTIVE_MAX:
+            return fallback
         try:
             return self._normalizer.get_dynamic_max(factor_key, region_code, fallback=fallback)
         except Exception:
@@ -121,8 +130,9 @@ class DeviceHealthScorer:
         # isolation forest / 3-sigma 的 score 可能是负值（越小越异常），统一映射到 0-100
         raw = float(result.get("score", 0.0))
         if raw <= 0:
-            local_p95 = self._normalizer.get_dynamic_max(metric, region, fallback=1.0)
-            # raw 通常在 [-1, 0]；local_p95 在 1~30；用 local_p95 做尺度
+            # raw 通常在 [-1, 0]：取绝对值放大到 0-100。
+            # 旧实现在此取了 local_p95 却从未参与计算（死变量），一并删除；
+            # 若要按本地尺度归一，应显式接入 SCORING_USES_ADAPTIVE_MAX 开关。
             normalized = max(0.0, min(100.0, -raw * 100.0))
         else:
             normalized = max(0.0, min(100.0, raw))
@@ -283,9 +293,9 @@ class DeviceHealthScorer:
         if forecast_model:
             model_tag = forecast_model
         elif any_degraded:
-            model_tag = "heuristic-fallback+adaptive-norm"
+            model_tag = "heuristic-fallback"
         else:
-            model_tag = "ai-anomaly+forecast+adaptive-norm"
+            model_tag = "ai-anomaly+forecast"
 
         # 7) 异常时间戳提示（按调用方字段约定传 ISO 字符串回写）
         last_anomaly_at = now.isoformat() if worst_anomaly > 30 else None

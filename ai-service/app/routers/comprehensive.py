@@ -54,6 +54,16 @@ class ComprehensiveResponse(BaseModel):
     model: str
     mock: bool = False
     message: str = "ok"
+    # R11 E6：模型已经把归一化/gradient 诊断算出来了，但没进 response_model ——
+    # FastAPI 会静默丢弃，前端于是「看不到是否真的生效」。显式暴露。
+    region_code: Optional[str] = Field(default=None, description="实际生效的区域编码（默认 = hazard_code）")
+    adaptive_normalization: Dict = Field(
+        default_factory=dict,
+        description=(
+            "自适应归一化状态：enabled/applied/differing_factors/note。"
+            "applied=0 表示评分使用静态 NORM_MAX（当前口径，保证同输入同输出）。"
+        ),
+    )
 
 
 @router.post("/comprehensive", response_model=ComprehensiveResponse)
@@ -81,6 +91,8 @@ def comprehensive(req: ComprehensiveRequest):
         suggested_actions=result["suggested_actions"],
         model=result["overall"]["model"],
         mock=result["overall"]["mock"],
+        region_code=result.get("region_code", region_code),
+        adaptive_normalization=result.get("adaptive_normalization", {}),
     )
 
 
