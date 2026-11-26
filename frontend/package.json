@@ -13,6 +13,7 @@
     "test": "vitest run",
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",
+    "knip": "knip --reporter compact",
     "format": "prettier --write \"src/**/*.{js,css,scss,html,md,json}\"",
     "format:check": "prettier --check \"src/**/*.{js,css,scss,html,md,json}\"",
     "lint:css": "stylelint \"src/**/*.{css,scss,vue}\"",

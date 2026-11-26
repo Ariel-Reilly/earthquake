@@ -124,3 +124,13 @@ jobs:
       # ── 4) 生产构建 ────────────────────────────────────────────────
       - name: Build (vite)
         run: npm run build
+
+      # ── 5) 死代码可观测（非阻断）────────────────────────────────────
+      # 为什么非阻断：dashboardApi 有 50+ 个「零引用但被契约测试锁定」的方法
+      # （apiPagedContract.spec.js 的 A 组），knip 无法感知这种「为契约保留」的意图。
+      # 这里只让「零引用」持续可见（趋势可追踪），不当作失败判据。
+      # 报告示例：R11 前的 sentinelService（286 行，0 引用）本应在这里先被看到。
+      - name: Dead code report (knip, non-blocking)
+        continue-on-error: true
+        shell: bash
+        run: npm run knip
