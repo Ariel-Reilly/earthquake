@@ -293,6 +293,15 @@ def train_xgboost(
     # 元数据（供 model_info 端点读取）
     meta_obj = {
         "version": "1.5.0",
+        # 与推理端契约对齐（app/models/model_contract.py）：
+        # 本脚本训练的是二分类，原生输出是 P(发生)，推理端必须 ×100 才进入
+        # 0~100 分档逻辑。缺了 objective，重训后模型会被当成回归分数，
+        # 全库评分塌到 0~1 → 全部 LOW。
+        "objective": "binary:logistic",
+        "output_type": "classification",
+        "output_scale": "probability_x100",
+        "model_id": "xgboost-fusion-binary",
+        "n_features": len(feature_names),
         "trained_at": t0.isoformat(),
         "samples_total": int(n),
         "samples_train": int(len(y_tr)),

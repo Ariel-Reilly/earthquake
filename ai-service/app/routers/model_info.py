@@ -19,6 +19,7 @@ from app.models.xgboost_model import (
     FusionRiskModel,
     get_fusion_model,
 )
+from app.models.model_contract import spec_for
 from app.models.comprehensive_model import DIMENSION_WEIGHTS, get_comprehensive_model
 from app.training.train_xgboost import train_xgboost
 
@@ -54,6 +55,10 @@ def _model_status(path: Path, name: str, meta: Dict[str, Any] = None) -> Dict[st
             "trained_at": meta.get("trained_at"),
             "version": meta.get("version"),
             "feature_count": meta.get("n_features") or meta.get("feature_count"),
+            # 输出口径随模型走：regression=0~100 分，classification=0~1 概率（推理端 ×100）
+            "objective": meta.get("objective"),
+            "output_type": meta.get("output_type"),
+            "output_scale": meta.get("output_scale"),
         })
     return info
 
@@ -84,7 +89,10 @@ async def model_info() -> Dict[str, Any]:
             "model_loaded": fusion.is_loaded(),
             "model_path": str(fusion.model_path),
             "model_exists_on_disk": fusion.model_path.exists(),
-            "feature_names": list(DEFAULT_WEIGHTS.keys()),
+            # objective 来自模型本体（不是 meta），决定 risk_score 的口径
+            "objective": fusion.objective,
+            "model_id": (spec_for(fusion.objective) or {}).get("model_id"),
+            "feature_names": fusion.feature_names or list(DEFAULT_WEIGHTS.keys()),
             "weights": DEFAULT_WEIGHTS,
         },
         # 综合风险模型详细信息
@@ -294,6 +302,11 @@ def model_retrain(req: RetrainRequest | None = None) -> Dict[str, Any]:
     请求都会在训练期间被冻住（R3/R4 已记录过同类问题）。
     """
     req = req or RetrainRequest()
+    # 重训前后对比 objective：本端点训练的是二分类模型，若线上原本跑的是
+    # v3 回归模型，重训会切换分值口径（0~100 分 → 0~1 概率）。推理端已按
+    # objective 归一化，不会再把概率当分数，但这是一次真实的模型类型变更，
+    # 必须在响应与日志里显式暴露，不能静默换掉线上模型。
+    before_objective = get_fusion_model().objective
     result = train_xgboost(
         target_samples=req.samples,
         val_ratio=req.val_ratio,
@@ -304,8 +317,21 @@ def model_retrain(req: RetrainRequest | None = None) -> Dict[str, Any]:
 
         xm._fusion_model = None  # type: ignore[attr-defined]
         new_model = get_fusion_model()
+        after_objective = new_model.objective
         result["reloaded"] = new_model.is_loaded()
         result["model_path"] = str(new_model.model_path)
+        result["objective"] = after_objective
+        result["model_id"] = (spec_for(after_objective) or {}).get("model_id")
+        result["model_type_changed"] = bool(
+            before_objective and after_objective and before_objective != after_objective
+        )
+        if result["model_type_changed"]:
+            logger.warning(
+                "融合模型 objective 变更: %s -> %s（risk_score 口径随之切换，"
+                "历史评分不可与新评分直接比较）",
+                before_objective,
+                after_objective,
+            )
     return result
 
 

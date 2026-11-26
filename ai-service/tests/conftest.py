@@ -8,11 +8,19 @@ from app.models.feedback_store import get_feedback_store
 
 
 @pytest.fixture(autouse=True)
-def reset_state():
-    """每个测试前重置单例，确保隔离。"""
+def reset_state(tmp_path):
+    """每个测试前重置单例，确保隔离。
+
+    R11 E1 附带修复：``FeedbackStore.clear()`` 只清内存，写入仍会 append 到
+    ``models/feedback/feedback.jsonl``。此前每跑一次 pytest，仓库里的反馈样本
+    就被写入一批 ``feedback_by="test"`` 的假数据，进而污染后续重训的训练集。
+    这里把持久化路径重定向到 tmp_path，测试不再改动仓库文件。
+    """
     random.seed(42)
     get_adaptive_normalizer()._data.clear()  # type: ignore[attr]
-    get_feedback_store().clear()
+    store = get_feedback_store()
+    store.clear()
+    store._persist_path = tmp_path / "feedback.jsonl"  # type: ignore[attr-defined]
     yield
 
 

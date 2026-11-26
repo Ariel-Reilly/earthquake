@@ -187,6 +187,9 @@ def train(X: np.ndarray, y: np.ndarray, output_dir: Path):
     meta = {
         "version": "2.0.0",
         "objective": "binary:logistic",
+        "output_type": "classification",
+        "output_scale": "probability_x100",
+        "model_id": "xgboost-fusion-binary",
         "trained_at": datetime.now(timezone.utc).isoformat(),
         "n_samples": int(n),
         "n_train": int(len(X_train)),
@@ -222,10 +225,18 @@ def main():
     parser.add_argument("--n-samples", type=int, default=5000)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--output-dir", default=str(Path(__file__).resolve().parent.parent.parent / "models"))
+    parser.add_argument("--force", action="store_true", help="允许覆盖已有融合模型（会改变线上分值口径）")
     args = parser.parse_args()
 
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
+    target = output_dir / "xgboost_fusion.json"
+    if target.exists() and not args.force:
+        raise SystemExit(
+            "[train] 拒绝覆盖已有融合模型：本脚本是二分类（输出 0~1 概率），"
+            "而线上推理按 0~100 回归评分分档。\n"
+            "        确需覆盖请显式加 --force；生产模型请用 scripts/training/train_fusion_v3.py。"
+        )
     X, y = synthesize_samples(n_total=args.n_samples, seed=args.seed)
     train(X, y, output_dir)
 

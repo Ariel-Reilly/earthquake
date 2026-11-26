@@ -132,10 +132,17 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--data", required=True)
     parser.add_argument("--output-dir", default=str(Path(__file__).resolve().parent.parent.parent / "models"))
+    parser.add_argument("--force", action="store_true", help="允许覆盖已有融合模型（会改变线上分值口径）")
     args = parser.parse_args()
 
     X, y = load_csv(Path(args.data))
     output_path = Path(args.output_dir) / "xgboost_fusion.json"
+    if output_path.exists() and not args.force:
+        raise SystemExit(
+            "[train] 拒绝覆盖已有融合模型：本脚本是二分类（输出 0~1 概率），"
+            "而线上推理按 0~100 回归评分分档。\n"
+            "        确需覆盖请显式加 --force；生产模型请用 scripts/training/train_fusion_v3.py。"
+        )
     train(X, y, output_path)
 
 

@@ -367,6 +367,7 @@ async def dashboard_summary() -> JSONResponse:
                         "trained_at": meta.get("trained_at"),
                         "version": meta.get("version"),
                         "feature_count": meta.get("n_features"),
+                        "objective": meta.get("objective"),
                     })
             all_models.append(info)
 

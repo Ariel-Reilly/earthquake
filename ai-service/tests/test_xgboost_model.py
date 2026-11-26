@@ -33,6 +33,9 @@ class TestFusionRiskModel:
         """如果磁盘上有 xgboost_fusion.json，模型应加载成功。"""
         if not (MODELS_DIR / "xgboost_fusion.json").exists():
             pytest.skip("真实模型未训练")
+        # xgboost 自身依赖 scipy；依赖缺失属环境问题（导入会抛 ImportError），
+        # 不应被当成代码回归。契约本身由 test_model_contract.py 覆盖。
+        pytest.importorskip("xgboost")
         m = FusionRiskModel()
         assert m.is_loaded()
 

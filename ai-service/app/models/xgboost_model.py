@@ -17,6 +17,11 @@ from typing import Dict, Any, Optional, Tuple
 import numpy as np
 
 from app.config import MODELS_DIR
+from app.models.model_contract import (
+    detect_objective,
+    is_supported,
+    normalize_prediction,
+)
 
 
 # 默认因子权重（融合方向一致：值越大越危险）
@@ -49,6 +54,11 @@ class FusionRiskModel:
         self.model_path = Path(model_path) if model_path else (MODELS_DIR / "xgboost_fusion.json")
         self.model = None
         self.model_loaded = False
+        # objective 从模型本体读取，决定输出怎么解释（见 model_contract）
+        self.objective: Optional[str] = None
+        # 训练时的真实特征顺序。DMatrix 的 feature_names 必须与之逐位一致，
+        # 否则同名但错位的列会被静默当成正确输入。
+        self.feature_names: list[str] = list(DEFAULT_WEIGHTS.keys())
         self._load()
 
     def _load(self) -> None:
@@ -59,13 +69,38 @@ class FusionRiskModel:
             import xgboost as xgb
             booster = xgb.Booster()
             booster.load_model(str(self.model_path))
-            self.model = booster
-            self.model_loaded = True
-            print(f"[FusionRiskModel] 模型加载成功: {self.model_path}")
         except ImportError:
             print("[FusionRiskModel] xgboost 未安装，降级为加权融合")
+            return
         except Exception as e:
             print(f"[FusionRiskModel] 模型加载失败: {e}，降级为加权融合")
+            return
+
+        # 特征顺序以模型本体为准（训练时写入），不是以本文件的常量顺序为准。
+        trained_features = list(getattr(booster, "feature_names", None) or [])
+        if trained_features:
+            if set(trained_features) != set(DEFAULT_WEIGHTS):
+                print(
+                    "[FusionRiskModel] 模型特征集与推理端不一致 "
+                    f"(model={trained_features}, expected={list(DEFAULT_WEIGHTS)})，降级为加权融合"
+                )
+                return
+            self.feature_names = trained_features
+
+        # objective 决定分值口径：回归已是 0~100，二分类是 0~1 概率。
+        # 不读 sidecar meta —— v1 只写模型不写 meta，meta 会停留在上一版的目标函数上。
+        objective = detect_objective(booster)
+        if not is_supported(objective):
+            print(
+                f"[FusionRiskModel] 模型 objective 不受支持: {objective!r}，"
+                "降级为加权融合（避免把概率当分数静默产出）"
+            )
+            return
+
+        self.model = booster
+        self.objective = objective
+        self.model_loaded = True
+        print(f"[FusionRiskModel] 模型加载成功: {self.model_path} (objective={objective})")
 
     def is_loaded(self) -> bool:
         return self.model_loaded
@@ -90,23 +125,27 @@ class FusionRiskModel:
     def _run_xgboost(self, factors: Dict[str, float]) -> Dict[str, Any]:
         """XGBoost 推理。
 
-        v3 模型（train_fusion_v3.py（scripts/training/））已改为回归输出（reg:squarederror），
-        输出值即为 [0, 100] 连续风险评分，不需要再 * 100。
+        输出口径由模型自身的 objective 决定（见 ``model_contract``）：
+        - ``reg:squarederror``（v3）：原生即 [0, 100] 风险分
+        - ``binary:logistic``（v1/v2/train_xgboost）：原生是 P(高风险)，
+          必须 ×100 才能进入分档逻辑
+
+        历史上这里无条件当 [0, 100] 用，二分类模型一重训就让所有评分落到
+        0~1 → 全量 LOW。objective 已在 ``_load`` 里校验过，这里不会静默猜。
         """
         import xgboost as xgb
-        # 按照训练时的特征顺序构造向量
-        feature_names = list(DEFAULT_WEIGHTS.keys())
+        # 按模型训练时的真实列序构造向量（_load 已校验特征集合一致）
+        feature_names = self.feature_names
         vec = np.array([[factors.get(name, 0.0) for name in feature_names]], dtype=np.float32)
         dmatrix = xgb.DMatrix(vec, feature_names=feature_names)
-        pred = float(self.model.predict(dmatrix)[0])
-        # 模型原生输出 [0, 100] 范围
-        score = round(max(0.0, min(100.0, pred)), 2)
-        level = self._score_to_level(score)
+        raw = float(self.model.predict(dmatrix)[0])
+        score, model_id = normalize_prediction(raw, self.objective)
         return {
-            "risk_level": level,
+            "risk_level": self._score_to_level(score),
             "risk_score": score,
             "confidence": round(min(0.95, 0.5 + 0.005 * score), 4),
-            "model": "xgboost-fusion-v3",
+            "model": model_id,
+            "objective": self.objective,
             "mock": False,
         }
 
@@ -132,6 +171,7 @@ class FusionRiskModel:
             "risk_score": score,
             "confidence": confidence,
             "model": "heuristic-weighted-fusion",
+            "objective": None,
             "mock": True,
         }
 

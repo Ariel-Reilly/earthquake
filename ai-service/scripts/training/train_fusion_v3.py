@@ -191,6 +191,8 @@ def train(X: np.ndarray, y: np.ndarray, output_dir: Path):
         "version": "3.0.0",
         "objective": "reg:squarederror",
         "output_type": "regression",
+        "output_scale": "risk_score",
+        "model_id": "xgboost-fusion-v3",
         "trained_at": datetime.now(timezone.utc).isoformat(),
         "n_samples": int(n),
         "n_train": int(len(X_train)),

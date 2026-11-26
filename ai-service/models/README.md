@@ -17,6 +17,16 @@
 
 模型缺失时，ai-service 自动降级为启发式/mock 实现，不阻塞后端主流程。
 
+### `xgboost_fusion.json` 的输出口径
+
+该文件可能由不同目标函数的脚本产出，推理端**按模型自身的 `objective` 解释输出**
+（见 `app/models/model_contract.py`）：
+
+- `reg:squarederror` → 原生即 [0, 100] 风险分（`model_id=xgboost-fusion-v3`）
+- `binary:logistic` → 原生是 P(发生) ∈ [0, 1]，推理端 ×100 后分档（`model_id=xgboost-fusion-binary`）
+
+未知 objective 会直接降级为加权融合并打日志，而不是把概率当分数静默使用。
+
 ---
 
 ## ✓ 关于当前仓库里的 `yolo_crack.onnx`（2026-11-06 重建为 clean 版）
