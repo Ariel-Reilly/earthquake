@@ -31,6 +31,10 @@ class DetectResponse(BaseModel):
     features: Dict[str, Any]
     recommendation: str
     detectedAt: str
+    #: 实际参与比较的特征数；0 表示没有比较过，前端不得当作"无漂移"
+    comparedFeatures: int = 0
+    #: 没有基线/样本不足时为空列表，便于前端区分"有值"和"没测过"
+    baselineFeatures: List[str] = []
 
 
 class RetrainRequest(BaseModel):
@@ -91,7 +95,9 @@ def detect_drift(request: DetectRequest) -> DetectResponse:
             for k, v in result.features.items()
         },
         recommendation=result.recommendation,
-        detectedAt=result.detected_at
+        detectedAt=result.detected_at,
+        comparedFeatures=result.compared_features,
+        baselineFeatures=list(monitor.baseline_data.keys()),
     )
 
 
@@ -109,19 +115,16 @@ async def get_drift_trend(
         feature: 可选，指定特征
         days: 趋势天数
     """
-    # TODO: 从数据库加载历史漂移记录
-    # 这里返回模拟数据
+    # 漂移历史尚未持久化（二期能力）。此前这里用 hash/取模生成一条假的
+    # "近 N 天 PSI 曲线"，前端会把它当真实趋势渲染——数值看似平滑，
+    # 实际上与模型毫无关系。改为明确返回"无数据"，页面显示空态。
     return {
         "modelId": model_id,
         "feature": feature,
         "days": days,
-        "trend": [
-            {
-                "timestamp": (datetime.now() - timedelta(days=i)).isoformat(),
-                "psi": 0.05 + (i % 5) * 0.02 + 0.01 * (hash(str(i)) % 3)
-            }
-            for i in range(days, 0, -1)
-        ]
+        "available": False,
+        "reason": "漂移历史尚未持久化，暂无趋势数据",
+        "trend": [],
     }
 
 
@@ -139,28 +142,39 @@ async def get_feature_drift_detail(
     """
     monitor = get_drift_monitor(model_id)
 
-    # TODO: 返回特征的详细分布信息
-    # 这里返回模拟数据
+    # 此前返回的是硬编码的 mean=45.2/std=12.5 与 psi=0.18，前端无法分辨真假。
+    # 现在只回填基线侧的真实统计；当前样本不由本端点提供，故 currentStats/psi
+    # 明确为 None，并置 available=false。
+    baseline = monitor.baseline_data.get(feature)
+    if baseline is None or len(baseline) < DriftMonitor.MIN_SAMPLES:
+        return {
+            "modelId": model_id,
+            "feature": feature,
+            "available": False,
+            "reason": "该特征没有足够样本的基线数据",
+            "baselineStats": None,
+            "currentStats": None,
+            "psi": None,
+            "ks": None,
+            "driftLevel": None,
+        }
+
     return {
         "modelId": model_id,
         "feature": feature,
+        "available": False,
+        "reason": "仅有基线统计，缺少与基线同分布的当前样本，无法计算漂移",
         "baselineStats": {
-            "mean": 45.2,
-            "std": 12.5,
-            "min": 10.0,
-            "max": 80.0,
-            "count": 5000
+            "mean": round(float(baseline.mean()), 4),
+            "std": round(float(baseline.std()), 4),
+            "min": round(float(baseline.min()), 4),
+            "max": round(float(baseline.max()), 4),
+            "count": int(len(baseline)),
         },
-        "currentStats": {
-            "mean": 52.8,
-            "std": 14.2,
-            "min": 15.0,
-            "max": 90.0,
-            "count": 500
-        },
-        "psi": 0.18,
-        "ks": 0.12,
-        "driftLevel": "SLIGHT"
+        "currentStats": None,
+        "psi": None,
+        "ks": None,
+        "driftLevel": None,
     }
 
 

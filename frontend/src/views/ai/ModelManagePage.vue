@@ -14,6 +14,7 @@ import {
   triggerRetrain,
   getRetrainStatus,
   getDriftLevelInfo,
+  normalizeDriftLevel,
 } from '../../services/_architecture/domain/driftMonitorService'
 
 const emit = defineEmits(['notify'])
@@ -283,10 +284,21 @@ const driftCoords = computed(() => {
   }))
   return { points, lastPoint: points[points.length - 1] }
 })
+// 展示用状态：后端是 SLIGHT_DRIFT / SIGNIFICANT_DRIFT / NO_BASELINE /
+// INSUFFICIENT_DATA，统一归一后再用于配色与文案，避免字符串比较判错。
+const driftStatus = computed(() =>
+  normalizeDriftLevel(driftResult.value?.overallStatus || 'UNKNOWN')
+)
+// 没有基线 / 样本不足 = 本次没做过判定，不能按"正常"展示，也不该允许一键重训。
+const driftNotComparable = computed(() =>
+  ['NO_BASELINE', 'INSUFFICIENT', 'UNKNOWN'].includes(driftStatus.value)
+)
 const driftLineColor = computed(() => {
-  const s = driftResult.value?.overallStatus
-  if (s === 'SIGNIFICANT') return '#e06060'
-  if (s === 'SLIGHT') return '#d18f2f'
+  // R11 E5：后端返回 SIGNIFICANT_DRIFT，旧代码比较 'SIGNIFICANT' 永远不成立，
+  // 显著漂移也会画成绿色。统一走 normalizeDriftLevel。
+  if (driftStatus.value === 'SIGNIFICANT') return '#e06060'
+  if (driftStatus.value === 'SLIGHT') return '#d18f2f'
+  if (driftNotComparable.value) return '#8a968d'
   return '#38a169'
 })
 
@@ -882,7 +894,7 @@ onMounted(async () => {
         <div class="drift-detail">
           <template v-if="selectedDriftModel && driftResult">
             <!-- 状态卡片 -->
-            <div class="drift-status-card" :class="`level-${driftResult.overallStatus?.toLowerCase() || 'normal'}`">
+            <div class="drift-status-card" :class="`level-${driftStatus.toLowerCase().replace(/_/g, '-')}`">
               <div class="drift-status-header">
                 <AlertTriangle :size="20" />
                 <span>模型漂移监控</span>
@@ -891,9 +903,12 @@ onMounted(async () => {
                 <strong>{{ selectedDriftModel.name }}</strong>
                 <span>{{ selectedDriftModel.version }}</span>
               </div>
-              <div class="drift-status-badge" :class="`status-${driftResult.overallStatus?.toLowerCase() || 'normal'}`">
-                {{ getDriftLevelInfo(driftResult.overallStatus)?.label || driftResult.overallStatus || '未知' }}
+              <div class="drift-status-badge" :class="`status-${driftStatus.toLowerCase().replace(/_/g, '-')}`">
+                {{ getDriftLevelInfo(driftStatus)?.label || driftStatus }}
               </div>
+              <p v-if="driftNotComparable" class="drift-status-note">
+                本次未做漂移判定（没有基线或缺少当前样本），不代表模型正常。
+              </p>
             </div>
 
             <!-- 特征漂移列表 -->
@@ -940,6 +955,7 @@ onMounted(async () => {
                   />
                   <circle :cx="driftCoords.lastPoint.x" :cy="driftCoords.lastPoint.y" r="3" :fill="driftLineColor"/>
                 </svg>
+                <p v-else class="drift-trend-empty">暂无趋势数据（漂移历史尚未持久化）</p>
               </div>
             </div>
 
@@ -951,7 +967,7 @@ onMounted(async () => {
               </div>
               <p>{{ driftResult.recommendation || '暂无建议' }}</p>
               <div class="recommendation-actions">
-                <button class="primary-btn" :disabled="retrainLoading || driftResult.overallStatus === 'NORMAL'" @click="handleRetrain">
+                <button class="primary-btn" :disabled="retrainLoading || driftStatus === 'NORMAL' || driftNotComparable" @click="handleRetrain">
                   <Cpu :size="14" />
                   {{ retrainLoading ? '创建中...' : '一键重训' }}
                 </button>
@@ -1935,6 +1951,21 @@ code {
   background: linear-gradient(135deg, var(--c-danger-bg) 0%, var(--c-surface) 80%);
 }
 
+/* 无基线 / 样本不足 / 未知：不是"正常"，用中性灰，避免假绿 */
+.drift-status-card.level-no-baseline,
+.drift-status-card.level-insufficient,
+.drift-status-card.level-unknown {
+  border-left: 4px solid var(--c-text-3);
+  background: linear-gradient(135deg, var(--c-surface) 0%, var(--c-surface) 80%);
+}
+
+.drift-status-note {
+  margin: 0;
+  font-size: 12px;
+  color: var(--c-text-3);
+  line-height: 1.6;
+}
+
 .drift-status-header {
   display: flex;
   align-items: center;
@@ -1985,6 +2016,22 @@ code {
 .drift-status-badge.status-significant {
   background: var(--c-danger-bg);
   color: var(--c-danger-strong);
+}
+
+.drift-status-badge.status-no-baseline,
+.drift-status-badge.status-insufficient,
+.drift-status-badge.status-unknown {
+  background: var(--c-surface);
+  color: var(--c-text-3);
+  border: 1px solid var(--c-border);
+}
+
+.drift-trend-empty {
+  margin: 0;
+  padding: 12px 0;
+  font-size: 12px;
+  color: var(--c-text-3);
+  text-align: center;
 }
 
 .drift-features {

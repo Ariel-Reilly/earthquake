@@ -157,23 +157,29 @@ export async function getRetrainStatus(jobId) {
 /**
  * 获取模型健康度摘要
  *
- * @param {string} modelId - 模型ID
- * @returns {Promise<Object>} 健康度摘要
+ * 注意：本函数**不做漂移判定**——漂移检测必须有"与基线同分布的当前样本"，
+ * 而这里拿不到。历史实现调用 detectDrift({currentData: []})，后端在无样本时
+ * 返回 NORMAL，摘要因此长期显示"正常"（假绿）。现在只回答"有没有基线"，
+ * 判不了就明确返回 UNKNOWN / NO_BASELINE。
  */
 export async function getModelHealthSummary(modelId) {
   try {
-    const [driftResult, trendResult] = await Promise.all([
-      detectDrift({ modelId, currentData: [] }),
+    const [baseline, trendResult] = await Promise.all([
+      getBaseline(modelId),
       getDriftTrend(modelId, { days: 7 }),
     ])
-
+    const baselineFeatures = baseline?.features ?? []
+    const hasBaseline = baselineFeatures.length > 0
     return {
       modelId,
-      overallStatus: driftResult.overallStatus,
-      recommendation: driftResult.recommendation,
-      recentTrend: trendResult.trend?.slice(-7) || [],
-      features: driftResult.features,
-      lastChecked: driftResult.detectedAt,
+      overallStatus: hasBaseline ? 'UNKNOWN' : 'NO_BASELINE',
+      recommendation: hasBaseline
+        ? '已有漂移基线，但缺少与基线同分布的当前样本，本次未做漂移判定。'
+        : '尚未建立漂移基线，无法判断是否漂移。请先写入基线数据。',
+      recentTrend: trendResult?.available === false ? [] : (trendResult?.trend?.slice(-7) ?? []),
+      baselineFeatures,
+      features: {},
+      lastChecked: new Date().toISOString(),
     }
   } catch (_error) {
     return {
@@ -181,6 +187,7 @@ export async function getModelHealthSummary(modelId) {
       overallStatus: 'UNKNOWN',
       recommendation: '无法获取健康度信息',
       recentTrend: [],
+      baselineFeatures: [],
       features: {},
       lastChecked: new Date().toISOString(),
     }
@@ -194,7 +201,27 @@ export const DRIFT_LEVELS = {
   NORMAL: { label: '正常', color: '#38a169', class: 'teal' },
   SLIGHT: { label: '轻微漂移', color: '#d18f2f', class: 'yellow' },
   SIGNIFICANT: { label: '显著漂移', color: '#e53e3e', class: 'red' },
+  // 没有基线 / 样本不足：都不是"正常"，用灰色并给出明确文案
+  NO_BASELINE: { label: '无基线', color: '#8a968d', class: 'gray' },
+  INSUFFICIENT: { label: '样本不足', color: '#8a968d', class: 'gray' },
   UNKNOWN: { label: '未知', color: '#8a968d', class: 'gray' },
+}
+
+/**
+ * 后端整体状态 → 展示级别。
+ * 后端返回 SLIGHT_DRIFT / SIGNIFICANT_DRIFT，而历史展示层只认 SLIGHT /
+ * SIGNIFICANT，导致显著漂移也被渲染成绿色"正常"。
+ */
+const DRIFT_LEVEL_ALIAS = {
+  SLIGHT_DRIFT: 'SLIGHT',
+  SIGNIFICANT_DRIFT: 'SIGNIFICANT',
+  INSUFFICIENT_DATA: 'INSUFFICIENT',
+}
+
+/** 把后端状态码归一为 DRIFT_LEVELS 的键。 */
+export function normalizeDriftLevel(level) {
+  const key = String(level ?? '').toUpperCase()
+  return DRIFT_LEVEL_ALIAS[key] || key
 }
 
 /**
@@ -204,5 +231,5 @@ export const DRIFT_LEVELS = {
  * @returns {Object} 级别信息
  */
 export function getDriftLevelInfo(level) {
-  return DRIFT_LEVELS[level?.toUpperCase()] || DRIFT_LEVELS.UNKNOWN
+  return DRIFT_LEVELS[normalizeDriftLevel(level)] || DRIFT_LEVELS.UNKNOWN
 }

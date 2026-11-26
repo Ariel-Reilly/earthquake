@@ -19,7 +19,6 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
-from scipy import stats
 
 from app.config import MODELS_DIR, BASELINE_DIR
 
@@ -39,10 +38,13 @@ class DriftResult:
 class OverallDriftResult:
     """整体漂移检测结果"""
     model_id: str
-    overall_status: str  # NORMAL / SLIGHT_DRIFT / SIGNIFICANT_DRIFT
+    # NORMAL / SLIGHT_DRIFT / SIGNIFICANT_DRIFT / NO_BASELINE / INSUFFICIENT_DATA
+    overall_status: str
     features: Dict[str, DriftResult]
     recommendation: str
     detected_at: str
+    #: 实际参与比较的特征数。0 表示"没有比较过"，调用方不得把结果当"无漂移"。
+    compared_features: int = 0
 
 
 class DriftMonitor:
@@ -60,6 +62,13 @@ class DriftMonitor:
     THRESHOLD_SLIGHT = 0.1
     THRESHOLD_SIGNIFICANT = 0.25
     DEFAULT_BUCKETS = 10
+    #: PSI / KS 的最少样本数；不足时无法判定，不能算作"正常"。
+    MIN_SAMPLES = 10
+
+    #: 无基线 / 样本不足 的状态码。调用方（含前端）必须把它们显示为
+    #: "未知/不可用"，而不是绿色正常态。
+    STATUS_NO_BASELINE = "NO_BASELINE"
+    STATUS_INSUFFICIENT = "INSUFFICIENT_DATA"
 
     def __init__(self, model_id: str):
         self.model_id = model_id
@@ -102,7 +111,7 @@ class DriftMonitor:
         expected = expected[~np.isnan(expected) & ~np.isinf(expected)]
         actual = actual[~np.isnan(actual) & ~np.isinf(actual)]
 
-        if len(expected) < 10 or len(actual) < 10:
+        if len(expected) < self.MIN_SAMPLES or len(actual) < self.MIN_SAMPLES:
             return 0.0
 
         # 计算分位点
@@ -164,11 +173,46 @@ class DriftMonitor:
         expected = expected[~np.isnan(expected) & ~np.isinf(expected)]
         actual = actual[~np.isnan(actual) & ~np.isinf(actual)]
 
-        if len(expected) < 10 or len(actual) < 10:
+        if len(expected) < self.MIN_SAMPLES or len(actual) < self.MIN_SAMPLES:
             return 0.0, 1.0
 
-        ks_stat, p_value = stats.ks_2samp(expected, actual)
-        return float(ks_stat), float(p_value)
+        # scipy 是可选依赖：镜像里 scipy 安装不完整（缺 scipy.sparse 等）时，
+        # 顶层 import 会让整个漂移模块不可用。这里惰性导入并降级到 numpy 实现，
+        # PSI 才是分档依据，KS 只作辅助指标，不值得让接口整体 500。
+        try:
+            from scipy import stats
+
+            ks_stat, p_value = stats.ks_2samp(expected, actual)
+            return float(ks_stat), float(p_value)
+        except Exception:  # noqa: BLE001 - ImportError / 属性缺失都走降级
+            return self._ks_two_sample(expected, actual)
+
+    @staticmethod
+    def _ks_two_sample(expected: np.ndarray, actual: np.ndarray) -> Tuple[float, float]:
+        """无 scipy 时的两样本 KS：统计量精确，p 值用渐近级数近似。
+
+        参考 Numerical Recipes 的 KS 概率近似；p 值仅用于展示，
+        漂移分档由 PSI 决定。
+        """
+        e = np.sort(expected)
+        a = np.sort(actual)
+        grid = np.concatenate([e, a])
+        cdf_e = np.searchsorted(e, grid, side="right") / len(e)
+        cdf_a = np.searchsorted(a, grid, side="right") / len(a)
+        d = float(np.max(np.abs(cdf_e - cdf_a)))
+
+        n_eff = len(e) * len(a) / (len(e) + len(a))
+        lam = (math.sqrt(n_eff) + 0.12 + 0.11 / math.sqrt(n_eff)) * d
+        if lam < 1e-12:
+            return d, 1.0
+
+        p = 0.0
+        for k in range(1, 101):
+            term = 2.0 * ((-1) ** (k - 1)) * math.exp(-2.0 * k * k * lam * lam)
+            p += term
+            if abs(term) < 1e-12:
+                break
+        return d, float(min(1.0, max(0.0, p)))
 
     def _classify_drift(self, psi: float) -> str:
         """根据 PSI 值分类漂移级别"""
@@ -192,10 +236,25 @@ class DriftMonitor:
         Returns:
             漂移检测结果
         """
-        features = {}
+        features: Dict[str, DriftResult] = {}
         overall_level = "NORMAL"
         significant_features = []
         slight_features = []
+        insufficient_features = []
+        compared = 0
+
+        # 没有基线就没有"比较"这件事。此前整体状态初始为 NORMAL，循环不执行
+        # 时直接返回 NORMAL + "各特征分布正常"，页面上是一块绿色——
+        # 这是最危险的假绿：运维会以为模型稳定，实际从未做过检测。
+        if not self.baseline_data:
+            return OverallDriftResult(
+                model_id=self.model_id,
+                overall_status=self.STATUS_NO_BASELINE,
+                features={},
+                recommendation="尚未建立该模型的漂移基线，无法判断是否漂移。请先采集一批基准数据写入基线。",
+                detected_at=datetime.now().isoformat(),
+                compared_features=0,
+            )
 
         for feature, values in current_data.items():
             if feature not in self.baseline_data:
@@ -203,6 +262,25 @@ class DriftMonitor:
 
             expected = self.baseline_data[feature]
             actual = np.array(values)
+
+            # 样本不足时 PSI 会返回 0，进而被判成 NORMAL——同样是假绿。
+            # 这里独立成 INSUFFICIENT，并计入"未比较"。
+            if len(expected) < self.MIN_SAMPLES or len(actual) < self.MIN_SAMPLES:
+                features[feature] = DriftResult(
+                    feature=feature,
+                    psi=0.0,
+                    ks_stat=0.0,
+                    p_value=1.0,
+                    drift_level="INSUFFICIENT",
+                    message=(
+                        f"特征 {feature} 样本不足（基线 {len(expected)} / 当前 {len(actual)}，"
+                        f"需 ≥{self.MIN_SAMPLES}），无法判断漂移"
+                    ),
+                )
+                insufficient_features.append(feature)
+                continue
+
+            compared += 1
 
             # 计算 PSI
             psi = self._calculate_psi(expected, actual)
@@ -238,9 +316,13 @@ class DriftMonitor:
             elif drift_level == "SLIGHT" and overall_level == "NORMAL":
                 overall_level = "SLIGHT_DRIFT"
 
+        # 一个特征都没比过（当前样本为空 / 与基线无交集）→ 不能说"正常"
+        if compared == 0 and overall_level == "NORMAL":
+            overall_level = self.STATUS_INSUFFICIENT
+
         # 生成建议
         recommendation = self._generate_recommendation(
-            overall_level, significant_features, slight_features
+            overall_level, significant_features, slight_features, insufficient_features
         )
 
         return OverallDriftResult(
@@ -248,16 +330,25 @@ class DriftMonitor:
             overall_status=overall_level,
             features=features,
             recommendation=recommendation,
-            detected_at=datetime.now().isoformat()
+            detected_at=datetime.now().isoformat(),
+            compared_features=compared,
         )
 
     def _generate_recommendation(
         self,
         overall_status: str,
         significant: List[str],
-        slight: List[str]
+        slight: List[str],
+        insufficient: Optional[List[str]] = None,
     ) -> str:
         """生成建议"""
+        if overall_status == self.STATUS_NO_BASELINE:
+            return "尚未建立该模型的漂移基线，无法判断是否漂移。请先采集一批基准数据写入基线。"
+        if overall_status == self.STATUS_INSUFFICIENT:
+            return (
+                "当前没有可用于对比的样本（或样本量不足），本次未完成漂移判定。"
+                "请提供与基线特征一致的当前样本后重试。"
+            )
         if overall_status == "NORMAL":
             return "各特征分布正常，模型运行稳定，建议保持常规监测。"
 
@@ -266,6 +357,8 @@ class DriftMonitor:
             parts.append(f"以下特征存在显著漂移: {', '.join(significant)}，建议立即重训模型。")
         if slight:
             parts.append(f"以下特征存在轻微漂移: {', '.join(slight)}，建议持续关注。")
+        if insufficient:
+            parts.append(f"以下特征样本不足、本次未参与判定: {', '.join(insufficient)}。")
 
         if significant:
             parts.append("建议收集最新数据后重训模型，并评估新模型效果。")
