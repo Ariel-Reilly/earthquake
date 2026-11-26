@@ -530,7 +530,8 @@ export function createOpenLayersController(
    *   - bbox   ：[minLon, minLat, maxLon, maxLat] AOI 范围，与图像对齐
    *   - meta   ：可选元数据，写到 layer.properties 供 UI 展示（合成时间、来源 provider）
    *
-   * 调用方应当先调 sentinelService.composeSentinelScene / pollSentinelJob，
+   * 调用方应当先拿到合成结果（POST /api/ai/sentinel/compose → GET .../jobs/{id}，
+   * 走 satelliteCompareApi 的 Java 网关代理，不要直连 AI Service 8001），
    * 等 status=succeeded 后拿到 result.s2Url / result.sarUrl，再走这里挂图。
    */
   function setSentinelOverlay({ s2Url, sarUrl, bbox, meta } = {}) {
