@@ -1,13 +1,18 @@
 name: CI
 
 # ─────────────────────────────────────────────────────────────────────
-# 触发条件：push / PR 到 main 与 develop 分支
+# 触发条件：push / PR 到 main、develop、release/delivery
+#
+# release/delivery 是交付集成分支（多轮审查修复都落在这里）。此前只有 main/develop
+# 触发，导致「推上去让 CI 用真实 PostGIS 验证 schema/seed/迁移」的路径实际不存在 ——
+# 12 个 PostgresTestBase 用例在本地（无 Docker）只能被跳过，等于这批改动长期没有
+# 真实库验证。加进来后该分支每次 push 都会跑完整 CI。
 # ─────────────────────────────────────────────────────────────────────
 on:
   push:
-    branches: [main, develop]
+    branches: [main, develop, release/delivery]
   pull_request:
-    branches: [main, develop]
+    branches: [main, develop, release/delivery]
 
 # ─────────────────────────────────────────────────────────────────────
 # 并发：在最新 run 尚未完成时取消同分支同 PR 的旧 run
