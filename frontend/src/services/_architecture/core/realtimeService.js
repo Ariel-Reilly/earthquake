@@ -1,4 +1,4 @@
-import { dashboardApi, isBackendRuntime, API_BASE } from '../../dashboardApi.js'
+import { dashboardApi, isBackendRuntime, getUseBackend, API_BASE } from '../../dashboardApi.js'
 import { getAuthToken } from '../../../stores/auth.js'
 import { useRealtimeStore } from '../../../stores/realtime.js'
 import { appendWsQuery, resolveWebSocketUrl } from '../../../utils/wsUrl.js'
@@ -111,9 +111,18 @@ const PERSONNEL_ROSTER = [
  *   从后端 /api/personnel/positions 拉取真实位置；
  * - 否则使用本地 mock 数据（演示模式）。
  */
-const _useBackend = String(import.meta.env.VITE_USE_BACKEND ?? 'false').toLowerCase() === 'true'
-const USE_LIVE_PERSONNEL =
-  String(import.meta.env.VITE_USE_PERSONNEL_LIVE ?? 'false').toLowerCase() === 'true' || _useBackend
+const _forceLivePersonnel =
+  String(import.meta.env.VITE_USE_PERSONNEL_LIVE ?? '').toLowerCase() === 'true'
+
+/**
+ * 是否使用真实人员位置。
+ *
+ * 不能压成模块常量：auto 模式下运行时探测结果在启动后才确定，
+ * 且可能在 mock → backend 之间切换（R11 F4）。每次调用时求值。
+ */
+function useLivePersonnel() {
+  return _forceLivePersonnel || getUseBackend()
+}
 
 const state = {
   warnings: [],
@@ -570,7 +579,7 @@ async function pollWarningsPreview() {
  * 演示模式从独立档案生成（点 1、2）。
  */
 async function pollPersonnel() {
-  if (USE_LIVE_PERSONNEL) {
+  if (useLivePersonnel()) {
     const result = await dashboardApi.getPersonnel()
     // 全量快照：后端返回的人员列表即权威。已离队 / 临时下线的值守人员
     // 会从前端消失；保留 state 中 version>0 的 WS 较新项避免回退。
@@ -587,7 +596,7 @@ async function pollPersonnel() {
 
 /** 本地轨迹动画：演示专用。真实系统以移动端上报频率驱动，无需定时推演（点 2、8）。 */
 function animatePersonnel() {
-  if (USE_LIVE_PERSONNEL) {
+  if (useLivePersonnel()) {
     return
   }
   state.personnel = state.personnel.map((person, index) => {
@@ -715,8 +724,8 @@ export function startRealtimeSync(options = {}) {
     },
     Math.max(10000, personnelInterval)
   )
-  // 仅在演示模式（!USE_LIVE_PERSONNEL）下启用本地轨迹动画定时器
-  if (!USE_LIVE_PERSONNEL) {
+  // 仅在演示模式（非真实人员位置）下启用本地轨迹动画定时器
+  if (!useLivePersonnel()) {
     personnelRouteTimer = window.setInterval(() => {
       animatePersonnel()
     }, 10000)

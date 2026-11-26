@@ -6,6 +6,7 @@ import {
   getUseBackend,
   initBackendMode,
   requireBackend,
+  subscribeRuntime,
   API_BASE,
 } from './_architecture/core/runtime.js'
 import { withQuery } from '../utils/query.js'
@@ -23,8 +24,15 @@ export {
   withQuery,
 }
 
-// USE_BACKEND ?? runtime.js ??,?? getUseBackend() ??;
-export const USE_BACKEND = getUseBackend()
+// 运行模式是**运行时可变状态**：启动探测失败会降级 mock，后端恢复后自动切回 backend。
+// 这里必须是 let + 订阅（ESM 的 import 是活绑定），不能写成 const 快照——
+// 否则所有 `import { USE_BACKEND }` 的分支都冻结在首次求值的值上，
+// 出现"徽标显示真实数据、144 处分支实际走 mock"（R11 F4）。
+// 读取方无需改动：每次读 USE_BACKEND 都会拿到当前值。
+export let USE_BACKEND = getUseBackend()
+subscribeRuntime(({ useBackend }) => {
+  USE_BACKEND = useBackend
+})
 
 const _latency = 240
 function _clone(data) {

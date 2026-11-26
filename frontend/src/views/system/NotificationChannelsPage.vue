@@ -60,7 +60,9 @@ const has = (perm) => hasPermission(operator.role, perm);
 const loading = ref(false);
 const activeTab = ref("sms");
 const searchTerm = ref("");
-const backendMode = USE_BACKEND;
+// 运行模式可能在挂载后才从 mock 切到 backend，必须是 computed 而不是快照，
+// 否则渠道页会一直停在"未连接后端"（R11 F4）。
+const backendMode = computed(() => USE_BACKEND);
 
 /**
  * 前端渠道类型 → 后端规范渠道码。
@@ -226,7 +228,7 @@ async function loadChannels() {
     configRows.value = [];
     emit(
       "notify",
-      backendMode
+      backendMode.value
         ? `渠道配置加载失败：${e.message ?? e}`
         : "未连接后端，无法读取渠道配置"
     );

@@ -22,6 +22,8 @@ vi.mock('../services/_architecture/core/runtime.js', () => ({
   getRuntimeMode: () => 'backend',
   initBackendMode: vi.fn(),
   requireBackend: vi.fn(),
+  // dashboardApi 用订阅维持 USE_BACKEND 的活绑定；mock 里给个空实现即可
+  subscribeRuntime: () => () => {},
   API_BASE: '/api',
 }))
 
