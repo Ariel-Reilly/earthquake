@@ -5,6 +5,7 @@ import cn.disasterguard.device.repository.MonitoringDeviceRepository;
 import cn.disasterguard.realtime.RealtimeBroadcastService;
 import cn.disasterguard.warning.entity.WarningEvent;
 import cn.disasterguard.warning.repository.WarningEventRepository;
+import cn.disasterguard.warning.WarningStatus;
 import java.time.OffsetDateTime;
 import java.util.List;
 import org.slf4j.Logger;
@@ -39,7 +40,7 @@ public class WarningAutoResolveScheduler {
   private static final Logger log = LoggerFactory.getLogger(WarningAutoResolveScheduler.class);
 
   /** 与 RuleEngineScheduler 保持同一组终态，避免两边口径漂移。 */
-  private static final List<String> CLOSED_STATUSES = List.of("已关闭", "已忽略", "已解除");
+  private static final List<String> CLOSED_STATUSES = WarningStatus.TERMINAL;
 
   private static final String AUTO_CLOSE_REASON = "指标连续未再命中阈值，系统自动解除";
 
@@ -120,7 +121,7 @@ public class WarningAutoResolveScheduler {
         log.info("预警自动解除 code={} rule={} hazard={}：无关联监测设备可查，按原逻辑解除（未能校验设备在线状态）",
             warning.getWarningCode(), warning.getRuleCode(), warning.getHazardCode());
       }
-      warning.setStatus("已解除");
+      warning.setStatus(WarningStatus.RESOLVED);
       warning.setClosedAt(now);
       warning.setCloseReason(AUTO_CLOSE_REASON);
       warning.setClosedBy("SYSTEM");
@@ -134,7 +135,7 @@ public class WarningAutoResolveScheduler {
     // 推送放到提交之后：否则事务一旦回滚，前端已经看到"已解除"而库里还是未关闭。
     // 被跳过的预警（仍为未关闭）不推送，避免演示时出现"解除"假象。
     for (WarningEvent warning : stale) {
-      if ("已解除".equals(warning.getStatus())) {
+      if (WarningStatus.RESOLVED.equals(warning.getStatus())) {
         broadcastAfterCommit(warning);
       }
     }

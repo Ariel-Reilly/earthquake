@@ -4,6 +4,7 @@ import cn.disasterguard.ai.entity.AiComprehensiveScore;
 import cn.disasterguard.ai.repository.AiComprehensiveScoreRepository;
 import cn.disasterguard.warning.entity.WarningEvent;
 import cn.disasterguard.warning.repository.WarningEventRepository;
+import cn.disasterguard.warning.WarningStatus;
 import java.sql.SQLException;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -69,7 +70,7 @@ public class AiWarningScheduler {
     List<WarningEvent> openList = warningRepository.findOpenWarnings(
         List.of(RULE_CODE_AI),
         hazardCodes,
-        List.of("已关闭", "已忽略", "已解除")
+        WarningStatus.TERMINAL
     );
     Map<String, Long> openWarningIds = new HashMap<>();
     for (WarningEvent w : openList) {
@@ -127,7 +128,7 @@ public class AiWarningScheduler {
     event.setTitle(RULE_NAME + " · " + s.getHazardCode());
     event.setWarningLevel(translateLevel(s.getRiskLevel()));
     event.setTriggerValue(String.format("ai_score=%.2f, model=%s", s.getRiskScore(), s.getModel()));
-    event.setStatus("待确认");
+    event.setStatus(WarningStatus.PENDING);
     event.setSource("AI_AUTO");
     event.setTriggeredAt(now);
     // R11 P1-B2：必须写 lastSeenAt，否则自动解除调度按 COALESCE(lastSeenAt, triggeredAt) 计时，
@@ -182,7 +183,7 @@ public class AiWarningScheduler {
 
   private int countOpen() {
     return warningRepository.findOpenWarnings(
-        List.of(RULE_CODE_AI), List.of(), List.of("已关闭", "已忽略", "已解除")
+        List.of(RULE_CODE_AI), List.of(), WarningStatus.TERMINAL
     ).size();
   }
 }

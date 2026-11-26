@@ -99,7 +99,7 @@ public class WarningController {
       byStatus.put(String.valueOf(row[0]), ((Number) row[1]).longValue());
     }
     long pending = warningRepository.countActiveWarnings(
-        List.of("已关闭", "已忽略", "已解除"));
+        WarningStatus.TERMINAL);
     Map<String, Object> result = new java.util.LinkedHashMap<>();
     result.put("pending", pending);           // 待我处理（活动态，去掉终态）
     result.put("dispatched", byStatus.getOrDefault("处理中", 0L));

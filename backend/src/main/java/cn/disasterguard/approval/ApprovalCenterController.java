@@ -2,6 +2,7 @@ package cn.disasterguard.approval;
 
 import cn.disasterguard.common.api.ApiResponse;
 import cn.disasterguard.warning.repository.WarningEventRepository;
+import cn.disasterguard.warning.WarningStatus;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -51,14 +52,15 @@ public class ApprovalCenterController {
     var all = warningRepository.findAll();
     long pending = all.stream().filter(w -> {
       String s = w.getStatus();
-      return "待确认".equals(s) || "处理中".equals(s);
+      return WarningStatus.PENDING.equals(s) || WarningStatus.PROCESSING.equals(s);
     }).count();
     long approved = all.stream().filter(w -> {
       String s = w.getStatus();
-      return "已确认".equals(s) || "已发布".equals(s);
+      // 「已发布」是历史遗留口径（系统内无写入路径），保留兼容判断但不并入 WarningStatus
+      return WarningStatus.CONFIRMED.equals(s) || "已发布".equals(s);
     }).count();
-    long rejected = all.stream().filter(w -> "已忽略".equals(w.getStatus())).count();
-    long closed = all.stream().filter(w -> "已关闭".equals(w.getStatus()) || "已解除".equals(w.getStatus())).count();
+    long rejected = all.stream().filter(w -> WarningStatus.IGNORED.equals(w.getStatus())).count();
+    long closed = all.stream().filter(w -> WarningStatus.TERMINAL.contains(w.getStatus())).count();
     long decided = approved + rejected + closed;
     double approvalRate = decided == 0 ? 0.0 : Math.round((approved * 10000.0) / decided) / 100.0;
     double avgDurationMin = all.stream()
@@ -180,7 +182,7 @@ public class ApprovalCenterController {
     if (warning == null) {
       return ApiResponse.fail(404, "未找到预警 id=" + id);
     }
-    warning.setStatus("approve".equals(decision) ? "已确认" : "已忽略");
+    warning.setStatus("approve".equals(decision) ? WarningStatus.CONFIRMED : WarningStatus.IGNORED);
     warning.setClosedAt(java.time.OffsetDateTime.now());
     warning.setClosedBy(currentUsername());
     warning.setCloseReason(String.valueOf(body.getOrDefault("comment", "")));
@@ -197,9 +199,9 @@ public class ApprovalCenterController {
   private static String toUiStatus(String dbStatus) {
     if (dbStatus == null) return "pending";
     return switch (dbStatus) {
-      case "待确认" -> "pending";
-      case "已确认" -> "approved";
-      case "已忽略" -> "rejected";
+      case WarningStatus.PENDING -> "pending";
+      case WarningStatus.CONFIRMED -> "approved";
+      case WarningStatus.IGNORED -> "rejected";
       default -> dbStatus;
     };
   }
@@ -208,9 +210,9 @@ public class ApprovalCenterController {
   private static String toDbStatus(String uiStatus) {
     if (uiStatus == null || uiStatus.isBlank()) return null;
     return switch (uiStatus) {
-      case "pending" -> "待确认";
-      case "approved" -> "已确认";
-      case "rejected" -> "已忽略";
+      case "pending" -> WarningStatus.PENDING;
+      case "approved" -> WarningStatus.CONFIRMED;
+      case "rejected" -> WarningStatus.IGNORED;
       default -> uiStatus;
     };
   }

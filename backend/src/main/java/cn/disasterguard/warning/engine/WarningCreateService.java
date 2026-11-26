@@ -9,6 +9,7 @@ import cn.disasterguard.warning.entity.RiskScoreLog;
 import cn.disasterguard.warning.entity.WarningEvent;
 import cn.disasterguard.warning.repository.RiskScoreLogRepository;
 import cn.disasterguard.warning.repository.WarningEventRepository;
+import cn.disasterguard.warning.WarningStatus;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.OffsetDateTime;
@@ -190,7 +191,7 @@ public class WarningCreateService {
     event.setTitle(title);
     event.setWarningLevel(finalLevel);
     event.setTriggerValue(metricCode + "=" + triggerValue);
-    event.setStatus("待确认");
+    event.setStatus(WarningStatus.PENDING);
     event.setSource(source);
     event.setTriggeredAt(OffsetDateTime.now());
     // R10 P1-4：初始化复现计数与最近命中时间，自动解除调度器据此判定静默超时

@@ -10,6 +10,7 @@ import cn.disasterguard.hazard.entity.HazardPoint;
 import cn.disasterguard.hazard.repository.HazardPointRepository;
 import cn.disasterguard.task.repository.InspectionTaskRepository;
 import cn.disasterguard.warning.repository.WarningEventRepository;
+import cn.disasterguard.warning.WarningStatus;
 import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -45,7 +46,7 @@ public class DashboardService {
     long hazardCount = hazardRepository.count();
     long deviceCount = deviceRepository.count();
     long onlineDevices = deviceRepository.countByOnlineStatus("在线");  // ✅ 替代 findAll().stream().filter().count()
-    long activeWarnings = warningRepository.countActiveWarnings(List.of("已关闭", "已忽略", "已解除"));
+    long activeWarnings = warningRepository.countActiveWarnings(WarningStatus.TERMINAL);
     long taskTotal = taskRepository.count();
     long taskDone = taskRepository.countByStatus("已完成");  // ✅ 替代 findAll().stream().filter().count()
     double completion = taskTotal == 0 ? 100.0 : Math.round(taskDone * 1000.0 / taskTotal) / 10.0;

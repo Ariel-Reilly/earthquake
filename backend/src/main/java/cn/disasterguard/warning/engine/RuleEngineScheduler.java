@@ -7,6 +7,7 @@ import cn.disasterguard.warning.entity.WarningEvent;
 import cn.disasterguard.warning.entity.WarningRule;
 import cn.disasterguard.warning.repository.WarningEventRepository;
 import cn.disasterguard.warning.repository.WarningRuleRepository;
+import cn.disasterguard.warning.WarningStatus;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -125,7 +126,7 @@ public class RuleEngineScheduler {
     Map<String, Long> openWarningIds = new HashMap<>();
     if (!ruleCodes.isEmpty() && !hazardCodes.isEmpty()) {
       List<WarningEvent> openWarnings = warningRepository.findOpenWarnings(
-          ruleCodes, hazardCodes, List.of("已关闭", "已忽略", "已解除"));
+          ruleCodes, hazardCodes, WarningStatus.TERMINAL);
       for (WarningEvent w : openWarnings) {
         openWarningIds.putIfAbsent(w.getRuleCode() + "|" + w.getHazardCode(), w.getId());
       }

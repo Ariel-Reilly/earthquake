@@ -16,6 +16,7 @@ import cn.disasterguard.warning.dto.WarningDto;
 import cn.disasterguard.warning.dto.WarningUpdateRequest;
 import cn.disasterguard.warning.entity.WarningEvent;
 import cn.disasterguard.warning.repository.WarningEventRepository;
+import cn.disasterguard.warning.WarningStatus;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.OffsetDateTime;
@@ -40,12 +41,6 @@ public class WarningService {
 
   private static final Logger log = LoggerFactory.getLogger(WarningService.class);
   private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("MM-dd HH:mm");
-  /**
-   * 允许「解除」的前置状态：预警仍在生命周期内（尚未进入终态）即可解除。
-   * 终态（已关闭 / 已忽略 / 已解除）不在集合内，仍会被 409 拒绝。
-   */
-  private static final java.util.Set<String> RESOLVABLE_STATUSES =
-      java.util.Set.of("待确认", "已确认", "处理中", "已发布");
   private final WarningEventRepository warningRepository;
   private final HazardPointRepository hazardRepository;
   private final EmergencyService emergencyService;
@@ -103,7 +98,7 @@ public class WarningService {
   public List<WarningDto> preview() {
     Map<String, HazardPoint> hazardIndex = loadHazardIndex();
     return warningRepository.findOpenWarningsOrderByTriggeredAtDesc(
-                    List.of("已关闭", "已忽略", "已解除"))
+                    WarningStatus.TERMINAL)
             .stream()
             .map(w -> toDto(w, hazardIndex))
             .toList();
@@ -140,9 +135,9 @@ public class WarningService {
   /** 预警状态 → 统一事件触发器；无对应关系返回 null（不改事件状态）。 */
   private static String triggerForStatus(String warningStatus) {
     return switch (warningStatus) {
-      case "已确认" -> "CONFIRM";
-      case "处理中" -> "DISPATCH";
-      case "已关闭", "已忽略", "已解除" -> "CLOSE";
+      case WarningStatus.CONFIRMED -> "CONFIRM";
+      case WarningStatus.PROCESSING -> "DISPATCH";
+      case WarningStatus.CLOSED, WarningStatus.IGNORED, WarningStatus.RESOLVED -> "CLOSE";
       default -> null;
     };
   }
@@ -187,7 +182,7 @@ public class WarningService {
   @Transactional
   public WarningDto confirm(Long id) {
     WarningEvent warning = warningRepository.findById(id).orElseThrow(() -> new AppException(404, "未找到预警"));
-    warning.setStatus("已确认");
+    warning.setStatus(WarningStatus.CONFIRMED);
     warning.setConfirmedAt(OffsetDateTime.now());
     WarningDto dto = toDto(warningRepository.save(warning));
     broadcastWarning(dto);
@@ -201,7 +196,7 @@ public class WarningService {
   @Transactional
   public WarningDto dispatch(Long id) {
     WarningEvent warning = warningRepository.findById(id).orElseThrow(() -> new AppException(404, "未找到预警"));
-    warning.setStatus("处理中");
+    warning.setStatus(WarningStatus.PROCESSING);
     warning.setDispatchedAt(OffsetDateTime.now());
     WarningDto dto = toDto(warningRepository.save(warning));
     broadcastWarning(dto);
@@ -279,7 +274,7 @@ public class WarningService {
   @Transactional
   public WarningDto dismiss(Long id, String operator) {
     WarningEvent warning = warningRepository.findById(id).orElseThrow(() -> new AppException(404, "未找到预警"));
-    warning.setStatus("已忽略");
+    warning.setStatus(WarningStatus.IGNORED);
     warning.setClosedAt(OffsetDateTime.now());
     warning.setCloseReason("误报");
     warning.setClosedBy(operator);
@@ -297,10 +292,11 @@ public class WarningService {
     // 待确认/已确认/处理中，close/dismiss 直接写终态），导致解除接口对所有真实预警都返回 409。
     // 改为：只要未进入终态（已关闭/已忽略/已解除）就允许解除，终态幂等性仍由 409 保护。
     String currentStatus = warning.getStatus();
-    if (currentStatus == null || !RESOLVABLE_STATUSES.contains(currentStatus)) {
+    // 判据直接落在「终态」这一唯一口径上：任何非终态（含历史上可能出现的「已发布」）都可解除。
+    if (currentStatus == null || WarningStatus.isTerminal(currentStatus)) {
       throw new AppException(409, "当前状态不允许解除：" + currentStatus);
     }
-    warning.setStatus("已解除");
+    warning.setStatus(WarningStatus.RESOLVED);
     warning.setClosedAt(OffsetDateTime.now());
     warning.setCloseReason(reason == null ? "现场核查，风险已消除" : reason);
     warning.setClosedBy(operator);
@@ -362,10 +358,10 @@ public class WarningService {
   /** 根据 reason 推断终态：包含"误报"→已忽略；包含"解除"→已解除；否则已关闭。 */
   private String resolveTerminalStatus(String reason) {
     if (reason != null) {
-      if (reason.contains("误报")) return "已忽略";
-      if (reason.contains("解除")) return "已解除";
+      if (reason.contains("误报")) return WarningStatus.IGNORED;
+      if (reason.contains("解除")) return WarningStatus.RESOLVED;
     }
-    return "已关闭";
+    return WarningStatus.CLOSED;
   }
 
   @Transactional
@@ -377,7 +373,7 @@ public class WarningService {
     warning.setWarningLevel(level);
     warning.setTriggerValue(triggerValue);
     warning.setRuleCode(ruleCode);
-    warning.setStatus("待确认");
+    warning.setStatus(WarningStatus.PENDING);
     warning.setTriggeredAt(OffsetDateTime.now());
     WarningDto dto = toDto(warningRepository.save(warning));
     broadcastWarning(dto);
@@ -444,7 +440,7 @@ public class WarningService {
     warning.setWarningLevel(normalizeLevel(request.level()));
     warning.setHazardType(normalizeHazardType(request.hazardType()));
     warning.setTriggerValue(request.content() == null ? "" : request.content());
-    warning.setStatus("待确认");
+    warning.setStatus(WarningStatus.PENDING);
     warning.setSource("MANUAL");
     warning.setTriggeredAt(OffsetDateTime.now());
     warning.setManualPayload(toManualPayload(request));

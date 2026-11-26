@@ -7,6 +7,7 @@ import cn.disasterguard.event.EventState;
 import cn.disasterguard.event.repository.UnifiedEventRepository;
 import cn.disasterguard.task.repository.InspectionTaskRepository;
 import cn.disasterguard.warning.repository.WarningEventRepository;
+import cn.disasterguard.warning.WarningStatus;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -53,10 +54,10 @@ public class TodoCenterController {
     long confirmation = unifiedEventRepository.findByState(EventState.DETECTED).size()
         + unifiedEventRepository.findByState(EventState.CONFIRMING).size();
     long pendingWarnings = warningRepository.findAll().stream()
-        .filter(w -> "待确认".equals(w.getStatus()))
+        .filter(w -> WarningStatus.PENDING.equals(w.getStatus()))
         .count();
     long approval = warningRepository.findAll().stream()
-        .filter(w -> "处理中".equals(w.getStatus()))
+        .filter(w -> WarningStatus.PROCESSING.equals(w.getStatus()))
         .count();
     // R11 P1-B4：终态唯一口径是 EmergencyService.STATUS_RESOLVED（"已闭环"）。
     // 旧实现按 contains("关闭")/contains("归档") 判定，真实终态一个都不匹配，
@@ -95,7 +96,7 @@ public class TodoCenterController {
   public ApiResponse<List<Map<String, Object>>> listApprovals() {
     List<Map<String, Object>> items = new java.util.ArrayList<>();
     warningRepository.findAll().stream()
-        .filter(w -> "待确认".equals(w.getStatus()) || "处理中".equals(w.getStatus()))
+        .filter(w -> WarningStatus.PENDING.equals(w.getStatus()) || WarningStatus.PROCESSING.equals(w.getStatus()))
         .forEach(w -> {
           Map<String, Object> row = new LinkedHashMap<>();
           row.put("id", w.getId());
@@ -118,7 +119,7 @@ public class TodoCenterController {
   public ApiResponse<List<Map<String, Object>>> listPendingWarnings() {
     List<Map<String, Object>> items = new java.util.ArrayList<>();
     warningRepository.findAll().stream()
-        .filter(w -> "待确认".equals(w.getStatus()))
+        .filter(w -> WarningStatus.PENDING.equals(w.getStatus()))
         .sorted((a, b) -> {
           var ta = a.getTriggeredAt() == null ? java.time.OffsetDateTime.MIN : a.getTriggeredAt();
           var tb = b.getTriggeredAt() == null ? java.time.OffsetDateTime.MIN : b.getTriggeredAt();
