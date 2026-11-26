@@ -116,13 +116,19 @@ async def feedback_stats() -> Dict[str, Any]:
     }
 
 
-@router.post("/model/retrain")
+@router.post("/feedback/retrain")
 async def trigger_retrain(
     body: Optional[RetrainRequest] = None,
     background: BackgroundTasks = None,  # type: ignore[assignment]
 ) -> Dict[str, Any]:
     """
-    触发 train_xgboost.py 重训（异步后台执行）。
+    触发 train_xgboost.py 重训（基于用户反馈样本，异步后台执行）。
+
+    R11 P1-E2：原路径为 /model/retrain，与 model_info.py 的
+    POST /api/ai/model/retrain 完全同路径。main.py 先注册 feedback，
+    model_info 的版本永远不可达（且两者请求 schema 不同）。
+    现让出权威路径给 model_info，本端点改名为 /api/ai/feedback/retrain，
+    语义保留：用 FeedbackStore 里带 factors 的样本重训。
 
     返回立即响应 {"status": "queued" / "started" / "skipped"}，
     训练结果通过 stdout 日志查看，后续可加 WebSocket 推送。

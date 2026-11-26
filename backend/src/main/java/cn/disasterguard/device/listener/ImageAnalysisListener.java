@@ -12,6 +12,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
@@ -31,8 +32,16 @@ public class ImageAnalysisListener {
 
   private static final Logger log = LoggerFactory.getLogger(ImageAnalysisListener.class);
 
-  /** 置信度阈值：低于此值视为误报，只记日志不生成预警，避免噪声预警淹没指挥台。 */
-  private static final double CONFIDENCE_THRESHOLD = 0.8;
+  /**
+   * 置信度阈值：低于此值视为误报，只记日志不生成预警。
+   *
+   * <p>R11 P1-E3：必须与 ai-service {@code YoloDetector.conf_threshold}（0.35）同源。
+   * 旧值 0.8 高于 AI 的检出阈值，导致 0.35–0.8 的**真实检出被系统性丢弃**
+   * （AI 已判定为某灾种并返回，Java 却当成"未确认险情"只写一行 info 日志）。
+   * 需要更保守时调高本配置，但不要高于 AI 侧阈值，否则一定会漏报。
+   */
+  @Value("${disasterguard.ai.image-confidence-threshold:0.35}")
+  private double confidenceThreshold = 0.35;
 
   /** 设备未绑定隐患点时的兜底（歇马泥石流沟），保证演示链路不因缺绑定而断掉。 */
   private static final String FALLBACK_HAZARD_CODE = "HZ-004";
@@ -93,7 +102,7 @@ public class ImageAnalysisListener {
 
     if (detection.disasterType() == null
         || "none".equalsIgnoreCase(detection.disasterType())
-        || detection.confidence() <= CONFIDENCE_THRESHOLD) {
+        || detection.confidence() <= confidenceThreshold) {
       log.info("AI 未确认险情，跳过预警 device={}, disasterType={}, confidence={}, detectionCount={}",
           event.deviceCode(), detection.disasterType(), detection.confidence(),
           detection.detectionCount());
@@ -182,7 +191,7 @@ public class ImageAnalysisListener {
    * 置信度 → 风险等级码。
    *
    * <p>Python 端只回传 confidence 不回传 riskLevel（灾种已由它折算），
-   * 所以等级在这里按置信度分档，阈值与 {@link #CONFIDENCE_THRESHOLD} 同源，
+   * 所以等级在这里按置信度分档，阈值与 {@link #confidenceThreshold} 同源，
    * 保证"刚好过线"的识别落在最低一档而不是直接判为高危。
    */
   private String riskLevelOf(double confidence) {
