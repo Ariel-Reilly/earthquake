@@ -21,6 +21,7 @@
 - [快速启动](#快速启动)
 - [端口约定](#端口约定)
 - [项目结构](#项目结构)
+- [仓库卫生与产物约定](#仓库卫生与产物约定)
 - [开发账号](#开发账号)
 - [文档导航](#文档导航)
 - [安全须知](#安全须知)
@@ -359,10 +360,15 @@ DisasterGuard/
 │   ├── datasets/                   # 检测数据集（disaster-v1 / disaster-v2 + DATASET_CARD）
 │   ├── models/                     # 模型资产（*.onnx 不入库；meta.json + README 记录来源与指标）
 │   └── scripts/                    # dataset（构建）/ training（训练与评估）脚本
-├── hardware-sandbox/               # 实景硬件沙盘（网关模拟、设备注册、演示流程）
+├── hardware-sandbox/               # 实景硬件沙盘（硬件在环演示台，详见其中的 README）
+│   ├── firmware/                   #   ESP32 / ESP32-S3 节点固件（ADC 采集 → 网关标准码上报）
+│   ├── gateway/                    #   沙盘网关（MQTT 上报模拟）与场景回放
+│   ├── tools/                      #   地形 / 泡沫切割 / Revit 模型 / 自检等沙盘工具
+│   └── *.pdf · *.html              #   接线 / PCB 布局 / 元件清单 / 系统设计（HTML 源 + PDF 交付版）
 ├── infra/                          # 基础设施初始化（postgres / emqx / tdengine / nginx）
-├── docs/                           # 开发文档
-├── scripts/                        # 运维与审计脚本
+├── docs/                           # 开发文档（delivery / api / architecture / reviews / demo / ONBOARDING ...）
+├── scripts/                        # 运维、审计、交付验证脚本（索引见 scripts/README.md）
+├── output/                         # 运行产物：验收截图 / 浏览器 profile / 交付包（.gitignore，不入库）
 ├── docker-compose.yml              # 开发环境
 ├── docker-compose.prod.yml         # 生产环境
 ├── start-dev.ps1 / start-dev.sh    # 一键启动入口
@@ -370,6 +376,32 @@ DisasterGuard/
 ├── DEPLOYMENT.md                   # 部署与环境变量手册
 └── API_REFERENCE.md                # 核心接口参考
 ```
+
+---
+
+## 仓库卫生与产物约定
+
+构建产物、运行期缓存与一次性验证证据**一律不入库**（完整规则见 [.gitignore](.gitignore)），需要时按以下约定落地：
+
+| 产物 | 落位 | 入库 |
+|---|---|---|
+| 前端构建 | `frontend/dist/`（只保留当前版本） | ❌ |
+| 历史构建备份 | `frontend/dist.bak*` / `dist.prev*` / `dist_prev_*` | ❌ 临时文件，可随时删 |
+| 依赖目录 | `frontend/node_modules/`、`ai-service/.venv/`、`backend/target/` | ❌ 由包管理器重建 |
+| AI 训练 / 推理产物 | `ai-service/runs/`、`ai-service/outputs/`、`__pycache__/` | ❌ 可由训练脚本 / 接口重建 |
+| 验收与调试证据 | `output/<场景>/`（截图、CDP 浏览器 profile、报告） | ❌ 按需重跑生成 |
+| 交付材料 | `output/delivery-materials/`（演示材料包）、`output/delivery-verify/DisasterGuard-v<版本>-delivery.zip` | ❌ 单独分发 |
+| 日志 | `logs/`、`*.log` | ❌ |
+
+定期或在交付前建议清理：
+
+- 删除 `frontend/dist.bak*`、`dist.prev*`、`dist_prev_*` 等历史构建备份，只留当前 `dist/`
+- `output/` 只保留当前交付包；旧的 `cdp-*` / `chrome-*` 验证目录与浏览器 profile 可直接删除
+- `output/delivery-verify/` 只保留最新版本 zip + `.sha256`，旧版本可由对应 git tag 重建
+- 一次性脚本的清理记录见 [scripts/README.md「已删除」](scripts/README.md#已删除)
+
+> 2026-11-26 清理基线：工作区 **9.60 GB → 4.60 GB**（删除 129 项运行产物、45,509 个文件，约 5.0 GB）；
+> 同步移除 40 个早期一次性脚本，Git 跟踪文件 1051 → 1011。
 
 ---
 
@@ -410,7 +442,10 @@ DisasterGuard/
 | [docs/INVENTORY.md](docs/INVENTORY.md) | 仓库实测盘点：大文件 / TODO / 501 / mock / 契约 |
 | [docs/api/CONTRACT.md](docs/api/CONTRACT.md) | API 契约红线：分页 / 时间 / ID / mock / 权限 |
 | [docs/api/API_INVENTORY.md](docs/api/API_INVENTORY.md) | 列表方法返回形态实测清单与统一批次施工图 |
-| [`docs/INDEX.md`](docs/INDEX.md) | 全项目文档总索引（按角色、子项目、主题分区） |
+| [docs/delivery/README.md](docs/delivery/README.md) | 交付文档索引：检查表 / 验收日志 / 已知限制 / 演示脚本 / 部署手册 |
+| [scripts/README.md](scripts/README.md) | 运维 / 审计 / 交付脚本索引与「已删除」清单 |
+| [hardware-sandbox/README.md](hardware-sandbox/README.md) | 混合沙盘 C 方案：30 分钟上手、网关剧本、固件与接线 |
+| [docs/INDEX.md](docs/INDEX.md) | 全项目文档总索引（按角色、子项目、主题分区） |
 
 ---
 
