@@ -21,7 +21,6 @@
 - [快速启动](#快速启动)
 - [端口约定](#端口约定)
 - [项目结构](#项目结构)
-- [仓库卫生与产物约定](#仓库卫生与产物约定)
 - [开发账号](#开发账号)
 - [文档导航](#文档导航)
 - [安全须知](#安全须知)
@@ -376,32 +375,6 @@ DisasterGuard/
 ├── DEPLOYMENT.md                   # 部署与环境变量手册
 └── API_REFERENCE.md                # 核心接口参考
 ```
-
----
-
-## 仓库卫生与产物约定
-
-构建产物、运行期缓存与一次性验证证据**一律不入库**（完整规则见 [.gitignore](.gitignore)），需要时按以下约定落地：
-
-| 产物 | 落位 | 入库 |
-|---|---|---|
-| 前端构建 | `frontend/dist/`（只保留当前版本） | ❌ |
-| 历史构建备份 | `frontend/dist.bak*` / `dist.prev*` / `dist_prev_*` | ❌ 临时文件，可随时删 |
-| 依赖目录 | `frontend/node_modules/`、`ai-service/.venv/`、`backend/target/` | ❌ 由包管理器重建 |
-| AI 训练 / 推理产物 | `ai-service/runs/`、`ai-service/outputs/`、`__pycache__/` | ❌ 可由训练脚本 / 接口重建 |
-| 验收与调试证据 | `output/<场景>/`（截图、CDP 浏览器 profile、报告） | ❌ 按需重跑生成 |
-| 交付材料 | `output/delivery-materials/`（演示材料包）、`output/delivery-verify/DisasterGuard-v<版本>-delivery.zip` | ❌ 单独分发 |
-| 日志 | `logs/`、`*.log` | ❌ |
-
-定期或在交付前建议清理：
-
-- 删除 `frontend/dist.bak*`、`dist.prev*`、`dist_prev_*` 等历史构建备份，只留当前 `dist/`
-- `output/` 只保留当前交付包；旧的 `cdp-*` / `chrome-*` 验证目录与浏览器 profile 可直接删除
-- `output/delivery-verify/` 只保留最新版本 zip + `.sha256`，旧版本可由对应 git tag 重建
-- 一次性脚本的清理记录见 [scripts/README.md「已删除」](scripts/README.md#已删除)
-
-> 2026-11-26 清理基线：工作区 **9.60 GB → 4.60 GB**（删除 129 项运行产物、45,509 个文件，约 5.0 GB）；
-> 同步移除 40 个早期一次性脚本，Git 跟踪文件 1051 → 1011。
 
 ---
 
