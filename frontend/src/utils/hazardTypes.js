@@ -41,12 +41,27 @@ export const HAZARD_TYPE_LABELS = Object.freeze(
  */
 const LABEL_TO_CODE = Object.freeze(Object.fromEntries(HAZARD_TYPES.map((o) => [o.label, o.value])))
 
-/** 兼容历史写法：'地面塌陷' 曾与 '地面沉降' 混用。 */
+/**
+ * 兼容历史写法 / AI 侧的额外词表。
+ *
+ * `塌陷` 归到 subsidence（地面沉降）而非 collapse：塌陷是地面沉降类灾害的表现形式，
+ * 后端 `HazardTypeCodes` 与 `WarningService` 既有的「地面塌陷 → subsidence」也是这个口径；
+ * 此前这里写成 collapse，与别名表里的「地面塌陷 → subsidence」自相矛盾。
+ */
 const ALIASES = Object.freeze({
   地面塌陷: 'subsidence',
-  塌陷: 'collapse',
+  塌陷: 'subsidence',
+  地面裂缝: 'ground_fissure',
+  地裂: 'ground_fissure',
   城市内涝: 'waterlogging',
+  山洪: 'flood',
 })
+
+/**
+ * 无法判定灾种的兜底词（AI 侧「其他」「待定」等）。
+ * 后端 `HazardTypeCodes` 对这类值一律写 NULL，前端同样归为空，不伪造类型。
+ */
+const UNDETERMINED = new Set(['其他', '待定', '未知', '无', '未识别', 'unknown', 'other'])
 
 /**
  * 归一化灾种：中文标签 → 英文码，英文码原样返回。
@@ -61,6 +76,9 @@ export function normalizeHazardType(v, fallback = '') {
   }
   const raw = v.trim()
   if (!raw) {
+    return fallback
+  }
+  if (UNDETERMINED.has(raw) || UNDETERMINED.has(raw.toLowerCase())) {
     return fallback
   }
   if (LABEL_TO_CODE[raw]) {

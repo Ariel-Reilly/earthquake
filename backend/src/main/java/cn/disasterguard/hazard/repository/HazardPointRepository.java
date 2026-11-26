@@ -37,4 +37,14 @@ public interface HazardPointRepository extends JpaRepository<HazardPoint, Long>,
   /** 某个区域下最近被 AI 识别出的灾害，用于 deduplication 防重（30 分钟内同区同类型不重复创建） */
   List<HazardPoint> findByRegionCodeAndHazardTypeAndDiscoveredAtAfterOrderByDiscoveredAtDesc(
       String regionCode, String hazardType, java.time.OffsetDateTime after);
+
+  /**
+   * 去重查询的无类型版本。
+   *
+   * <p>AI 无法判定灾种时 {@code hazard_type} 为 NULL（见 {@code HazardTypeCodes#toCode}），
+   * 而派生查询传 null 参数会生成 {@code hazard_type = null}，在 SQL 里恒不成立 ——
+   * 于是去重窗口失效、每个调度周期都新建一条。此处单列一个 IS NULL 版本兜住该场景。
+   */
+  List<HazardPoint> findByRegionCodeAndHazardTypeIsNullAndDiscoveredAtAfterOrderByDiscoveredAtDesc(
+      String regionCode, java.time.OffsetDateTime after);
 }

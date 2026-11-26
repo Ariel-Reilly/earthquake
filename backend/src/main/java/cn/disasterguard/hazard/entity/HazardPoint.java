@@ -23,7 +23,13 @@ public class HazardPoint {
   @Column(nullable = false)
   private String name;
 
-  @Column(name = "hazard_type", nullable = false)
+  /**
+   * 灾种英文码（见 {@code HazardTypeCodes} / {@code sys_dict.disaster_type}）。
+   *
+   * <p>可空：AI 识别结果里「其他」「待定」等无法映射到字典的，按未分类入库（NULL），
+   * 不伪造一个不存在的类型值。物理列 {@code unified_event.hazard_type} 本身即无 NOT NULL。
+   */
+  @Column(name = "hazard_type", nullable = true)
   private String hazardType;
 
   @Column(name = "risk_level", nullable = false)

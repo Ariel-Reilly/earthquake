@@ -3,6 +3,7 @@ package cn.disasterguard.hazard.service;
 import cn.disasterguard.ai.service.AiRiskEnricher;
 import cn.disasterguard.common.api.PageResponse;
 import cn.disasterguard.common.exception.AppException;
+import cn.disasterguard.common.dict.HazardTypeCodes;
 import cn.disasterguard.common.geo.ViewportBounds;
 import cn.disasterguard.common.export.HazardExportRow;
 import cn.disasterguard.event.EventState;
@@ -225,20 +226,30 @@ public class HazardService {
           regionCode, disasterType, lon, lat);
       return null;
     }
-    // Deduplication：30 分钟内同 region + 同 disasterType 不重复创建
+    // R11 E4：AI 侧返回中文灾种（滑坡/塌陷/其他…），库表与前端字典用英文码。
+    // 必须在写库前归一化，否则类型筛选/标签/统计全部失配；无法判定时置 null，
+    // 不伪造「其他」这种不存在于字典的类型值。展示名仍用 AI 原文（中文更可读）。
+    String typeCode = HazardTypeCodes.toCode(disasterType);
+    if (typeCode == null) {
+      log.warn("AI 监测灾种无法映射到字典码：type={}，按未分类入库", disasterType);
+    }
+    // Deduplication：30 分钟内同 region + 同 typeCode 不重复创建
     OffsetDateTime cutoff = OffsetDateTime.now().minusMinutes(30);
-    List<HazardPoint> recent = repository.findByRegionCodeAndHazardTypeAndDiscoveredAtAfterOrderByDiscoveredAtDesc(
-        regionCode, disasterType, cutoff);
+    List<HazardPoint> recent = typeCode == null
+        ? repository.findByRegionCodeAndHazardTypeIsNullAndDiscoveredAtAfterOrderByDiscoveredAtDesc(
+            regionCode, cutoff)
+        : repository.findByRegionCodeAndHazardTypeAndDiscoveredAtAfterOrderByDiscoveredAtDesc(
+            regionCode, typeCode, cutoff);
     if (!recent.isEmpty()) {
       log.debug("AI 监测去重：region={} type={} 已有 {} 条 30 分钟内记录",
-          regionCode, disasterType, recent.size());
+          regionCode, typeCode, recent.size());
       return null;
     }
 
     HazardPoint point = new HazardPoint();
     point.setHazardCode(generateCode());
     point.setName(String.format("AI 监测-%s(%s)", disasterType, regionCode));
-    point.setHazardType(disasterType);
+    point.setHazardType(typeCode);
     point.setRiskLevel(orDefault(riskLevel, "关注"));
     point.setRegionCode(regionCode);
     point.setOwner("AI 自动识别");
@@ -388,7 +399,8 @@ public class HazardService {
 
   private void apply(HazardPoint point, HazardUpsertRequest request) {
     point.setName(request.name());
-    point.setHazardType(request.type());
+    // 手工录入/编辑也走同一张字典：前端下拉给的是英文码，但 API 调用方可能传中文标签。
+    point.setHazardType(HazardTypeCodes.toCodeOrOriginal(request.type()));
     point.setRiskLevel(request.level());
     point.setRegionCode(request.regionCode());
     point.setOwner(request.owner());

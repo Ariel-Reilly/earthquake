@@ -1,5 +1,6 @@
 package cn.disasterguard.warning.service;
 
+import cn.disasterguard.common.dict.HazardTypeCodes;
 import cn.disasterguard.common.api.PageResponse;
 import cn.disasterguard.common.exception.AppException;
 import cn.disasterguard.common.export.WarningExportRow;
@@ -387,22 +388,6 @@ public class WarningService {
    * {@code utils/hazardTypes.js} 保持同一套。R3 前此处仅 5 条，
    * 缺 地裂缝/洪水/火灾/台风/干旱/内涝，导致这些灾种提交后无法归一化。
    */
-  private static final Map<String, String> HAZARD_TYPE_CODES = Map.ofEntries(
-          Map.entry("滑坡", "landslide"),
-          Map.entry("崩塌", "collapse"),
-          Map.entry("泥石流", "debris_flow"),
-          Map.entry("地面沉降", "subsidence"),
-          Map.entry("地裂缝", "ground_fissure"),
-          Map.entry("地震", "earthquake"),
-          Map.entry("洪水", "flood"),
-          Map.entry("火灾", "fire"),
-          Map.entry("台风", "typhoon"),
-          Map.entry("干旱", "drought"),
-          Map.entry("内涝", "waterlogging"),
-          // 历史混用写法
-          Map.entry("地面塌陷", "subsidence"),
-          Map.entry("城市内涝", "waterlogging")
-  );
 
   /** 预警等级英文码 → 库内存值（warning_level 存中文，见 AiWarningScheduler#translateLevel）。 */
   private static final Map<String, String> LEVEL_LABELS = Map.of(
@@ -466,21 +451,15 @@ public class WarningService {
     return "黄色预警";
   }
 
-  /** 中文灾害类型 → 英文码；不在映射表内且已是英文码则保留，其余原样入库并告警。 */
+  /**
+   * 中文灾害类型 → 英文码。
+   *
+   * <p>映射表已收敛到 {@code HazardTypeCodes}（此前本类、AI 建点路径、前端字典各一份，
+   * 「塌陷」在三处分别映射为 collapse / 原样 / collapse，互相矛盾）。
+   * 该列可空，无法识别时沿用历史语义「原样入库 + 告警」，便于回查脏数据来源。
+   */
   private String normalizeHazardType(String hazardType) {
-    if (hazardType == null || hazardType.isBlank()) {
-      return null;
-    }
-    String trimmed = hazardType.trim();
-    String mapped = HAZARD_TYPE_CODES.get(trimmed);
-    if (mapped != null) {
-      return mapped;
-    }
-    if (trimmed.matches("[a-z_]+")) {
-      return trimmed;
-    }
-    log.warn("未知灾害类型标签: {}，原样入库", trimmed);
-    return trimmed;
+    return HazardTypeCodes.toCodeOrOriginal(hazardType);
   }
 
   /** 向导页扩展字段序列化为 JSON，避免为低频字段撑宽主表。 */
