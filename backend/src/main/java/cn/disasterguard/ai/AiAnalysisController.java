@@ -38,15 +38,15 @@ public class AiAnalysisController {
   }
 
   @DeleteMapping("/{id}")
-  @PreAuthorize("hasRole('ADMIN')")
+  @PreAuthorize("hasAuthority('ai:model:manage')")
   public ApiResponse<Void> delete(@PathVariable Long id) {
     service.delete(id);
     return ApiResponse.success("删除成功", null);
   }
 
-  /** 手动触发一次批量预测（联调用，仅管理员）。 */
+  /** 手动触发一次批量预测（联调用，需 AI 洞察刷新权限）。 */
   @PostMapping("/forecast/run")
-  @PreAuthorize("hasRole('ADMIN')")
+  @PreAuthorize("hasAuthority('ai:insight:refresh')")
   public ApiResponse<Map<String, Object>> runForecast() {
     return ApiResponse.success(scheduler.runOnce());
   }

@@ -19,12 +19,12 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 注册申请管理端接口（仅 admin 角色）。
+ * 注册申请管理端接口（仅持有 users:approve 的角色）。
  *
- * <p>权限说明：使用 {@code hasRole('ADMIN')}。{@code JwtAuthenticationFilter} 会把
- * JWT 中的角色映射为 {@code ROLE_<ROLE>} 权限码，admin 角色天然具备该权限，
- * 因此无需改动 {@code PermissionRegistry}（该文件由脚本从前端定义生成，
- * 增删权限码会被下次同步覆盖）。
+ * <p>权限说明：R11 P1-A4 起不再使用 {@code hasRole('ADMIN')}。硬编码角色名会让
+ * {@code system_admin}（role_code=system_admin，权限为 ROLE_SYSTEM_ADMIN）永久无权，
+ * 而权限码由 {@code PermissionRegistry} 统一发放，前后端一致、可审计。
+ * 当前该码只授予 admin（前端 ROLE_PERMISSION_MAP 与 router 的 users:approve 一致）。
  */
 @RestController
 @RequestMapping("/api/admin/applications")
@@ -38,7 +38,7 @@ public class AdminApplicationController {
 
   /** 分页查询注册申请。 */
   @GetMapping
-  @PreAuthorize("hasRole('ADMIN')")
+  @PreAuthorize("hasAuthority('users:approve')")
   public ApiResponse<PageResponse<ApplicationView>> list(
       @RequestParam(required = false) String status,
       @RequestParam(required = false) String keyword,
@@ -49,7 +49,7 @@ public class AdminApplicationController {
 
   /** 审核通过：创建系统用户。 */
   @PostMapping("/{id}/approve")
-  @PreAuthorize("hasRole('ADMIN')")
+  @PreAuthorize("hasAuthority('users:approve')")
   public ApiResponse<Void> approve(@PathVariable Long id) {
     registerService.approve(id, currentUsername());
     return ApiResponse.success("审核通过", null);
@@ -57,7 +57,7 @@ public class AdminApplicationController {
 
   /** 审核拒绝。 */
   @PostMapping("/{id}/reject")
-  @PreAuthorize("hasRole('ADMIN')")
+  @PreAuthorize("hasAuthority('users:approve')")
   public ApiResponse<Void> reject(@PathVariable Long id, @Valid @RequestBody RejectRequest request) {
     registerService.reject(id, request.reason(), currentUsername());
     return ApiResponse.success("已拒绝该申请", null);

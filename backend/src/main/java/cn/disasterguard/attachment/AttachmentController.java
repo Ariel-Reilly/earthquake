@@ -70,7 +70,7 @@ public class AttachmentController {
   }
 
   @DeleteMapping("/{id}")
-  @PreAuthorize("hasAuthority('hazards:delete') or hasRole('ADMIN')")
+  @PreAuthorize("hasAuthority('hazards:delete')")
   public ApiResponse<Void> delete(@PathVariable Long id) {
     attachmentService.delete(id);
     return ApiResponse.success("删除成功", null);

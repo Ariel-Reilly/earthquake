@@ -148,7 +148,7 @@ public class WarningController {
   }
 
   @PutMapping("/{id}")
-  @PreAuthorize("hasRole('ADMIN')")
+  @PreAuthorize("hasAuthority('warnings:edit')")
   public ApiResponse<WarningDto> update(@PathVariable Long id, @Valid @RequestBody WarningUpdateRequest request) {
     return ApiResponse.success(warningService.update(id, request));
   }
@@ -225,7 +225,7 @@ public class WarningController {
   }
 
   @DeleteMapping("/{id}")
-  @PreAuthorize("hasRole('ADMIN')")
+  @PreAuthorize("hasAuthority('warnings:delete')")
   public ApiResponse<Void> delete(@PathVariable Long id) {
     warningService.delete(id);
     return ApiResponse.success("删除成功", null);

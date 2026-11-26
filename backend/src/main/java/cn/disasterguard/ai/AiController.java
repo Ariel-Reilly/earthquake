@@ -326,14 +326,14 @@ public class AiController {
    * @return 包含 analyzedCount/failedCount/failedHazards/beforeCount/afterCount 的 Map
    */
   @PostMapping("/comprehensive-analysis/refresh")
-  @PreAuthorize("hasAuthority('ai:insight:view')")
+  @PreAuthorize("hasAuthority('ai:insight:refresh')")
   public ApiResponse<Map<String, Object>> comprehensiveAnalysisRefresh() {
     return ApiResponse.success(insightService.refreshAllNow());
   }
 
   /** 强制刷新单个 hazard。 */
   @PostMapping("/comprehensive-analysis/refresh-one")
-  @PreAuthorize("hasAuthority('ai:insight:view')")
+  @PreAuthorize("hasAuthority('ai:insight:refresh')")
   public ApiResponse<Boolean> comprehensiveAnalysisRefreshOne(@RequestParam String hazardCode) {
     try {
       insightService.refreshOne(hazardCode);
@@ -462,14 +462,14 @@ public class AiController {
 
   /** 强制刷新所有设备 AI 健康评分。 */
   @PostMapping("/device-health/refresh")
-  @PreAuthorize("hasAuthority('ai:insight:view')")
+  @PreAuthorize("hasAuthority('ai:insight:refresh')")
   public ApiResponse<Map<String, Object>> deviceHealthRefresh() {
     return ApiResponse.success(deviceHealthService.refreshAllNow());
   }
 
   /** 强制刷新单台设备 AI 健康评分。 */
   @PostMapping("/device-health/refresh-one")
-  @PreAuthorize("hasAuthority('ai:insight:view')")
+  @PreAuthorize("hasAuthority('ai:insight:refresh')")
   public ApiResponse<Map<String, Object>> deviceHealthRefreshOne(@RequestParam String deviceCode) {
     try {
       var row = deviceHealthService.refreshOne(deviceCode);
@@ -630,7 +630,7 @@ public class AiController {
 
   /** 重新加载磁盘模型（训练后立即热加载）。 */
   @PostMapping("/model/reload")
-  @PreAuthorize("hasAuthority('ai:insight:view')")
+  @PreAuthorize("hasAuthority('ai:model:manage')")
   public ApiResponse<Map<String, Object>> modelReload() {
     try {
       Map<String, Object> info = client.modelReload();
@@ -875,7 +875,7 @@ public class AiController {
    * 明确返回 {@code available:false} 说明当前不支持下发起训练。
    */
   @PostMapping("/models/training-jobs")
-  @PreAuthorize("hasAuthority('ai:insight:view')")
+  @PreAuthorize("hasAuthority('ai:model:manage')")
   public ApiResponse<Map<String, Object>> createTrainingJob(@RequestBody Map<String, Object> request) {
     return ApiResponse.fail(501,
         "训练任务下发尚未实现：无训练任务表与训练调度器，暂不支持创建训练任务");
@@ -888,7 +888,7 @@ public class AiController {
    * <p>诚实说明：无训练任务表与训练调度器，返回 501，不再假装"启动成功"。
    */
   @PostMapping("/models/training-jobs/{id}/start")
-  @PreAuthorize("hasAuthority('ai:insight:view')")
+  @PreAuthorize("hasAuthority('ai:model:manage')")
   public ApiResponse<Map<String, Object>> startTrainingJob(@PathVariable Long id) {
     return ApiResponse.fail(501, "训练任务调度尚未实现（任务 " + id + "）");
   }
@@ -900,7 +900,7 @@ public class AiController {
    * <p>诚实说明：无训练任务表与训练调度器，返回 501，不再假装"停止成功"。
    */
   @PostMapping("/models/training-jobs/{id}/stop")
-  @PreAuthorize("hasAuthority('ai:insight:view')")
+  @PreAuthorize("hasAuthority('ai:model:manage')")
   public ApiResponse<Map<String, Object>> stopTrainingJob(@PathVariable Long id) {
     return ApiResponse.fail(501, "训练任务调度尚未实现（任务 " + id + "）");
   }
@@ -933,7 +933,7 @@ public class AiController {
    * POST /api/ai/models/{versionId}/activate
    */
   @PostMapping("/models/{versionId}/activate")
-  @PreAuthorize("hasAuthority('ai:insight:view')")
+  @PreAuthorize("hasAuthority('ai:model:manage')")
   public ApiResponse<Map<String, Object>> activateModelByPath(@PathVariable String versionId) {
     AiModel m = findModel(versionId);
     if (m == null) {
@@ -1014,7 +1014,7 @@ public class AiController {
    * POST /api/ai/models/activate
    */
   @PostMapping("/models/activate")
-  @PreAuthorize("hasAuthority('ai:insight:view')")
+  @PreAuthorize("hasAuthority('ai:model:manage')")
   public ApiResponse<Map<String, Object>> activateModel(@RequestBody Map<String, Object> request) {
     String versionId = request == null ? null : (String) request.get("versionId");
     if (versionId == null || versionId.isBlank()) {
@@ -1040,7 +1040,7 @@ public class AiController {
    * DELETE /api/ai/models/{versionId}
    */
   @DeleteMapping("/models/{versionId}")
-  @PreAuthorize("hasAuthority('ai:insight:view')")
+  @PreAuthorize("hasAuthority('ai:model:manage')")
   public ApiResponse<Void> deleteModel(@PathVariable String versionId) {
     AiModel m = findModel(versionId);
     if (m == null) {

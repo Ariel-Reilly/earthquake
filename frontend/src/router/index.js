@@ -154,14 +154,21 @@ const routePermissionMap = {
   'ota-manage': 'devices:ota',
   'notice-templates': 'notice:view',
   'data-catalog': 'data:catalog:view',
-  'account-security': 'settings:view',
-  'rule-engine': 'settings:view',
+  // R11 P1-A5：个人中心类页面用 profile:*，不要求系统设置权限。
+  // 旧值 settings:view 让 emergency_commander / ai_engineer 的头像菜单全部 403。
+  profile: 'profile:view',
+  'account-security': 'profile:edit',
+  'help-center': 'profile:view',
+  // R11 P1-A5：规则引擎后端所有端点用 rules:view / rules:edit，
+  // 旧值 settings:view 与后端漂移，ai_engineer 与 expert 菜单可点但 403。
+  'rule-engine': 'rules:view',
   settings: 'settings:view',
   'device-map': 'devices:view',
   // P0 阶段新增
-  'route-planning': 'resource:dispatch',
+  // R11 P1-A5：后端 PathPlanningController 的进入条件是 resource:view（只读），
+  // 旧值 resource:dispatch 比后端更严，导致 expert / attendant 菜单可点但路由 403。
+  'route-planning': 'resource:view',
   'warning-resolve': 'warnings:close',
-  profile: 'settings:view',
   'confirmation-sign': 'confirmation:view',
   'confirmation-sign-event': 'confirmation:view',
   // P1 新增
@@ -170,9 +177,8 @@ const routePermissionMap = {
   'field-inspection': 'inspection:view',
   'personnel-manage': 'personnel:view',
   'mobile-command': 'overview:view',
-  'help-center': 'settings:view',
   'notification-channels': 'notice:view',
-  // 注册申请审核。后端判据是 hasRole('ADMIN')，前端用独立的 users:approve 权限码：
+  // 注册申请审核。后端已统一为 hasAuthority('users:approve')（R11 P1-A4）。
   // 该码只加在 ROLE_PERMISSION_MAP.admin，因此非 admin 走到这里会被拦到 403。
   'admin-applications': 'users:approve',
 }

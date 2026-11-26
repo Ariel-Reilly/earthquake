@@ -50,7 +50,9 @@ if (cur) roles.push([cur, buf]);
 
 const parsed = roles.map(([role, b]) => [
   role.replace(/-/g, "_"),
-  [...b.join(" ").matchAll(/'([a-z:]+)'/g)].map((m) => m[1]),
+  // R11 P1-A2：权限码允许连字符（inspection:gps-check）。
+  // 旧正则 [a-z:]+ 会把含 '-' 的码整条丢掉，导致前端有、后端 registry 无的幽灵权限。
+  [...b.join(" ").matchAll(/'([a-z][a-z:.-]*)'/g)].map((m) => m[1]),
 ]);
 
 if (parsed.length !== 7) {

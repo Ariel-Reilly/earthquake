@@ -97,7 +97,12 @@ INSERT INTO sys_dict (type, label, value, sort_order, description) VALUES
 ON CONFLICT DO NOTHING;
 
 -- =====================================================================
--- 2. 权限表 sys_permission（与前端 routePermissionMap 完全对应）
+-- 2. 权限表 sys_permission（数据字典，非运行期鉴权源）
+--   ⚠ 运行期鉴权唯一真相源是 backend PermissionRegistry（由
+--     scripts/fix/sync-permission-registry.mjs 从 frontend auth.js 生成）；
+--     本表与 sys_role_permission 没有任何 Java 消费方，仅用于运维/审计查阅。
+--     R11 P1-A1 起：新增或修改权限码时，必须同步本表，避免"表里有、代码不认"
+--     或"代码校验、表里查不到"的漂移误判。
 -- =====================================================================
 INSERT INTO sys_permission (code, name, type, route_path, sort_order) VALUES
 -- 综合态势 & 地图
@@ -227,7 +232,16 @@ INSERT INTO sys_permission (code, name, type, route_path, sort_order) VALUES
 ('plans:edit',          '编辑应急预案',          'OP',    '/dashboard/plans',       291),
 ('plans:launch',        '启动应急预案',          'OP',    '/dashboard/plans',       292),
 ('profile:view',        '查看个人中心',          'ROUTE', '/dashboard/profile',    300),
-('profile:edit',        '编辑个人中心',          'OP',    '/dashboard/profile',    301)
+('profile:edit',        '编辑个人中心',          'OP',    '/dashboard/profile',    301),
+-- R11 P1-A1 补齐：以下 5 个码是后端方法级 @PreAuthorize 实际校验的，
+-- 此前只存在于前端 ROLE_PERMISSION_MAP / 后端 PermissionRegistry，本表缺失，
+-- 导致「三源漂移」审计时被判为不一致。本表无 Java 消费方（鉴权读 PermissionRegistry），
+-- 此处仅作数据字典，但必须与实际校验码保持同集，否则运维按表排查会漏项。
+('rules:view',          '查看规则引擎',          'ROUTE', '/dashboard/rule-engine', 302),
+('rules:edit',          '编辑规则引擎',          'OP',    '/dashboard/rule-engine', 303),
+('users:approve',       '审核注册申请',          'OP',    '/dashboard/admin-applications', 304),
+('warnings:edit',       '编辑预警',              'OP',    '/dashboard/warnings',    305),
+('warnings:delete',     '删除预警',              'OP',    '/dashboard/warnings',    306)
 ON CONFLICT (code) DO NOTHING;
 
 -- =====================================================================
