@@ -106,6 +106,9 @@ find frontend/src backend ai-service -type f \( -name '*.vue' -o -name '*.js' -o
 
 ### 4.1 AI 服务 9 处 TODO（待实现点，非「裸清理」）
 
+> ⚠ 2026-11-27 更新：`03f8b5e` 漂移假绿修复删除了 `drift.py` 的 2 处 TODO（历史漂移记录加载 / 特征分布），
+> allowlist 已由 9 条调整为 7 条（`check-comments.mjs` 自检 7/7）。本节数字为**基线快照口径**（`47db7de`），保留历史对照。
+
 | 文件 | 行 | 内容摘要 | 关联边界 |
 |---|---|---|---|
 | `ai-service/app/routers/drift.py` | 112 | 从数据库加载历史漂移记录 | L-01 |

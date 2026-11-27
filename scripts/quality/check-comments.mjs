@@ -41,11 +41,11 @@ const TODO_RE = /\b(TODO|FIXME)\b/g
 const OWNED_RE = /\b(?:TODO|FIXME)\(\s*[^,()]+,\s*\d{4}-\d{2}-\d{2}\s*,\s*#?[^,()]+\s*\)/
 const LEGACY_RE = /^\s*\/\/\s*(public|private|protected|function|const|let|var|return|if|for|while|switch|import|export|class|new)\b/
 
-// AI 9 处已知待实现点（L-01 drift/multimodal、L-04 sentinel）。阶段 2 补 owner 后删除本表。
+// AI 7 处已知待实现点（L-01 drift/multimodal、L-04 sentinel）。阶段 2 补 owner 后删除本表。
 // matched 用于 --selfcheck 自检：每条必须命中 1 行。
+// 2026-11-27：drift 假绿修复删除了「从数据库加载历史漂移记录」「返回特征的详细分布信息」两处 TODO，
+//             同步移除这两条 allowlist，避免 --selfcheck 因失效条目阻断 CI。
 const ALLOWLIST = [
-  { file: 'ai-service/app/routers/drift.py', snippet: 'TODO: 从数据库加载历史漂移记录' },
-  { file: 'ai-service/app/routers/drift.py', snippet: 'TODO: 返回特征的详细分布信息' },
   { file: 'ai-service/app/routers/drift.py', snippet: 'TODO: 实际触发重训任务' },
   { file: 'ai-service/app/routers/drift.py', snippet: 'TODO: 从任务队列获取状态' },
   { file: 'ai-service/app/routers/multimodal.py', snippet: 'TODO: 按 event_id 从融合结果库加载真实记录' },

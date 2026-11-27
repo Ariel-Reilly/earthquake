@@ -55,7 +55,9 @@ export const WARNING_LEVEL_MAP_COLORS = {
  */
 export function normalizeWarningLevel(value) {
   const raw = String(value ?? '').trim()
-  if (!raw) return 'blue'
+  if (!raw) {
+    return 'blue'
+  }
 
   const lowered = raw.toLowerCase().replace(/[\s_-]/g, '')
   for (const tone of WARNING_LEVEL_TONES) {
@@ -64,7 +66,9 @@ export function normalizeWarningLevel(value) {
     }
   }
   for (const [tone, pattern] of TONE_BY_PATTERN) {
-    if (pattern.test(raw)) return tone
+    if (pattern.test(raw)) {
+      return tone
+    }
   }
   return 'blue'
 }
@@ -90,12 +94,16 @@ export function warningLevelLabel(value, { short = false } = {}) {
  */
 export function warningLevelRank(value) {
   const raw = String(value ?? '').trim()
-  if (!raw) return 0
+  if (!raw) {
+    return 0
+  }
   const tone = normalizeWarningLevel(raw)
   const recognized =
     TONE_BY_PATTERN.some(([, pattern]) => pattern.test(raw)) ||
     WARNING_LEVEL_TONES.includes(raw.toLowerCase().replace(/[\s_-]/g, ''))
-  if (!recognized) return 0
+  if (!recognized) {
+    return 0
+  }
   return WARNING_LEVEL_TONES.length - WARNING_LEVEL_TONES.indexOf(tone)
 }
 
