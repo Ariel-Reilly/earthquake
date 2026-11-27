@@ -5,7 +5,7 @@
  * 场景：
  *  A. allowlist 文件缺失 → --selfcheck 退出 1，并报「allowlist 失效」
  *  B. 片段重复命中     → --selfcheck 退出 1，并报「重复命中」
- *  C. 干净 fixture（9 条各命中一次）→ --warn --selfcheck 退出 0，输出 9/9；严格模式亦退出 0
+ *  C. 干净 fixture（7 条各命中一次）→ --warn --selfcheck 退出 0，输出 7/7；严格模式亦退出 0
  *  D. 真实仓库：--warn --selfcheck 退出 0；严格模式退出码与「裸标记数/自检」一致（状态无关）
  *  E. 过期 TODO：昨天 → 默认仅提醒(退出 0) / --strict-stale 退出 1；未来日期不报过期
  *
@@ -58,20 +58,18 @@ try {
   mkdirSync(join(B, 'ai-service/app/routers'), { recursive: true })
   writeFileSync(
     join(B, 'ai-service/app/routers/drift.py'),
-    '# TODO: 从数据库加载历史漂移记录\n# TODO: 从数据库加载历史漂移记录\n',
+    '# TODO: 实际触发重训任务\n# TODO: 实际触发重训任务\n',
   )
   const rb = run(['--selfcheck'], B)
   check('B 重复命中 → 退出 1', rb.status === 1, `status=${rb.status}`)
   check('B 重复命中 → 提示「重复命中」', /重复命中/.test(out(rb)))
 
-  // C. 干净 fixture（9 条各命中一次）
+  // C. 干净 fixture（7 条各命中一次，与当前 allowlist 一致）
   const C = join(base, 'c')
   mkdirSync(join(C, 'ai-service/app/routers'), { recursive: true })
   writeFileSync(
     join(C, 'ai-service/app/routers/drift.py'),
     [
-      '# TODO: 从数据库加载历史漂移记录',
-      '# TODO: 返回特征的详细分布信息',
       '# TODO: 实际触发重训任务',
       '# TODO: 从任务队列获取状态',
     ].join('\n') + '\n',
@@ -95,7 +93,7 @@ try {
   )
   const rc = run(['--warn', '--selfcheck'], C)
   check('C 干净 fixture → 退出 0', rc.status === 0, `status=${rc.status}`)
-  check('C 干净 fixture → 9/9 命中', /9\/9 命中/.test(rc.stdout))
+  check('C 干净 fixture → 7/7 命中', /7\/7 命中/.test(rc.stdout))
   const rcStrict = run(['--selfcheck'], C)
   check('C 干净 fixture 严格模式 → 0（模拟阶段1清零后）', rcStrict.status === 0, `status=${rcStrict.status}`)
 
